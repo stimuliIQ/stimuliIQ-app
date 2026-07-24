@@ -114,6 +114,7 @@ jest.mock("jose", () => {
 });
 
 // ─── Import providers AFTER jest.mock() is hoisted ───────────────────────────
+import { Test } from "@nestjs/testing";
 import type { StorageProvider } from "../../../storage/providers/storage/storage-provider.interface";
 import { NoopVideoProvider, DEFAULT_NOOP_WEBHOOK_SECRET } from "./noop-video.provider";
 import {
@@ -122,7 +123,8 @@ import {
   timingSafeEqualHex,
 } from "./cloudflare-stream-video.provider";
 import { MuxVideoProvider, parseMuxWebhookSignatureHeader } from "./mux-video.provider";
-import { DEFAULT_HLS_TTL_SECONDS } from "./video-provider.interface";
+import { DEFAULT_HLS_TTL_SECONDS, VIDEO_PROVIDER } from "./video-provider.interface";
+import { VideoProviderModule } from "./video-provider.module";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test constants (never real values)
@@ -181,6 +183,51 @@ function setTestEnvMux(overrides: Record<string, string | undefined> = {}): void
     MUX_WEBHOOK_SECRET: FAKE_MUX_WEBHOOK_SECRET,
     ...overrides,
   });
+}
+
+// Storage creds so the VideoProviderModule's imported StorageProviderModule binds a
+// (lazy) S3StorageProvider rather than boot-throwing on noop — isolates the boot-guard
+// tests below to the VIDEO_PROVIDER selector alone.
+const STORAGE_KEYS: Record<string, string> = {
+  STORAGE_PROVIDER: "r2",
+  STORAGE_BUCKET: "test-bucket",
+  STORAGE_REGION: "auto",
+  STORAGE_ACCESS_KEY_ID: "test-akid",
+  STORAGE_SECRET_ACCESS_KEY: "test-secret",
+  STORAGE_ENDPOINT: "https://test.r2.cloudflarestorage.com",
+};
+
+/**
+ * Boot the real VideoProviderModule through NestJS DI exactly as app boot does, with a
+ * controlled env, then resolve the VIDEO_PROVIDER token (which runs the factory guard).
+ * Restores process.env afterwards. Mirrors live-class-provider.spec.ts's bootWith.
+ */
+async function bootVideoModuleWith(env: Record<string, string | undefined>): Promise<void> {
+  const previous = { ...process.env };
+  for (const k of [
+    "VIDEO_PROVIDER",
+    "CLOUDFLARE_ACCOUNT_ID",
+    "CLOUDFLARE_STREAM_SIGNING_KEY_ID",
+    "CLOUDFLARE_STREAM_SIGNING_KEY_PEM",
+    "MUX_TOKEN_ID",
+    "MUX_TOKEN_SECRET",
+    "MUX_SIGNING_KEY_ID",
+    "MUX_SIGNING_KEY_PRIVATE",
+  ]) {
+    delete process.env[k];
+  }
+  Object.assign(process.env, REQUIRED_ENV, STORAGE_KEYS, env);
+  __resetEnvCacheForTests();
+  try {
+    const moduleRef = await Test.createTestingModule({
+      imports: [VideoProviderModule],
+    }).compile();
+    moduleRef.get(VIDEO_PROVIDER);
+    await moduleRef.close();
+  } finally {
+    process.env = previous;
+    __resetEnvCacheForTests();
+  }
 }
 
 function clearTestEnv(): void {
@@ -1136,5 +1183,51 @@ describe("MuxVideoProvider", () => {
     it("does NOT throw on unexpected payload shapes (defensive)", () => {
       expect(() => provider.parseTranscodeEvent({ type: "video.asset.ready" })).not.toThrow();
     });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Suite 5: VideoProviderModule — production boot guard (mirrors LiveClassProviderModule)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("VideoProviderModule — boot guard", () => {
+  it("BOOTS in production when VIDEO_PROVIDER=disabled (feature off, no video vendor needed)", async () => {
+    await expect(
+      bootVideoModuleWith({ NODE_ENV: "production", VIDEO_PROVIDER: "disabled" }),
+    ).resolves.not.toThrow();
+  });
+
+  it("THROWS in production when VIDEO_PROVIDER=noop (would serve FAKE signed HLS URLs)", async () => {
+    await expect(
+      bootVideoModuleWith({ NODE_ENV: "production", VIDEO_PROVIDER: "noop" }),
+    ).rejects.toThrow(/FAKE signed HLS/i);
+  });
+
+  it("THROWS in production when VIDEO_PROVIDER is unset (defaults to noop)", async () => {
+    await expect(bootVideoModuleWith({ NODE_ENV: "production" })).rejects.toThrow(/FAKE signed HLS/i);
+  });
+
+  it("THROWS in production when cloudflare_stream is selected but keys are missing", async () => {
+    await expect(
+      bootVideoModuleWith({ NODE_ENV: "production", VIDEO_PROVIDER: "cloudflare_stream" }),
+    ).rejects.toThrow(/environment variables are not set/i);
+  });
+
+  it("BOOTS in production when cloudflare_stream is selected with all signing keys present", async () => {
+    await expect(
+      bootVideoModuleWith({
+        NODE_ENV: "production",
+        VIDEO_PROVIDER: "cloudflare_stream",
+        CLOUDFLARE_ACCOUNT_ID: "acct-test",
+        CLOUDFLARE_STREAM_SIGNING_KEY_ID: "kid-test",
+        CLOUDFLARE_STREAM_SIGNING_KEY_PEM: "-----BEGIN PRIVATE KEY-----\nZmFrZQ==\n-----END PRIVATE KEY-----",
+      }),
+    ).resolves.not.toThrow();
+  });
+
+  it("BOOTS outside production when VIDEO_PROVIDER=disabled", async () => {
+    await expect(
+      bootVideoModuleWith({ NODE_ENV: "development", APP_ENV: "local", VIDEO_PROVIDER: "disabled" }),
+    ).resolves.not.toThrow();
   });
 });

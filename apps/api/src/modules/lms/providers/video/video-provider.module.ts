@@ -7,6 +7,7 @@
 //   VIDEO_PROVIDER=noop              → NoopVideoProvider   (DEFAULT — safe for local dev + tests)
 //   VIDEO_PROVIDER=cloudflare_stream → CloudflareStreamVideoProvider
 //   VIDEO_PROVIDER=mux               → MuxVideoProvider
+//   VIDEO_PROVIDER=disabled          → NoopVideoProvider   (feature OFF — no prod boot-throw)
 //   (absent / unrecognised)          → NoopVideoProvider   (fail-safe default, warning logged)
 //
 // This mirrors the PaymentProviderModule pattern from P2
@@ -152,6 +153,17 @@ function createVideoProvider(storage: StorageProvider): VideoProvider {
         }),
         () => new MuxVideoProvider(),
       );
+
+    case "disabled":
+      // Recorded-video feature is turned OFF (mirrors LIVE_CLASS_PROVIDER=disabled). Bind
+      // Noop with NO production boot-throw — no Mux/Cloudflare Stream credentials required.
+      // Signed-HLS endpoints stay registered but dormant; use ONLY when no recorded video
+      // is served yet. Flip to cloudflare_stream|mux (with keys) to enable it.
+      bootLogger.log(
+        "[VideoProviderModule] VIDEO_PROVIDER=disabled — recorded-video feature is off. " +
+          "Binding NoopVideoProvider (signed-HLS endpoints dormant; no video vendor needed).",
+      );
+      return new NoopVideoProvider({ storage });
 
     case "noop":
       if (isProd) {

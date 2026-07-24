@@ -283,7 +283,12 @@ const envSchema = z.object({
   //   MUX_SIGNING_KEY_PRIVATE — PKCS#8 PEM private key (raw or base64 as Mux provides).
   //   MUX_WEBHOOK_SECRET    — secret for HMAC-SHA256 Mux-Signature header verification.
   //     FAIL CLOSED when absent: verifyWebhookSignature returns false (rejects all webhooks).
-  VIDEO_PROVIDER: z.enum(["noop", "cloudflare_stream", "mux"]).default("noop"),
+  //
+  // "disabled" turns the recorded-video feature OFF (mirrors LIVE_CLASS_PROVIDER=disabled):
+  // binds Noop WITHOUT the production boot-throw, so no Mux/Cloudflare Stream account is
+  // required. Signed-HLS endpoints stay registered but dormant — use this ONLY when no
+  // recorded video is served yet. Flip to cloudflare_stream|mux (with keys) to enable it.
+  VIDEO_PROVIDER: z.enum(["noop", "cloudflare_stream", "mux", "disabled"]).default("noop"),
 
   // Cloudflare Stream keys (all optional — provider is noop/fail-closed without them)
   CLOUDFLARE_ACCOUNT_ID: z.string().optional(),

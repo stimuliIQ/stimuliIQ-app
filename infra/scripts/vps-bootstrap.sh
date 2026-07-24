@@ -100,7 +100,9 @@ fi
 
 log "Done — versions"
 node -v
-sudo -u "$DEPLOY_USER" -H bash -lc 'pnpm -v'
+# Run the deploy-user pnpm check from a dir it can read: corepack walks up from CWD
+# looking for a package.json, and /root is mode 700 (EACCES) when CWD is left there.
+sudo -u "$DEPLOY_USER" -H bash -lc 'cd /srv && pnpm -v' || warn "deploy pnpm version check skipped (non-fatal)"
 nginx -v
 pm2 -v
 
