@@ -1,0 +1,27 @@
+{
+  "name": "@repo/config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared eslint, tsconfig, and tailwind presets for the stimuliiq monorepo",
+  "license": "UNLICENSED",
+  "files": [
+    "tsconfig",
+    "eslint",
+    "tailwind"
+  ],
+  "exports": {
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig/nextjs.json": "./tsconfig/nextjs.json",
+    "./tsconfig/react-library.json": "./tsconfig/react-library.json",
+    "./tsconfig/node.json": "./tsconfig/node.json",
+    "./eslint/base": "./eslint/base.js",
+    "./eslint/next": "./eslint/next.js",
+    "./eslint/node": "./eslint/node.js",
+    "./tailwind/preset": "./tailwind/preset.js"
+  },
+  "scripts": {
+    "lint": "echo \"@repo/config: nothing to lint\"",
+    "build": "echo \"@repo/config: nothing to build\"",
+    "test": "echo \"@repo/config: nothing to test\""
+  }
+}

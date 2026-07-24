@@ -1,0 +1,42 @@
+[
+  {
+    "type": "hero",
+    "data": {
+      "variant": "centered",
+      "headline": "For Colleges",
+      "headlineHighlight": "Colleges",
+      "subheadline": "Partner with us to give your students industry-grade training and placement support."
+    }
+  },
+  {
+    "type": "feature_grid",
+    "data": {
+      "variant": "cards",
+      "columns": "2",
+      "items": [
+        { "iconKey": "lms", "title": "Campus Training Programs", "description": "Tailored 8–16 week programs delivered on-campus or hybrid. We handle curriculum, mentors, and assessments." },
+        { "iconKey": "placement", "title": "Placement Drives", "description": "Connect your students with our 150+ hiring partners. We run dedicated placement drives for partner colleges." },
+        { "iconKey": "certificate", "title": "Internship Certification", "description": "Students earn verifiable StimuliiQ certificates recognised across India's tech industry." },
+        { "iconKey": "mentor", "title": "Faculty Development", "description": "Upskill your faculty with our industry-grade curriculum workshops and teaching resources." }
+      ]
+    }
+  },
+  {
+    "type": "live_collection_ref",
+    "data": {
+      "collection": "partners",
+      "heading": { "title": "Our Partner Colleges", "titleHighlight": "Partner Colleges", "subtitle": "Trusted by leading colleges and universities across India for industry-grade training." },
+      "layout": "grid-3",
+      "selection": { "category": "college_partner", "limit": 12, "sort": "order" }
+    }
+  },
+  {
+    "type": "cta_band",
+    "data": {
+      "heading": "Ready to partner with us?",
+      "subheading": "Email our college partnerships team or schedule a call to discuss your institution's needs.",
+      "background": "surface",
+      "buttons": [{ "label": "Contact College Partnerships Team", "href": "mailto:colleges@stimuliiq.com", "style": "primary" }]
+    }
+  }
+]

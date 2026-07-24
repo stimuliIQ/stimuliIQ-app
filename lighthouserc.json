@@ -1,0 +1,41 @@
+{
+  "$schema": "https://raw.githubusercontent.com/GoogleChrome/lighthouse-ci/main/docs/configuration.schema.json",
+  "ci": {
+    "collect": {
+      "staticDistDir": "./apps/web/.next",
+      "url": [
+        "http://localhost:3000/",
+        "http://localhost:3000/programs",
+        "http://localhost:3000/pricing"
+      ],
+      "startServerCommand": "pnpm --filter=@stimuliiq/web start",
+      "startServerReadyPattern": "started server on",
+      "startServerReadyTimeout": 30000,
+      "numberOfRuns": 3,
+      "settings": {
+        "preset": "desktop",
+        "throttlingMethod": "simulate",
+        "onlyCategories": ["performance", "seo", "accessibility", "best-practices"]
+      }
+    },
+    "assert": {
+      "preset": "lighthouse:no-pwa",
+      "assertions": {
+        "categories:seo": ["error", { "minScore": 0.95 }],
+        "categories:accessibility": ["warn", { "minScore": 0.90 }],
+        "categories:best-practices": ["warn", { "minScore": 0.85 }],
+        "largest-contentful-paint": ["warn", { "maxNumericValue": 2000 }],
+        "total-blocking-time": ["warn", { "maxNumericValue": 300 }],
+        "cumulative-layout-shift": ["warn", { "maxNumericValue": 0.1 }],
+        "first-contentful-paint": ["warn", { "maxNumericValue": 2000 }],
+        "interactive": ["warn", { "maxNumericValue": 4000 }],
+        "uses-optimized-images": "off",
+        "uses-webp-images": "off",
+        "offscreen-images": "off"
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    }
+  }
+}

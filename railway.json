@@ -1,0 +1,15 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "_comment": "Railway service config for @stimuliiq/api — Phase-7 Wave 4 (devops CI hardening), CLAUDE.md §1 'Railway for MVP'. Kept at the repo root so Railway auto-discovers it (Railway looks for railway.json/railway.toml at the project root by default). Build context is the repo root (monorepo-aware); see infra/docker/api.Dockerfile's own header comment for the multi-stage build rationale. Runtime env vars (SENTRY_DSN, OTEL_EXPORTER_OTLP_ENDPOINT, METRICS_TOKEN, DATABASE_URL, etc. — see .env.example) are configured as persistent Railway SERVICE VARIABLES in the dashboard, not in this file (this file has no facility for secrets, by design). ECS Fargate (infra/ecs/task-definition.json) remains the documented scale-out target if/when Railway is outgrown.",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "infra/docker/api.Dockerfile"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "healthcheckPath": "/api/v1/health/ready",
+    "healthcheckTimeout": 10,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 5
+  }
+}

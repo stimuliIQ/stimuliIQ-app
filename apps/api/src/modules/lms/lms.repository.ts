@@ -1,0 +1,1331 @@
+// apps/api/src/modules/lms/lms.repository.ts
+//
+// Prisma data-access layer for the LMS content + stream-url module (docs/04 §2.1:
+// "repository — data access only, no business logic"). All business logic lives in
+// lms.service.ts. All queries are tenant-scoped from the caller's tenantId (CLAUDE.md §3).
+//
+// The enrollment-scope gate (resolveEnrollmentForLesson) is in lms.service.ts.
+// This repository only performs the raw DB queries needed by the service.
+//
+// Soft-delete: PrismaService.client has the softDeleteExtension applied — any query
+// without `deletedAt: undefined` automatically filters out soft-deleted rows. We rely
+// on this global filter; we only pass `deletedAt: undefined` when we intentionally
+// want to include soft-deleted rows.
+
+import { Injectable } from "@nestjs/common";
+import type { Prisma, VideoStatus, AttendanceSource, AttendanceStatus } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+
+// ─── Row types for service layer consumption ─────────────────────────────────
+
+export interface LessonRow {
+  id: string;
+  moduleId: string;
+  title: string;
+  type: "video" | "reading" | "assignment" | "quiz";
+  order: number;
+  content: string | null;
+  isPreview: boolean;
+  module: {
+    id: string;
+    title: string;
+    order: number;
+    program: {
+      id: string;
+      title: string;
+      slug: string;
+      durationWeeks: number | null;
+      level: string | null;
+      domain: string;
+    };
+  };
+  video: VideoRow | null;
+  resources: ResourceRow[];
+}
+
+export interface VideoRow {
+  id: string;
+  lessonId: string;
+  provider: string;
+  providerAssetId: string | null;
+  durationS: number | null;
+  status: VideoStatus;
+  captions: unknown;
+}
+
+export interface ResourceRow {
+  id: string;
+  title: string;
+  type: string;
+  size: number | null;
+  // storage_key is NOT included — never exposed to the client.
+}
+
+export interface EnrollmentRow {
+  id: string;
+  tenantId: string;
+  studentId: string;
+  batchId: string;
+  programId: string;
+  status: "active" | "completed" | "dropped";
+  progressPct: number;
+  enrolledAt: Date;
+  completedAt: Date | null;
+  source: "manual" | "order" | "conversion";
+  batch: {
+    id: string;
+    name: string;
+    startDate: Date;
+    endDate: Date | null;
+  };
+  program: {
+    id: string;
+    title: string;
+    slug: string;
+    domain: string;
+    level: string | null;
+    durationWeeks: number | null;
+    mode: "live" | "recorded" | "hybrid";
+    // Raw storage key of the course-card image. The service mints a public CDN
+    // URL from it — the key itself is NEVER returned to the client.
+    ogImageKey: string | null;
+  };
+}
+
+export interface LessonProgressRow {
+  id: string;
+  enrollmentId: string;
+  lessonId: string;
+  status: "not_started" | "in_progress" | "completed";
+  lastPositionS: number;
+  completedAt: Date | null;
+  updatedAt: Date;
+}
+
+@Injectable()
+export class LmsRepository {
+  constructor(private readonly prisma: PrismaService) {}
+
+  // ─── LESSON QUERIES ──────────────────────────────────────────────────────
+
+  /**
+   * Find a lesson with its full context (module → program, video, resources).
+   * Used by the enrollment gate and lesson-detail endpoint.
+   * Never exposes storage_key of resources.
+   *
+   * TENANT-SCOPED (Wave 7 security M-1): the lookup is constrained to the caller's
+   * tenant via `module.program.tenantId`. This closes a cross-tenant leak on the
+   * PREVIEW path — an unscoped `where:{id}` would let an authenticated student in
+   * tenant A resolve (and mint a stream-url for) a preview lesson belonging to
+   * tenant B. The enrolled path was already tenant-safe via the enrollment lookup;
+   * this makes the gate tenant-safe for BOTH paths.
+   */
+  async findLessonById(tenantId: string, lessonId: string): Promise<LessonRow | null> {
+    const row = await this.prisma.client.lesson.findFirst({
+      where: { id: lessonId, module: { program: { tenantId } } },
+      include: {
+        module: {
+          include: {
+            program: {
+              select: { id: true, title: true, slug: true, durationWeeks: true, level: true, domain: true },
+            },
+          },
+        },
+        video: {
+          select: {
+            id: true,
+            lessonId: true,
+            provider: true,
+            providerAssetId: true,
+            durationS: true,
+            status: true,
+            captions: true,
+          },
+        },
+        resources: {
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            size: true,
+            // storageKey intentionally excluded — never returned to client.
+          },
+          where: { deletedAt: null },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+    if (!row) return null;
+    return toLessonRow(row);
+  }
+
+  /**
+   * Get adjacent lesson IDs (prev/next) in curriculum order within the same module.
+   */
+  async findAdjacentLessons(
+    moduleId: string,
+    currentOrder: number,
+  ): Promise<{ prevId: string | null; nextId: string | null }> {
+    const [prev, next] = await Promise.all([
+      this.prisma.client.lesson.findFirst({
+        where: { moduleId, order: { lt: currentOrder } },
+        orderBy: { order: "desc" },
+        select: { id: true },
+      }),
+      this.prisma.client.lesson.findFirst({
+        where: { moduleId, order: { gt: currentOrder } },
+        orderBy: { order: "asc" },
+        select: { id: true },
+      }),
+    ]);
+    return { prevId: prev?.id ?? null, nextId: next?.id ?? null };
+  }
+
+  /**
+   * Find a single resource attached to a lesson, INCLUDING storageKey (unlike
+   * findLessonById's resource projection, which deliberately excludes it).
+   * Used ONLY by the download-url mint path — never returned in any list/detail DTO.
+   * TENANT-SCOPED via the lesson→module→program chain (mirrors findLessonById).
+   */
+  async findResourceById(
+    tenantId: string,
+    lessonId: string,
+    resourceId: string,
+  ): Promise<{ id: string; title: string; type: string; storageKey: string } | null> {
+    const row = await this.prisma.client.resource.findFirst({
+      where: { id: resourceId, lessonId, deletedAt: null, lesson: { module: { program: { tenantId } } } },
+      select: { id: true, title: true, type: true, storageKey: true },
+    });
+    return row ?? null;
+  }
+
+  // ─── ENROLLMENT QUERIES ──────────────────────────────────────────────────
+
+  /**
+   * Find the student profile id for a given userId + tenantId.
+   * Used to resolve userId → studentId for enrollment queries.
+   */
+  async findStudentProfileId(tenantId: string, userId: string): Promise<string | null> {
+    const row = await this.prisma.client.studentProfile.findFirst({
+      where: { tenantId, userId },
+      select: { id: true },
+    });
+    return row?.id ?? null;
+  }
+
+  /**
+   * Find the faculty profile id for a given userId + tenantId. Used by the CRM
+   * attendance-editor's "assigned" scope check (staff correcting their own batch's
+   * attendance) — mirrors certificates.repository.ts's identically-named method.
+   */
+  async findFacultyProfileId(tenantId: string, userId: string): Promise<string | null> {
+    const row = await this.prisma.client.facultyProfile.findFirst({
+      where: { tenantId, userId },
+      select: { id: true },
+    });
+    return row?.id ?? null;
+  }
+
+  /**
+   * Staff-scope enrollment lookup (unlike findEnrollmentByIdForStudent, NOT scoped to a
+   * single student — the CRM attendance editor looks up ANY enrollment by id, then the
+   * service layer applies the "assigned" scope check via EnrollmentScopeRepository).
+   * TENANT-SCOPED. Returns null (caller 404s — no existence disclosure) if not found.
+   */
+  async findEnrollmentForStaff(
+    tenantId: string,
+    enrollmentId: string,
+  ): Promise<{ id: string; batchId: string; studentId: string; programId: string } | null> {
+    const row = await this.prisma.client.enrollment.findFirst({
+      where: { id: enrollmentId, tenantId, deletedAt: null },
+      select: { id: true, batchId: true, studentId: true, programId: true },
+    });
+    return row ?? null;
+  }
+
+  /**
+   * Verify a lesson belongs to the given tenant + (indirectly) to the enrollment's
+   * program, via the module→program chain. Used by the CRM attendance editor to reject
+   * a lessonId that does not belong to the enrollment's program (defense-in-depth; the
+   * FK alone would allow any tenant lesson).
+   */
+  async findLessonProgramId(tenantId: string, lessonId: string): Promise<string | null> {
+    const row = await this.prisma.client.lesson.findFirst({
+      where: { id: lessonId, module: { program: { tenantId } } },
+      select: { module: { select: { programId: true } } },
+    });
+    return row?.module.programId ?? null;
+  }
+
+  /**
+   * CRM attendance-editor write: staff sets/corrects a student's attendance for a
+   * (enrollment, lesson) pair. find-then-create/update on the SAME dedup key as the
+   * student self-service completion path (enrollment_id, lesson_id, source='recorded')
+   * — a staff correction supersedes (never duplicates) the auto-recorded row. Uses the
+   * AUDITED client (Attendance IS in AUDITED_MODELS — create/update both write an
+   * audit_logs row automatically, see apps/api/src/prisma/audit.extension.ts).
+   */
+  async upsertAttendanceForStaff(args: {
+    tenantId: string;
+    enrollmentId: string;
+    lessonId: string;
+    status: AttendanceStatus;
+  }): Promise<{ id: string; enrollmentId: string; lessonId: string | null; status: AttendanceStatus; source: AttendanceSource; markedAt: Date }> {
+    const existing = await this.prisma.client.attendance.findFirst({
+      where: { enrollmentId: args.enrollmentId, lessonId: args.lessonId, source: "recorded" },
+      select: { id: true },
+    });
+
+    const row = existing
+      ? await this.prisma.client.attendance.update({
+          where: { id: existing.id },
+          data: { status: args.status, markedAt: new Date() },
+        })
+      : await this.prisma.client.attendance.create({
+          data: {
+            tenantId: args.tenantId,
+            enrollmentId: args.enrollmentId,
+            lessonId: args.lessonId,
+            status: args.status,
+            source: "recorded",
+            markedAt: new Date(),
+          },
+        });
+
+    return { id: row.id, enrollmentId: row.enrollmentId, lessonId: row.lessonId, status: row.status, source: row.source, markedAt: row.markedAt };
+  }
+
+  /**
+   * Find a student's active enrollment in a specific program.
+   * Returns null if the student is not actively enrolled.
+   */
+  async findActiveEnrollmentForProgram(
+    tenantId: string,
+    studentId: string,
+    programId: string,
+  ): Promise<EnrollmentRow | null> {
+    const row = await this.prisma.client.enrollment.findFirst({
+      where: {
+        tenantId,
+        studentId,
+        programId,
+        status: "active",
+      },
+      include: {
+        batch: {
+          select: { id: true, name: true, startDate: true, endDate: true },
+        },
+        program: {
+          select: { id: true, title: true, slug: true, domain: true, level: true, durationWeeks: true, mode: true, ogImageKey: true },
+        },
+      },
+    });
+    if (!row) return null;
+    return toEnrollmentRow(row);
+  }
+
+  /**
+   * Find a specific enrollment by ID, verifying it belongs to the given student.
+   * Used for IDOR prevention on /me/enrollments/:id.
+   */
+  async findEnrollmentByIdForStudent(
+    tenantId: string,
+    enrollmentId: string,
+    studentId: string,
+  ): Promise<EnrollmentRow | null> {
+    const row = await this.prisma.client.enrollment.findFirst({
+      where: { id: enrollmentId, tenantId, studentId },
+      include: {
+        batch: {
+          select: { id: true, name: true, startDate: true, endDate: true },
+        },
+        program: {
+          select: { id: true, title: true, slug: true, domain: true, level: true, durationWeeks: true, mode: true, ogImageKey: true },
+        },
+      },
+    });
+    if (!row) return null;
+    return toEnrollmentRow(row);
+  }
+
+  /**
+   * List all enrollments for a student (for /me/enrollments).
+   */
+  async listEnrollmentsForStudent(
+    tenantId: string,
+    studentId: string,
+    filters: { status?: "active" | "completed" | "dropped"; page: number; pageSize: number },
+  ): Promise<{ rows: EnrollmentRow[]; total: number }> {
+    const where: Prisma.EnrollmentWhereInput = {
+      tenantId,
+      studentId,
+      ...(filters.status ? { status: filters.status } : {}),
+    };
+
+    const [rows, total] = await Promise.all([
+      this.prisma.client.enrollment.findMany({
+        where,
+        include: {
+          batch: { select: { id: true, name: true, startDate: true, endDate: true } },
+          program: { select: { id: true, title: true, slug: true, domain: true, level: true, durationWeeks: true, mode: true, ogImageKey: true } },
+        },
+        orderBy: { enrolledAt: "desc" },
+        skip: (filters.page - 1) * filters.pageSize,
+        take: filters.pageSize,
+      }),
+      this.prisma.client.enrollment.count({ where }),
+    ]);
+
+    return { rows: rows.map(toEnrollmentRow), total };
+  }
+
+  // ─── CURRICULUM QUERIES ──────────────────────────────────────────────────
+
+  /**
+   * Get the full curriculum tree for a program (modules → lessons → video meta).
+   * Ordered by module.order then lesson.order.
+   */
+  async getCurriculumForProgram(tenantId: string, programId: string): Promise<CurriculumProgramRow | null> {
+    // tenantId used in program lookup to ensure isolation.
+    const program = await this.prisma.client.program.findFirst({
+      where: { id: programId, tenantId },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        modules: {
+          where: { deletedAt: null },
+          orderBy: { order: "asc" },
+          select: {
+            id: true,
+            title: true,
+            order: true,
+            lessons: {
+              where: { deletedAt: null },
+              orderBy: { order: "asc" },
+              select: {
+                id: true,
+                title: true,
+                type: true,
+                order: true,
+                isPreview: true,
+                video: {
+                  select: { status: true, durationS: true, captions: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    return program;
+  }
+
+  /**
+   * Get lesson progress rows for an enrollment (for curriculum embedding).
+   */
+  async getLessonProgressForEnrollment(
+    enrollmentId: string,
+  ): Promise<LessonProgressRow[]> {
+    const rows = await this.prisma.client.lessonProgress.findMany({
+      where: { enrollmentId },
+      select: {
+        id: true,
+        enrollmentId: true,
+        lessonId: true,
+        status: true,
+        lastPositionS: true,
+        completedAt: true,
+        updatedAt: true,
+      },
+    });
+    return rows.map((r) => ({ ...r, status: r.status as LessonProgressRow["status"] }));
+  }
+
+  /**
+   * Get the lesson progress row for a single (enrollment, lesson) pair.
+   */
+  async getLessonProgress(
+    enrollmentId: string,
+    lessonId: string,
+  ): Promise<LessonProgressRow | null> {
+    const row = await this.prisma.client.lessonProgress.findFirst({
+      where: { enrollmentId, lessonId },
+      select: {
+        id: true,
+        enrollmentId: true,
+        lessonId: true,
+        status: true,
+        lastPositionS: true,
+        completedAt: true,
+        updatedAt: true,
+      },
+    });
+    if (!row) return null;
+    return { ...row, status: row.status as LessonProgressRow["status"] };
+  }
+
+  // ─── DASHBOARD QUERIES ───────────────────────────────────────────────────
+
+  /**
+   * Get the most-recent in-progress lesson progress row for a student across all enrollments.
+   * Used for the continue-learning rail.
+   */
+  async getMostRecentInProgressLesson(
+    tenantId: string,
+    studentId: string,
+  ): Promise<MostRecentProgressRow | null> {
+    // Join lesson_progress → enrollment (scoped to studentId) → lesson → module → program.
+    const row = await this.prisma.client.lessonProgress.findFirst({
+      where: {
+        tenantId,
+        status: "in_progress",
+        enrollment: { studentId, tenantId },
+      },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        lessonId: true,
+        lastPositionS: true,
+        status: true,
+        updatedAt: true,
+        enrollment: {
+          select: { id: true, programId: true },
+        },
+        lesson: {
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            module: {
+              select: {
+                id: true,
+                title: true,
+                program: { select: { id: true, title: true } },
+              },
+            },
+            video: { select: { durationS: true } },
+          },
+        },
+      },
+    });
+    return row as MostRecentProgressRow | null;
+  }
+
+  /**
+   * Count total and completed lessons for a program (for rollup).
+   */
+  async countLessonsForProgram(programId: string): Promise<number> {
+    return this.prisma.client.lesson.count({
+      where: { module: { programId }, deletedAt: null },
+    });
+  }
+
+  /**
+   * Count completed lesson_progress rows for an enrollment.
+   */
+  async countCompletedLessonsForEnrollment(enrollmentId: string): Promise<number> {
+    return this.prisma.client.lessonProgress.count({
+      where: { enrollmentId, status: "completed" },
+    });
+  }
+
+  /**
+   * Get the next not-started lesson for an enrollment (for upcoming lessons rail).
+   */
+  async getNextUnstartedLesson(
+    programId: string,
+    enrollmentId: string,
+    completedLessonIds: Set<string>,
+  ): Promise<NextLessonRow | null> {
+    // Get all lessons ordered by module.order then lesson.order.
+    const lessons = await this.prisma.client.lesson.findMany({
+      where: {
+        module: { programId },
+        deletedAt: null,
+      },
+      orderBy: [
+        { module: { order: "asc" } },
+        { order: "asc" },
+      ],
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        order: true,
+        module: { select: { id: true, title: true, order: true } },
+        video: { select: { durationS: true, status: true } },
+      },
+    });
+
+    // Return the first lesson that is NOT completed.
+    for (const lesson of lessons) {
+      if (!completedLessonIds.has(lesson.id)) {
+        return {
+          id: lesson.id,
+          title: lesson.title,
+          type: lesson.type as "video" | "reading" | "assignment" | "quiz",
+          order: lesson.order,
+          moduleId: lesson.module.id,
+          moduleTitle: lesson.module.title,
+          durationS: lesson.video?.durationS ?? null,
+          hasVideo: lesson.video?.status === "ready",
+        };
+      }
+    }
+    return null;
+  }
+
+  // ─── VIDEO QUERIES ───────────────────────────────────────────────────────
+
+  /**
+   * Find a video by its provider asset id (used by the webhook processor).
+   * Tenant-agnostic — the webhook does not carry a tenant_id; provider_asset_id is globally unique.
+   */
+  async findVideoByProviderAssetId(
+    providerAssetId: string,
+  ): Promise<{ id: string; status: VideoStatus; durationS: number | null } | null> {
+    const row = await this.prisma.client.video.findFirst({
+      where: { providerAssetId },
+      select: { id: true, status: true, durationS: true },
+    });
+    return row;
+  }
+
+  /**
+   * Find the video for a specific lesson (used in stream-url minting).
+   * Returns null if the lesson has no video or it is soft-deleted.
+   */
+  async findVideoForLesson(
+    lessonId: string,
+  ): Promise<VideoRow | null> {
+    const row = await this.prisma.client.video.findFirst({
+      where: { lessonId },
+      select: {
+        id: true,
+        lessonId: true,
+        provider: true,
+        providerAssetId: true,
+        durationS: true,
+        status: true,
+        captions: true,
+      },
+    });
+    return row ?? null;
+  }
+
+  /**
+   * Update a video's transcode status (and optionally duration_s). Used by the webhook.
+   * Uses the AUDITED prisma client so the status change is recorded in audit_logs.
+   */
+  async updateVideoTranscodeStatus(
+    videoId: string,
+    update: { status: VideoStatus; durationS?: number },
+  ): Promise<void> {
+    await this.prisma.client.video.update({
+      where: { id: videoId },
+      data: {
+        status: update.status,
+        ...(update.durationS !== undefined ? { durationS: update.durationS } : {}),
+      },
+    });
+  }
+
+  // ─── STUDENT USER QUERIES ────────────────────────────────────────────────
+
+  /**
+   * Get the student's display name and user id for watermark construction.
+   */
+  async getStudentDisplayInfo(
+    userId: string,
+  ): Promise<{ name: string; id: string } | null> {
+    const row = await this.prisma.client.user.findFirst({
+      where: { id: userId },
+      select: { id: true, name: true },
+    });
+    return row;
+  }
+
+  // ─── PROGRESS WRITES (Wave 4b) ───────────────────────────────────────────
+
+  /**
+   * POSITION PING — upserts lesson_progress (enrollment_id, lesson_id).
+   *
+   * Uses the NON-AUDITED (base) client because this is called on every player
+   * heartbeat (throttled every 5-10 s). Writing an audit row on each ping would
+   * produce thousands of audit_logs rows per session. The db-architect's decision
+   * (audit.extension.ts §LessonProgress) is: position-ping → base client (no audit);
+   * completion transition → audited client.
+   *
+   * Transitions:
+   *   - not_started → in_progress  (status upgraded on first ping)
+   *   - in_progress → in_progress  (position updated, status unchanged)
+   *   - completed  → completed     (position updated, status NOT downgraded — never regress)
+   *
+   * Returns the upserted row (for ProgressResponse construction).
+   */
+  async upsertProgressPing(args: {
+    tenantId: string;
+    enrollmentId: string;
+    lessonId: string;
+    lastPositionS: number;
+  }): Promise<LessonProgressRow> {
+    // We use the base (non-audited) client for this high-frequency path.
+    // Prisma does not have a native upsert-with-conditional-status-update, so we
+    // do a two-phase findFirst + create/update. The UNIQUE(enrollment_id, lesson_id)
+    // constraint prevents duplicate rows even under concurrent pings.
+    const existing = await this.prisma.baseClient.lessonProgress.findFirst({
+      where: { enrollmentId: args.enrollmentId, lessonId: args.lessonId },
+      select: {
+        id: true,
+        enrollmentId: true,
+        lessonId: true,
+        status: true,
+        lastPositionS: true,
+        completedAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!existing) {
+      // First ping — create with status=in_progress.
+      const created = await this.prisma.baseClient.lessonProgress.create({
+        data: {
+          tenantId: args.tenantId,
+          enrollmentId: args.enrollmentId,
+          lessonId: args.lessonId,
+          status: "in_progress",
+          lastPositionS: args.lastPositionS,
+        },
+        select: {
+          id: true,
+          enrollmentId: true,
+          lessonId: true,
+          status: true,
+          lastPositionS: true,
+          completedAt: true,
+          updatedAt: true,
+        },
+      });
+      return { ...created, status: created.status as LessonProgressRow["status"] };
+    }
+
+    // Row exists — update position. Never downgrade status from completed.
+    const newStatus = existing.status === "not_started" ? "in_progress" : existing.status;
+    const updated = await this.prisma.baseClient.lessonProgress.update({
+      where: { id: existing.id },
+      data: {
+        lastPositionS: args.lastPositionS,
+        status: newStatus,
+      },
+      select: {
+        id: true,
+        enrollmentId: true,
+        lessonId: true,
+        status: true,
+        lastPositionS: true,
+        completedAt: true,
+        updatedAt: true,
+      },
+    });
+    return { ...updated, status: updated.status as LessonProgressRow["status"] };
+  }
+
+  /**
+   * COMPLETION — upserts lesson_progress to completed + creates recorded attendance.
+   * Called inside a $transaction on the AUDITED client (PrismaService.client).
+   *
+   * This method receives a transactional prisma client (tx) from the service's
+   * $transaction call and uses it for all writes, so both the progress update and
+   * the attendance upsert are atomically committed together.
+   *
+   * Returns the final lesson_progress row.
+   */
+  async markLessonCompleted(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma extended client $transaction typing limitation (pattern from commerce.repository.ts)
+    tx: Prisma.TransactionClient | any,
+    args: {
+      tenantId: string;
+      enrollmentId: string;
+      lessonId: string;
+    },
+  ): Promise<LessonProgressRow> {
+    const now = new Date();
+
+    // Upsert lesson_progress: create or update to completed.
+    // Using findFirst + create/update (same as ping path) — Prisma's upsert requires
+    // both create + update, and the compound unique key is what we check.
+    const existing = await tx.lessonProgress.findFirst({
+      where: { enrollmentId: args.enrollmentId, lessonId: args.lessonId },
+      select: { id: true, status: true, completedAt: true },
+    });
+
+    let progress: LessonProgressRow;
+    if (!existing) {
+      const created = await tx.lessonProgress.create({
+        data: {
+          tenantId: args.tenantId,
+          enrollmentId: args.enrollmentId,
+          lessonId: args.lessonId,
+          status: "completed",
+          lastPositionS: 0,
+          completedAt: now,
+        },
+        select: {
+          id: true,
+          enrollmentId: true,
+          lessonId: true,
+          status: true,
+          lastPositionS: true,
+          completedAt: true,
+          updatedAt: true,
+        },
+      });
+      progress = { ...created, status: "completed" };
+    } else if (existing.status !== "completed") {
+      // Only update if not already completed (idempotency — avoid overwriting completedAt).
+      const updated = await tx.lessonProgress.update({
+        where: { id: existing.id },
+        data: { status: "completed", completedAt: now },
+        select: {
+          id: true,
+          enrollmentId: true,
+          lessonId: true,
+          status: true,
+          lastPositionS: true,
+          completedAt: true,
+          updatedAt: true,
+        },
+      });
+      progress = { ...updated, status: "completed" };
+    } else {
+      // Already completed — fetch the full row for the response.
+      const row = await tx.lessonProgress.findFirst({
+        where: { id: existing.id },
+        select: {
+          id: true,
+          enrollmentId: true,
+          lessonId: true,
+          status: true,
+          lastPositionS: true,
+          completedAt: true,
+          updatedAt: true,
+        },
+      });
+      // row must exist (we found it above via findFirst on existing.id)
+      if (!row) throw new Error("[lms.repository] markLessonCompleted: expected row to exist");
+      progress = { ...row, status: "completed" };
+    }
+
+    return progress;
+  }
+
+  /**
+   * RECORDED ATTENDANCE UPSERT — creates one attendance row (source=recorded, status=present)
+   * per (enrollment_id, lesson_id). Idempotent: if the row already exists, no duplicate
+   * is created (the partial-unique index on (enrollment_id, lesson_id) WHERE source='recorded'
+   * enforces the invariant).
+   *
+   * Called inside the completion $transaction (same tx as markLessonCompleted).
+   *
+   * Approach: findFirst then create. If a duplicate is detected by the DB (rare concurrent
+   * completion of the same lesson), the unique constraint violation is caught and treated as
+   * a no-op (idempotent — the row already exists).
+   */
+  async upsertRecordedAttendance(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma extended client $transaction typing limitation
+    tx: Prisma.TransactionClient | any,
+    args: {
+      tenantId: string;
+      enrollmentId: string;
+      lessonId: string;
+    },
+  ): Promise<void> {
+    // Check if a recorded attendance row already exists for this (enrollment, lesson).
+    const existing = await tx.attendance.findFirst({
+      where: {
+        enrollmentId: args.enrollmentId,
+        lessonId: args.lessonId,
+        source: "recorded",
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      // Idempotent — row already exists; nothing to do.
+      return;
+    }
+
+    // Create the attendance row. If a concurrent request wins the race and inserts
+    // first, the unique constraint fires — caught below and treated as a no-op.
+    try {
+      await tx.attendance.create({
+        data: {
+          tenantId: args.tenantId,
+          enrollmentId: args.enrollmentId,
+          lessonId: args.lessonId,
+          status: "present",
+          source: "recorded",
+          markedAt: new Date(),
+        },
+      });
+    } catch (err: unknown) {
+      // Unique constraint violation (Prisma error code P2002) = concurrent completion.
+      // Treat as a no-op (idempotent). Any other error is re-thrown.
+      const isPrismaUniqueViolation =
+        typeof err === "object" &&
+        err !== null &&
+        "code" in err &&
+        (err as { code?: string }).code === "P2002";
+      if (!isPrismaUniqueViolation) {
+        throw err;
+      }
+    }
+  }
+
+  /**
+   * Recalculate and persist enrollment.progress_pct after a lesson completion.
+   * Formula: completed_lessons / total_lessons_in_program × 100 (rounded, 0-100).
+   *
+   * Called inside the completion $transaction (same tx as markLessonCompleted).
+   * Returns the new progress_pct value.
+   */
+  async recalcEnrollmentProgressPct(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma extended client $transaction typing limitation
+    tx: Prisma.TransactionClient | any,
+    args: {
+      enrollmentId: string;
+      programId: string;
+    },
+  ): Promise<{ progressPct: number; justCompleted: boolean }> {
+    // Count total lessons in the program (non-deleted).
+    const totalLessons = await tx.lesson.count({
+      where: { module: { programId: args.programId }, deletedAt: null },
+    });
+
+    // Count completed lesson_progress rows for this enrollment.
+    const completedLessons = await tx.lessonProgress.count({
+      where: { enrollmentId: args.enrollmentId, status: "completed" },
+    });
+
+    const progressPct = totalLessons > 0 ? Math.min(100, Math.round((completedLessons / totalLessons) * 100)) : 0;
+
+    // At 100%, flip the enrollment to `completed` + stamp completedAt — this is what
+    // makes an enrollment certificate-worthy (CertificatesService.autoIssueOnCompletion
+    // is triggered by the caller right after this transaction commits). Below 100%, leave
+    // status/completedAt untouched: recompute here is monotonic (lessons are never
+    // un-completed), so there is no "un-complete" case to guard against.
+    const current = await tx.enrollment.findUnique({
+      where: { id: args.enrollmentId },
+      select: { status: true },
+    });
+    const shouldFlipToCompleted = progressPct === 100 && current?.status !== "completed";
+
+    // Persist to enrollment.
+    await tx.enrollment.update({
+      where: { id: args.enrollmentId },
+      data: {
+        progressPct,
+        ...(shouldFlipToCompleted ? { status: "completed", completedAt: new Date() } : {}),
+      },
+    });
+
+    // `justCompleted` = this call is the active→completed TRANSITION, not a replay of an
+    // already-complete enrollment. The caller fires certificate auto-issue ONLY on the
+    // transition, so re-completing a lesson on an already-100% enrollment doesn't re-run
+    // the (multi-query) eligibility check every time (security review Low-2).
+    return { progressPct, justCompleted: shouldFlipToCompleted };
+  }
+
+  // ─── PROGRESS / ATTENDANCE READ QUERIES (Wave 4b) ────────────────────────
+
+  /**
+   * Get per-program/module progress rollup for all of a student's enrollments.
+   * Used by GET /me/progress.
+   * Scoped to the requesting student via studentId (never trusts client-supplied value).
+   */
+  async getProgressRollup(
+    tenantId: string,
+    studentId: string,
+  ): Promise<ProgressRollupRow[]> {
+    // Get all enrollments for the student.
+    const enrollments = await this.prisma.client.enrollment.findMany({
+      where: { tenantId, studentId },
+      select: {
+        id: true,
+        programId: true,
+        status: true,
+        progressPct: true,
+        program: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            modules: {
+              where: { deletedAt: null },
+              orderBy: { order: "asc" },
+              select: {
+                id: true,
+                title: true,
+                order: true,
+                lessons: {
+                  where: { deletedAt: null },
+                  select: { id: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const result: ProgressRollupRow[] = [];
+
+    for (const enrollment of enrollments) {
+      // Get all lesson_progress rows for this enrollment.
+      const progressRows = await this.prisma.client.lessonProgress.findMany({
+        where: { enrollmentId: enrollment.id },
+        select: { lessonId: true, status: true },
+      });
+      const completedLessonIds = new Set(
+        progressRows.filter((p) => p.status === "completed").map((p) => p.lessonId),
+      );
+
+      let totalLessons = 0;
+      let completedLessons = 0;
+      const modules: ProgressRollupRow["modules"] = [];
+
+      for (const mod of enrollment.program.modules) {
+        const modTotal = mod.lessons.length;
+        const modCompleted = mod.lessons.filter((l) => completedLessonIds.has(l.id)).length;
+        totalLessons += modTotal;
+        completedLessons += modCompleted;
+        modules.push({
+          moduleId: mod.id,
+          moduleTitle: mod.title,
+          order: mod.order,
+          lessonsTotal: modTotal,
+          lessonsCompleted: modCompleted,
+          progressPct: modTotal > 0 ? Math.round((modCompleted / modTotal) * 100) : 0,
+        });
+      }
+
+      result.push({
+        enrollmentId: enrollment.id,
+        programId: enrollment.programId,
+        programTitle: enrollment.program.title,
+        programSlug: enrollment.program.slug,
+        lessonsTotal: totalLessons,
+        lessonsCompleted: completedLessons,
+        progressPct: totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0,
+        status: enrollment.status as "active" | "completed" | "dropped",
+        modules,
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * List recorded attendance for a student (paginated).
+   * Enrollment-scoped: only returns rows belonging to this student's enrollments.
+   * Joins lesson title + program info for the response DTO.
+   */
+  async listAttendanceForStudent(
+    tenantId: string,
+    studentId: string,
+    filters: {
+      enrollmentId?: string;
+      source?: "live" | "recorded";
+      status?: "present" | "absent";
+      page: number;
+      pageSize: number;
+    },
+  ): Promise<{ rows: AttendanceRow[]; total: number }> {
+    // Build enrollment id set for this student (scope guard).
+    const enrollments = await this.prisma.client.enrollment.findMany({
+      where: { tenantId, studentId },
+      select: { id: true, programId: true, program: { select: { title: true } } },
+    });
+    const enrollmentIds = enrollments.map((e) => e.id);
+
+    if (enrollmentIds.length === 0) {
+      return { rows: [], total: 0 };
+    }
+
+    // If a specific enrollmentId was requested, verify it belongs to this student.
+    if (filters.enrollmentId && !enrollmentIds.includes(filters.enrollmentId)) {
+      // IDOR prevention: this enrollmentId doesn't belong to the student → empty result.
+      return { rows: [], total: 0 };
+    }
+
+    const where: Prisma.AttendanceWhereInput = {
+      tenantId,
+      enrollmentId: filters.enrollmentId ?? { in: enrollmentIds },
+      ...(filters.source ? { source: filters.source as AttendanceSource } : {}),
+      ...(filters.status ? { status: filters.status as AttendanceStatus } : {}),
+    };
+
+    const [rows, total] = await Promise.all([
+      this.prisma.client.attendance.findMany({
+        where,
+        include: {
+          enrollment: {
+            select: {
+              programId: true,
+              program: { select: { title: true } },
+            },
+          },
+          lesson: { select: { id: true, title: true } },
+        },
+        orderBy: { markedAt: "desc" },
+        skip: (filters.page - 1) * filters.pageSize,
+        take: filters.pageSize,
+      }),
+      this.prisma.client.attendance.count({ where }),
+    ]);
+
+    const enrollmentProgramMap = new Map(enrollments.map((e) => [e.id, { programId: e.programId, programTitle: e.program.title }]));
+
+    const attendanceRows: AttendanceRow[] = rows.map((row) => {
+      const prog = enrollmentProgramMap.get(row.enrollmentId);
+      return {
+        id: row.id,
+        enrollmentId: row.enrollmentId,
+        programId: prog?.programId ?? row.enrollment.programId,
+        programTitle: prog?.programTitle ?? row.enrollment.program.title,
+        lessonId: row.lessonId ?? null,
+        lessonTitle: row.lesson?.title ?? null,
+        liveClassId: row.liveClassId ?? null,
+        status: row.status as "present" | "absent",
+        source: row.source as "live" | "recorded",
+        markedAt: row.markedAt,
+      };
+    });
+
+    return { rows: attendanceRows, total };
+  }
+
+  /**
+   * Get per-enrollment attendance summary (total recorded / total lessons × 100).
+   * Used for the summary block in GET /me/attendance.
+   */
+  async getAttendanceSummaries(
+    tenantId: string,
+    studentId: string,
+  ): Promise<AttendanceSummaryRow[]> {
+    const enrollments = await this.prisma.client.enrollment.findMany({
+      where: { tenantId, studentId },
+      select: {
+        id: true,
+        programId: true,
+        program: {
+          select: {
+            title: true,
+            modules: {
+              where: { deletedAt: null },
+              select: {
+                lessons: {
+                  where: { deletedAt: null },
+                  select: { id: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const result: AttendanceSummaryRow[] = [];
+    for (const enrollment of enrollments) {
+      const totalLessons = enrollment.program.modules.reduce(
+        (sum, mod) => sum + mod.lessons.length,
+        0,
+      );
+      const totalRecorded = await this.prisma.client.attendance.count({
+        where: { enrollmentId: enrollment.id, source: "recorded" },
+      });
+      result.push({
+        enrollmentId: enrollment.id,
+        programTitle: enrollment.program.title,
+        totalRecorded,
+        totalLessons,
+        attendancePct: totalLessons > 0 ? Math.round((totalRecorded / totalLessons) * 100) : 0,
+      });
+    }
+    return result;
+  }
+}
+
+// ─── INTERMEDIATE ROW TYPES (internal to lms.repository) ─────────────────────
+
+export interface CurriculumProgramRow {
+  id: string;
+  title: string;
+  slug: string;
+  modules: Array<{
+    id: string;
+    title: string;
+    order: number;
+    lessons: Array<{
+      id: string;
+      title: string;
+      type: string;
+      order: number;
+      isPreview: boolean;
+      video: {
+        status: VideoStatus;
+        durationS: number | null;
+        captions: unknown;
+      } | null;
+    }>;
+  }>;
+}
+
+interface MostRecentProgressRow {
+  lessonId: string;
+  lastPositionS: number;
+  status: "in_progress";
+  updatedAt: Date;
+  enrollment: { id: string; programId: string };
+  lesson: {
+    id: string;
+    title: string;
+    type: string;
+    module: {
+      id: string;
+      title: string;
+      program: { id: string; title: string };
+    };
+    video: { durationS: number | null } | null;
+  };
+}
+
+interface NextLessonRow {
+  id: string;
+  title: string;
+  type: "video" | "reading" | "assignment" | "quiz";
+  order: number;
+  moduleId: string;
+  moduleTitle: string;
+  durationS: number | null;
+  hasVideo: boolean;
+}
+
+// ─── ADDITIONAL ROW TYPES (Wave 4b) ──────────────────────────────────────────
+
+export interface ProgressRollupRow {
+  enrollmentId: string;
+  programId: string;
+  programTitle: string;
+  programSlug: string;
+  lessonsTotal: number;
+  lessonsCompleted: number;
+  progressPct: number;
+  status: "active" | "completed" | "dropped";
+  modules: Array<{
+    moduleId: string;
+    moduleTitle: string;
+    order: number;
+    lessonsTotal: number;
+    lessonsCompleted: number;
+    progressPct: number;
+  }>;
+}
+
+export interface AttendanceRow {
+  id: string;
+  enrollmentId: string;
+  programId: string;
+  programTitle: string;
+  lessonId: string | null;
+  lessonTitle: string | null;
+  liveClassId: string | null;
+  status: "present" | "absent";
+  source: "live" | "recorded";
+  markedAt: Date;
+}
+
+export interface AttendanceSummaryRow {
+  enrollmentId: string;
+  programTitle: string;
+  totalRecorded: number;
+  totalLessons: number;
+  attendancePct: number;
+}
+
+// ─── MAPPING HELPERS ─────────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma include returns complex generic
+function toLessonRow(row: any): LessonRow {
+  return {
+    id: row.id,
+    moduleId: row.moduleId,
+    title: row.title,
+    type: row.type as "video" | "reading" | "assignment" | "quiz",
+    order: row.order,
+    content: row.content,
+    isPreview: row.isPreview,
+    module: {
+      id: row.module.id,
+      title: row.module.title,
+      order: row.module.order,
+      program: {
+        id: row.module.program.id,
+        title: row.module.program.title,
+        slug: row.module.program.slug,
+        durationWeeks: row.module.program.durationWeeks,
+        level: row.module.program.level,
+        domain: row.module.program.domain,
+      },
+    },
+    video: row.video
+      ? {
+          id: row.video.id,
+          lessonId: row.video.lessonId,
+          provider: row.video.provider,
+          providerAssetId: row.video.providerAssetId,
+          durationS: row.video.durationS,
+          status: row.video.status as VideoStatus,
+          captions: row.video.captions,
+        }
+      : null,
+    resources: (row.resources ?? []).map((r: { id: string; title: string; type: string; size: number | null }) => ({
+      id: r.id,
+      title: r.title,
+      type: r.type,
+      size: r.size,
+    })),
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma include returns complex generic
+function toEnrollmentRow(row: any): EnrollmentRow {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    studentId: row.studentId,
+    batchId: row.batchId,
+    programId: row.programId,
+    status: row.status as "active" | "completed" | "dropped",
+    progressPct: row.progressPct,
+    enrolledAt: row.enrolledAt,
+    completedAt: row.completedAt,
+    source: row.source as "manual" | "order" | "conversion",
+    batch: {
+      id: row.batch.id,
+      name: row.batch.name,
+      startDate: row.batch.startDate,
+      endDate: row.batch.endDate,
+    },
+    program: {
+      id: row.program.id,
+      title: row.program.title,
+      slug: row.program.slug,
+      domain: row.program.domain,
+      level: row.program.level,
+      durationWeeks: row.program.durationWeeks,
+      mode: row.program.mode as "live" | "recorded" | "hybrid",
+      ogImageKey: row.program.ogImageKey ?? null,
+    },
+  };
+}

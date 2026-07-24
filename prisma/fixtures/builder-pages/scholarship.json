@@ -1,0 +1,103 @@
+[
+  {
+    "type": "hero",
+    "data": {
+      "variant": "split-with-cards",
+      "headline": "StimuliiQ Scholarship Programme",
+      "headlineHighlight": "Scholarship",
+      "backgroundImageKey": "/images/hero/hero-background.avif",
+      "watermarkText": "Scholarship",
+      "centerImageKey": "/images/scholarship/scholarship.png",
+      "infoCards": [
+        { "bodyText": "An initiative by StimuliiQ for meritorious and financially constrained students building careers in software, data, cloud and design.", "emphasis": false },
+        { "bodyText": "Do not let financial setbacks hold you back from a successful tech career. The StimuliiQ Scholarship grants merit-and-need-based fee waivers of up to 50% on internship-training programs — with extended mentor access and job assistance included.", "emphasis": true }
+      ],
+      "ctas": [
+        { "label": "Take an Eligibility Test", "href": "#apply", "style": "primary" },
+        { "label": "See How It Works", "href": "#how-it-works", "style": "secondary" }
+      ]
+    }
+  },
+  {
+    "type": "stat_group",
+    "data": {
+      "variant": "band",
+      "items": [
+        { "label": "Total scholarship fund", "value": "Up to ₹1 Crore" },
+        { "label": "Students supported", "value": "10,000+" },
+        { "label": "Internship completion rate", "value": "90%+" }
+      ]
+    }
+  },
+  {
+    "type": "feature_grid",
+    "data": {
+      "variant": "cards",
+      "heading": { "title": "Built for every tech career aspirant", "titleHighlight": "tech career aspirant", "subtitle": "One scholarship, every program — here is what it gives you." },
+      "columns": "2",
+      "items": [
+        { "iconKey": "check", "title": "Completely merit and need based", "description": "Awards are decided on academic merit and financial need — nothing else." },
+        { "iconKey": "check", "title": "Up to 50% fee waiver", "description": "No repayment, no service obligation. The waiver applies directly to your program fee." },
+        { "iconKey": "check", "title": "Covers every StimuliiQ program", "description": "Full Stack, Data Science & AI, Cloud & DevOps, Cybersecurity, UI/UX and Digital Marketing tracks are all eligible." },
+        { "iconKey": "check", "title": "Open to students across India", "description": "B.Tech, Degree, Diploma, MCA, MBA and Engineering students from any college or university can apply." },
+        { "iconKey": "check", "title": "Extended mentor access", "description": "Scholars get additional 1:1 mentor sessions and personalised career guidance throughout the program." },
+        { "iconKey": "check", "title": "Placement assistance included", "description": "Resume reviews, mock interviews and referrals to our hiring partners continue until you are placed." }
+      ]
+    }
+  },
+  {
+    "type": "cta_band",
+    "data": {
+      "heading": "Application form",
+      "subheading": "Leave your details and our scholarship team will call you within 24 hours to check your eligibility.",
+      "background": "surface",
+      "leadForm": {
+        "source": "scholarship-page",
+        "heading": "Apply for the scholarship",
+        "subheading": "Takes less than two minutes — no documents needed to start.",
+        "fields": ["name", "phone", "email"],
+        "submitLabel": "Apply for Scholarship"
+      }
+    }
+  },
+  {
+    "type": "stat_group",
+    "data": {
+      "variant": "band",
+      "heading": { "title": "The ₹1 Crore impact", "titleHighlight": "₹1 Crore", "subtitle": "Financial constraints should never stop a capable student from building a global tech career." },
+      "items": [
+        { "label": "Already disbursed", "value": "₹50L+" },
+        { "label": "Scholars active", "value": "320+" },
+        { "label": "Placement success", "value": "85%" },
+        { "label": "Cities reached", "value": "40+" }
+      ]
+    }
+  },
+  {
+    "type": "stat_group",
+    "data": {
+      "variant": "bars",
+      "heading": { "title": "Fund distribution by track (in lakhs)" },
+      "items": [
+        { "label": "Software Development", "value": "₹17.3L" },
+        { "label": "Data & AI", "value": "₹13.8L" },
+        { "label": "Cloud & DevOps", "value": "₹11.4L" },
+        { "label": "Design & Marketing", "value": "₹9.4L" }
+      ]
+    }
+  },
+  {
+    "type": "numbered_steps",
+    "data": {
+      "heading": { "title": "Scholarship application process", "titleHighlight": "application process", "subtitle": "Five steps from application to placed professional." },
+      "variant": "compact",
+      "items": [
+        { "title": "Check your eligibility", "description": "Fill the short application form below — it takes less than two minutes." },
+        { "title": "Submit your details", "description": "Tell us your qualification, the program you want to join and your financial background." },
+        { "title": "Receive your scholarship award", "description": "Applications are reviewed competitively and successful applicants are notified within days." },
+        { "title": "Enrol and prepare", "description": "Join your program with the fee waiver applied, plus extended mentor sessions." },
+        { "title": "Complete your internship and get placed", "description": "Finish the program, earn your certificate and access placement assistance." }
+      ]
+    }
+  }
+]

@@ -1,0 +1,57 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# env
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+# the filled-in copy of the production template — only the redacted template is tracked
+.env.production.template.local
+
+# keys (locally generated, never commit)
+keys/
+
+# build outputs
+dist/
+build/
+.next/
+.turbo/
+out/
+storybook-static/
+
+# coverage
+coverage/
+.nyc_output/
+
+# Playwright e2e artifacts (R13, docs/plans/phase-9-completion.md T41)
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# misc
+*.tsbuildinfo
+.eslintcache
+.vercel/
+prisma/*.db
+
+# local dev server logs
+scripts/.dev-*.log
+
+# Local dev file storage (LocalStorageProvider)
+.local-storage/

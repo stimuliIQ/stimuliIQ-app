@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Web brand theme — emerald green.
+ *
+ * Overrides the shared @repo/ui brand tokens for apps/web only (this file is
+ * imported after @repo/ui/styles.css in the root layout, so these win). The
+ * LMS (apps/lms/src/app/globals.css) and CRM (apps/crm/src/index.css) carry the
+ * same green override so all three apps share one brand identity.
+ *
+ * Primary actions are emerald green (#047857) on white; hover/active steps
+ * darken. Brand tints (50/100) are soft green so badges/soft backgrounds stay
+ * on-brand. Semantic status colors (success/warning/danger/info) are kept —
+ * form errors and status feedback must stay distinguishable (WCAG 1.4.1).
+ */
+:root {
+  --brand-50: 236 253 245; /* soft green tint — soft backgrounds, badges */
+  --brand-100: 209 250 229; /* soft green tint — hover on soft surfaces */
+  --brand-500: 4 120 87; /* #047857 — primary buttons, links, accents */
+  --brand-600: 3 95 71; /* hover (#035F47) */
+  --brand-700: 2 74 55; /* active/pressed (#024A37) */
+  --brand-foreground: 255 255 255;
+
+  --ring: 4 120 87; /* focus ring follows the brand */
+}
+
+/*
+ * Gentle bob for the brain render in the "method" band
+ * (components/home/brain-showcase.tsx). The global prefers-reduced-motion rule
+ * in @repo/ui/styles.css already neutralises this for users who opt out.
+ */
+@keyframes brain-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -14px, 0);
+  }
+}
+
+.animate-brain-float {
+  animation: brain-float 7s ease-in-out infinite;
+  will-change: transform;
+}
+
+/*
+ * Seamless horizontal wordmark marquee behind the brain stage. The track holds
+ * two identical halves, so translating by exactly -50% lands the second half
+ * where the first started — the loop has no visible seam or reset jump.
+ */
+@keyframes marquee-x {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-marquee-x {
+  animation: marquee-x 50s linear infinite;
+  will-change: transform;
+}
+
+/*
+ * Success confirmation checkmark (book-slot / registration success states).
+ * The circle "pops" in with a slight overshoot, then the tick strokes itself on.
+ * Both run once. The global prefers-reduced-motion rule in @repo/ui/styles.css
+ * neutralises these for users who opt out (icon simply appears, no motion).
+ */
+@keyframes success-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-success-pop {
+  animation: success-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform;
+}
+
+@keyframes success-check-draw {
+  from {
+    stroke-dashoffset: 48;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-success-check {
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  /* delay so the tick draws just after the circle finishes popping in */
+  animation: success-check-draw 0.35s ease-out 0.28s forwards;
+}

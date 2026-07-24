@@ -1,0 +1,31 @@
+# Phase-10 follow-ups (Page Builder — carried into future work)
+
+Recorded at Phase-10 closeout (`docs/specs/phase-10-page-builder.md` — the CRM
+block-based page builder, `ContentPageVersion` history/revert, and the `SiteSetting`
+model) so nothing found during the build gets lost. None of these blocked the Phase-10
+build; they are tracked here for prioritization, not as open incidents. The notable
+architectural decision from this phase is ADR-0062 (`docs/adr/README.md`), not this
+file.
+
+---
+
+## Deferred / partial items
+
+| ID | Item | Notes |
+|----|------|-------|
+| P10-1 | **No public list endpoint for builder-managed pages — sitemap can't enumerate `/pages/*`** | `PublicContentPagesController` only exposes `GET /public/pages/:slug` (exact-slug read); the CRM `GET /crm/content-pages` list is permission-gated (`content.view`) and not usable by an anonymous sitemap generator. Any page a super_admin creates via the builder at a new (non-migrated) slug is reachable at `/pages/<slug>` but has no way to be discovered/enumerated for `sitemap.xml` today. A dedicated `GET /public/pages` (published, builder-managed only, slug + `updatedAt`) is the straightforward fix. |
+| P10-2 | **RESOLVED — `stats.headline` `SiteSetting` removed end-to-end** | Promoted from follow-up to defect the same day: a real superadmin added a stat via Site Settings → Stats, the save succeeded, and nothing on the site changed (no `web` code path ever read the key — homepage stats render from the home `ContentPage`'s `stat_group` block). Resolution: the key was removed from `SiteSettingKeySchema`/public response (7 keys now), the CRM Stats card was deleted (with pointer copy directing editors to Page Builder → Home → Stats block), the seed soft-deletes any existing row (edit history preserved in `value` + `audit_logs`), and the `stat_group` builder block is the single source of truth. Also fixed alongside: `web`'s site-settings cache lowered 1 h → 5 min to match the builder pages' ISR window. |
+| P10-3 | **No ISR-invalidation webhook — builder edits surface within the 3600s ISR TTL, not instantly** | The 6 migrated pages and the `/pages/[...slug]` catch-all both use Next.js ISR with `revalidate = 3600`. A page-builder save is live in the database immediately (per spec AC 5), but an anonymous visitor with a warm ISR cache entry may see stale content for up to an hour. A revalidation hook (e.g. the builder save endpoint calling Next.js's on-demand `revalidatePath`/`revalidateTag`, or a short-TTL fetch-cache instead of ISR) is future work — not built this phase. |
+| P10-4 | **`/faq` (MDX) was deliberately not migrated to the page builder** | Out of the audited hardcoded pages, `/faq` still reads from the pre-P9 MDX/Git-as-CMS system (ADR-0035) rather than being converted to a `ContentPage`/block-registry page or the P9 headless-CMS `faq` block type used elsewhere. `content-pages-builder.constants.ts`'s reserved-slug denylist reserves `"faq"` accordingly. A future pass should either migrate it onto the `faq` block type (already in the block registry, block #6) or fold it into the headless CMS pass explicitly. |
+| P10-5 | **Reserved-slug denylist (`content-pages-builder.constants.ts`) needs manual upkeep** | `RESERVED_BUILDER_SLUGS` is a hand-maintained snapshot of `apps/web/src/app/*` top-level route folders, with an explicit maintenance note in the file itself: (1) any new top-level `web` route folder must be added here, or a super_admin could create a builder page that collides with it; (2) when one of the 6 migration-target slugs (`home`/`about`/`scholarship`/`for-colleges`/`gallery`/`careers`) is converted to read from `ContentPage` — already done for all 6 as of this phase — its slug should stay reserved (it now IS the `ContentPage`-driven route, not a route the builder should let a *second*, colliding page be created at). No automated check enforces this list stays in sync with `apps/web/src/app/*`; a lint/CI check comparing the denylist against the actual route tree is the durable fix. |
+| P10-6 | **CRM preview is an approximation, not the `web` renderer (spec AC 4 deviation — accepted)** | `apps/crm/src/components/page-builder/block-preview.tsx` renders a clean typographic approximation, labelled "Preview (approximate)", instead of literally reusing `apps/web`'s block components. Cross-package reuse (Vite SPA vs. Next.js RSC) is impractical without extracting the block renderers into a shared package — that extraction is the durable fix if pixel-true preview is ever required. The *data* is identical either way: preview calls the same server-side resolver as the public read path. |
+| P10-7 | **Denied-permission attempts are not written to `audit_logs` (system-wide, predates P10)** | Spec AC 9 asks that a non-authorized builder call be "written to the audit log". The audit system (`apps/api/src/prisma/audit.extension.ts`) is a Prisma-mutation hook — a 403 never reaches Prisma, so denied attempts produce only a pino request log + Prometheus counter, in every module, not just the builder. Closing this means an explicit audit write in `PermissionsGuard`'s deny path (or an interceptor) — a deliberate, system-wide change that should get its own ADR. |
+| P10-8 | **QA full-run surfaced pre-existing failures unrelated to P10** | (a) `rbac-matrix.integration-spec.ts` F-1/F-2 — already tracked OPEN in `docs/qa-findings-rbac-matrix.md`; F-2's failing-route list now also includes the newer `GET/DELETE .../lessons/:lessonId/resources` endpoints (same root cause, doc needs updating). (b) `POST /auth/change-password` (auth.controller.ts:133) is JWT-only by design but missing from the rbac-matrix `AUTHENTICATED_ONLY_ALLOWLIST` — add it so the "decision, never oversight" contract holds. (c) `phase-9-tickets.integration-spec.ts:255` asserts the old response shape of `POST /me/tickets/:id/messages` (test bug — endpoint deliberately returns full `TicketDetail` now; assert `messages.at(-1)` instead). |
+
+---
+
+## Where decisions (vs. TODOs) live
+
+The notable architectural decision made during Phase 10 is recorded as ADR-0062 in
+`docs/adr/` (indexed in `docs/adr/README.md`), not in this file. This file is for known
+gaps and planned work, not decisions.

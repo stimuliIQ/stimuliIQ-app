@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * LMS brand theme — emerald green; matches the marketing website (apps/web).
+ *
+ * Overrides the shared @repo/ui brand tokens for apps/lms only (globals.css is
+ * imported after @repo/ui/styles.css in app/layout.tsx, so these win). Unlike
+ * web, the student portal supports a light/dark toggle (lib/user-prefs.ts), so
+ * we override both `:root` (light) and `.dark` — the accent stays green in both
+ * modes: #047857 on white in light, a brighter #059669 on near-black in dark.
+ *
+ * Brand tints (50/100) are soft green so badges/soft backgrounds stay on-brand.
+ * Semantic status colors (success/warning/danger/info) are intentionally kept —
+ * status feedback and form errors must stay distinguishable (WCAG 1.4.1).
+ */
+:root {
+  --brand-50: 236 253 245; /* soft green tint — soft backgrounds, badges */
+  --brand-100: 209 250 229; /* soft green tint — hover on soft surfaces */
+  --brand-500: 4 120 87; /* #047857 — primary buttons, links, accents */
+  --brand-600: 3 95 71; /* hover (#035F47) */
+  --brand-700: 2 74 55; /* active/pressed (#024A37) */
+  --brand-foreground: 255 255 255;
+
+  --ring: 4 120 87; /* focus ring follows the brand */
+
+  /*
+   * Real typefaces, loaded via next/font in app/layout.tsx (self-hosted, no CLS).
+   * These override the @repo/ui token defaults so body copy renders in Inter and
+   * display/headings in Plus Jakarta Sans wherever the tokens are consumed.
+   */
+  --font-sans:
+    var(--font-inter), Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-jakarta), "Plus Jakarta Sans", var(--font-sans);
+}
+
+.dark {
+  --brand-50: 6 78 59; /* deep green tint — soft backgrounds, badges */
+  --brand-100: 6 95 70; /* deep green tint — hover on soft surfaces */
+  --brand-500: 5 150 105; /* #059669 — brightened for contrast on dark bg */
+  --brand-600: 4 120 87; /* hover (#047857) */
+  --brand-700: 3 95 71; /* active/pressed (#035F47) */
+  --brand-foreground: 255 255 255; /* white text/icon on the green accent */
+
+  --ring: 5 150 105; /* focus ring follows the brand */
+}
+
+/*
+ * Auth showcase brain — ported from apps/web's `brain-float` (globals.css there)
+ * so the 3D brain drifts identically on the marketing site and the LMS sign-in
+ * split panel (components/auth/auth-split-layout.tsx). Namespaced `auth-` to
+ * keep it obviously scoped to the unauthenticated routes.
+ *
+ * The global prefers-reduced-motion rule in @repo/ui/styles.css neutralises it.
+ */
+@keyframes auth-brain-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -14px, 0);
+  }
+}
+
+.animate-auth-brain-float {
+  animation: auth-brain-float 7s ease-in-out infinite;
+  will-change: transform;
+}

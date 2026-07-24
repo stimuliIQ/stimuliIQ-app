@@ -1,0 +1,135 @@
+[
+  {
+    "type": "hero",
+    "data": {
+      "variant": "centered-with-flanking-photos",
+      "headline": "Build skills for new opportunities.",
+      "headlineHighlight": "opportunities",
+      "subheadline": "StimuliiQ gives you a complete learning experience that helps you gain real, job-ready skills and take the next step in your career.",
+      "backgroundImageKey": "/images/hero/hero-background.avif",
+      "trustBadge": { "ratingStars": 5, "caption": "Trusted by 15,000+ students" },
+      "flankingPhotos": [
+        { "imageKey": "/images/hero/image-1.jpg", "statValue": "100+", "statLabel": "Expert Mentors", "statIconKey": "user" },
+        { "imageKey": "/images/hero/image-2.jpg", "statValue": "120+", "statLabel": "Video Courses", "statIconKey": "video" }
+      ],
+      "ctas": [{ "label": "Explore our courses", "href": "/programs", "style": "primary" }]
+    }
+  },
+  { "type": "brain_showcase", "data": {} },
+  {
+    "type": "stat_group",
+    "data": {
+      "variant": "bento",
+      "heading": {
+        "eyebrow": "By the numbers",
+        "title": "A hands-on internship program, trusted across India",
+        "titleHighlight": "internship program"
+      },
+      "items": [
+        { "label": "Students trained", "value": "15,000+", "description": "Learners upskilled through project-based internship programs across India.", "iconKey": "graduation-cap" },
+        { "label": "Programs", "value": "30+", "description": "Hands-on internship tracks spanning web, data, cloud, AI, and more.", "iconKey": "stack" },
+        { "label": "Cities", "value": "50+", "description": "Students joining from campuses in every corner of the country.", "iconKey": "map-pin" }
+      ]
+    }
+  },
+  {
+    "type": "live_collection_ref",
+    "data": {
+      "collection": "programs",
+      "heading": { "title": "Explore our internship courses", "titleHighlight": "internship", "subtitle": "Pick a track and start building job-ready skills with industry mentors." },
+      "viewAllHref": "/programs",
+      "layout": "grid-3",
+      "selection": { "limit": 8, "sort": "popularity" }
+    }
+  },
+  {
+    "type": "feature_grid",
+    "data": {
+      "variant": "split-media",
+      "heading": { "title": "Why StimuliiQ?", "titleHighlight": "StimuliiQ", "subtitle": "We focus on what actually gets you hired — real skills, real projects, real proof." },
+      "columns": "2",
+      "centerImageKey": "/images/hero/person.avif",
+      "items": [
+        { "iconKey": "mentor", "title": "Expert Mentors", "description": "Our mentors are active engineers from top companies, dedicated to your success." },
+        { "iconKey": "pricing", "title": "Affordable Pricing", "description": "High-quality, project-based training priced for students — with 0% EMI options." },
+        { "iconKey": "trophy", "title": "Proven Placements", "description": "An 89% placement rate, with direct referrals to 200+ hiring partners." },
+        { "iconKey": "star", "title": "Student Reviews", "description": "Rated 4.9/5 by 2,400+ students who transformed their careers with us." }
+      ]
+    }
+  },
+  {
+    "type": "numbered_steps",
+    "data": {
+      "heading": { "title": "How It Works", "titleHighlight": "Works", "subtitle": "From enrollment to placement — a clear 4-step journey." },
+      "variant": "arrows",
+      "items": [
+        { "title": "Enroll", "description": "Choose a program, complete payment, and get instant access to the LMS. The entire process takes under 5 minutes." },
+        { "title": "Learn live + recorded", "description": "Attend live mentor-led sessions, watch recorded videos at your pace, and access a growing library of resources." },
+        { "title": "Build real projects", "description": "Apply your skills on industry-grade projects evaluated by mentors. Your portfolio of completed projects is what employers see." },
+        { "title": "Get certified & placed", "description": "Earn a verifiable certificate after assessment. Access our placement network and get referred to 200+ hiring partners." }
+      ]
+    }
+  },
+  {
+    "type": "live_collection_ref",
+    "data": {
+      "collection": "mentors",
+      "heading": { "title": "Meet Your Mentors", "titleHighlight": "Mentors", "subtitle": "Connect with active engineers and specialists from top companies — guiding you with real-world perspective, honest feedback, and proven expertise." },
+      "viewAllHref": "/mentors",
+      "layout": "grid-4",
+      "selection": { "limit": 8 }
+    }
+  },
+  {
+    "type": "live_collection_ref",
+    "data": {
+      "collection": "testimonials",
+      "heading": { "title": "What Our Students Say", "titleHighlight": "Students" },
+      "viewAllHref": "/testimonials",
+      "layout": "grid-3",
+      "selection": { "mode": "filter", "limit": 3, "sort": "order" }
+    }
+  },
+  {
+    "type": "live_collection_ref",
+    "data": {
+      "collection": "partners",
+      "heading": { "title": "In Collaboration with Leading Medical Institutions", "titleHighlight": "Leading Medical Institutions", "subtitle": "Our programs are developed in partnership with top medical colleges across Bengaluru and Mumbai." },
+      "layout": "grid-3",
+      "selection": { "category": "college_partner", "limit": 12, "sort": "order" }
+    }
+  },
+  {
+    "type": "faq",
+    "data": {
+      "heading": { "title": "Frequently Asked Questions", "titleHighlight": "Questions" },
+      "viewAllHref": "/faq",
+      "items": [
+        { "question": "What qualifications do I need to enroll?", "answer": "Our programs are designed for B.Tech, BCA, MCA, MBA, and Diploma students. No prior industry experience is required — just a willingness to learn and build real projects." },
+        { "question": "Are the classes live or recorded?", "answer": "Most programs offer a hybrid format — scheduled live sessions with industry mentors plus recorded videos for flexible re-watching. Some programs are fully recorded (self-paced). Check the program detail page for the exact mode." },
+        { "question": "Is the certificate recognised by employers?", "answer": "Yes. Every StimuliiQ certificate is digitally verifiable — employers can scan a QR code or enter the certificate ID on our verification page to confirm authenticity instantly. We have active hiring partnerships with 200+ companies." },
+        { "question": "How do EMI options work?", "answer": "We offer 0% EMI plans through partner payment providers. Choose your installment plan at checkout — the EMI amount and tenure are shown clearly before you pay. Your card or bank must support the selected tenure." },
+        { "question": "What is the refund policy?", "answer": "We offer a 7-day no-questions-asked refund if you're not satisfied after accessing the program. After 7 days, a pro-rated refund applies. See our full Refund Policy for details." }
+      ]
+    }
+  },
+  {
+    "type": "cta_band",
+    "data": {
+      "heading": "Not sure which program is right for you?",
+      "subheading": "Book a free 30-minute counselling session with one of our program advisors. No pressure, just clarity.",
+      "background": "brand",
+      "buttons": [
+        { "label": "Book Free Slot", "href": "/book-free-slot", "style": "primary" },
+        { "label": "Browse Programs", "href": "/programs", "style": "secondary" }
+      ],
+      "leadForm": {
+        "source": "homepage-cta-band",
+        "heading": "Or get a callback",
+        "subheading": "Leave your details and a mentor will call you within 24 hours.",
+        "fields": ["name", "phone", "email"],
+        "submitLabel": "Request a Callback"
+      }
+    }
+  }
+]

@@ -1,0 +1,42 @@
+{
+  "name": "@repo/types",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared zod schemas + TS DTOs, imported by both frontend and backend",
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./openapi": {
+      "types": "./dist/openapi/registry.d.ts",
+      "default": "./dist/openapi/registry.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "gen:openapi": "tsc -p tsconfig.json && node ./dist/openapi/generate.js",
+    "clean": "rimraf dist .turbo"
+  },
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^7.3.4",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@repo/config": "workspace:*",
+    "@types/node": "^22.10.5",
+    "openapi3-ts": "^4.6.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,47 @@
+# .dockerignore — repo root (the build context for infra/docker/api.Dockerfile, and
+# any future Dockerfile added under infra/docker/).
+#
+# CRITICAL: without this file, `COPY . .` in the Dockerfile's `build` stage clobbers
+# the container's own freshly `pnpm install`-ed (Linux) `node_modules` — created by
+# the EARLIER `RUN pnpm install --frozen-lockfile` layer — with the HOST machine's
+# `node_modules` (wrong OS/arch native bindings, Windows-style symlinks that don't
+# resolve inside the Linux container, etc.), breaking the build. Confirmed by an
+# actual `docker build` reproduction during Phase-7 Wave 4 devops hardening — do not
+# remove this file or its `node_modules` entries.
+
+node_modules
+**/node_modules
+
+# build outputs / caches (never needed as build INPUT — each stage builds its own)
+dist
+**/dist
+.next
+**/.next
+.turbo
+**/.turbo
+build
+**/build
+coverage
+**/coverage
+storybook-static
+**/storybook-static
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# local-only / never-baked-into-an-image
+.env
+.env.local
+.env.*.local
+keys
+
+# vcs / editor / os
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# docs (not needed inside the api image)
+docs
+.claude

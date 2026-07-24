@@ -1,0 +1,5 @@
+# Raw k6 run output (AC-74 archival) is a per-run artifact, not source — never commit it
+# here. A human/CI archival step decides what's worth keeping in long-term storage (see
+# infra/k6/README.md "Archiving results (AC-74)").
+*
+!.gitignore

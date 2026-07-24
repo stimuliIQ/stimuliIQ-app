@@ -1,0 +1,75 @@
+// Typed orders SDK — Phase 2, Wave 2 (docs/plans/phase-2.md task #2).
+// POST /commerce/orders (create + initiate Razorpay checkout).
+// Frontends must never hand-write fetches (CLAUDE.md §3.2).
+
+import type {
+  CreateOrderRequest,
+  OrderSummary,
+  OrderDetail,
+  ListOrdersQuery,
+  CreateRazorpayOrderResponse,
+  CreatePaymentLinkResponse,
+} from "@repo/types";
+import type { ApiClient } from "../http/client.js";
+import { toQueryString } from "../http/query.js";
+
+export class OrdersApi {
+  constructor(private readonly client: ApiClient) {}
+
+  /** GET /api/v1/commerce/orders — filter/paginate the order ledger. */
+  async list(query: ListOrdersQuery) {
+    return this.client.requestPaginated<OrderSummary>(
+      "GET",
+      `/api/v1/commerce/orders${toQueryString(query)}`,
+    );
+  }
+
+  /** GET /api/v1/commerce/orders/:id */
+  async get(id: string): Promise<OrderDetail> {
+    return this.client.request<OrderDetail>("GET", `/api/v1/commerce/orders/${id}`);
+  }
+
+  /**
+   * POST /api/v1/commerce/orders
+   *
+   * Creates an order. Server computes amount_paise from program price minus coupon.
+   * `idempotencyKey` maps to the `Idempotency-Key` header → `orders.idempotency_key`
+   * (unique). Replayed requests with the same key return the cached order.
+   */
+  async create(
+    body: CreateOrderRequest,
+    idempotencyKey: string = crypto.randomUUID(),
+  ): Promise<OrderDetail> {
+    return this.client.request<OrderDetail>("POST", "/api/v1/commerce/orders", { body, idempotencyKey });
+  }
+
+  /**
+   * POST /api/v1/commerce/orders/:id/payment-link
+   *
+   * Mints a signed public payment URL for an OPEN order to send to the student
+   * (lifecycle-redesign). The token in the URL is the authorization — HMAC over
+   * tenant+order+expiry. payments.create-gated.
+   */
+  async createPaymentLink(id: string): Promise<CreatePaymentLinkResponse> {
+    return this.client.request<CreatePaymentLinkResponse>("POST", `/api/v1/commerce/orders/${id}/payment-link`);
+  }
+
+  /**
+   * POST /api/v1/commerce/orders/:id/pay
+   *
+   * Initiates Razorpay checkout for an existing order. Returns the fields needed
+   * to open Razorpay's checkout JS SDK (razorpayOrderId, keyId [PUBLIC only],
+   * amountPaise, currency). After the user completes checkout, call
+   * `payments.verify()` with the callback fields.
+   */
+  async initiateRazorpayCheckout(
+    id: string,
+    idempotencyKey: string = crypto.randomUUID(),
+  ): Promise<CreateRazorpayOrderResponse> {
+    return this.client.request<CreateRazorpayOrderResponse>(
+      "POST",
+      `/api/v1/commerce/orders/${id}/pay`,
+      { idempotencyKey },
+    );
+  }
+}

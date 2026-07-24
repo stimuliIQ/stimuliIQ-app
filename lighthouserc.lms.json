@@ -1,0 +1,41 @@
+{
+  "$schema": "https://raw.githubusercontent.com/GoogleChrome/lighthouse-ci/main/docs/configuration.schema.json",
+  "ci": {
+    "collect": {
+      "staticDistDir": "./apps/lms/.next",
+      "url": [
+        "http://localhost:3001/login",
+        "http://localhost:3001/offline"
+      ],
+      "startServerCommand": "pnpm --filter=@stimuliiq/lms start",
+      "startServerReadyPattern": "started server on",
+      "startServerReadyTimeout": 30000,
+      "numberOfRuns": 3,
+      "settings": {
+        "throttlingMethod": "simulate",
+        "onlyCategories": ["performance", "accessibility", "best-practices"]
+      }
+    },
+    "assert": {
+      "preset": "lighthouse:no-pwa",
+      "assertions": {
+        "categories:accessibility": ["warn", { "minScore": 0.90 }],
+        "categories:best-practices": ["warn", { "minScore": 0.85 }],
+
+        "largest-contentful-paint": ["error", { "maxNumericValue": 2500 }],
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1 }],
+        "interactive": ["error", { "maxNumericValue": 3000 }],
+
+        "total-blocking-time": ["warn", { "maxNumericValue": 200 }],
+        "first-contentful-paint": ["warn", { "maxNumericValue": 2000 }],
+
+        "uses-optimized-images": "off",
+        "uses-webp-images": "off",
+        "offscreen-images": "off"
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    }
+  }
+}

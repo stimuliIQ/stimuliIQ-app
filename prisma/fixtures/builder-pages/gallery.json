@@ -1,0 +1,24 @@
+[
+  {
+    "type": "hero",
+    "data": {
+      "variant": "centered",
+      "headline": "Gallery",
+      "subheadline": "A glimpse into StimuliiQ learning sessions, events, and achievements."
+    }
+  },
+  {
+    "type": "media_gallery",
+    "data": {
+      "columns": "3",
+      "items": [
+        { "imageKey": "/images/hero/person.avif", "alt": "Students attending a live Python training session", "caption": "Python Live Session — Cohort 14" },
+        { "imageKey": "/images/hero/image-1.jpg", "alt": "Certificate distribution ceremony for Full Stack alumni", "caption": "Certificate Ceremony — Full Stack Cohort 8" },
+        { "imageKey": "/images/hero/image-2.jpg", "alt": "Mentor-led code review session for data science students", "caption": "Data Science Code Review" },
+        { "imageKey": "/images/scholarship/scholarship.png", "alt": "Industry expert guest lecture on system design", "caption": "System Design Masterclass" },
+        { "imageKey": "/images/scholarship/contact-person.png", "alt": "Students presenting their final capstone projects", "caption": "Capstone Project Demo Day" },
+        { "imageKey": "/images/popup/counsellor.png", "alt": "Panel discussion with hiring partners at StimuliiQ campus event", "caption": "Hiring Partner Connect 2026" }
+      ]
+    }
+  }
+]

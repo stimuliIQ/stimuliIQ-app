@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * CRM brand theme — emerald green; matches the marketing website (apps/web).
+ *
+ * Overrides the shared @repo/ui brand tokens for apps/crm only (index.css is
+ * imported after @repo/ui/styles.css in main.tsx, so these win). The CRM is a
+ * light-only surface (no `.dark` toggle), so only `:root` needs overriding.
+ *
+ * Primary actions are emerald green (#047857) on white; hover/active steps
+ * darken. Brand tints (50/100) are soft green so badges/soft backgrounds stay
+ * on-brand. Semantic status colors (success/warning/danger/info) are kept —
+ * status feedback and form errors must stay distinguishable (WCAG 1.4.1).
+ */
+:root {
+  --brand-50: 236 253 245; /* soft green tint — soft backgrounds, badges */
+  --brand-100: 209 250 229; /* soft green tint — hover on soft surfaces */
+  --brand-500: 4 120 87; /* #047857 — primary buttons, links, accents */
+  --brand-600: 3 95 71; /* hover (#035F47) */
+  --brand-700: 2 74 55; /* active/pressed (#024A37) */
+  --brand-foreground: 255 255 255;
+
+  --ring: 4 120 87; /* focus ring follows the brand */
+}
+
+/* The authenticated shell (components/layout/app-shell.tsx) is `h-screen` and
+   owns the only content scroll. Pinning the root chain to full height keeps the
+   shell the scroll container so we never get a second, body-level scrollbar
+   next to <main>'s. No `overflow: hidden` on body — the signed-out login/reset
+   pages render `min-h-screen` layouts straight into #root and must stay
+   scrollable on short viewports. */
+html,
+body,
+#root {
+  height: 100%;
+}

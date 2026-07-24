@@ -1,0 +1,193 @@
+/*
+ * @repo/ui — design tokens (CSS variables, light/dark), per docs/07-design-system.md.
+ * Single source of truth for color, spacing, radius, typography, shadow, and motion
+ * tokens. Apps import this once (e.g. in their root layout/`main.tsx`) alongside the
+ * `@repo/config/tailwind/preset` which maps these variables into Tailwind utilities.
+ *
+ * Theming:
+ * - Dark mode toggles via the `.dark` class on `<html>` (docs/07 §9), matching the
+ *   Tailwind preset's `darkMode: "class"`.
+ * - Density/personality presets (docs/07 §12: web spacious, crm dense, lms calm-focus)
+ *   toggle via a `data-density="comfortable|compact"` attribute on `<html>`/`<body>`,
+ *   layered on top of these base tokens — no separate component forks.
+ */
+
+:root {
+  /* ---- brand (emerald green; --brand-500 = #047857) ---- */
+  --brand-50: 236 253 245;
+  --brand-100: 209 250 229;
+  --brand-500: 4 120 87;
+  --brand-600: 3 95 71;
+  --brand-700: 2 74 55;
+
+  /* ---- neutrals ---- */
+  --bg: 255 255 255;
+  --surface: 247 248 250;
+  --card: 255 255 255;
+  --border: 230 232 236;
+  --fg: 15 18 22;
+  --fg-muted: 91 100 114;
+  --fg-subtle: 139 148 163;
+
+  /* ---- semantic ---- */
+  --success: 22 163 74;
+  --warning: 217 119 6;
+  --danger: 220 38 38;
+  --info: 14 165 233;
+
+  /* ---- on-color foregrounds (kept ≥4.5:1 against their backgrounds) ---- */
+  --brand-foreground: 255 255 255;
+  --success-foreground: 255 255 255;
+  --warning-foreground: 255 255 255;
+  --danger-foreground: 255 255 255;
+  --info-foreground: 255 255 255;
+
+  /* ---- focus ---- */
+  --ring: 4 120 87;
+
+  /* ---- chart palette (categorical, colorblind-safe — Okabe & Ito 2008 derived) ----
+   * Used by @repo/ui chart primitives (KpiCard sparkline, LineChart/AreaChart, BarChart,
+   * FunnelChart, DonutChart/PieChart) to assign one hue per series/category. Hues are
+   * chosen to stay distinguishable under deuteranopia/protanopia/tritanopia and to keep
+   * ≥3:1 contrast against --bg/--surface for non-text graphical objects (WCAG 1.4.11).
+   * Charts must still pair color with a label (legend/data-table) — never color alone,
+   * docs/07-design-system.md §2. Not in docs/07 originally — added here; docs-writer
+   * flagged to record in docs/07-design-system.md §5/§2 (see phase-7 chart-primitives task).
+   */
+  --chart-1: 47 107 255; /* blue — brand accent, primary series */
+  --chart-2: 191 101 4; /* amber/orange */
+  --chart-3: 4 120 87; /* teal/green */
+  --chart-4: 178 58 6; /* vermillion */
+  --chart-5: 156 66 120; /* magenta/purple */
+  --chart-6: 90 97 110; /* neutral grey — "other"/overflow bucket */
+
+  /* ---- radius (docs/07 §4) ---- */
+  --radius-sm: 0.375rem; /* 6px */
+  --radius-md: 0.625rem; /* 10px */
+  --radius-lg: 0.875rem; /* 14px */
+  --radius-full: 9999px;
+
+  /* ---- spacing (8px base scale, docs/07 §4) ---- */
+  --space-0: 0px;
+  --space-1: 0.25rem; /* 4 */
+  --space-2: 0.5rem; /* 8 */
+  --space-3: 0.75rem; /* 12 */
+  --space-4: 1rem; /* 16 */
+  --space-6: 1.5rem; /* 24 */
+  --space-8: 2rem; /* 32 */
+  --space-12: 3rem; /* 48 */
+  --space-16: 4rem; /* 64 */
+  --space-24: 6rem; /* 96 */
+
+  /* ---- typography (docs/07 §3) ---- */
+  --font-sans:
+    Inter, "Inter Fallback", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Plus Jakarta Sans", var(--font-sans);
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+
+  --leading-body: 1.5;
+  --leading-heading: 1.2;
+
+  --font-regular: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* ---- shadows (subtle, 2 levels max, docs/07 §4) ---- */
+  --shadow-sm: 0 1px 2px 0 rgb(15 18 22 / 0.06);
+  --shadow-md: 0 4px 12px -2px rgb(15 18 22 / 0.10), 0 2px 4px -2px rgb(15 18 22 / 0.06);
+
+  /* ---- motion (docs/07 §7) ---- */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 250ms;
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+
+  /* ---- density (default = comfortable; `crm` sets data-density="compact") ---- */
+  --density-gap: var(--space-4);
+  --density-padding-x: var(--space-4);
+  --density-padding-y: var(--space-3);
+  --density-row-height: 2.5rem;
+}
+
+.dark {
+  --bg: 11 14 20;
+  --surface: 17 21 29;
+  --card: 20 25 37;
+  --border: 34 42 56;
+  --fg: 232 236 242;
+  --fg-muted: 154 166 184;
+  --fg-subtle: 107 118 137;
+
+  --brand-500: 5 150 105;
+  --brand-600: 4 120 87;
+
+  --ring: 5 150 105;
+
+  /* ---- chart palette (dark) — brightened for contrast against dark --bg/--surface ---- */
+  --chart-1: 90 139 255;
+  --chart-2: 245 166 53;
+  --chart-3: 45 200 160;
+  --chart-4: 255 129 84;
+  --chart-5: 224 152 196;
+  --chart-6: 154 166 184;
+}
+
+/* CRM density preset (docs/07 §12: compact density mode for dense tables/lists). */
+[data-density="compact"] {
+  --density-gap: var(--space-2);
+  --density-padding-x: var(--space-3);
+  --density-padding-y: var(--space-2);
+  --density-row-height: 2rem;
+  --text-base: 0.875rem;
+}
+
+/* Respect reduced-motion preference globally (docs/07 §7 / CLAUDE.md §3.9). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+body {
+  background-color: rgb(var(--bg));
+  color: rgb(var(--fg));
+  font-family: var(--font-sans);
+  line-height: var(--leading-body);
+}
+
+/* ---- Accordion animations (used by CurriculumAccordion / Radix Accordion). ---- */
+/* Tailwind utility classes .animate-accordion-down / .animate-accordion-up are   */
+/* registered in the config/tailwind/preset. These keyframes are the CSS backing. */
+@keyframes accordion-down {
+  from { height: 0; opacity: 0; }
+  to   { height: var(--radix-accordion-content-height); opacity: 1; }
+}
+
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); opacity: 1; }
+  to   { height: 0; opacity: 0; }
+}
+
+.animate-accordion-down {
+  animation: accordion-down var(--duration-base) var(--ease-out);
+}
+
+.animate-accordion-up {
+  animation: accordion-up var(--duration-fast) var(--ease-out);
+}

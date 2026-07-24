@@ -1,0 +1,3586 @@
+// stimuliiq — Prisma schema.
+//
+// Owner: db-architect (Wave 1, docs/plans/phase-6.md task #1).
+// Scope: Phase 0 (identity/access + catalog) + Phase 1 (profiles/batches/enrollments)
+// + Phase 2 (commerce: orders/payments/invoices/refunds/coupons; CRM: leads/activities/
+// bookings; enrollment commerce-linkage via order_id + source)
+// + Phase 3 (LMS core: videos, lesson_progress, attendance, resources)
+// + Phase 4 (Learning Depth: assignments, assignment_milestones, submissions,
+//            assessments, assessment_questions, attempts, certificates,
+//            certificate_templates)
+// + Phase 5 (Marketing Website: SEO/marketing columns on programs; attribution +
+//            consent columns on leads/bookings)
+// + Phase 6 (Engagement: notifications, notification_prefs, notification_suppressions,
+//            campaigns, campaign_templates, campaign_recipients, badges, user_badges,
+//            points_ledger, forum_threads, forum_posts, forum_post_votes)
+// + Phase 7 (Analytics + Hardening: materialized-view read model, analytics_mv_refresh_log,
+//            export_jobs, report_schedules — see the dedicated comment blocks further down)
+//
+// Conventions (docs/05 §1 + CLAUDE.md §3.4/§3.6/§3.8):
+// - PK: uuid v4 on every table — `@id @default(uuid()) @db.Uuid`.
+// - Every table carries created_at / updated_at / deleted_at (soft delete).
+// - tenant_id on all business tables; `permissions` is a global catalog (no tenant_id).
+// - Money stored as integer minor units (paise). No floats — money fields named *_paise.
+// - Migrations are forward-only; never edit a shipped migration.
+// - Partial indexes (WHERE deleted_at IS NULL) are in a separate raw-SQL migration.
+//
+// Phase-3 NEW TABLES (docs/plans/phase-3.md task #1, docs/05 §3):
+//   videos          — 1:1 with lessons; provider + asset ref only (NO raw URL stored).
+//   lesson_progress — per-enrollment-per-lesson progress tracking (resume, completion).
+//   attendance      — recorded-completion attendance; live_class_id nullable (live deferred).
+//   resources       — lesson attachments (table + list only; signed-download deferred P4).
+//
+// docs-writer note (divergence from docs/05 §3 "attendance" spec):
+//   attendance.lesson_id (nullable FK → lessons) is ADDED (not in the original §3 spec).
+//   This column makes recorded attendance idempotent per-lesson (enrollment_id + lesson_id
+//   partial-unique on source=recorded rows) without requiring fragile date-based dedup.
+//   Original §3 only had (enrollment_id, live_class_id). The extension is documented here;
+//   docs-writer should update docs/05 §3 attendance row to include lesson_id (nullable).
+//
+// docs-writer note (VideoStatus extension):
+//   docs/05 §3 videos.status listed "processing|ready"; this schema adds "errored" as a
+//   third value (consistent with the plan: docs/plans/phase-3.md table "processing|ready|errored").
+//   docs-writer should update docs/05 §3 videos row to include "errored".
+//
+// LessonProgress audit-volume decision (documented here for audit.extension.ts extension):
+//   LessonProgress is a HIGH-FREQUENCY table (every progress-ping from the video player may
+//   call upsert). Auditing EVERY update would produce extreme audit_log churn (same concern
+//   as Session in Phase 0 and Payment/Order volume in Phase 2). Decision: LessonProgress is
+//   added to AUDITED_MODELS for create and completion-transition tracking only; the backend
+//   service (backend-builder Wave 4) is responsible for only writing audit rows on meaningful
+//   transitions (create / status→completed), NOT on every throttled last_position_s update.
+//   The audit extension fires on every Prisma update, so the backend should use a lightweight
+//   "position-only" upsert path that bypasses the audited client for pure position pings, and
+//   uses the audited client only on status=completed transitions. This is a seam documented
+//   for backend-builder; the db-architect includes LessonProgress in AUDITED_MODELS so create
+//   and completion events ARE recorded — omitting it entirely would lose the completion audit
+//   trail. Alternative considered: exclude from AUDITED_MODELS and audit at service layer only;
+//   rejected because it would require manual audit writes scattered in the service, harder to
+//   maintain. Accepted trade-off: some high-frequency update events may write audit rows if
+//   the backend-builder does not separate the "position ping" path — to be addressed in W4.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Enums
+// ────────────────────────────────────────────────────────────────────────────
+
+enum TenantStatus {
+  active
+  suspended
+  archived
+}
+
+enum BranchStatus {
+  active
+  inactive
+}
+
+enum UserStatus {
+  active
+  invited
+  suspended
+  deactivated
+}
+
+enum RolePermissionScope {
+  all
+  branch
+  assigned
+  own
+}
+
+enum ProgramMode {
+  live
+  recorded
+  hybrid
+}
+
+enum ProgramStatus {
+  draft
+  published
+  archived
+}
+
+enum LessonType {
+  video
+  reading
+  assignment
+  quiz
+}
+
+enum StudentCourseType {
+  btech
+  degree
+  diploma
+  mca
+  mba
+  other
+}
+
+enum StudentProfileStatus {
+  lead
+  active
+  alumni
+}
+
+enum BatchStatus {
+  planned
+  active
+  completed
+  archived
+}
+
+enum EnrollmentStatus {
+  active
+  completed
+  dropped
+}
+
+// ── Phase-2 enums (docs/plans/phase-2.md task #1) ────────────────────────────
+
+enum OrderStatus {
+  created
+  paid
+  failed
+  refunded
+}
+
+enum PaymentStatus {
+  created
+  authorized
+  captured
+  failed
+  refunded
+}
+
+// docs/05 §3 table says "pending|generated|failed"; task spec says "draft|issued|void".
+// Using the task spec values ("draft|issued|void") as the primary and noting the
+// docs/05 label discrepancy — docs-writer should update docs/05 §3 to match.
+enum InvoiceStatus {
+  draft
+  issued
+  void
+}
+
+enum RefundStatus {
+  requested
+  approved
+  rejected
+  processed
+  failed
+}
+
+enum CouponType {
+  pct
+  flat
+}
+
+enum CouponStatus {
+  active
+  inactive
+  expired
+}
+
+enum LeadStage {
+  new
+  follow_up
+  won
+  lost
+}
+
+enum ActivityType {
+  call
+  note
+  whatsapp
+  email
+  task
+}
+
+enum BookingStatus {
+  requested
+  confirmed
+  completed
+  cancelled
+  no_show
+}
+
+enum EnrollmentSource {
+  manual
+  order
+  conversion
+}
+
+// ── Phase-4 enums (docs/plans/phase-4.md task #1, docs/05 §3) ────────────────
+//
+// AssignmentKind: discriminates between a plain assignment and a multi-milestone project.
+// kind=project unlocks assignment_milestones rows for that assignment.
+enum AssignmentKind {
+  assignment
+  project
+}
+
+// SubmissionStatus: lifecycle of a student's submission to an assignment/project.
+// "returned" means graded then sent back for revision (if allow_resubmit=true).
+enum SubmissionStatus {
+  submitted
+  graded
+  returned
+}
+
+// AssessmentType: quiz (short formative) vs. test (summative / scored toward pass_pct).
+enum AssessmentType {
+  quiz
+  test
+}
+
+// QuestionType: multiple-choice (auto-graded server-side) vs. descriptive (manual grade).
+// code-execution type is OUT of P4 scope (docs/plans/phase-4.md §1 explicit OUT).
+enum QuestionType {
+  mcq
+  descriptive
+}
+
+// CertificateStatus: valid cert vs. a revocation that invalidates it instantly.
+// Revocation flips status to "revoked" and is reflected immediately in public verify.
+enum CertificateStatus {
+  valid
+  revoked
+}
+
+// ── Phase-6 enums (docs/plans/phase-6.md task #1, docs/05 §3) ────────────────
+//
+// NotificationType: the domain event that triggered the notification.
+// Extensible — new types can be added without breaking the fan-out engine (the
+// template registry maps type → per-channel templates; unknown types are no-ops).
+enum NotificationType {
+  grade_ready
+  certificate_ready
+  live_reminder
+  forum_reply
+  announcement
+  lead_confirmation
+  booking_confirmation
+  payment_receipt
+  welcome
+}
+
+// NotificationChannel: the delivery channel used (stored in notifications.channels JSON
+// as an array of these values). "push" is intentionally absent — OUT of P6 scope
+// (CONFLICT-P6-1 in docs/plans/phase-6.md §1); the enum is extensible for later.
+enum NotificationChannel {
+  in_app
+  email
+  sms
+  whatsapp
+}
+
+// CampaignChannel: which provider channel a campaign uses.
+// Enum members match NotificationChannel for consistency; campaigns never use in_app.
+enum CampaignChannel {
+  email
+  whatsapp
+  sms
+}
+
+// CampaignStatus: lifecycle of a bulk campaign.
+enum CampaignStatus {
+  draft
+  scheduled
+  sending
+  sent
+  paused
+  cancelled
+  failed
+}
+
+// RecipientStatus: per-recipient delivery state within a campaign.
+// Provider webhooks update this from queued → sent → delivered/read/failed.
+enum RecipientStatus {
+  queued
+  sent
+  delivered
+  read
+  failed
+}
+
+// ThreadStatus: moderation + resolution state of a forum thread.
+enum ThreadStatus {
+  open
+  resolved
+  hidden
+  pinned
+}
+
+// PostStatus: visibility state of a forum post (normal vs. moderation-hidden).
+enum PostStatus {
+  visible
+  hidden
+}
+
+// SuppressionReason: why a recipient was added to the suppression list.
+// Used by the campaign service to skip suppressed addresses/phones.
+enum SuppressionReason {
+  unsubscribe
+  bounce
+  complaint
+}
+
+// ── Phase-3 enums (docs/plans/phase-3.md task #1, docs/05 §3) ────────────────
+
+// VideoStatus: lifecycle of a video asset managed by the VideoProvider.
+// "errored" added vs. the original docs/05 §3 "processing|ready" — see header note.
+enum VideoStatus {
+  processing
+  ready
+  errored
+}
+
+// LessonProgressStatus: per-enrollment per-lesson learning state.
+enum LessonProgressStatus {
+  not_started
+  in_progress
+  completed
+}
+
+// AttendanceStatus: whether the student was present or absent for the session.
+enum AttendanceStatus {
+  present
+  absent
+}
+
+// AttendanceSource: how the attendance was generated — live join or recorded completion.
+// P3 scope = recorded only; live deferred (live_classes table not added in P3).
+enum AttendanceSource {
+  live
+  recorded
+}
+
+// ── Phase-7 enums (docs/plans/phase-7.md Wave 1 task #4, docs/specs/
+//    phase-7-analytics-hardening.md AC-33) ───────────────────────────────────
+//
+// ExportJobStatus: lifecycle of a durable on-demand/scheduled export or report job
+// (CSV/PDF). "queued" = accepted, not yet started; "running" = worker is
+// streaming/paginating rows; "succeeded"/"failed" are terminal.
+enum ExportJobStatus {
+  queued
+  running
+  succeeded
+  failed
+}
+
+// Phase-7 Wave 2 (docs/plans/phase-7.md task #11): recurring report-email cadence.
+// Mirrors `ReportScheduleFrequencySchema` (@repo/types crm/exports.schemas.ts).
+enum ReportScheduleFrequency {
+  daily
+  weekly
+  monthly
+}
+
+// Outcome of the most recent scheduled dispatch attempt (AC-38/39 + edge-case table).
+// Mirrors `ReportScheduleRunStatusSchema` (@repo/types crm/exports.schemas.ts). Nullable
+// on the row until the schedule's first due run has actually fired.
+enum ReportScheduleRunStatus {
+  succeeded
+  failed
+  skipped_suppressed
+  sent_no_data
+}
+
+// ── Phase-8 Mentor enums (docs-writer TODO: add to docs/05 §3 — see schema header
+//    note near the Mentor model) ──────────────────────────────────────────────
+//
+// MentorEngagementStatus: lifecycle of a mentor's engagement with the tenant.
+// "prospective" = sourced/being onboarded, not yet leading a batch; "active" =
+// currently engaged; "inactive" = engagement ended (contract lapsed, etc.). This is
+// distinct from soft-delete (`deleted_at`) — an inactive mentor's row is not deleted,
+// just no longer engaged; a deleted mentor's row is a data-entry error/duplicate.
+enum MentorEngagementStatus {
+  prospective
+  active
+  inactive
+}
+
+// ── Phase-9 Completion enums (docs/plans/phase-9-completion.md Wave 1 T6-T12) ────────
+
+// LiveClassProvider: which LiveClassProvider adapter hosts this session.
+// "noop" is the dev/prod-fail-closed default (see docs/plans/phase-9-completion.md T15).
+enum LiveClassProvider {
+  zoom
+  google_meet
+  noop
+}
+
+// LiveClassStatus: scheduling lifecycle of a live class session.
+enum LiveClassStatus {
+  scheduled
+  live
+  completed
+  cancelled
+}
+
+// TicketStatus: support-desk ticket lifecycle.
+enum TicketStatus {
+  open
+  in_progress
+  resolved
+  closed
+}
+
+// TicketPriority: SLA-driving priority level.
+enum TicketPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+// ContentStatus: shared draft/publish lifecycle for headless-CMS-managed content
+// (BlogPost, ContentPage, Testimonial, Partner, FacultyBio, LandingPage). A single
+// shared enum (rather than one per model) keeps the CMS publish workflow uniform
+// across content types. Unlike Program (status + separate is_public flag), these are
+// pure marketing/content records with no enrollment-linked visibility split, so
+// "published" is the sole publish gate.
+enum ContentStatus {
+  draft
+  published
+  archived
+}
+
+// SettingScope: whether a Setting row is a platform-wide "system" default or a
+// tenant-configurable "company" override (docs/05 §3 "settings" row: "scope").
+enum SettingScope {
+  system
+  company
+}
+
+// ReferralStatus: lifecycle of a referral/affiliate attribution.
+enum ReferralStatus {
+  pending
+  converted
+  rewarded
+  expired
+  rejected
+}
+
+// EmiPlanStatus: lifecycle of an EMI (installment) payment plan.
+enum EmiPlanStatus {
+  active
+  completed
+  defaulted
+  cancelled
+}
+
+// EmiInstallmentStatus: per-installment dunning/collection state.
+enum EmiInstallmentStatus {
+  pending
+  paid
+  overdue
+  waived
+  failed
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Identity & access
+// ────────────────────────────────────────────────────────────────────────────
+
+model Tenant {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String       @unique
+  branding  Json?
+  settings  Json?
+  status    TenantStatus @default(active)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  deletedAt DateTime?    @map("deleted_at")
+
+  branches        Branch[]
+  users           User[]
+  roles           Role[]
+  sessions        Session[]
+  programs        Program[]
+  auditLogs       AuditLog[]
+  studentProfiles StudentProfile[]
+  facultyProfiles FacultyProfile[]
+  batches         Batch[]
+  enrollments     Enrollment[]
+  // Phase-2 commerce + CRM reverse relations
+  orders          Order[]
+  payments        Payment[]
+  invoices        Invoice[]
+  refunds         Refund[]
+  coupons         Coupon[]
+  leads           Lead[]
+  activities      Activity[]
+  bookings        Booking[]
+  // Phase-3 LMS core reverse relations
+  videos          Video[]
+  lessonProgress  LessonProgress[]
+  attendance      Attendance[]
+  resources       Resource[]
+
+  // Phase-4 Learning Depth reverse relations
+  assignments          Assignment[]
+  assignmentMilestones AssignmentMilestone[]
+  submissions          Submission[]
+  assessments          Assessment[]
+  assessmentQuestions  AssessmentQuestion[]
+  attempts             Attempt[]
+  certificates         Certificate[]
+  certificateTemplates CertificateTemplate[]
+
+  // Phase-6 Engagement reverse relations
+  notifications            Notification[]
+  notificationPrefs        NotificationPref[]
+  notificationSuppressions NotificationSuppression[]
+  campaigns                Campaign[]
+  campaignTemplates        CampaignTemplate[]
+  campaignRecipients       CampaignRecipient[]
+  badges                   Badge[]
+  userBadges               UserBadge[]
+  pointsLedger             PointsLedger[]
+  forumThreads             ForumThread[]
+  forumPosts               ForumPost[]
+  forumPostVotes           ForumPostVote[]
+
+  // Phase-7 Analytics + Hardening reverse relation
+  exportJobs      ExportJob[]
+  reportSchedules ReportSchedule[]
+
+  // Phase-8 Mentor reverse relations
+  mentors      Mentor[]
+  batchMentors BatchMentor[]
+
+  // Phase-9 Completion reverse relations (docs/plans/phase-9-completion.md T6-T12)
+  liveClasses             LiveClass[]
+  tickets                 Ticket[]
+  ticketMessages          TicketMessage[]
+  cannedResponses         CannedResponse[]
+  kbArticles              KbArticle[]
+  blogCategories          BlogCategory[]
+  blogPosts               BlogPost[]
+  testimonials            Testimonial[]
+  partners                Partner[]
+  facultyBios             FacultyBio[]
+  contentPages            ContentPage[]
+  contentPageVersions     ContentPageVersion[]
+  newsletterSubscriptions NewsletterSubscription[]
+  contactSubmissions      ContactSubmission[]
+  careerApplications      CareerApplication[]
+  featureFlags            FeatureFlag[]
+  settingRecords          Setting[]
+  siteSettings            SiteSetting[]
+  bookmarks               Bookmark[]
+  lessonNotes             LessonNote[]
+  referrals               Referral[]
+  emiPlans                EmiPlan[]
+  emiInstallments         EmiInstallment[]
+  landingPages            LandingPage[]
+  leadForms               LeadForm[]
+  twoFactorCredentials    TwoFactorCredential[]
+
+  @@map("tenants")
+}
+
+model Branch {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  name      String
+  city      String?
+  address   String?
+  status    BranchStatus @default(active)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  deletedAt DateTime?    @map("deleted_at")
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  userRoles       UserRole[]
+  facultyProfiles FacultyProfile[]
+  batches         Batch[]
+  leads           Lead[]
+
+  @@index([tenantId])
+  @@index([tenantId, deletedAt])
+  @@map("branches")
+}
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  tenantId     String     @map("tenant_id") @db.Uuid
+  email        String
+  phone        String?
+  passwordHash String     @map("password_hash")
+  name         String
+  avatar       String?
+  status       UserStatus @default(active)
+  lastLoginAt  DateTime?  @map("last_login_at")
+  twoFaEnabled Boolean    @default(false) @map("two_fa_enabled")
+  // First-login onboarding gate (lifecycle-redesign P3). Set true when an LMS
+  // account is auto-provisioned with a system-generated TEMPORARY password (on
+  // enrollment). While true the LMS forces a password change before any content
+  // is accessible; the change-password flow clears it. Default false so every
+  // existing/staff account is unaffected.
+  mustChangePassword Boolean @default(false) @map("must_change_password")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  deletedAt    DateTime?  @map("deleted_at")
+
+  tenant              Tenant          @relation(fields: [tenantId], references: [id])
+  userRoles           UserRole[]
+  sessions            Session[]
+  auditLogs           AuditLog[]
+  studentProfile      StudentProfile?
+  facultyProfile      FacultyProfile?
+  // Phase-2: user as lead owner, refund actor, activity actor
+  ownedLeads          Lead[]          @relation("LeadOwner")
+  requestedRefunds    Refund[]        @relation("RefundRequestedBy")
+  approvedRefunds     Refund[]        @relation("RefundApprovedBy")
+  activities          Activity[]
+  // Phase-4: user as grader (submissions), certificate issuer/revoker
+  gradedSubmissions   Submission[]    @relation("SubmissionGradedBy")
+  issuedCertificates  Certificate[]   @relation("CertificateIssuedBy")
+  revokedCertificates Certificate[]   @relation("CertificateRevokedBy")
+
+  // Phase-6 Engagement reverse relations
+  notifications            Notification[]
+  notificationPref         NotificationPref?
+  notificationSuppressions NotificationSuppression[]
+  userBadges               UserBadge[]
+  pointsLedger             PointsLedger[]
+  forumThreads             ForumThread[]
+  forumPosts               ForumPost[]
+  forumPostVotes           ForumPostVote[]
+  hiddenForumPosts         ForumPost[]               @relation("ForumPostHiddenBy")
+  createdCampaigns         Campaign[]                @relation("CampaignCreatedBy")
+  campaignRecipients       CampaignRecipient[]
+
+  // Phase-7 Analytics + Hardening reverse relation
+  requestedExportJobs    ExportJob[]      @relation("ExportJobRequestedBy")
+  createdReportSchedules ReportSchedule[] @relation("ReportScheduleCreatedBy")
+
+  // Phase-8 Mentor reverse relations
+  mentorProfile        Mentor?       @relation("MentorUser")
+  assignedBatchMentors BatchMentor[] @relation("BatchMentorAssignedBy")
+  completedBatches     Batch[]       @relation("BatchCompletedBy")
+
+  // Phase-9 Completion reverse relations (docs/plans/phase-9-completion.md T6-T12)
+  hostedLiveClasses LiveClass[]     @relation("LiveClassHost")
+  raisedTickets     Ticket[]        @relation("TicketRaisedBy")
+  assignedTickets   Ticket[]        @relation("TicketAssignee")
+  ticketMessages    TicketMessage[]
+  blogPosts         BlogPost[]
+  referralsMade     Referral[]      @relation("ReferralReferrer")
+  bookmarks         Bookmark[]
+  lessonNotes       LessonNote[]
+  createdContentPageVersions ContentPageVersion[]
+  // One-to-many at the Prisma level; "one ACTIVE credential per user" is enforced by
+  // the raw-SQL partial-unique index (user_id WHERE deleted_at IS NULL) so a user can
+  // re-enrol after a soft-deleted disable.
+  twoFactorCredentials TwoFactorCredential[]
+
+  @@unique([tenantId, email])
+  @@index([phone])
+  @@index([tenantId, deletedAt])
+  @@map("users")
+}
+
+/// Durable per-user TOTP 2FA credential (T28 hardening). Replaces the interim
+/// Redis-only store: Redis is the cache/rate-limit/OTP layer here, not a durable
+/// system-of-record, so a flush would have locked out every enrolled user. The
+/// active TOTP secret and the hashed (single-use) backup codes live here instead;
+/// the short-lived enrollment-in-progress secret stays in Redis (TTL'd).
+///
+/// Deliberately NOT registered in AUDITED_MODELS: a security credential must never
+/// be before/after-snapshotted into audit_logs. IS soft-deleted (deactivate sets
+/// deleted_at) with a partial-unique index on user_id WHERE deleted_at IS NULL, so
+/// a user can re-enrol after disabling without a unique-constraint clash.
+model TwoFactorCredential {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  secret      String // TOTP shared secret (base32). Never logged, never audited.
+  backupCodes String[]  @map("backup_codes") // sha256 hashes of UNUSED backup codes.
+  activatedAt DateTime  @map("activated_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, deletedAt])
+  @@map("two_factor_credentials")
+}
+
+model Role {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  key       String
+  name      String
+  isSystem  Boolean   @default(false) @map("is_system")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId, deletedAt])
+  @@map("roles")
+}
+
+// Global permission catalog — no tenant_id (docs/05 §3: permissions has no tenant scope).
+model Permission {
+  id        String    @id @default(uuid()) @db.Uuid
+  key       String    @unique
+  label     String
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String              @id @default(uuid()) @db.Uuid
+  roleId       String              @map("role_id") @db.Uuid
+  permissionId String              @map("permission_id") @db.Uuid
+  scope        RolePermissionScope @default(own)
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+  deletedAt    DateTime?           @map("deleted_at")
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  roleId    String    @map("role_id") @db.Uuid
+  branchId  String?   @map("branch_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  user   User    @relation(fields: [userId], references: [id])
+  role   Role    @relation(fields: [roleId], references: [id])
+  branch Branch? @relation(fields: [branchId], references: [id])
+
+  @@unique([userId, roleId, branchId])
+  @@index([roleId])
+  @@index([branchId])
+  @@map("user_roles")
+}
+
+model Session {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  refreshHash String    @map("refresh_hash")
+  device      String?
+  ip          String?
+  expiresAt   DateTime  @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Catalog
+// ────────────────────────────────────────────────────────────────────────────
+
+model Program {
+  id            String        @id @default(uuid()) @db.Uuid
+  tenantId      String        @map("tenant_id") @db.Uuid
+  // slug: SEO URL segment for /programs/:slug. Per-tenant unique (same slug can exist
+  // across tenants). Uniqueness is enforced by the raw-SQL partial-unique index
+  // `programs_active_tenant_slug_key` on (tenant_id, slug) WHERE deleted_at IS NULL
+  // in the migration website_seo_slug_fix (matching the partial-unique pattern from
+  // commerce_leads / lms_core / learning_depth partial-index migrations).
+  // The Prisma-managed global @unique was dropped (see migration website_seo_slug_fix)
+  // because a full unique constraint blocks slug reuse after soft-delete, which is the
+  // desired behaviour for republished programs.
+  // docs-writer note: docs/05 §4 listed "(slug) uniq" as a global single-column unique;
+  // the P5 decision is (tenant_id, slug) partial-unique WHERE deleted_at IS NULL —
+  // docs/05 §4 should be updated to reflect this choice.
+  slug          String
+  title         String
+  domain        String
+  level         String?
+  mode          ProgramMode   @default(recorded)
+  durationWeeks Int?          @map("duration_weeks")
+  pricePaise    Int           @map("price_paise")
+  currency      String        @default("INR")
+  emi           Json?
+  summary       String?
+  seo           Json?
+  status        ProgramStatus @default(draft)
+
+  // ── Phase-5 SEO / marketing columns (docs/plans/phase-5.md §2, all nullable/defaulted
+  //    so P1–P4 rows validate without a data migration) ──────────────────────────────────
+  //
+  // seoTitle / seoDescription: per-page <title> and <meta name="description"> overrides.
+  // ogImageKey: S3/R2 object key for the Open Graph image; signed URL minted at serve time.
+  //   NOT a raw URL — consistent with docs/05 §7 "no raw object URLs to clients" convention.
+  // cardSummary: short blurb for program listing cards (different from summary which may be
+  //   longer); surfaces on /programs grid cards and on the homepage "Featured Programs" block.
+  // outcomes: JSON array of learning outcomes (e.g. ["Build REST APIs", "Deploy to AWS"]).
+  //   Used on the program-detail page outcomes section and Schema.org Course JSON-LD.
+  // ratingAvg: integer 0–50 representing 0.0–5.0 stars (×10 to avoid floats per CLAUDE.md §3.6).
+  //   Example: 47 = 4.7 stars. Denormalized display field; recomputed by a background job.
+  // ratingCount: total number of reviews that contribute to ratingAvg; denormalized counter.
+  // isPublic: BOOLEAN default false — "published" is a CRM status (draft→published→archived);
+  //   "is_public" is a MARKETING flag (published does NOT automatically make a program publicly
+  //   listable on the site). A program must be explicitly marked is_public=true to appear on
+  //   GET /public/programs. This prevents accidental draft/internal-program leakage. (Risk #6).
+  seoTitle       String? @map("seo_title")
+  seoDescription String? @map("seo_description")
+  ogImageKey     String? @map("og_image_key")
+  cardSummary    String? @map("card_summary")
+  outcomes       Json?
+  // ratingAvg: integer 0–50 = 0.0–5.0 stars (×10 scale — no float per CLAUDE.md §3.6-adjacent).
+  ratingAvg      Int?    @map("rating_avg")
+  ratingCount    Int?    @map("rating_count")
+  isPublic       Boolean @default(false) @map("is_public")
+  // scholarshipAvailable: marketing flag — when true the public website renders a
+  // "Scholarship available" badge on the course card and detail page (links to
+  // /scholarship). Display-only; actual waivers are handled in the leads/commerce flow.
+  scholarshipAvailable Boolean @default(false) @map("scholarship_available")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  modules      Module[]
+  batches      Batch[]
+  enrollments  Enrollment[]
+  // Phase-2 reverse relations
+  orders       Order[]
+  leads        Lead[]
+  bookings     Booking[]
+  // Phase-4: certificates denormalize program_id for direct lookup.
+  certificates Certificate[]
+  // Phase-6: forum threads scoped to this program (course-level discussions)
+  forumThreads ForumThread[]
+  // Phase-9 Completion reverse relations
+  liveClasses  LiveClass[]
+  testimonials Testimonial[]
+  leadForms    LeadForm[]
+
+  @@index([tenantId, domain, status])
+  @@index([tenantId, deletedAt])
+  // slug lookup index: the partial-unique (tenant_id, slug) WHERE deleted_at IS NULL
+  // in the raw-SQL migration website_seo_slug_fix replaces the old global @@unique(slug).
+  // A non-unique @@index([slug]) enables fast slug lookup from Prisma queries.
+  @@index([slug])
+  // Phase-5: (tenant_id, is_public, status) for the public catalog read
+  // (GET /public/programs filters by is_public=true AND status=published).
+  @@index([tenantId, isPublic, status])
+  @@map("programs")
+}
+
+model Module {
+  id        String    @id @default(uuid()) @db.Uuid
+  programId String    @map("program_id") @db.Uuid
+  title     String
+  order     Int
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  program Program  @relation(fields: [programId], references: [id])
+  lessons Lesson[]
+
+  // Phase-4 reverse relations (docs/plans/phase-4.md task #1)
+  // MODULE ||--o{ ASSESSMENT: a module can have multiple assessments (quiz/test).
+  assessments Assessment[]
+
+  @@index([programId, order])
+  @@map("modules")
+}
+
+model Lesson {
+  id        String     @id @default(uuid()) @db.Uuid
+  moduleId  String     @map("module_id") @db.Uuid
+  title     String
+  type      LessonType @default(video)
+  order     Int
+  content   String?
+  isPreview Boolean    @default(false) @map("is_preview")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  deletedAt DateTime?  @map("deleted_at")
+
+  module Module @relation(fields: [moduleId], references: [id])
+
+  // Phase-3 reverse relations (docs/plans/phase-3.md task #1)
+  video          Video?
+  lessonProgress LessonProgress[]
+  resources      Resource[]
+  attendance     Attendance[]
+
+  // Phase-4 reverse relations (docs/plans/phase-4.md task #1)
+  // LESSON ||--o{ ASSIGNMENT: a lesson can have multiple assignments (incl. projects).
+  assignments Assignment[]
+
+  // Phase-9 Completion: student notes anchored to this lesson.
+  lessonNotes LessonNote[]
+
+  @@index([moduleId, order])
+  @@map("lessons")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Profiles (docs/05 §3 "Profiles") — 1:1 extensions of `users` (Phase 1, P1 plan
+// risk #1: user-first modeling — creating a student/faculty implies a `users` row).
+// ────────────────────────────────────────────────────────────────────────────
+
+model StudentProfile {
+  id         String               @id @default(uuid()) @db.Uuid
+  tenantId   String               @map("tenant_id") @db.Uuid
+  userId     String               @unique @map("user_id") @db.Uuid
+  college    String?
+  courseType StudentCourseType    @map("course_type")
+  year       Int?
+  // lifecycle-redesign (registration step): secondary/guardian contact captured
+  // when a lead-contact completes full registration. users.phone stays primary.
+  alternatePhone String? @map("alternate_phone")
+  city       String?
+  source     String?
+  status     StudentProfileStatus @default(lead)
+  createdAt  DateTime             @default(now()) @map("created_at")
+  updatedAt  DateTime             @updatedAt @map("updated_at")
+  deletedAt  DateTime?            @map("deleted_at")
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  user               User                @relation(fields: [userId], references: [id])
+  enrollments        Enrollment[]
+  // Phase-2 reverse relations
+  orders             Order[]
+  activities         Activity[]
+  convertedFromLead  Lead?               @relation("LeadConvertedStudent")
+  // Phase-4: certificates denormalize student_id for direct lookup.
+  certificates       Certificate[]
+  // Phase-6: campaign recipients that target this student
+  campaignRecipients CampaignRecipient[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@map("student_profiles")
+}
+
+model FacultyProfile {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  userId    String    @unique @map("user_id") @db.Uuid
+  expertise Json?
+  bio       String?
+  rating    Float?
+  branchId  String?   @map("branch_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+  branch  Branch? @relation(fields: [branchId], references: [id])
+  batches Batch[]
+
+  // Phase-9 Completion: public marketing bios linked to this internal faculty record.
+  facultyBios FacultyBio[]
+
+  @@index([branchId])
+  @@index([tenantId, deletedAt])
+  @@map("faculty_profiles")
+}
+
+// Mentor (docs-writer TODO: add "mentors" row to docs/05 §3 "Profiles" — Phase 8,
+// corrected direction per CLAUDE.md §6 P8; the earlier "AI mentor" concept referenced
+// in docs/plans/phase-8.md / docs/specs/phase-8-ai-mentor.md is SUPERSEDED and was
+// never implemented in the schema — no cleanup needed here, but docs-writer should
+// mark those two files superseded/archived).
+//
+// A Mentor is a REAL, HUMAN subject-matter expert HIRED FROM AN EXTERNAL INSTITUTE
+// (distinct from `FacultyProfile`, which is an internal hire) who leads one or more
+// batches of students through the internship program to completion. Deliberately NOT
+// a 1:1 extension of `users` like StudentProfile/FacultyProfile — `userId` is
+// NULLABLE because a mentor record is created during sourcing/onboarding (CRM-side,
+// by admin/staff) and may exist for a long time before the mentor is ever given a
+// dashboard login. When login IS granted, `userId` is set and the mentor authenticates
+// as the new `mentor` role (seed.ts), scoped to their ASSIGNED batches via
+// `batch_mentors` (mirrors the FacultyProfile "assigned" scope pattern — see
+// `EnrollmentScopeRepository.resolveBatchIdsForFaculty` for the faculty analogue;
+// the mentor equivalent resolves via `batch_mentors.mentor_id`, Wave-2 backend task).
+//
+// `userId` is `@unique` (nullable-safe: Postgres unique indexes permit multiple NULLs,
+// so many mentor rows can have no login yet, but at most one mentor row may ever point
+// at a given `users` row once granted one — matches the FacultyProfile 1:1 contract).
+model Mentor {
+  id                String                 @id @default(uuid()) @db.Uuid
+  tenantId          String                 @map("tenant_id") @db.Uuid
+  userId            String?                @unique @map("user_id") @db.Uuid
+  fullName          String                 @map("full_name")
+  email             String
+  phone             String?
+  // The external institute/company this mentor is hired FROM (not an FK — mentors'
+  // source institutes are not modeled as first-class tenant data in P8; a free-text
+  // field is sufficient for the CRM directory + display).
+  externalInstitute String                 @map("external_institute")
+  // Array of subject/skill strings (e.g. ["React", "System Design"]). Modeled as Json
+  // (not a native Postgres array), matching `FacultyProfile.expertise`'s existing
+  // precedent in this schema for consistency.
+  expertise         Json?
+  engagementStatus  MentorEngagementStatus @default(prospective) @map("engagement_status")
+  joinedAt          DateTime?              @map("joined_at")
+  notes             String?
+  // Public marketing-profile fields (bound to the web /mentors page). `photoKey` is the
+  // S3/R2 object key (raw key never leaves the API — minted to a public CDN URL via
+  // mintCdnUrl); `socialLinks` is `{ linkedin?, twitter?, github?, website? }`. Mirrors
+  // FacultyBio's photoKey/title/bio/socialLinks precedent for consistency.
+  photoKey          String?                @map("photo_key")
+  title             String?
+  bio               String?
+  yearsExperience   Int?                   @map("years_experience")
+  socialLinks       Json?                  @map("social_links")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+  deletedAt         DateTime?              @map("deleted_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  user         User?         @relation("MentorUser", fields: [userId], references: [id])
+  batchMentors BatchMentor[]
+
+  @@index([tenantId, engagementStatus])
+  @@index([tenantId, deletedAt])
+  @@map("mentors")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Batches & enrollment (docs/05 §3 "Batches & enrollment") — P1 = roster/join
+// only; payment/commerce side of enrollment is P2.
+// ────────────────────────────────────────────────────────────────────────────
+
+model Batch {
+  id                String      @id @default(uuid()) @db.Uuid
+  tenantId          String      @map("tenant_id") @db.Uuid
+  programId         String      @map("program_id") @db.Uuid
+  branchId          String      @map("branch_id") @db.Uuid
+  facultyId         String?     @map("faculty_id") @db.Uuid
+  name              String
+  startDate         DateTime    @map("start_date")
+  endDate           DateTime?   @map("end_date")
+  capacity          Int
+  mode              ProgramMode @default(recorded)
+  schedule          Json?
+  status            BatchStatus @default(planned)
+  // Phase-8 (Mentor): minimal completion-tracking addition. "Completing the internship
+  // program" is largely a ROLLUP over existing data (enrollment/lesson_progress/
+  // assignments/assessments/certificates, per docs/05 §3) computed in the service layer
+  // (Wave-2 backend) — this is intentionally NOT a new progress/tracking table, just the
+  // batch-level status-transition timestamp + actor, mirroring Enrollment.completedAt.
+  completedAt       DateTime?   @map("completed_at")
+  completedByUserId String?     @map("completed_by_user_id") @db.Uuid
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+  deletedAt         DateTime?   @map("deleted_at")
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
+  program         Program         @relation(fields: [programId], references: [id])
+  branch          Branch          @relation(fields: [branchId], references: [id])
+  faculty         FacultyProfile? @relation(fields: [facultyId], references: [id])
+  completedByUser User?           @relation("BatchCompletedBy", fields: [completedByUserId], references: [id])
+  enrollments     Enrollment[]
+  // Phase-6: forum threads scoped to this batch
+  forumThreads    ForumThread[]
+  // Phase-8: mentor (external hire) assignments for this batch
+  batchMentors    BatchMentor[]
+  // Phase-9: scheduled live class sessions for this batch
+  liveClasses     LiveClass[]
+
+  @@index([tenantId, programId])
+  @@index([branchId])
+  @@index([facultyId])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@map("batches")
+}
+
+// BatchMentor — the mentor↔batch assignment join (docs-writer TODO: add to docs/05 §3
+// "Batches & enrollment", Phase 8). A batch may have one-or-more assigned mentors,
+// optionally one flagged `isLead`. This is the scope-resolution table for the mentor
+// role's "assigned" data scope (mirrors `batches.faculty_id` for the faculty role,
+// except many-to-many since a batch can have multiple mentors and — in principle — a
+// mentor could be assigned to multiple batches).
+//
+// PARTIAL-UNIQUE (raw SQL, Prisma cannot express `WHERE` on `@@unique` — same pattern
+// as `submissions_active_no_resubmit_unique` / `user_badges_active_user_badge_key`):
+// `UNIQUE (batch_id, mentor_id) WHERE deleted_at IS NULL` — at most one ACTIVE
+// assignment per (batch, mentor) pair at a time; soft-deleting and re-assigning is
+// allowed (re-engagement after a gap). See the `_partial_indexes` migration.
+model BatchMentor {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  batchId          String    @map("batch_id") @db.Uuid
+  mentorId         String    @map("mentor_id") @db.Uuid
+  isLead           Boolean   @default(false) @map("is_lead")
+  assignedAt       DateTime  @default(now()) @map("assigned_at")
+  assignedByUserId String?   @map("assigned_by_user_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  tenant         Tenant @relation(fields: [tenantId], references: [id])
+  batch          Batch  @relation(fields: [batchId], references: [id])
+  mentor         Mentor @relation(fields: [mentorId], references: [id])
+  assignedByUser User?  @relation("BatchMentorAssignedBy", fields: [assignedByUserId], references: [id])
+
+  @@index([tenantId, batchId])
+  @@index([tenantId, mentorId])
+  @@index([tenantId, deletedAt])
+  @@map("batch_mentors")
+}
+
+// P7 ANALYTICS NOTE: `enrollments` (joined with `batches` for branch_id) is the source
+// table for the read-only materialized view `mv_enrollment_daily` (enrollment trend
+// dashboard, AC-7). See "Analytics read model (materialized views)" section near the
+// end of this file.
+model Enrollment {
+  id          String           @id @default(uuid()) @db.Uuid
+  tenantId    String           @map("tenant_id") @db.Uuid
+  studentId   String           @map("student_id") @db.Uuid
+  batchId     String           @map("batch_id") @db.Uuid
+  programId   String           @map("program_id") @db.Uuid
+  status      EnrollmentStatus @default(active)
+  progressPct Int              @default(0) @map("progress_pct")
+  enrolledAt  DateTime         @default(now()) @map("enrolled_at")
+  completedAt DateTime?        @map("completed_at")
+  // Phase-2 commerce-linkage (docs/plans/phase-2.md "Enrollment commerce-linkage"):
+  // nullable so P1 manual/roster enrollments (order_id = null, source = manual) stay
+  // fully backward-compatible. A partial-unique index on (order_id) WHERE order_id IS
+  // NOT NULL AND deleted_at IS NULL is in the raw-SQL migration (prevents double-enroll
+  // from the same order). Prisma cannot express partial-unique, so no @@unique here.
+  orderId     String?          @map("order_id") @db.Uuid
+  source      EnrollmentSource @default(manual)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  deletedAt   DateTime?        @map("deleted_at")
+
+  tenant  Tenant         @relation(fields: [tenantId], references: [id])
+  student StudentProfile @relation(fields: [studentId], references: [id])
+  batch   Batch          @relation(fields: [batchId], references: [id])
+  program Program        @relation(fields: [programId], references: [id])
+  order   Order?         @relation(fields: [orderId], references: [id])
+
+  // Phase-3 reverse relations (docs/plans/phase-3.md task #1)
+  lessonProgress LessonProgress[]
+  attendance     Attendance[]
+
+  // Phase-4 reverse relations (docs/plans/phase-4.md task #1)
+  // ENROLLMENT ||--o{ SUBMISSION: all assignment/project submissions keyed on enrollment.
+  submissions  Submission[]
+  // ENROLLMENT ||--o{ ATTEMPT: all assessment attempts keyed on enrollment.
+  attempts     Attempt[]
+  // ENROLLMENT ||--o{ CERTIFICATE: at most one ACTIVE certificate per enrollment
+  // (enforced by the partial-unique index `certificates_active_enrollment_id_key`
+  // WHERE deleted_at IS NULL — see the Certificate model doc comment), but the
+  // relation itself is one-to-many because a reissue soft-deletes the previous
+  // certificate row rather than hard-deleting it (P7 fix, pays down
+  // docs/phase-4-followups.md M-2) — so an enrollment may have zero-or-one ACTIVE
+  // certificate plus any number of soft-deleted (superseded/revoked) historical rows.
+  certificates Certificate[]
+
+  @@unique([studentId, batchId])
+  @@index([studentId])
+  @@index([batchId])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([orderId])
+  @@map("enrollments")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Commerce (Phase 2 — docs/plans/phase-2.md task #1, docs/05 §3 Commerce)
+// All tables: uuid PK, tenant_id, created/updated/deleted_at, money in paise (Int).
+// Partial indexes (WHERE deleted_at IS NULL) are in the raw-SQL migration.
+// ────────────────────────────────────────────────────────────────────────────
+
+// Coupons must be defined before Orders (FK reference direction).
+model Coupon {
+  id           String       @id @default(uuid()) @db.Uuid
+  tenantId     String       @map("tenant_id") @db.Uuid
+  code         String
+  type         CouponType
+  // For CouponType.pct: value is percentage points (e.g. 10 = 10%).
+  // For CouponType.flat: value is discount in paise.
+  value        Int
+  maxUses      Int?         @map("max_uses")
+  used         Int          @default(0)
+  validFrom    DateTime?    @map("valid_from")
+  validTo      DateTime?    @map("valid_to")
+  // null = applies to all programs; JSON array of program UUIDs when scoped.
+  programScope Json?        @map("program_scope")
+  status       CouponStatus @default(active)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  deletedAt    DateTime?    @map("deleted_at")
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  orders Order[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, status])
+  @@map("coupons")
+}
+
+model Order {
+  id             String      @id @default(uuid()) @db.Uuid
+  tenantId       String      @map("tenant_id") @db.Uuid
+  studentId      String      @map("student_id") @db.Uuid
+  programId      String      @map("program_id") @db.Uuid
+  // amount_paise = net charged (after discount). Must be integer paise — never float.
+  amountPaise    Int         @map("amount_paise")
+  currency       String      @default("INR")
+  couponId       String?     @map("coupon_id") @db.Uuid
+  discountPaise  Int         @default(0) @map("discount_paise")
+  status         OrderStatus @default(created)
+  // Idempotency key: caller-supplied unique token per order-creation attempt.
+  // The backend uses this to deduplicate replayed create-order calls (docs/04 §2.6).
+  idempotencyKey String      @unique @map("idempotency_key")
+  emiPlan        Json?       @map("emi_plan")
+  notes          Json?
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  deletedAt      DateTime?   @map("deleted_at")
+
+  tenant              Tenant         @relation(fields: [tenantId], references: [id])
+  student             StudentProfile @relation(fields: [studentId], references: [id])
+  program             Program        @relation(fields: [programId], references: [id])
+  coupon              Coupon?        @relation(fields: [couponId], references: [id])
+  payments            Payment[]
+  invoice             Invoice?
+  enrollments         Enrollment[]
+  // Phase-9 Completion: EMI installment plan(s) against this order. Modeled as a list
+  // (not a nullable 1:1), matching the Certificate/Enrollment "reissue" pattern — the
+  // REAL "one ACTIVE plan per order" guarantee is the partial-unique raw-SQL index
+  // `emi_plans_active_order_id_key` (WHERE deleted_at IS NULL, see EmiPlan model doc
+  // comment), which allows a cancelled plan to be soft-deleted and re-planned without
+  // a hard Prisma-level @unique blocking the reissue. Named emiInstallmentPlans to
+  // avoid colliding with the pre-existing legacy `emiPlan` Json? column (docs/plans/
+  // phase-2.md-era snapshot field, kept for backward compatibility — the new
+  // EmiPlan/EmiInstallment relational model is the source of truth going forward for
+  // T24 EMI + dunning).
+  emiInstallmentPlans EmiPlan[]
+
+  @@index([studentId])
+  @@index([tenantId, status, createdAt])
+  @@map("orders")
+}
+
+// P7 ANALYTICS NOTE: `payments` is the source table for the read-only materialized view
+// `mv_revenue_daily` (revenue dashboard, docs/specs/phase-7-analytics-hardening.md AC-1).
+// See the "Analytics read model (materialized views)" section near the end of this file
+// for the full MV catalog + refresh entrypoint.
+model Payment {
+  id                String        @id @default(uuid()) @db.Uuid
+  tenantId          String        @map("tenant_id") @db.Uuid
+  orderId           String        @map("order_id") @db.Uuid
+  provider          String        @default("razorpay")
+  // Set on payment capture. Unique constraint prevents double-capture (idempotency).
+  providerPaymentId String?       @unique @map("provider_payment_id")
+  // Razorpay order id (created before capture, maps 1:many to payments on retry).
+  providerOrderId   String?       @map("provider_order_id")
+  // amount_paise is the ledger source of truth — must be integer paise.
+  amountPaise       Int           @map("amount_paise")
+  status            PaymentStatus @default(created)
+  method            String?
+  signatureVerified Boolean       @default(false) @map("signature_verified")
+  isManual          Boolean       @default(false) @map("is_manual")
+  paidAt            DateTime?     @map("paid_at")
+  // M-6 security fix: offline payment audit artifact (cheque/NEFT/receipt number).
+  // Required for manual payments (ManualPaymentRequestSchema.reference); null for online.
+  reference         String?
+  // Optional staff notes on the payment entry (manual payments only; null for online).
+  notes             String?
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  deletedAt         DateTime?     @map("deleted_at")
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  order           Order            @relation(fields: [orderId], references: [id])
+  refunds         Refund[]
+  // Phase-9 Completion: EMI installments this payment settled (0 or 1 in practice —
+  // modeled as a list since a payment row has no uniqueness constraint against
+  // EmiInstallment.paymentId).
+  emiInstallments EmiInstallment[]
+
+  @@index([orderId])
+  @@index([tenantId, status])
+  @@map("payments")
+}
+
+model Invoice {
+  id         String        @id @default(uuid()) @db.Uuid
+  tenantId   String        @map("tenant_id") @db.Uuid
+  // 1:1 with orders — one invoice per order.
+  orderId    String        @unique @map("order_id") @db.Uuid
+  // Sequential per-tenant invoice number (e.g. "INV-2026-0001").
+  number     String        @unique
+  // S3/R2 object key for the generated PDF; null until invoice is generated async.
+  storageKey String?       @map("storage_key")
+  tax        Json?
+  status     InvoiceStatus @default(draft)
+  issuedAt   DateTime?     @map("issued_at")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+  deletedAt  DateTime?     @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  order  Order  @relation(fields: [orderId], references: [id])
+
+  @@map("invoices")
+}
+
+model Refund {
+  id               String       @id @default(uuid()) @db.Uuid
+  tenantId         String       @map("tenant_id") @db.Uuid
+  paymentId        String       @map("payment_id") @db.Uuid
+  // amount_paise must be integer paise — never float.
+  amountPaise      Int          @map("amount_paise")
+  reason           String
+  status           RefundStatus @default(requested)
+  requestedById    String?      @map("requested_by") @db.Uuid
+  approvedById     String?      @map("approved_by") @db.Uuid
+  // Set once the provider processes the refund.
+  providerRefundId String?      @map("provider_refund_id")
+  processedAt      DateTime?    @map("processed_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+  deletedAt        DateTime?    @map("deleted_at")
+
+  tenant      Tenant  @relation(fields: [tenantId], references: [id])
+  payment     Payment @relation(fields: [paymentId], references: [id])
+  requestedBy User?   @relation("RefundRequestedBy", fields: [requestedById], references: [id])
+  approvedBy  User?   @relation("RefundApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([paymentId])
+  @@index([tenantId, status])
+  @@map("refunds")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// CRM & leads (Phase 2 — docs/plans/phase-2.md task #1, docs/05 §3 CRM & marketing)
+// ────────────────────────────────────────────────────────────────────────────
+
+// P7 ANALYTICS NOTE: `leads` is the source table for the read-only materialized view
+// `mv_lead_funnel_daily` (lead funnel/conversion dashboard, AC-10). See "Analytics read
+// model (materialized views)" section near the end of this file.
+model Lead {
+  id                 String    @id @default(uuid()) @db.Uuid
+  tenantId           String    @map("tenant_id") @db.Uuid
+  branchId           String?   @map("branch_id") @db.Uuid
+  name               String
+  phone              String
+  email              String?
+  // program_interest: stored as FK to programs (nullable). docs/05 §3 spec says
+  // "program_interest" as a string; task spec opts for FK; using FK for referential
+  // integrity + join performance. docs-writer should note this choice in docs/05 §3.
+  programInterestId  String?   @map("program_interest") @db.Uuid
+  source             String
+  utm                Json?
+  stage              LeadStage @default(new)
+  // owner_id: the counsellor assigned to this lead. This field makes the
+  // "own"/"assigned" scope real for counsellors (resolves P1 deferral).
+  ownerId            String?   @map("owner_id") @db.Uuid
+  score              Int?
+  slaDueAt           DateTime? @map("sla_due_at")
+  // Set when a won lead is converted to a student (atomic, audited).
+  convertedStudentId String?   @unique @map("converted_student_id") @db.Uuid
+
+  // ── Phase-5 attribution + consent columns (docs/plans/phase-5.md §2) ────────────────
+  // These extend `utm` Json (already present) without duplicating it.
+  // landing_url: the full URL of the page the lead first landed on (max ~2048 chars).
+  // referrer:    the HTTP Referer header value at form submission.
+  // gclid:       Google Click ID (from ?gclid= query param; Google Ads attribution).
+  // fbclid:      Facebook Click ID (from ?fbclid= query param; Meta Ads attribution).
+  // consent:     DPDP consent capture JSON — shape { marketing_opt_in: bool,
+  //              tos_version: string, timestamp: ISO-8601, ip_hash: string (sha256 of IP) }.
+  //              Kept as a nullable Json? column (not a separate table) per docs/plans/
+  //              phase-5.md §6 Risk #9 + §2 default decision. NEVER log the raw ip_hash.
+  // All nullable — P2 leads without attribution or consent are unaffected.
+  landingUrl String? @map("landing_url")
+  referrer   String?
+  gclid      String?
+  fbclid     String?
+  consent    Json?
+
+  // ── Marketing lead-form context (timed/exit-intent popup) ──────────────────
+  // Free-text fields captured by the marketing-site lead popup (docs/01 §7.7).
+  // All nullable — most leads (newsletter, sticky bar, API) never set them.
+  // course_interest: free-text program the visitor typed (e.g. "Full Stack Web
+  //   Development"); distinct from program_interest (FK) which requires a catalog match.
+  // college:  the visitor's college/university (free text).
+  // language: the visitor's preferred contact language (free text, e.g. "Hindi").
+  courseInterest String? @map("course_interest")
+  college        String?
+  language       String?
+  // message: free-text note the visitor typed into the popup's message box
+  // (e.g. their question). Surfaced read-only in the CRM lead drawer.
+  message        String?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  branch             Branch?             @relation(fields: [branchId], references: [id])
+  programInterest    Program?            @relation(fields: [programInterestId], references: [id])
+  owner              User?               @relation("LeadOwner", fields: [ownerId], references: [id])
+  convertedStudent   StudentProfile?     @relation("LeadConvertedStudent", fields: [convertedStudentId], references: [id])
+  activities         Activity[]
+  bookings           Booking[]
+  // Phase-6: campaign recipients that target this lead
+  campaignRecipients CampaignRecipient[]
+  // Phase-9 Completion: referral rows attributing this lead to a referrer.
+  referrals          Referral[]
+
+  @@index([tenantId, stage, ownerId])
+  @@index([slaDueAt])
+  @@index([phone])
+  @@map("leads")
+}
+
+model Activity {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  leadId    String?      @map("lead_id") @db.Uuid
+  studentId String?      @map("student_id") @db.Uuid
+  // user_id: the staff member who performed/logged this activity.
+  userId    String       @map("user_id") @db.Uuid
+  type      ActivityType
+  // payload: structured data for the activity (e.g. call duration, note text).
+  payload   Json?
+  // due_at / done_at: for "task" type activities used as follow-up SLA timers.
+  dueAt     DateTime?    @map("due_at")
+  doneAt    DateTime?    @map("done_at")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  deletedAt DateTime?    @map("deleted_at")
+
+  tenant  Tenant          @relation(fields: [tenantId], references: [id])
+  lead    Lead?           @relation(fields: [leadId], references: [id])
+  student StudentProfile? @relation(fields: [studentId], references: [id])
+  user    User            @relation(fields: [userId], references: [id])
+
+  @@index([leadId, dueAt])
+  @@index([userId, dueAt])
+  @@map("activities")
+}
+
+model Booking {
+  id        String        @id @default(uuid()) @db.Uuid
+  tenantId  String        @map("tenant_id") @db.Uuid
+  leadId    String?       @map("lead_id") @db.Uuid
+  programId String?       @map("program_id") @db.Uuid
+  slotAt    DateTime      @map("slot_at")
+  status    BookingStatus @default(requested)
+  source    String
+  // ── Phase-5 consent column (docs/plans/phase-5.md §2) ────────────────────────────────
+  // DPDP consent captured at the time of the book-free-slot form submission.
+  // Shape: { marketing_opt_in: bool, tos_version: string, timestamp: ISO-8601, ip_hash: string }.
+  // Nullable — P2 CRM-created bookings have no consent capture (source="crm").
+  consent   Json?
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+  deletedAt DateTime?     @map("deleted_at")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  lead    Lead?    @relation(fields: [leadId], references: [id])
+  program Program? @relation(fields: [programId], references: [id])
+
+  @@index([tenantId, slotAt])
+  @@index([leadId])
+  @@map("bookings")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// LMS Core (Phase 3 — docs/plans/phase-3.md task #1, docs/05 §3)
+// All tables: uuid PK, tenant_id, created/updated/deleted_at, wired into
+// soft-delete + audit Prisma extensions. Partial indexes (WHERE deleted_at IS NULL)
+// and the partial-unique constraints for lesson_progress + attendance dedup are in
+// the raw-SQL migration `lms_core_partial_indexes`.
+// ────────────────────────────────────────────────────────────────────────────
+
+// Video — 1:1 with Lesson (unique on lesson_id). Stores only the provider asset ref;
+// NO raw URLs stored here. Signed HLS URLs are minted on demand by VideoProvider
+// (docs/05 §7, docs/plans/phase-3.md risk #2). Provider default="noop" for local dev
+// (NoopVideoProvider), swapped to "cloudflare_stream" or "mux" via env.
+model Video {
+  id              String      @id @default(uuid()) @db.Uuid
+  tenantId        String      @map("tenant_id") @db.Uuid
+  // 1:1 with lessons — a lesson has at most one video (LESSON ||--o| VIDEO in ER).
+  // The unique constraint here is the Prisma-layer enforcement; the partial-unique
+  // in the raw-SQL migration also covers the deleted_at=null case.
+  lessonId        String      @unique @map("lesson_id") @db.Uuid
+  // provider: the VideoProvider key. Default "noop" for local dev/tests.
+  // Set to "cloudflare_stream" or "mux" via env + provider injection.
+  provider        String      @default("noop")
+  // provider_asset_id: the external CDN asset identifier (e.g. Cloudflare asset uid,
+  // Mux asset id). Nullable until the upload is complete. NOT a URL — only the ref.
+  // The backend VideoProvider.getAsset() + mintSignedHlsUrl() resolve this at play time.
+  providerAssetId String?     @map("provider_asset_id")
+  // duration_s: video duration in seconds, filled in on transcode completion.
+  durationS       Int?        @map("duration_s")
+  status          VideoStatus @default(processing)
+  // captions: optional JSON array of caption track descriptors (e.g. language/url pairs
+  // — URL in this context is the provider-hosted caption URL, not a signed content URL).
+  captions        Json?
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  deletedAt       DateTime?   @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  lesson Lesson @relation(fields: [lessonId], references: [id])
+
+  // (lesson_id) unique is declared above via @unique — Prisma creates the index.
+  // Additional composite index for VideoProvider status queries (e.g. reprocess errored).
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@map("videos")
+}
+
+// LessonProgress — per-enrollment per-lesson progress + resume position.
+// The (enrollment_id, lesson_id) UNIQUE constraint (docs/05 §4) is the upsert/resume
+// target — one row per (enrollment, lesson), updated on every progress ping.
+// AUDIT VOLUME NOTE: this table is high-frequency (throttled position pings). The
+// backend-builder (Wave 4) must use a lightweight upsert path for position-only pings
+// and the audited client only on status=completed transitions. See schema.prisma header
+// for the full decision. LessonProgress IS in AUDITED_MODELS so create + completion are
+// recorded; the backend controls frequency.
+// P7 ANALYTICS NOTE: `lesson_progress` (joined with `enrollments` for batch_id/program_id)
+// is the source table for the read-only materialized view `mv_course_engagement_daily`
+// (course/video engagement dashboard, AC-17/AC-18). See "Analytics read model
+// (materialized views)" section near the end of this file.
+model LessonProgress {
+  id            String               @id @default(uuid()) @db.Uuid
+  tenantId      String               @map("tenant_id") @db.Uuid
+  enrollmentId  String               @map("enrollment_id") @db.Uuid
+  lessonId      String               @map("lesson_id") @db.Uuid
+  status        LessonProgressStatus @default(not_started)
+  // last_position_s: playback position in seconds for resume-where-you-left-off (±2s
+  // resolution, docs/02 §21). Updated on every throttled progress ping. Default 0.
+  lastPositionS Int                  @default(0) @map("last_position_s")
+  completedAt   DateTime?            @map("completed_at")
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
+  deletedAt     DateTime?            @map("deleted_at")
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+  lesson     Lesson     @relation(fields: [lessonId], references: [id])
+
+  // (enrollment_id, lesson_id) UNIQUE — docs/05 §4 "resume, completion" index.
+  // Prisma generates a regular unique index here; the partial-unique (WHERE deleted_at IS NULL)
+  // is in the raw-SQL lms_core_partial_indexes migration (pattern from crm_core_partial_indexes).
+  @@unique([enrollmentId, lessonId])
+  @@index([tenantId, enrollmentId])
+  @@index([tenantId, deletedAt])
+  @@map("lesson_progress")
+}
+
+// Attendance — per-enrollment session attendance.
+// P3 scope: source=recorded only (source=live deferred — live_classes table not created).
+// live_class_id: nullable UUID (no FK constraint yet — live_classes table doesn't exist
+// in P3). Always null in P3. A later migration adds the FK when live_classes lands.
+// lesson_id: ADDED vs. docs/05 §3 spec (extension — see schema.prisma header note).
+// Enables per-lesson idempotency for recorded attendance via the partial-unique index
+// (enrollment_id, lesson_id) WHERE source='recorded' AND deleted_at IS NULL.
+// docs-writer should update docs/05 §3 attendance row to include lesson_id (nullable).
+// P7 ANALYTICS NOTE: `attendance` (joined with `enrollments`/`batches` for batch_id +
+// branch_id) is the source table for the read-only materialized view
+// `mv_attendance_daily` (attendance dashboard, AC-14). See "Analytics read model
+// (materialized views)" section near the end of this file.
+model Attendance {
+  id           String           @id @default(uuid()) @db.Uuid
+  tenantId     String           @map("tenant_id") @db.Uuid
+  enrollmentId String           @map("enrollment_id") @db.Uuid
+  // live_class_id: FK to live_classes, wired in Phase 9 (T6 — the column existed since
+  // P3 but was intentionally FK-less/nullable until live_classes landed; see the
+  // now-superseded note this comment replaces). Nullable — null for source=recorded rows.
+  liveClassId  String?          @map("live_class_id") @db.Uuid
+  // lesson_id: P3 extension (see header). Required for recorded attendance rows to
+  // enforce the (enrollment_id, lesson_id) partial-unique dedup. Nullable so that
+  // live attendance rows (future) can omit it (live attendance deduplicates on
+  // live_class_id instead).
+  lessonId     String?          @map("lesson_id") @db.Uuid
+  status       AttendanceStatus @default(present)
+  source       AttendanceSource @default(recorded)
+  markedAt     DateTime         @map("marked_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  deletedAt    DateTime?        @map("deleted_at")
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+  lesson     Lesson?    @relation(fields: [lessonId], references: [id])
+  liveClass  LiveClass? @relation(fields: [liveClassId], references: [id])
+
+  // (enrollment_id, live_class_id) index from docs/05 §4 — kept as a regular index
+  // (not unique at Prisma level because live_class_id is nullable and we need a partial-
+  // unique variant for each source type in raw SQL).
+  @@index([enrollmentId, liveClassId])
+  @@index([enrollmentId, lessonId])
+  @@index([tenantId, deletedAt])
+  @@map("attendance")
+}
+
+// Resource — lesson attachments (notes, slides, datasets, cheat-sheets per lesson).
+// storage_key: the S3/R2 object key for the file. Signed download URL is NOT generated
+// in P3 (deferred to P4 StorageProvider integration — docs/plans/phase-3.md risk #8).
+// The table + read-only list is included so the LMS lesson page can show resources;
+// download-URL minting is a P4 seam.
+model Resource {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  lessonId   String    @map("lesson_id") @db.Uuid
+  title      String
+  // type: file type descriptor (e.g. "pdf", "zip", "dataset", "slides").
+  // Stored as a plain String (not enum) because the set is open-ended and driven by
+  // content editors — no constraint needed at the DB layer.
+  type       String
+  // storage_key: S3/R2 object key. No presigned URL returned in P3 (see note above).
+  storageKey String    @map("storage_key")
+  // size: file size in bytes (nullable until the upload completes).
+  size       Int?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  lesson Lesson @relation(fields: [lessonId], references: [id])
+
+  @@index([lessonId])
+  @@index([tenantId, deletedAt])
+  @@map("resources")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Learning Depth (Phase 4 — docs/plans/phase-4.md task #1, docs/05 §3)
+// All tables: uuid PK, tenant_id, created/updated/deleted_at, wired into
+// soft-delete + audit Prisma extensions per CLAUDE.md §3.4.
+// Partial indexes (WHERE deleted_at IS NULL) and the submissions partial-unique
+// are in the raw-SQL migration `learning_depth_partial_indexes`.
+// ────────────────────────────────────────────────────────────────────────────
+
+// Assignment — faculty authors an assignment (or project) on a lesson.
+// kind=project enables multi-milestone submissions via AssignmentMilestone rows.
+// kind=assignment is a single-submission or allow_resubmit flow.
+// Authored in CRM (faculty/assigned-scope); consumed in LMS (student/own-scope).
+// LESSON ||--o{ ASSIGNMENT (docs/05 §3 "Live & learning work").
+model Assignment {
+  id            String         @id @default(uuid()) @db.Uuid
+  tenantId      String         @map("tenant_id") @db.Uuid
+  lessonId      String         @map("lesson_id") @db.Uuid
+  kind          AssignmentKind @default(assignment)
+  title         String
+  instructions  String?
+  // max_score: maximum achievable score in integer points (not paise — this is a grade,
+  // not money; CLAUDE.md §3.6 applies to monetary amounts only).
+  maxScore      Int            @map("max_score")
+  dueAt         DateTime?      @map("due_at")
+  // allow_resubmit: if true, a student may submit again after grading/return.
+  // The partial-unique index on submissions (assignment_id, enrollment_id) WHERE
+  // allow_resubmit=false blocks a 2nd submission when this is false (raw-SQL migration).
+  allowResubmit Boolean        @default(false) @map("allow_resubmit")
+  // is_final: only meaningful when kind='project'. If true, this is the "final project"
+  // whose milestone approval is one of the three certificate eligibility gates:
+  //   isEligible = progress_pct>=90 AND all required assessments passed AND final project approved.
+  // Vacuously true (does not block eligibility) when no is_final=true assignment exists.
+  // Added per docs/specs/phase-4-learning-depth.md eligibility rule (coordinator addendum).
+  isFinal       Boolean        @default(false) @map("is_final")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  deletedAt     DateTime?      @map("deleted_at")
+
+  tenant      Tenant                @relation(fields: [tenantId], references: [id])
+  lesson      Lesson                @relation(fields: [lessonId], references: [id])
+  milestones  AssignmentMilestone[]
+  submissions Submission[]
+
+  @@index([lessonId])
+  @@index([tenantId, deletedAt])
+  @@map("assignments")
+}
+
+// AssignmentMilestone — project-only. Each milestone is a checkpoint in a multi-phase
+// project (e.g. "Design Doc", "MVP Demo", "Final Submission"). Students submit against
+// a specific milestone_id in their Submission row (milestone_id nullable → plain assignment).
+model AssignmentMilestone {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  assignmentId String    @map("assignment_id") @db.Uuid
+  title        String
+  order        Int
+  dueAt        DateTime? @map("due_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  assignment  Assignment   @relation(fields: [assignmentId], references: [id])
+  // Submissions referencing this milestone.
+  submissions Submission[]
+
+  @@index([assignmentId, order])
+  @@index([tenantId, deletedAt])
+  @@map("assignment_milestones")
+}
+
+// Submission — a student's response to an assignment or project milestone.
+// files: JSON array of StorageProvider keys (NEVER raw bucket URLs; docs/05 §7).
+//   Download URLs are minted on demand by the StorageProvider with RBAC + enrollment check.
+// rubric: faculty grades against a structured rubric JSON (criteria × score commentary).
+// graded_by: nullable FK → users; set to the faculty user who graded this submission.
+//
+// Indexes:
+//   (assignment_id, enrollment_id) — query all submissions for a student's assignment.
+//   (tenant_id, status)            — grading queues.
+//
+// Partial-unique (in raw-SQL migration, NOT expressible in Prisma DSL):
+//   UNIQUE (assignment_id, enrollment_id) WHERE allow_resubmit=false AND deleted_at IS NULL
+//   Purpose: blocks a 2nd active submission when the linked assignment forbids resubmission.
+//   Implementation note: "allow_resubmit" is on the Assignment row (not Submission), so the
+//   partial-unique cannot reference it directly. Instead we enforce this at the service layer
+//   with a guard (check assignment.allow_resubmit before insert), complemented by a DB-level
+//   partial-unique on (assignment_id, enrollment_id) that is partial on assignment_id's
+//   allow_resubmit via a JOIN — which Postgres cannot do in a simple partial index. The
+//   pragmatic solution: a separate partial-unique on (assignment_id, enrollment_id) WHERE
+//   deleted_at IS NULL enforces uniqueness per active enrollment-assignment pair; the service
+//   layer overrides this uniqueness only when allow_resubmit=true (setting attempt_no > 1).
+//   The integration test validates: a 2nd submission is blocked when allow_resubmit=false
+//   (service guard) and allowed (attempt_no increments) when allow_resubmit=true.
+//   This is documented as an ADR note for docs-writer (plan §3 "document the approach").
+model Submission {
+  id           String           @id @default(uuid()) @db.Uuid
+  tenantId     String           @map("tenant_id") @db.Uuid
+  assignmentId String           @map("assignment_id") @db.Uuid
+  // milestone_id: null for plain assignments; set for project milestone submissions.
+  milestoneId  String?          @map("milestone_id") @db.Uuid
+  enrollmentId String           @map("enrollment_id") @db.Uuid
+  // files: JSON array of S3/R2 object keys — StorageProvider keys, NEVER raw URLs.
+  // Clients receive a presigned GET URL minted at request time after RBAC check.
+  // Example: ["submissions/tenant-abc/enroll-xyz/assignment-001/report.pdf"]
+  files        Json             @default("[]")
+  text         String?
+  link         String?
+  // attempt_no: starts at 1; incremented on each resubmit (only when allow_resubmit=true).
+  attemptNo    Int              @default(1) @map("attempt_no")
+  status       SubmissionStatus @default(submitted)
+  // score: integer points (not paise — grade score, not monetary). Nullable until graded.
+  score        Int?
+  // rubric: JSON grading rubric snapshot with faculty's criterion-by-criterion scores.
+  // Structure is open (faculty-authored JSON from the RubricGrader component).
+  rubric       Json?
+  feedback     String?
+  // graded_by: FK → users (the faculty member who graded). Nullable until graded.
+  gradedById   String?          @map("graded_by") @db.Uuid
+  gradedAt     DateTime?        @map("graded_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  deletedAt    DateTime?        @map("deleted_at")
+
+  tenant     Tenant               @relation(fields: [tenantId], references: [id])
+  assignment Assignment           @relation(fields: [assignmentId], references: [id])
+  milestone  AssignmentMilestone? @relation(fields: [milestoneId], references: [id])
+  enrollment Enrollment           @relation(fields: [enrollmentId], references: [id])
+  // gradedBy: the faculty user who graded this submission. Named relation required because
+  // User has multiple Submission back-relations (graded, issued, revoked).
+  gradedBy   User?                @relation("SubmissionGradedBy", fields: [gradedById], references: [id])
+
+  // (assignment_id, enrollment_id) index for the grading queue + student history view.
+  @@index([assignmentId, enrollmentId])
+  // (tenant_id, status) index for cross-assignment grading queue in CRM.
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@map("submissions")
+}
+
+// Assessment — a faculty-authored quiz or test on a module.
+// Questions live in the child table AssessmentQuestion (NOT inline JSON) so the
+// answer_key column is physically separated from the student-facing options.
+// This is the answer-key isolation model (docs/plans/phase-4.md §6 Risk #3 + ADR).
+// MODULE ||--o{ ASSESSMENT (docs/05 §3 ER diagram).
+model Assessment {
+  id              String         @id @default(uuid()) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  moduleId        String         @map("module_id") @db.Uuid
+  title           String
+  type            AssessmentType @default(quiz)
+  // time_limit_s: nullable = untimed; otherwise server sets time_expires_at on attempt start.
+  timeLimitS      Int?           @map("time_limit_s")
+  // pass_pct: percentage (0–100) of total points required to pass.
+  passPct         Int            @map("pass_pct")
+  attemptsAllowed Int            @default(1) @map("attempts_allowed")
+  // is_required: if true, this assessment must be passed to earn a certificate.
+  // Certificate eligibility engine: all is_required=true assessments must have
+  // a passing attempt (passed=true) for the enrollment.
+  // Vacuously true (does not block eligibility) when no is_required=true assessment exists.
+  // Added per docs/specs/phase-4-learning-depth.md eligibility rule (coordinator addendum).
+  isRequired      Boolean        @default(false) @map("is_required")
+  // shuffle: whether to randomize question order per attempt (basics anti-cheat, P4 scope).
+  shuffle         Boolean        @default(true)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  deletedAt       DateTime?      @map("deleted_at")
+
+  tenant    Tenant               @relation(fields: [tenantId], references: [id])
+  module    Module               @relation(fields: [moduleId], references: [id])
+  questions AssessmentQuestion[]
+  attempts  Attempt[]
+
+  @@index([moduleId])
+  @@index([tenantId, deletedAt])
+  @@map("assessments")
+}
+
+// AssessmentQuestion — one question in an assessment.
+//
+// ANSWER-KEY ISOLATION (security-critical — docs/plans/phase-4.md §6 Risk #3):
+//   answer_key: server-only column. Stores correct option id(s) for MCQ, or a rubric
+//   descriptor for descriptive questions. This column MUST NEVER be included in any
+//   student-facing DTO, API response, or Prisma select for a student projection.
+//   The question child-table design (vs. assessments.questions inline JSON) exists
+//   precisely so `answer_key` is a column that can be excluded via Prisma `select`
+//   clauses in student-facing repository methods, and the integration test asserts this.
+//   Server-side MCQ auto-grading reads answer_key directly; student gets only `options`
+//   (which contains choice text/id pairs but NOT which is correct).
+//
+//   docs-writer note: docs/05 §3 lists "questions(json/ref)" on the assessments row.
+//   The P4 decision uses the "ref" form (child table) specifically for answer-key isolation.
+//   This should be updated in docs/05 §3 to reference AssessmentQuestion as a child table
+//   with the answer_key server-only column.
+model AssessmentQuestion {
+  id           String       @id @default(uuid()) @db.Uuid
+  tenantId     String       @map("tenant_id") @db.Uuid
+  assessmentId String       @map("assessment_id") @db.Uuid
+  type         QuestionType @default(mcq)
+  prompt       String
+  // options: JSON array of MCQ choices — each choice has {id, text}.
+  // Critically: choices do NOT include "is_correct". Only answer_key knows the correct id(s).
+  // Example: [{"id":"opt-a","text":"React"},{"id":"opt-b","text":"Angular"}]
+  options      Json?
+  // answer_key: SERVER-ONLY. For MCQ: the correct option id (or array of ids for multi-select).
+  // For descriptive: a rubric descriptor JSON for manual grading guidance.
+  // MUST NEVER be selected in a student-facing query or serialized into a student DTO.
+  // The @repo/types AssessmentQuestionPublic DTO (task #2) structurally omits this field.
+  answerKey    Json?        @map("answer_key")
+  // points: point value for this question (integer, not paise — grade score).
+  points       Int
+  order        Int
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  deletedAt    DateTime?    @map("deleted_at")
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  assessment Assessment @relation(fields: [assessmentId], references: [id])
+
+  @@index([assessmentId, order])
+  @@index([tenantId, deletedAt])
+  @@map("assessment_questions")
+}
+
+// Attempt — a student's single attempt at an assessment.
+// Server sets time_expires_at = started_at + assessment.time_limit_s (if timed).
+// Submit endpoint checks CURRENT_TIMESTAMP <= time_expires_at before accepting answers.
+// Auto-grading (MCQ) happens server-side at submit using assessment_questions.answer_key.
+// answers: JSON map of {questionId → chosenOptionId (MCQ) or responseText (descriptive)}.
+// flags: JSON for tab-switch count, focus-loss events, etc. (basics anti-cheat, P4 scope).
+// attempt_no: 1-based, incremented per enrollment-assessment pair up to attempts_allowed.
+model Attempt {
+  id            String    @id @default(uuid()) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  assessmentId  String    @map("assessment_id") @db.Uuid
+  enrollmentId  String    @map("enrollment_id") @db.Uuid
+  // answers: JSON map of student responses, keyed by question id.
+  // {questionId: "opt-a"} for MCQ; {questionId: "response text"} for descriptive.
+  answers       Json      @default("{}")
+  // score: integer (server-computed at submit for MCQ; manual for descriptive).
+  score         Int?
+  passed        Boolean?
+  startedAt     DateTime  @map("started_at")
+  submittedAt   DateTime? @map("submitted_at")
+  // time_expires_at: server-computed = started_at + assessment.time_limit_s.
+  // Nullable when assessment has no time_limit_s (untimed assessments).
+  timeExpiresAt DateTime? @map("time_expires_at")
+  // flags: JSON for client-reported anti-cheat signals (tab-switch count, focus events).
+  // Stored as informational signals — NOT a hard block in P4 (basics only, see plan §1 OUT).
+  flags         Json      @default("{}")
+  // attempt_no: server-assigned ordinal per (enrollment, assessment). Starts at 1.
+  // Server enforces: attempt_no <= assessment.attempts_allowed before allowing a new start.
+  attemptNo     Int       @default(1) @map("attempt_no")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  assessment Assessment @relation(fields: [assessmentId], references: [id])
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+
+  // (assessment_id, enrollment_id) — all attempts by a student for an assessment.
+  @@index([assessmentId, enrollmentId])
+  // (tenant_id, enrollment_id) — all attempts by an enrollment across assessments.
+  @@index([tenantId, enrollmentId])
+  @@index([tenantId, deletedAt])
+  @@map("attempts")
+}
+
+// CertificateTemplate — seeded design templates for certificate PDFs.
+// No designer UI in P4 (OUT of scope — docs/plans/phase-4.md §1 explicit OUT).
+// design: JSON structure for the PDF layout (field positions, fonts, logo placement).
+// fields: JSON array of dynamic field descriptors (e.g. [{key: "student_name", label: "Name"}]).
+// status: admin can deactivate a template to prevent new certs from using it.
+// certificates FK → certificate_templates; must be defined before Certificate model.
+model CertificateTemplate {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  name      String
+  design    Json
+  fields    Json
+  // layout: Phase-9-completion gap #5 — persists the CRM certificate-template designer's
+  // drag-positioned merge-field layout (array of { id, type, label, x, y, ... }, mirrors
+  // @repo/ui's CertTemplateField shape). Nullable/additive: existing seeded templates have
+  // layout=null until first saved from the designer; the PDF renderer (CertificatePdfPort)
+  // continues to read `design`/`fields` unchanged — `layout` is UI-designer-only, not
+  // consumed by rendering in this pass (tracked as a follow-up to wire layout -> render).
+  layout    Json?
+  // status stored as String (not enum) to keep the template lifecycle flexible without
+  // a new DB enum migration every time a new state is needed. Common values: "active", "inactive".
+  status    String    @default("active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  certificates Certificate[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@map("certificate_templates")
+}
+
+// Certificate — one per ACTIVE enrollment (partial-unique FK). Issued after eligibility check.
+// cert_uid: globally unique, server-computed HMAC/signed hash over (student, program,
+//   issued_at, nonce). Public verify endpoint RECOMPUTES the signature — a bare DB lookup
+//   of cert_uid is NOT sufficient for verification. A fabricated row or guessed cert_uid
+//   without a valid signature fails (docs/plans/phase-4.md §6 Risk #2 + ADR).
+// storage_key: S3/R2 object key for the certificate PDF (minted by CertificatePdfPort,
+//   stored via StorageProvider). Signed download URL minted on demand by StorageProvider.
+// issued_by / revoked_by: FK → users (the staff members who issued / revoked the cert).
+// ENROLLMENT ||--o| CERTIFICATE (docs/05 §3 ER).
+//
+// P7 REISSUE FIX (pays down docs/phase-4-followups.md M-2, docs/plans/phase-7.md Wave 1
+// task #3): `enrollment_id` is NO LONGER a hard Prisma `@unique`. A hard unique blocked
+// certificate REISSUE (revoke old cert → soft-delete it → issue a fresh one for the same
+// enrollment), because Postgres unique constraints apply to soft-deleted rows too. The
+// real constraint going forward is the PARTIAL UNIQUE index
+// `certificates_active_enrollment_id_key` — `UNIQUE (enrollment_id) WHERE deleted_at IS
+// NULL` — which already existed (raw-SQL, migration `20260702065800_learning_depth_
+// partial_indexes`) alongside the (now-removed) hard unique. This guarantees at most one
+// ACTIVE certificate per enrollment while allowing any number of soft-deleted (revoked/
+// superseded) certificate rows to remain in the audit trail for that same enrollment.
+// The reissue flow: soft-delete (revoke) the old Certificate row, then create a new one —
+// the old revoked row is preserved (never hard-deleted), satisfying both "one active cert
+// per enrollment" and "full audit history of every cert ever issued for this enrollment".
+// See migration `20260704060000_certificates_reissue_partial_unique` (drops the Prisma-
+// managed hard unique `certificates_enrollment_id_key`, replaces it with a plain index).
+model Certificate {
+  id            String            @id @default(uuid()) @db.Uuid
+  tenantId      String            @map("tenant_id") @db.Uuid
+  // enrollment_id: one ACTIVE certificate per enrollment, enforced by the partial-unique
+  // index `certificates_active_enrollment_id_key` (raw SQL — see model doc comment above),
+  // NOT by a Prisma-level @unique (which would block reissue after soft-delete).
+  enrollmentId  String            @map("enrollment_id") @db.Uuid
+  // student_id: FK → student_profiles (denormalized for direct query without enrollment join).
+  studentId     String            @map("student_id") @db.Uuid
+  // program_id: FK → programs (denormalized, included in cert_uid signature payload).
+  programId     String            @map("program_id") @db.Uuid
+  // cert_uid: globally unique, tamper-evident signed identifier. UNIQUE index (docs/05 §4).
+  // Value format: HMAC-SHA256(signing_secret, "student_id:program_id:issued_at:nonce").
+  // The verify endpoint recomputes this and rejects any row where the signature is invalid.
+  certUid       String            @unique @map("cert_uid")
+  // serial: SHORT, human-typeable public identifier (STMQ-YYYY-XXXX-XXXX, Crockford
+  //   base32). A second way to reach the certificate for people typing it off a printed
+  //   copy — the long signed cert_uid stays the QR/link id. UNLIKE cert_uid it is NOT
+  //   signed: verify-by-serial is a plain (rate-limited) DB lookup returning only the
+  //   public display fields. Globally unique across all rows (soft-deleted included);
+  //   reissue mints a fresh serial, so the old one is never reused. See ADR-0061.
+  serial        String            @unique @map("serial")
+  templateId    String            @map("template_id") @db.Uuid
+  // storage_key: S3/R2 object key for the PDF. Null until PDF is generated (sync path
+  // should complete before returning; Noop adapter returns stub bytes synchronously).
+  storageKey    String?           @map("storage_key")
+  issuedAt      DateTime          @map("issued_at")
+  // issued_by: NULLABLE — null means the certificate was issued automatically by the
+  // system (LmsProgressService.markComplete -> CertificatesService.autoIssueOnCompletion)
+  // on the student reaching 100% progress, as opposed to a staff member issuing it
+  // manually via CRM (POST /crm/certificates). See migration
+  // `..._certificate_issued_by_nullable`.
+  issuedById    String?           @map("issued_by") @db.Uuid
+  status        CertificateStatus @default(valid)
+  revokedReason String?           @map("revoked_reason")
+  revokedById   String?           @map("revoked_by") @db.Uuid
+  revokedAt     DateTime?         @map("revoked_at")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+  deletedAt     DateTime?         @map("deleted_at")
+
+  tenant     Tenant              @relation(fields: [tenantId], references: [id])
+  enrollment Enrollment          @relation(fields: [enrollmentId], references: [id])
+  student    StudentProfile      @relation(fields: [studentId], references: [id])
+  program    Program             @relation(fields: [programId], references: [id])
+  template   CertificateTemplate @relation(fields: [templateId], references: [id])
+  // issuedBy: named relation — User has both issuedCertificates and revokedCertificates.
+  // Nullable: a null issuedById (system/auto issuance) has no issuedBy row.
+  issuedBy   User?               @relation("CertificateIssuedBy", fields: [issuedById], references: [id])
+  // revokedBy: nullable; set only on revocation.
+  revokedBy  User?               @relation("CertificateRevokedBy", fields: [revokedById], references: [id])
+
+  // enrollment_id: plain index (the real uniqueness guarantee is the partial-unique raw
+  // index `certificates_active_enrollment_id_key` — see model doc comment above).
+  // cert_uid unique index: tamper-evident verification key. Declared above via @unique.
+  @@index([tenantId, status])
+  @@index([tenantId, studentId])
+  @@index([tenantId, deletedAt])
+  @@index([enrollmentId])
+  @@map("certificates")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Engagement (Phase 6 — docs/plans/phase-6.md task #1, docs/05 §3)
+// All tables: uuid PK, tenant_id, created/updated/deleted_at, wired into
+// soft-delete + audit Prisma extensions per CLAUDE.md §3.4.
+//
+// Critical dedupe/idempotency constraints (the correctness backbone — sync-seam
+// relies on these). Prisma cannot express partial-unique with a WHERE clause
+// directly — raw SQL partial-unique indexes are in the separate
+// `engagement_partial_indexes` migration, matching the pattern from:
+//   20260626204500_core_partial_indexes
+//   20260627073500_crm_core_partial_indexes
+//   20260627203400_commerce_leads_partial_indexes
+//   20260702002000_lms_core_partial_indexes
+//   20260702065800_learning_depth_partial_indexes
+//   20260702161900_website_seo_partial_indexes
+// ────────────────────────────────────────────────────────────────────────────
+
+// Notification — an in-app (and optionally multi-channel) notification for a user.
+// channels: JSON array of NotificationChannel values used for fan-out (e.g. ["in_app","email"]).
+// payload: typed JSON keyed on the notification type (e.g. {submissionId, score} for grade_ready).
+// read_at: null = unread. Set by the user marking as read; drives the unread badge count.
+//
+// Index (user_id, read_at) docs/05 §4: unread count query = WHERE user_id=X AND read_at IS NULL.
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  tenantId  String           @map("tenant_id") @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  // channels: JSON array of channels this notification was fanned out to.
+  // Example: ["in_app", "email"]. Never includes channels the user has opted out of.
+  channels  Json             @default("[]")
+  // payload: typed per-type JSON blob. Contents depend on `type`:
+  //   grade_ready:      { submissionId, assignmentTitle, score, maxScore }
+  //   certificate_ready:{ certificateId, certUid, programTitle }
+  //   forum_reply:      { threadId, postId, threadTitle, authorName }
+  //   announcement:     { title, body }
+  //   etc.
+  payload   Json             @default("{}")
+  // read_at: null = unread; set when the user marks this notification as read.
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  deletedAt DateTime?        @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  // (user_id, read_at) index: unread-count query docs/05 §4.
+  // Full composite index from Prisma @@index; partial variant (WHERE deleted_at IS NULL)
+  // is added in the raw-SQL engagement_partial_indexes migration.
+  @@index([userId, readAt])
+  @@index([tenantId, deletedAt])
+  @@map("notifications")
+}
+
+// NotificationPref — per-user channel preference matrix + quiet hours.
+// One row per user (unique on user_id). Upserted when the user saves preferences.
+// matrix: type×channel→bool JSON. Example:
+//   { "grade_ready": { "email": true, "sms": false, "whatsapp": true }, ... }
+// quiet_hours: optional { start: "22:00", end: "08:00", tz: "Asia/Kolkata" }.
+//   During quiet hours, non-urgent channels (email/sms/whatsapp) are deferred;
+//   in_app is always delivered immediately.
+//
+// Unique on (user_id) — a user has exactly one prefs row; defaults are server-side
+// when absent. The @unique Prisma constraint creates a full unique index; no partial
+// variant needed since user_id is never null and we only care about the active prefs row.
+model NotificationPref {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  userId     String    @unique @map("user_id") @db.Uuid
+  // matrix: type×channel preference booleans. Absent key = server default (typically true).
+  matrix     Json      @default("{}")
+  // quiet_hours: { start: "HH:MM", end: "HH:MM", tz: "IANA timezone" }.
+  // null = no quiet hours configured (all channels always active).
+  quietHours Json?     @map("quiet_hours")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, deletedAt])
+  @@map("notification_prefs")
+}
+
+// NotificationSuppression — suppression/unsubscribe list for WS-1 + WS-2.
+// Consulted before every email/SMS/WhatsApp send. A matching row = skip this address/phone.
+// India DLT/DPDP compliance: honoring unsubscribes is mandatory for marketing channels.
+// user_id / email / phone: at least one should be non-null to identify the suppressed entity.
+//   user_id: internal user who unsubscribed (in-app).
+//   email: unsubscribed email address (from campaign email unsubscribe link).
+//   phone: unsubscribed phone number (from SMS opt-out).
+// channel: which channel is suppressed (allows per-channel opt-out).
+// reason: why they are suppressed (unsubscribe = voluntary, bounce = hard bounce, complaint = spam).
+model NotificationSuppression {
+  id        String              @id @default(uuid()) @db.Uuid
+  tenantId  String              @map("tenant_id") @db.Uuid
+  userId    String?             @map("user_id") @db.Uuid
+  email     String?
+  phone     String?
+  channel   NotificationChannel
+  reason    SuppressionReason
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @updatedAt @map("updated_at")
+  deletedAt DateTime?           @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User?  @relation(fields: [userId], references: [id])
+
+  // Indexes for suppression lookups before send (by email or phone within a tenant).
+  @@index([tenantId, email, channel])
+  @@index([tenantId, phone, channel])
+  @@index([tenantId, userId, channel])
+  @@index([tenantId, deletedAt])
+  @@map("notification_suppressions")
+}
+
+// CampaignTemplate — reusable per-channel message template for bulk campaigns.
+// Carries the DLT-registered template id for India SMS/WhatsApp (mandatory for sends).
+// body: template string with {{variable}} placeholders for interpolation.
+// variables: JSON array of variable descriptors (e.g. [{ "key": "name", "label": "Student Name" }]).
+// dlt_template_id: India DLT-registered approved template id. Required for SMS/WhatsApp sends;
+//   the campaign service REJECTS a send if this is absent on a sms/whatsapp template.
+//   For email templates this can be null (DLT does not apply to email).
+model CampaignTemplate {
+  id            String          @id @default(uuid()) @db.Uuid
+  tenantId      String          @map("tenant_id") @db.Uuid
+  channel       CampaignChannel
+  name          String
+  // subject: email subject line (null for sms/whatsapp templates).
+  subject       String?
+  // body: template body with {{variable}} placeholders. Stored as-is; interpolated at send.
+  body          String
+  // dlt_template_id: India DLT-registered SMS/WhatsApp template id. Required for those channels.
+  // The campaign service checks: if channel in (sms, whatsapp) AND dlt_template_id IS NULL → reject send.
+  dltTemplateId String?         @map("dlt_template_id")
+  // variables: array of { key: string, label: string } variable definitions for the UI.
+  variables     Json            @default("[]")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  deletedAt     DateTime?       @map("deleted_at")
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  campaigns Campaign[]
+
+  @@index([tenantId, channel])
+  @@index([tenantId, deletedAt])
+  @@map("campaign_templates")
+}
+
+// Campaign — a bulk messaging campaign targeting a filtered audience segment.
+// segment: JSON audience filter definition (e.g. {stage: "new", batchId: "...", ...}).
+//   The campaign service materializes this filter into campaign_recipients at launch.
+// metrics: JSON aggregate delivery metrics (e.g. {total, queued, sent, delivered, read, failed}).
+//   Denormalized counter updated by the webhook ingestion service.
+// schedule_at: null = send immediately; set for scheduled campaigns.
+// status lifecycle: draft → scheduled/sending → sent | paused | cancelled | failed.
+// created_by: the staff user who authored the campaign (FK → users).
+model Campaign {
+  id          String          @id @default(uuid()) @db.Uuid
+  tenantId    String          @map("tenant_id") @db.Uuid
+  channel     CampaignChannel
+  templateId  String          @map("template_id") @db.Uuid
+  name        String
+  // segment: audience filter JSON. Example: { "stage": ["new","contacted"], "programId": "...", "consentRequired": true }
+  segment     Json            @default("{}")
+  scheduleAt  DateTime?       @map("schedule_at")
+  status      CampaignStatus  @default(draft)
+  // metrics: aggregate counts updated by webhook ingestion. Example: { total: 150, sent: 148, delivered: 140, read: 80, failed: 2 }
+  metrics     Json            @default("{}")
+  createdById String          @map("created_by") @db.Uuid
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  deletedAt   DateTime?       @map("deleted_at")
+
+  tenant     Tenant              @relation(fields: [tenantId], references: [id])
+  template   CampaignTemplate    @relation(fields: [templateId], references: [id])
+  createdBy  User                @relation("CampaignCreatedBy", fields: [createdById], references: [id])
+  recipients CampaignRecipient[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdById])
+  @@index([tenantId, deletedAt])
+  @@map("campaigns")
+}
+
+// CampaignRecipient — one row per targeted recipient in a campaign.
+// lead_id / student_id / user_id: exactly one should be non-null (the target entity).
+//   The partial-unique dedupe index in the raw-SQL migration prevents double-sends by
+//   enforcing at most one active (deleted_at IS NULL) row per (campaign_id, recipient).
+//   Prisma cannot express partial-unique with WHERE, so the constraint lives in the
+//   migration SQL file (engagement_partial_indexes); see comment there for the design.
+// to: the resolved delivery address (email address or phone number). Set at materialization time.
+// provider_message_id: set by the provider after send; used for webhook dedup on delivery receipts.
+// error: last provider error message for failed sends (informational, for the CRM "failures" view).
+// sent_at / delivered_at / read_at: timeline for delivery-funnel analytics.
+// P7 ANALYTICS NOTE: `campaign_recipients` (joined with `campaigns` for channel) is the
+// source table for the read-only materialized view `mv_campaign_performance_daily`
+// (campaign performance dashboard, AC-20). See "Analytics read model (materialized
+// views)" section near the end of this file.
+model CampaignRecipient {
+  id                String          @id @default(uuid()) @db.Uuid
+  tenantId          String          @map("tenant_id") @db.Uuid
+  campaignId        String          @map("campaign_id") @db.Uuid
+  // Recipient reference — one of these three is set; the others are null.
+  leadId            String?         @map("lead_id") @db.Uuid
+  studentId         String?         @map("student_id") @db.Uuid
+  // user_id: for non-lead/non-student targets (e.g. staff announcements, fallback when
+  // a lead has been converted — the conversion creates a user who is the canonical target).
+  userId            String?         @map("user_id") @db.Uuid
+  // to: resolved email or phone number at materialization time.
+  to                String
+  status            RecipientStatus @default(queued)
+  // provider_message_id: external id from the mail/WhatsApp/SMS provider after send.
+  // Used for idempotent webhook ingestion: a duplicate receipt for the same provider_message_id
+  // does not re-update status (the service checks before writing).
+  providerMessageId String?         @map("provider_message_id")
+  // error: last provider error message (null on success).
+  error             String?
+  sentAt            DateTime?       @map("sent_at")
+  deliveredAt       DateTime?       @map("delivered_at")
+  readAt            DateTime?       @map("read_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  deletedAt         DateTime?       @map("deleted_at")
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id])
+  campaign Campaign        @relation(fields: [campaignId], references: [id])
+  lead     Lead?           @relation(fields: [leadId], references: [id])
+  student  StudentProfile? @relation(fields: [studentId], references: [id])
+  user     User?           @relation(fields: [userId], references: [id])
+
+  // Indexes for delivery tracking + status queries.
+  @@index([campaignId, status])
+  // provider_message_id ALSO carries a PARTIAL UNIQUE index — CREATE UNIQUE INDEX
+  // campaign_recipients_active_provider_message_id_key ... WHERE deleted_at IS NULL AND
+  // provider_message_id IS NOT NULL (see migration 20260703065700_engagement_partial_indexes).
+  // Prisma cannot express partial indexes in @@ syntax, so it lives in raw migration SQL.
+  // That uniqueness guarantees a provider-issued message id maps to at most one active
+  // recipient row, so a webhook receipt cannot collide with another tenant's recipient (C-1).
+  @@index([providerMessageId])
+  @@index([tenantId, deletedAt])
+  @@map("campaign_recipients")
+}
+
+// Badge — a badge catalog entry (template for what can be awarded).
+// key: unique per-tenant badge identifier (e.g. "first_project_approved", "perfect_attendance").
+//   The partial-unique `(tenant_id, key) WHERE deleted_at IS NULL` is in the
+//   raw-SQL migration. Prisma uses @@unique([tenantId, key]) as the full fallback.
+// criteria: JSON rule descriptor used by the GamificationService to evaluate award conditions.
+//   Example: { event: "project_approved", condition: { isFinal: true } }
+// status: "active" | "inactive" (string — flexible, no enum needed for this two-state lifecycle).
+model Badge {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  // key: per-tenant slug-like identifier. Unique among non-deleted badges per tenant.
+  // The Prisma @@unique([tenantId, key]) creates a full unique index; the partial-unique
+  // WHERE deleted_at IS NULL is in the raw-SQL migration (allows key reuse after soft-delete).
+  key         String
+  name        String
+  description String?
+  // icon: display icon identifier (e.g. "trophy", "star-medal", "flame" — resolved to
+  // a UI icon at render time; NOT a URL).
+  icon        String?
+  // criteria: rule descriptor for the GamificationService. Example:
+  //   { "event": "certificate_issued" }
+  //   { "event": "lesson_completed", "condition": { "streakDays": 7 } }
+  criteria    Json      @default("{}")
+  // status: "active" = awardable; "inactive" = no new awards (existing awards remain).
+  status      String    @default("active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  userBadges UserBadge[]
+
+  // Prisma-managed full unique (fallback). Partial-unique WHERE deleted_at IS NULL is in raw SQL.
+  @@unique([tenantId, key])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@map("badges")
+}
+
+// UserBadge — an award of a badge to a specific user.
+// Partial-unique (user_id, badge_id) WHERE deleted_at IS NULL enforced in raw-SQL migration:
+//   a user earns each badge at most once (a soft-deleted award can be re-awarded, but
+//   only one active award per (user, badge) is permitted).
+// ref: the source event or context that triggered the award (e.g. "certificate:cert-uuid").
+//   Used alongside user_id + badge_id for idempotent award checks (if the same event fires
+//   twice, the service finds the existing row and does not create a duplicate).
+// awarded_at: when the badge was awarded (may differ from created_at if back-dated for events).
+model UserBadge {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  badgeId   String    @map("badge_id") @db.Uuid
+  // awarded_at: canonical award timestamp, set by the GamificationService.
+  awardedAt DateTime  @default(now()) @map("awarded_at")
+  // ref: source event reference for idempotent award (e.g. "certificate:cert-uuid",
+  // "lesson_streak:7days:2026-07-01"). The raw-SQL partial-unique is (user_id, badge_id)
+  // only (not including ref), so the uniqueness check is badge-level, not event-level.
+  // For event-level idempotency the service checks ref before inserting.
+  ref       String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+  badge  Badge  @relation(fields: [badgeId], references: [id])
+
+  // Partial-unique (user_id, badge_id) WHERE deleted_at IS NULL is in raw-SQL migration.
+  // No Prisma-level @@unique here (it would block re-awarding after soft-delete; the
+  // partial-unique is the real constraint).
+  @@index([userId, badgeId])
+  @@index([tenantId, userId])
+  @@index([tenantId, deletedAt])
+  @@map("user_badges")
+}
+
+// PointsLedger — append-only XP/points ledger row.
+// APPEND-ONLY: points are never mutated. Reversals (deductions/corrections) are
+// additional rows with negative delta values (and a reason explaining the reversal).
+// Partial-unique dedupe on (user_id, reason, ref) WHERE deleted_at IS NULL:
+//   Enforces idempotent awards — replaying a domain event (at-least-once dispatch)
+//   for the same (user, reason, ref) is a no-op (the unique index rejects the 2nd insert).
+//   Anti-abuse: a user cannot farm points by triggering the same event twice.
+// Leaderboard: read-side computes SUM(delta) per user, filtered by tenant + batch.
+//   The aggregate projection is cached (cache-aside per docs/04 §2.7) by the
+//   GamificationService; the raw ledger is the source of truth.
+// P7 ANALYTICS NOTE: `points_ledger` (UNION-combined with `user_badges` on
+// tenant_id/day/user_id) is the source for the read-only materialized view
+// `mv_gamification_daily` (gamification participation dashboard, AC-23). Batch/assigned
+// scoping is NOT baked into this MV (points_ledger has no batch_id — a user can belong
+// to multiple batches/enrollments); the backend resolves the assigned-batch student
+// user-id set separately and filters MV rows by `user_id IN (...)`. See "Analytics read
+// model (materialized views)" section near the end of this file.
+model PointsLedger {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  // delta: positive for awards, negative for reversals/deductions. Never zero.
+  delta     Int
+  // reason: a stable machine-readable key for the award type.
+  // Examples: "lesson_completed", "assignment_graded", "badge_awarded", "streak_day_7",
+  //   "assessment_passed", "project_approved", "certificate_issued", "reversal"
+  reason    String
+  // ref: the source entity or event id that triggered this ledger row.
+  // Examples: "lesson:lesson-uuid", "assignment:sub-uuid", "assessment:attempt-uuid"
+  // Combined with reason, this forms the dedupe key (see partial-unique in raw-SQL migration).
+  // Nullable only for system-level entries (e.g. an admin manual-correction with no ref).
+  ref       String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  // Partial-unique (user_id, reason, ref) WHERE deleted_at IS NULL is in raw-SQL migration.
+  // Prisma cannot express this; the constraint lives in engagement_partial_indexes.
+  @@index([userId])
+  @@index([tenantId, userId])
+  @@index([tenantId, deletedAt])
+  @@map("points_ledger")
+}
+
+// ForumThread — a discussion thread scoped to a batch or program.
+// RBAC: students can read/create only in batches they are enrolled in (enrollment-scoped,
+//   IDOR→404 per ADR-0022). Faculty/admin moderate their assigned batches.
+// batch_id / program_id: scope for the thread. At least one should be set.
+//   batch_id is the primary scope (batch-level discussions are the most common).
+//   program_id allows course-level general threads not tied to a specific batch run.
+// resolved_post_id: the post marked as the accepted answer (Q&A resolution).
+// pinned: convenience bool (derived from status=pinned, but kept explicit for query filtering).
+// P7 ANALYTICS NOTE: `forum_threads` (UNION-combined with `forum_posts` on
+// tenant_id/day/batch_id/program_id) is the source for the read-only materialized view
+// `mv_forum_health_daily` (forum health dashboard, AC-26). `forum_threads` has no
+// `resolved_at` timestamp, so the resolution-rate metric buckets by thread *creation*
+// day, not resolution day (documented limitation — resolution rate as of "now" is still
+// exact; only the day-of-resolution trend is approximate). See "Analytics read model
+// (materialized views)" section near the end of this file.
+model ForumThread {
+  id             String       @id @default(uuid()) @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  // batch_id: nullable — threads can be program-scoped (batch_id IS NULL).
+  batchId        String?      @map("batch_id") @db.Uuid
+  // program_id: nullable — for general course-level discussions not in a specific batch.
+  programId      String?      @map("program_id") @db.Uuid
+  // author_id: the user who created the thread (student or faculty).
+  authorId       String       @map("author_id") @db.Uuid
+  title          String
+  status         ThreadStatus @default(open)
+  pinned         Boolean      @default(false)
+  // resolved_post_id: FK → forum_posts; set when the thread author (or faculty/admin)
+  // marks a reply as the accepted answer (Q&A resolution). Nullable until resolved.
+  // No Prisma FK here (circular dep: thread → post → thread); enforced at service layer.
+  resolvedPostId String?      @map("resolved_post_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  deletedAt      DateTime?    @map("deleted_at")
+
+  tenant  Tenant      @relation(fields: [tenantId], references: [id])
+  batch   Batch?      @relation(fields: [batchId], references: [id])
+  program Program?    @relation(fields: [programId], references: [id])
+  author  User        @relation(fields: [authorId], references: [id])
+  posts   ForumPost[]
+
+  // docs/05 §4 index + plan §2: (tenant_id, batch_id, status) for batch forum listing.
+  @@index([tenantId, batchId, status])
+  @@index([tenantId, programId, status])
+  @@index([tenantId, deletedAt])
+  @@map("forum_threads")
+}
+
+// ForumPost — a post or nested reply in a forum thread.
+// parent_id: null = top-level post in the thread; non-null = reply to another post (nested).
+//   Self-referential FK supports two-level nesting (thread → post → reply).
+// body: user-generated markdown-ish text. MUST be sanitized (DOMPurify) at every render
+//   site (LMS + CRM). Server stores raw text (after length/shape validation + HTML strip
+//   for defense in depth, per plan §9 task description). See docs/plans/phase-6.md §1 WS-4.
+// upvotes: denormalized cached count of active votes (source of truth: forum_post_votes rows).
+//   Incremented/decremented by the VoteService when a vote is cast/removed.
+// hidden_by / hidden_reason: set by faculty/admin moderation (soft moderation — status=hidden).
+// status: visible (default) → hidden (moderated). Hard delete is soft-delete (deleted_at).
+model ForumPost {
+  id           String     @id @default(uuid()) @db.Uuid
+  tenantId     String     @map("tenant_id") @db.Uuid
+  threadId     String     @map("thread_id") @db.Uuid
+  // author_id: the user who wrote this post or reply.
+  authorId     String     @map("author_id") @db.Uuid
+  // body: user-generated text. Sanitize (DOMPurify) at every render site. Max 8000 chars (enforced at service layer).
+  body         String
+  // parent_id: null = top-level post; set = reply to that post.
+  parentId     String?    @map("parent_id") @db.Uuid
+  // upvotes: denormalized cached count of active (non-deleted) forum_post_votes rows for this post.
+  upvotes      Int        @default(0)
+  status       PostStatus @default(visible)
+  // hidden_by: FK → users (the moderator who hid the post). Null when status=visible.
+  hiddenById   String?    @map("hidden_by") @db.Uuid
+  hiddenReason String?    @map("hidden_reason")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  deletedAt    DateTime?  @map("deleted_at")
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id])
+  thread   ForumThread     @relation(fields: [threadId], references: [id])
+  author   User            @relation(fields: [authorId], references: [id])
+  // parent: nullable self-referential FK for nested replies.
+  parent   ForumPost?      @relation("PostReplies", fields: [parentId], references: [id])
+  replies  ForumPost[]     @relation("PostReplies")
+  hiddenBy User?           @relation("ForumPostHiddenBy", fields: [hiddenById], references: [id])
+  votes    ForumPostVote[]
+
+  @@index([threadId, status])
+  @@index([threadId, parentId])
+  @@index([tenantId, authorId])
+  @@index([tenantId, deletedAt])
+  @@map("forum_posts")
+}
+
+// ForumPostVote — one upvote per user per post (dedupe anti-abuse).
+// Partial-unique (post_id, user_id) WHERE deleted_at IS NULL enforced in raw-SQL migration.
+// Keeps forum_posts.upvotes as a denormalized cached count.
+// A user removing their vote soft-deletes this row (deleted_at set); the VoteService
+// decrements forum_posts.upvotes atomically and sets a new row on re-vote.
+model ForumPostVote {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  postId    String    @map("post_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant    @relation(fields: [tenantId], references: [id])
+  post   ForumPost @relation(fields: [postId], references: [id])
+  user   User      @relation(fields: [userId], references: [id])
+
+  // Partial-unique (post_id, user_id) WHERE deleted_at IS NULL is in raw-SQL migration.
+  // Prisma cannot express this; the constraint lives in engagement_partial_indexes.
+  @@index([postId, userId])
+  @@index([tenantId, userId])
+  @@index([tenantId, deletedAt])
+  @@map("forum_post_votes")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Analytics read model (materialized views) — Phase 7, docs/plans/phase-7.md Wave 1
+// task #1, docs/specs/phase-7-analytics-hardening.md LOCK-D1.
+//
+// Prisma cannot model PostgreSQL MATERIALIZED VIEWs (no `@@materialized` construct), so
+// the eight MVs below are defined in raw SQL in the migration
+// `20260704060200_analytics_read_model` and are NOT represented as `model` blocks here.
+// This comment block is their canonical documentation, matching the existing convention
+// of raw-SQL constructs being documented in schema.prisma (see the `campaign_recipients`
+// partial-unique callout above).
+//
+// WHY MVs, not live aggregate queries (LOCK-D1): heavy dashboard aggregates must never
+// run against the write-path connection pool at the 100k-concurrent target. Every MV
+// below reads only from tables already excluding soft-deleted rows
+// (`WHERE deleted_at IS NULL` in every source CTE/join) and is refreshed on a schedule
+// (Wave 2 `@nestjs/schedule` cron calls `refresh_analytics_views()`), never inline on
+// request.
+//
+// DESIGN RULES applied to every MV below:
+//   1. `tenant_id` is always a column — every dashboard query filters by it first.
+//   2. Grouped by a `day` column (`date_trunc('day', <event_timestamp>)`) so the API can
+//      filter/bucket by date range.
+//   3. A UNIQUE index exists on the MV's full group-by column set — REQUIRED for
+//      `REFRESH MATERIALIZED VIEW CONCURRENTLY` (readers are never blocked during
+//      refresh).
+//   4. Additional scope dimensions (branch_id, batch_id, owner_id, program_id, user_id,
+//      campaign_id/channel/status, etc.) are included as columns (not pre-aggregated
+//      away) so the Wave-2 query/service layer can apply RBAC scope filters (all /
+//      branch / assigned / own) by filtering + re-summing MV rows, without ever losing
+//      reconciliation to source rows (docs/00 §10.2, AC-1/7/10/14/17/20/23/26).
+//   5. Every MV excludes soft-deleted source rows (`deleted_at IS NULL`) — deleted rows
+//      never leak into a dashboard total.
+//
+// THE EIGHT MVs:
+//
+//   mv_revenue_daily              — from `payments` (status='captured') LEFT JOIN
+//                                    `orders` LEFT JOIN `enrollments` (via order_id) LEFT
+//                                    JOIN `batches` (branch attribution). Columns:
+//                                    tenant_id, day, currency, program_id, branch_id,
+//                                    total_paise, payment_count. Unique key: (tenant_id,
+//                                    day, currency, program_id, branch_id).
+//                                    CAVEAT: branch_id is only populated when the
+//                                    payment's order has a matching `enrollments` row
+//                                    (order_id FK) whose batch carries a branch_id —
+//                                    orders with no linked enrollment show branch_id
+//                                    NULL (still counted correctly in the tenant-wide
+//                                    "all" scope total; only the branch breakdown is
+//                                    affected). Documented for backend-builder Wave 2 and
+//                                    security-reviewer.
+//
+//   mv_enrollment_daily           — from `enrollments` JOIN `batches`. Columns:
+//                                    tenant_id, day (enrolled_at), program_id, batch_id,
+//                                    branch_id, enrollment_count. Unique key: (tenant_id,
+//                                    day, batch_id, program_id).
+//
+//   mv_lead_funnel_daily          — from `leads`. Columns: tenant_id, day (created_at),
+//                                    branch_id, owner_id, stage, lead_count. Unique key:
+//                                    (tenant_id, day, branch_id, owner_id, stage).
+//                                    Conversion rate (won/total) is computed by the
+//                                    query layer as SUM(lead_count WHERE stage='won') /
+//                                    SUM(lead_count) over the filtered rows.
+//
+//   mv_attendance_daily           — from `attendance` JOIN `enrollments` JOIN `batches`.
+//                                    Columns: tenant_id, day (marked_at), batch_id,
+//                                    branch_id, present_count, absent_count, total_count.
+//                                    Unique key: (tenant_id, day, batch_id).
+//
+//   mv_course_engagement_daily    — from `lesson_progress` JOIN `enrollments` JOIN
+//                                    `lessons` JOIN `modules`. Columns: tenant_id, day
+//                                    (updated_at — last-activity day; see caveat below),
+//                                    program_id, module_id, lesson_id, batch_id,
+//                                    completed_count, in_progress_count, total_count.
+//                                    Unique key: (tenant_id, day, lesson_id, batch_id).
+//                                    CAVEAT: bucketed by `updated_at` (last-touched day),
+//                                    not a dedicated "completed_at" event log — a lesson
+//                                    typically has no further pings after completion, so
+//                                    this is a reasonable proxy, but it is not a strict
+//                                    completion-event ledger. Per-lesson drop-off
+//                                    (AC-18) and roster-size-based completion % are
+//                                    computed by the Wave-2 query layer joining this MV
+//                                    with `lessons.order` (for sequencing) and
+//                                    `enrollments` (for roster size) — both outside the
+//                                    MV, which only carries counts.
+//
+//   mv_campaign_performance_daily — from `campaign_recipients` JOIN `campaigns`.
+//                                    Columns: tenant_id, day (created_at), campaign_id,
+//                                    channel, status, recipient_count. Unique key:
+//                                    (tenant_id, day, campaign_id, status).
+//
+//   mv_gamification_daily         — UNION of `points_ledger` (day=created_at) and
+//                                    `user_badges` (day=awarded_at) rollups, summed by
+//                                    (tenant_id, day, user_id). Columns: tenant_id, day,
+//                                    user_id, total_xp, earning_events, badge_count.
+//                                    Unique key: (tenant_id, day, user_id). See the
+//                                    PointsLedger model doc comment above for the
+//                                    batch-scoping caveat (no batch_id in source tables).
+//
+//   mv_forum_health_daily         — UNION of `forum_threads` (day=created_at) and
+//                                    `forum_posts` (day=created_at, via thread join)
+//                                    rollups, summed by (tenant_id, day, batch_id,
+//                                    program_id). Columns: tenant_id, day, batch_id,
+//                                    program_id, thread_count, resolved_count,
+//                                    post_count. Unique key: (tenant_id, day, batch_id,
+//                                    program_id). See the ForumThread model doc comment
+//                                    above for the resolution-day caveat.
+//
+// REFRESH ENTRYPOINT: `refresh_analytics_views()` — a PL/pgSQL PROCEDURE (not a
+// function: procedures can COMMIT between statements, which functions cannot, and
+// `REFRESH MATERIALIZED VIEW CONCURRENTLY` must not run inside an open transaction
+// block). Invoked as `CALL refresh_analytics_views();` — the Wave-2 `@nestjs/schedule`
+// cron job calls this via `prisma.$executeRawUnsafe('CALL refresh_analytics_views()')`
+// on a schedule (e.g. every 5 min per docs/plans/phase-7.md Decision 1). Each of the
+// eight MVs is refreshed with `REFRESH MATERIALIZED VIEW CONCURRENTLY` (never blocks
+// concurrent dashboard reads) inside the procedure, committing after each one so a
+// failure on one MV does not roll back an already-completed refresh of another.
+// ────────────────────────────────────────────────────────────────────────────
+
+// Freshness tracking for the eight analytics MVs above (Phase 7, Wave 2, task #7 —
+// docs/plans/phase-7.md, docs/specs/phase-7-analytics-hardening.md LOCK-D1). PostgreSQL
+// does not expose a "last refreshed at" timestamp for `REFRESH MATERIALIZED VIEW
+// CONCURRENTLY`, so this table is maintained by `refresh_analytics_views()` (see
+// migration `20260704060400_analytics_refresh_log`, which replaces the procedure body
+// via `CREATE OR REPLACE` — the CALL site is unchanged) and is the source of every
+// dashboard response's `asOf`/`stale` freshness fields (ReportFreshnessSchema,
+// @repo/types crm/reports.schemas.ts). Global table (no tenant_id / soft-delete): MV
+// freshness is a platform-wide operational fact, not a per-tenant business record.
+model AnalyticsRefreshLog {
+  mvName        String    @id @map("mv_name")
+  lastSuccessAt DateTime? @map("last_success_at")
+  lastAttemptAt DateTime? @map("last_attempt_at")
+  lastError     String?   @map("last_error")
+
+  @@map("analytics_mv_refresh_log")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Governance
+// ────────────────────────────────────────────────────────────────────────────
+
+// Append-only audit trail — exempt from soft-delete (docs/05 §5/§6). No deleted_at:
+// audit rows must never be hidden or soft-deleted; only privileged purge/retention
+// jobs may hard-delete per compliance policy.
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
+  entity    String
+  entityId  String   @map("entity_id") @db.Uuid
+  action    String
+  before    Json?
+  after     Json?
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  actor  User?  @relation(fields: [actorId], references: [id])
+
+  @@index([tenantId, entity, entityId, createdAt])
+  @@map("audit_logs")
+}
+
+// ExportJob — durable record of an on-demand or scheduled large/background export
+// (docs/plans/phase-7.md Wave 1 task #4, docs/specs/phase-7-analytics-hardening.md
+// AC-33/AC-36/AC-37). Covers the "large export streams/paginates ... completes as a
+// background job with a downloadable link" path and the audit-log requirement
+// ("export action is audit-logged" — AC-36 additionally requires an `audit_logs` row;
+// ExportJob is the durable job-status record consulted for polling/download, distinct
+// from (and in addition to) the audit_logs entry the service writes on completion).
+//
+// type: open-ended string identifying which export/report this job produces (e.g.
+//   "leads.csv", "students.csv", "revenue.pdf", "campaign-audience.csv"). Plain string
+//   (not enum) — the export catalog is expected to grow without a schema migration per
+//   new export type, matching the Resource.type / CertificateTemplate.status pattern.
+// params: JSON snapshot of the request's filters/scope at creation time (date range,
+//   branch/scope filter, column selection) — NOT re-derived from the current caller's
+//   scope at read time, since the job already ran with the scope captured at request
+//   time (scheduled reports re-derive scope at SEND time per AC-37; that recurrence
+//   logic lives in the report-schedule feature, not this per-run job row).
+// requested_by: FK → users — the caller who triggered the export (or the system, for a
+//   scheduled dispatch that has no live requester — nullable is NOT used here because
+//   scheduled sends are modeled as backend-builder's own recurrence entity in Wave 2;
+//   every ExportJob row has a concrete requesting user).
+// status: queued → running → succeeded | failed. storage_key is set only on succeeded
+//   (StorageProvider key of the generated file — signed download URL minted on demand,
+//   never a raw object URL, per docs/05 §7). error is set only on failed. row_count is
+//   set on succeeded (and MAY be set on failed if the job died mid-stream after counting
+//   some rows — informational only).
+model ExportJob {
+  id            String          @id @default(uuid()) @db.Uuid
+  tenantId      String          @map("tenant_id") @db.Uuid
+  requestedById String          @map("requested_by") @db.Uuid
+  type          String
+  params        Json            @default("{}")
+  status        ExportJobStatus @default(queued)
+  // storage_key: S3/R2 object key for the generated file. Null until status=succeeded.
+  storageKey    String?         @map("storage_key")
+  // error: last error message. Null unless status=failed.
+  error         String?
+  // row_count: number of rows exported (set on success; may be partial on failure).
+  rowCount      Int?            @map("row_count")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  deletedAt     DateTime?       @map("deleted_at")
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id])
+  requestedBy User   @relation("ExportJobRequestedBy", fields: [requestedById], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, requestedById])
+  @@index([tenantId, deletedAt])
+  @@map("export_jobs")
+}
+
+// ReportSchedule — recurring report-email definitions (docs/plans/phase-7.md Wave 2
+// task #11, docs/specs/phase-7-analytics-hardening.md WS-B AC-37/38/39). Offered ONLY
+// for the 8 report-backed export types (revenue/enrollments/funnel/attendance/
+// engagement/campaigns/gamification/forum-health — @repo/types
+// CreateReportScheduleDtoSchema's discriminated union), never for raw entity-list
+// exports (students/leads/payments/campaign-audience).
+//
+// DELIBERATE OMISSION (AC-37 — "scope re-evaluated at send time"): this table carries
+// NO scope/branch/assigned snapshot of any kind. `created_by` + `type`/`params` (the
+// filter shape, identical to the on-demand export's `params`) are the only durable
+// inputs; the dispatch cron (report-schedules.dispatch.scheduler.ts) resolves the
+// creator's CURRENT `reports.export` permission grant (scope + presence) fresh on every
+// run via AuthRepository.getRbacProfile() — never a value cached on this row — so a
+// creator who is reassigned/demoted before the next send is reflected immediately (or,
+// if they lost access entirely, the run is skipped and the schedule deactivated).
+//
+// next_run_at / last_run_at: the dispatch cron claims a due row with a conditional
+// `UPDATE ... WHERE next_run_at = <observed value> AND active = true` (optimistic
+// concurrency keyed on next_run_at) BEFORE generating/sending — this is what makes a
+// single due window fire at most once even under concurrent scheduler instances/ticks
+// (idempotent single-fire, per the task's DoD).
+//
+// last_status/last_error: outcome of the most recent attempt, surfaced via
+// GET /crm/reports/schedules (admin-visible failure list — AC-38: a failed send is
+// never silently dropped).
+model ReportSchedule {
+  id             String                   @id @default(uuid()) @db.Uuid
+  tenantId       String                   @map("tenant_id") @db.Uuid
+  createdById    String                   @map("created_by") @db.Uuid
+  // One of the 8 report-backed ExportEntityType values (@repo/types). Plain string,
+  // matching ExportJob.type's "open-ended, no schema migration per new report" pattern.
+  type           String
+  // "csv" | "pdf" — the same ExportFormat used by the on-demand export path.
+  format         String
+  // The report's filter params — the EXACT SAME query shape as the matching on-screen
+  // dashboard/on-demand export `params` (Rule H-2). Re-validated against
+  // `CreateReportScheduleDtoSchema` at dispatch time as a defensive check.
+  params         Json                     @default("{}")
+  frequency      ReportScheduleFrequency
+  // Null = send to the creator's OWN registered email (resolved at send time, never
+  // cached here) — see CreateReportScheduleDtoSchema doc comment.
+  recipientEmail String?                  @map("recipient_email")
+  // Set false to pause a schedule without deleting it, OR by the dispatch cron itself
+  // when the creator has lost the required permission (AC-37 "skip/deactivate").
+  active         Boolean                  @default(true)
+  nextRunAt      DateTime                 @map("next_run_at")
+  lastRunAt      DateTime?                @map("last_run_at")
+  lastStatus     ReportScheduleRunStatus? @map("last_status")
+  // Human-readable failure reason for the last run. Never a raw stack trace or secret
+  // (mirrors ExportJob.error's sanitization contract).
+  lastError      String?                  @map("last_error")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+  deletedAt      DateTime?                @map("deleted_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  createdBy User   @relation("ReportScheduleCreatedBy", fields: [createdById], references: [id])
+
+  @@index([tenantId, active, nextRunAt])
+  @@index([tenantId, createdById])
+  @@index([tenantId, deletedAt])
+  @@map("report_schedules")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Phase 9 — Completion (Wave 1 schema — docs/plans/phase-9-completion.md T6-T12)
+// All tables: uuid PK, tenant_id, created/updated/deleted_at, wired into
+// soft-delete + audit Prisma extensions per CLAUDE.md §3.4. Partial-unique indexes
+// (WHERE deleted_at IS NULL) are in the raw-SQL migration
+// `20260709090100_phase9_completion_partial_indexes`, matching every prior phase's
+// pattern (P1/P2/P3/P4/P5/P6/P7/P8 all did the same for slug/dedupe uniqueness).
+// ────────────────────────────────────────────────────────────────────────────
+
+// ── T6: LiveClass (docs/05 §3 "live_classes" — the spec-only row is now implemented;
+//    wires the previously FK-less `attendance.live_class_id` column, see the
+//    Attendance model comment above) ─────────────────────────────────────────────────
+//
+// A scheduled live session for a batch, hosted through a swappable LiveClassProvider
+// (Zoom / Google Meet / Noop — docs/plans/phase-9-completion.md T15). `programId` is
+// denormalized from `batch.programId` for direct query without a batch join (same
+// denormalization precedent as Certificate.programId).
+// `providerMeetingId`/`joinUrl` are set once the provider creates the meeting; null
+// while a scheduling request is still in flight.
+// `recordingUrl`: a PROVIDER-hosted recording reference (Zoom/Meet cloud recording
+// link) set after the session ends, not a StorageProvider key — distinct from the "no
+// raw object URLs" rule (docs/05 §7), which applies to OUR bucket-hosted assets, not
+// third-party provider URLs already gated behind the vendor's own access control.
+model LiveClass {
+  id                String            @id @default(uuid()) @db.Uuid
+  tenantId          String            @map("tenant_id") @db.Uuid
+  batchId           String            @map("batch_id") @db.Uuid
+  programId         String            @map("program_id") @db.Uuid
+  title             String
+  provider          LiveClassProvider @default(noop)
+  providerMeetingId String?           @map("provider_meeting_id")
+  joinUrl           String?           @map("join_url")
+  startsAt          DateTime          @map("starts_at")
+  endsAt            DateTime          @map("ends_at")
+  status            LiveClassStatus   @default(scheduled)
+  recordingUrl      String?           @map("recording_url")
+  hostUserId        String            @map("host_user_id") @db.Uuid
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  deletedAt         DateTime?         @map("deleted_at")
+
+  tenant     Tenant       @relation(fields: [tenantId], references: [id])
+  batch      Batch        @relation(fields: [batchId], references: [id])
+  program    Program      @relation(fields: [programId], references: [id])
+  hostUser   User         @relation("LiveClassHost", fields: [hostUserId], references: [id])
+  attendance Attendance[]
+
+  @@index([tenantId, batchId])
+  @@index([tenantId, status])
+  @@index([startsAt])
+  @@index([tenantId, deletedAt])
+  @@map("live_classes")
+}
+
+// ── T7: Support desk — Ticket, TicketMessage, CannedResponse, KbArticle ─────────────
+
+model Ticket {
+  id         String         @id @default(uuid()) @db.Uuid
+  tenantId   String         @map("tenant_id") @db.Uuid
+  userId     String         @map("user_id") @db.Uuid
+  subject    String
+  body       String
+  status     TicketStatus   @default(open)
+  priority   TicketPriority @default(medium)
+  assigneeId String?        @map("assignee_id") @db.Uuid
+  slaDueAt   DateTime?      @map("sla_due_at")
+  // rating: post-resolution CSAT score (1-5), nullable until the raiser rates it.
+  rating     Int?
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+  deletedAt  DateTime?      @map("deleted_at")
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id])
+  user     User            @relation("TicketRaisedBy", fields: [userId], references: [id])
+  assignee User?           @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  messages TicketMessage[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, assigneeId])
+  @@index([userId])
+  @@index([slaDueAt])
+  @@index([tenantId, deletedAt])
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  ticketId   String    @map("ticket_id") @db.Uuid
+  authorId   String    @map("author_id") @db.Uuid
+  body       String
+  // is_internal: true = staff-only note, never shown to the ticket raiser.
+  isInternal Boolean   @default(false) @map("is_internal")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId])
+  @@index([tenantId, deletedAt])
+  @@map("ticket_messages")
+}
+
+model CannedResponse {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  title     String
+  body      String
+  category  String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, deletedAt])
+  @@map("canned_responses")
+}
+
+// KbArticle — knowledge-base article. slug is per-tenant partial-unique (raw SQL),
+// matching the Program/BlogPost slug pattern.
+model KbArticle {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  title     String
+  slug      String
+  body      String
+  category  String?
+  published Boolean   @default(false)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([slug])
+  @@index([tenantId, published])
+  @@index([tenantId, deletedAt])
+  @@map("kb_articles")
+}
+
+// ── T8: Headless CMS — BlogPost, BlogCategory, Testimonial, Partner, FacultyBio,
+//    ContentPage, NewsletterSubscription, ContactSubmission, CareerApplication ────────
+// So `web` stops hardcoding blog/testimonials/partners/faculty/pages content (docs/
+// plans/phase-9-completion.md T8/T22/T32). `body`/`content` fields carry rich text/
+// MDX-ish content — MUST be sanitized (DOMPurify) at every render sink (same rule as
+// ForumPost.body, docs/plans/phase-6.md WS-4); the server stores raw authored content
+// (CRM-only write access) and does not attempt HTML sanitization itself.
+
+model BlogCategory {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  name      String
+  slug      String
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id])
+  posts  BlogPost[]
+
+  @@index([slug])
+  @@index([tenantId, deletedAt])
+  @@map("blog_categories")
+}
+
+model BlogPost {
+  id             String        @id @default(uuid()) @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  categoryId     String?       @map("category_id") @db.Uuid
+  authorId       String?       @map("author_id") @db.Uuid
+  title          String
+  slug           String
+  excerpt        String?
+  body           String
+  // coverImageKey: S3/R2 object key, not a raw URL (docs/05 §7 convention — CDN URL
+  // minted at serve time, matching Program.ogImageKey).
+  coverImageKey  String?       @map("cover_image_key")
+  seoTitle       String?       @map("seo_title")
+  seoDescription String?       @map("seo_description")
+  status         ContentStatus @default(draft)
+  publishedAt    DateTime?     @map("published_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id])
+  category BlogCategory? @relation(fields: [categoryId], references: [id])
+  author   User?         @relation(fields: [authorId], references: [id])
+
+  @@index([slug])
+  @@index([tenantId, status, publishedAt])
+  @@index([categoryId])
+  @@index([tenantId, deletedAt])
+  @@map("blog_posts")
+}
+
+// Testimonial.studentName is intentionally UNMASKED in audit snapshots (no
+// PII_FIELD_REGISTRY entry) — a testimonial is explicitly consented public-facing
+// marketing content (the whole point is the name is displayed publicly), unlike
+// Lead.name/Mentor.fullName which are internal records about a person who has not
+// necessarily consented to public display. Same posture as FacultyBio.name below.
+model Testimonial {
+  id              String        @id @default(uuid()) @db.Uuid
+  tenantId        String        @map("tenant_id") @db.Uuid
+  programId       String?       @map("program_id") @db.Uuid
+  studentName     String        @map("student_name")
+  studentPhotoKey String?       @map("student_photo_key")
+  quote           String
+  // rating: 0-50 = 0.0-5.0 stars ×10 scale (no floats — same convention as
+  // Program.ratingAvg). Nullable — a testimonial need not carry a star rating.
+  rating          Int?
+  status          ContentStatus @default(draft)
+  order           Int           @default(0)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  deletedAt       DateTime?     @map("deleted_at")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  program Program? @relation(fields: [programId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([programId])
+  @@index([tenantId, deletedAt])
+  @@map("testimonials")
+}
+
+model Partner {
+  id        String        @id @default(uuid()) @db.Uuid
+  tenantId  String        @map("tenant_id") @db.Uuid
+  name      String
+  logoKey   String?       @map("logo_key")
+  url       String?
+  // category: open-ended string (e.g. "hiring_partner", "tech_partner") — matches the
+  // Resource.type / CertificateTemplate.status "no enum for an open editor-driven set"
+  // precedent.
+  category    String?
+  // focus/established/city — ADDITIVE, nullable (Phase-10 page-builder spec,
+  // docs/specs/phase-10-page-builder.md): back the homepage "partner colleges" reference
+  // block (apps/web/src/components/home/partner-colleges.tsx), which today hardcodes a
+  // one-line focus blurb, founding year, and city per partner alongside the existing
+  // name/logo/url/category fields. `established` is a bare year (Int, e.g. 1963) — every
+  // hardcoded value is a plain 4-digit year, no free-text "circa"/"est. 1900s" values
+  // exist today, so Int is a precise fit (not a floats-in-money concern; this is a
+  // calendar year, not currency). All three nullable — existing non-college partners
+  // (hiring/tech partners) legitimately have none of the three.
+  focus       String?
+  established Int?
+  city        String?
+  status    ContentStatus @default(draft)
+  order     Int           @default(0)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+  deletedAt DateTime?     @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@map("partners")
+}
+
+// FacultyBio — the PUBLIC marketing bio shown on the website, distinct from
+// `faculty_profiles` (the internal HR/LMS-assignment record). `facultyProfileId` is
+// nullable because a public bio may exist for a guest lecturer / mentor with no
+// internal FacultyProfile row. FacultyBio.name is intentionally unmasked in audit
+// snapshots — see the Testimonial doc comment above (same public-consent posture).
+model FacultyBio {
+  id               String        @id @default(uuid()) @db.Uuid
+  tenantId         String        @map("tenant_id") @db.Uuid
+  facultyProfileId String?       @map("faculty_profile_id") @db.Uuid
+  name             String
+  photoKey         String?       @map("photo_key")
+  title            String?
+  bio              String
+  socialLinks      Json?         @map("social_links")
+  status           ContentStatus @default(draft)
+  order            Int           @default(0)
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  deletedAt        DateTime?     @map("deleted_at")
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  facultyProfile FacultyProfile? @relation(fields: [facultyProfileId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([facultyProfileId])
+  @@index([tenantId, deletedAt])
+  @@map("faculty_bios")
+}
+
+// ContentPage — generic block-based CMS page (docs/plans/phase-9-completion.md T8's
+// "ContentBlock/Page" option). `body` is a JSON array of typed content blocks
+// (e.g. [{type:"hero", data:{...}}, {type:"richtext", data:{html:"..."}}]) rendered
+// through the DOMPurify sink (@repo/ui rich-text/MDX render sink, T19).
+model ContentPage {
+  id             String        @id @default(uuid()) @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  slug           String
+  title          String
+  body           Json
+  seoTitle       String?       @map("seo_title")
+  seoDescription String?       @map("seo_description")
+  // seoImagePath — Phase-11 locked templates (docs/plans/phase-11-locked-templates.md
+  // "SEO: ... add a new per-page OG image"). Prisma field name matches the DTO 1:1
+  // (`seoImagePath`, packages/types/src/content/pages.schemas.ts) rather than the sitewide
+  // `*ImageKey` convention (Program.ogImageKey, BlogPost.coverImageKey) — a deliberate,
+  // documented exception: the DTO layer had already named this field `seoImagePath`
+  // (Phase-11 P1, matching `SiteSetting`'s existing `defaultOgImagePath` JSON-field
+  // precedent for the sitewide OG-image fallback), so keeping the Prisma field name
+  // identical avoids a silent rename/translation at every repository/service call site.
+  // Value is still a StorageProvider object key (ObjectKeySchema), never a raw URL —
+  // same "stored key, CDN URL minted at serve time" contract as every `*ImageKey` field.
+  // Nullable/additive: every existing row is unaffected (null until a super_admin sets one).
+  seoImagePath   String?       @map("seo_image_path")
+  status         ContentStatus @default(draft)
+  publishedAt    DateTime?     @map("published_at")
+  // isBuilderManaged — Phase-10 page-builder spec (docs/specs/phase-10-page-builder.md):
+  // pages authored through the CRM block-based page builder are "save-is-live" (every
+  // save publishes immediately), which is a DIFFERENT lifecycle from the generic CMS
+  // draft->publish workflow every other ContentPage row still uses. This is a queryable
+  // structural flag, not a business rule buried in service code, because it drives real
+  // schema-adjacent decisions: which permission gates a write (`content.builder` vs
+  // `content.edit`/`content.publish`), which CRM editor UI a row opens in, and (future)
+  // which rows a DB check could constrain to `status = 'published'` always. Chose this
+  // over "the builder service simply always writes status='published', no schema change"
+  // because that alternative makes a page's authoring lineage unrecoverable from the DB
+  // alone — a `published` row would be indistinguishable from an ordinary CMS page that
+  // happened to reach `published` the normal way, which breaks "show only builder pages
+  // in the builder's page list" and "route an edit request to the right permission check"
+  // without an unreliable heuristic (e.g. sniffing `body`'s block shape). Defaults
+  // `false` — every existing content_pages row (T8) is unaffected; no-op migration.
+  isBuilderManaged Boolean @default(false) @map("is_builder_managed")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
+
+  tenant   Tenant               @relation(fields: [tenantId], references: [id])
+  versions ContentPageVersion[]
+
+  @@index([slug])
+  @@index([tenantId, status])
+  @@index([tenantId, isBuilderManaged])
+  @@index([tenantId, deletedAt])
+  @@map("content_pages")
+}
+
+// ContentPageVersion — immutable snapshot history for ContentPage (CRM block-based page
+// builder, super_admin-only, docs/adr/0059). Every save of a ContentPage writes a new
+// version row here (title/body/seo* as they existed at save time) so the CRM can render
+// a history list and support "revert to version N" without losing prior states. `version`
+// is monotonic PER PAGE (1, 2, 3, ...), assigned by the service layer (no DB sequence/
+// trigger — same "app-assigned monotonic counter" pattern as Submission.attemptNo /
+// EmiInstallment.installmentNo elsewhere in this schema). `createdById` is REQUIRED (unlike
+// BlogPost.authorId, which is nullable) — a version snapshot only ever exists because an
+// authenticated CRM actor triggered a save; there is no "authorless" version.
+model ContentPageVersion {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  contentPageId  String    @map("content_page_id") @db.Uuid
+  version        Int
+  title          String
+  body           Json
+  seoTitle       String?   @map("seo_title")
+  seoDescription String?   @map("seo_description")
+  // seoImagePath — same field/mapping decision as ContentPage.seoImagePath above; every
+  // save/revert snapshots the page's seoImagePath at that point in time alongside
+  // title/body/seoTitle/seoDescription (Phase-11 locked templates).
+  seoImagePath   String?   @map("seo_image_path")
+  createdById    String    @map("created_by_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  contentPage ContentPage @relation(fields: [contentPageId], references: [id])
+  createdBy   User        @relation(fields: [createdById], references: [id])
+
+  // (contentPageId, version) is a HARD @@unique (not a raw-SQL partial-unique like the
+  // slug/key tables) — version snapshots are append-only history; there is no
+  // "reissue after soft-delete" scenario that would need the uniqueness to free up. The
+  // `sort: Desc` modifier makes this same index directly usable for the CRM history-list
+  // query (`ORDER BY version DESC WHERE content_page_id = ?`), so a separate desc index
+  // is not needed on top of it.
+  @@unique([contentPageId, version(sort: Desc)])
+  @@index([contentPageId, createdAt])
+  @@index([tenantId, deletedAt])
+  @@map("content_page_versions")
+}
+
+// NewsletterSubscription — footer newsletter opt-in (docs/plans/phase-9-completion.md
+// T32). email is per-tenant partial-unique (WHERE deleted_at IS NULL — raw SQL) so a
+// re-subscribe after unsubscribe (soft-delete) is allowed.
+model NewsletterSubscription {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  email          String
+  // consent: DPDP consent capture — SAME shape as Lead.consent (docs/plans/phase-5.md §2).
+  consent        Json?
+  status         String    @default("active")
+  unsubscribedAt DateTime? @map("unsubscribed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@map("newsletter_subscriptions")
+}
+
+// ContactSubmission — the public "Contact Us" form (docs/plans/phase-9-completion.md T32).
+model ContactSubmission {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String
+  status    String    @default("new")
+  consent   Json?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@map("contact_submissions")
+}
+
+// CareerApplication — public "Careers" apply form (docs/plans/phase-9-completion.md T32).
+// resumeStorageKey: S3/R2 object key — NOT a raw URL (docs/05 §7); signed download URL
+// minted on demand for HR/admin readers.
+model CareerApplication {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  name             String
+  email            String
+  phone            String?
+  role             String
+  resumeStorageKey String    @map("resume_storage_key")
+  coverLetter      String?   @map("cover_letter")
+  status           String    @default("new")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@map("career_applications")
+}
+
+// ── T9: FeatureFlag + Setting (system/company scope) ────────────────────────────────
+
+model FeatureFlag {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  key         String
+  enabled     Boolean   @default(false)
+  // rollout: optional rule descriptor (e.g. {percentage: 25} or {cohort: ["beta"]}) for
+  // gradual/targeted rollout beyond a flat on/off.
+  rollout     Json?
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, enabled])
+  @@index([tenantId, deletedAt])
+  @@map("feature_flags")
+}
+
+model Setting {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  scope     SettingScope @default(company)
+  key       String
+  value     Json
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  deletedAt DateTime?    @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, scope])
+  @@index([tenantId, deletedAt])
+  @@map("settings")
+}
+
+// SiteSetting — sitewide marketing-website primitives editable from the CRM page builder
+// (super_admin only): nav labels, footer columns, SEO defaults, contact details, WhatsApp
+// number, homepage headline stat numbers. `key` is a dotted namespace, e.g.
+// "nav.primary_links", "footer.columns", "seo.defaults", "contact.details",
+// "contact.whatsapp", "stats.headline". `group` mirrors the key's leading namespace
+// segment as a plain open-ended string ('nav'|'footer'|'seo'|'contact'|'stats' today) —
+// same "open editor-driven set, no enum migration per new group" precedent as
+// `Partner.category`/`Resource.type` — purely for CRM UI tab/section grouping, not
+// queried as a uniqueness dimension.
+//
+// DELIBERATELY NOT reusing the existing `Setting` model (tenantId+scope+key, scope =
+// system|company) even though it is structurally almost identical (keyed Json value,
+// same partial-unique-after-soft-delete pattern). Reusing it would put SiteSetting rows
+// behind the EXISTING `settings.view`/`settings.edit` permissions, which are already
+// granted more broadly than this feature allows (`branch_manager` holds `settings.view`
+// at scope=branch — prisma/seed.ts:3706 — and the generic `GET /settings` CRM screen
+// would then surface nav/footer/SEO copy to roles this feature must keep OUT). A
+// dedicated model + dedicated `site_settings.view`/`site_settings.edit` permissions
+// (super_admin-only, see prisma/seed.ts) keeps the RBAC boundary real instead of relying
+// on a future service-layer filter to hide rows the generic settings screen technically
+// has permission to return. See this migration's report for the full reuse-vs-new-model
+// evaluation (db-architect).
+model SiteSetting {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  key       String
+  group     String
+  value     Json
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  // (tenantId, key) uniqueness is a raw-SQL partial-unique index
+  // (`site_settings_active_tenant_key_key`, WHERE deleted_at IS NULL) — same pattern as
+  // feature_flags/settings/kb_articles etc. (docs/05 §4); not expressible in `@@unique`.
+  @@index([tenantId, group])
+  @@index([tenantId, deletedAt])
+  @@map("site_settings")
+}
+
+// ── T10: Bookmark (polymorphic ref_type/ref_id) + LessonNote ────────────────────────
+
+// Bookmark — polymorphic: refType is an open-ended string (e.g. "lesson",
+// "video_timestamp", "blog_post"), matching the Resource.type / ExportJob.type "open
+// editor/event-driven set, no enum migration per new type" precedent. timestampS is
+// set for video-timestamp bookmarks (nullable — irrelevant for non-video ref types).
+model Bookmark {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  refType    String    @map("ref_type")
+  refId      String    @map("ref_id") @db.Uuid
+  note       String?
+  timestampS Int?      @map("timestamp_s")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, userId])
+  @@index([userId, refType])
+  @@index([tenantId, deletedAt])
+  @@map("bookmarks")
+}
+
+// LessonNote — a student's personal note on a lesson, optionally anchored to a video
+// timestamp. Multiple notes per (user, lesson) are allowed (no uniqueness constraint —
+// a student may leave several timestamped notes across one lesson's video).
+model LessonNote {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  lessonId   String    @map("lesson_id") @db.Uuid
+  timestampS Int?      @map("timestamp_s")
+  body       String
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+  lesson Lesson @relation(fields: [lessonId], references: [id])
+
+  @@index([tenantId, userId, lessonId])
+  @@index([lessonId])
+  @@index([tenantId, deletedAt])
+  @@map("lesson_notes")
+}
+
+// ── T11: Referral/affiliate + EmiPlan + EmiInstallment (dunning) ────────────────────
+
+// Referral — an affiliate/referral link + its attribution outcome. `code` is an
+// EXTENSION vs. docs/05 §3's spec (`referrer_user_id, referred_lead_id, reward,
+// status` only) — a trackable referral link needs a stable code; docs-writer should
+// add `code` to docs/05 §3 "referrals" row.
+model Referral {
+  id             String         @id @default(uuid()) @db.Uuid
+  tenantId       String         @map("tenant_id") @db.Uuid
+  referrerUserId String         @map("referrer_user_id") @db.Uuid
+  referredLeadId String?        @map("referred_lead_id") @db.Uuid
+  code           String
+  // reward: JSON descriptor, e.g. {"type":"cash","amountPaise":50000,"currency":"INR"}
+  // or {"type":"discount_coupon","couponId":"..."}. Money-in-paise rule (CLAUDE.md
+  // §3.6) applies to any amountPaise key inside this JSON.
+  reward         Json?
+  status         ReferralStatus @default(pending)
+  rewardedAt     DateTime?      @map("rewarded_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  deletedAt      DateTime?      @map("deleted_at")
+
+  tenant       Tenant @relation(fields: [tenantId], references: [id])
+  referrer     User   @relation("ReferralReferrer", fields: [referrerUserId], references: [id])
+  referredLead Lead?  @relation(fields: [referredLeadId], references: [id])
+
+  @@index([tenantId, referrerUserId])
+  @@index([referredLeadId])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@map("referrals")
+}
+
+// EmiPlan — an installment payment plan against one Order. Partial-unique
+// `(order_id) WHERE deleted_at IS NULL` (raw SQL) allows re-planning after a
+// cancelled plan is soft-deleted (same "reissue" pattern as Certificate.enrollmentId).
+model EmiPlan {
+  id               String        @id @default(uuid()) @db.Uuid
+  tenantId         String        @map("tenant_id") @db.Uuid
+  orderId          String        @map("order_id") @db.Uuid
+  totalAmountPaise Int           @map("total_amount_paise")
+  currency         String        @default("INR")
+  numInstallments  Int           @map("num_installments")
+  startDate        DateTime      @map("start_date")
+  status           EmiPlanStatus @default(active)
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  deletedAt        DateTime?     @map("deleted_at")
+
+  tenant       Tenant           @relation(fields: [tenantId], references: [id])
+  order        Order            @relation(fields: [orderId], references: [id])
+  installments EmiInstallment[]
+
+  @@index([tenantId, status])
+  @@index([orderId])
+  @@index([tenantId, deletedAt])
+  @@map("emi_plans")
+}
+
+// EmiInstallment — one scheduled installment of an EmiPlan. Partial-unique
+// `(emi_plan_id, installment_no) WHERE deleted_at IS NULL` (raw SQL) enforces one
+// active row per installment ordinal. `paymentId` links to the Payment row that
+// settled this installment (set once captured); `dunningAttempts`/`lastDunningAt`
+// drive the BullMQ dunning-reminder schedule (T18/T24).
+model EmiInstallment {
+  id              String               @id @default(uuid()) @db.Uuid
+  tenantId        String               @map("tenant_id") @db.Uuid
+  emiPlanId       String               @map("emi_plan_id") @db.Uuid
+  installmentNo   Int                  @map("installment_no")
+  amountPaise     Int                  @map("amount_paise")
+  dueDate         DateTime             @map("due_date")
+  status          EmiInstallmentStatus @default(pending)
+  paidAt          DateTime?            @map("paid_at")
+  paymentId       String?              @map("payment_id") @db.Uuid
+  dunningAttempts Int                  @default(0) @map("dunning_attempts")
+  lastDunningAt   DateTime?            @map("last_dunning_at")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+  deletedAt       DateTime?            @map("deleted_at")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  emiPlan EmiPlan  @relation(fields: [emiPlanId], references: [id])
+  payment Payment? @relation(fields: [paymentId], references: [id])
+
+  @@index([tenantId, status, dueDate])
+  @@index([emiPlanId])
+  @@index([tenantId, deletedAt])
+  @@map("emi_installments")
+}
+
+// ── T12: LandingPage (campaign, A/B variant) + LeadForm (field config) ──────────────
+
+// LandingPage — a campaign-specific marketing page, optionally A/B tested via
+// `variant`. Partial-unique `(tenant_id, slug, variant) WHERE deleted_at IS NULL`
+// (raw SQL) — the same slug may have multiple variants ("a", "b", ...) live
+// simultaneously for split-testing, but only one active row per (slug, variant).
+model LandingPage {
+  id             String        @id @default(uuid()) @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  campaign       String?
+  slug           String
+  title          String
+  variant        String        @default("a")
+  content        Json
+  seoTitle       String?       @map("seo_title")
+  seoDescription String?       @map("seo_description")
+  status         ContentStatus @default(draft)
+  publishedAt    DateTime?     @map("published_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([slug])
+  @@index([tenantId, campaign])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@map("landing_pages")
+}
+
+// LeadForm — a configurable lead-capture form definition (embedded on web pages).
+// `key` is the stable identifier embedding code references (e.g. "homepage-hero",
+// "program-detail-sticky"). Partial-unique `(tenant_id, key) WHERE deleted_at IS
+// NULL` (raw SQL). `fields` is a JSON array of field descriptors:
+// [{key, label, type, required}].
+model LeadForm {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  key             String
+  name            String
+  fields          Json
+  targetProgramId String?   @map("target_program_id") @db.Uuid
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  targetProgram Program? @relation(fields: [targetProgramId], references: [id])
+
+  @@index([tenantId, active])
+  @@index([tenantId, deletedAt])
+  @@map("lead_forms")
+}

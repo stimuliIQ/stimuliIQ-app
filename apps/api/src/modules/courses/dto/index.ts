@@ -1,0 +1,42 @@
+// apps/api/src/modules/courses/dto/index.ts
+//
+// Re-exports the courses/curriculum zod schemas from @repo/types (docs/04-trd-architecture.md
+// §2.2 module template). Single source of truth stays in the shared package.
+
+export {
+  CreateProgramRequestSchema,
+  type CreateProgramRequest,
+  UpdateProgramRequestSchema,
+  type UpdateProgramRequest,
+  ListProgramsQuerySchema,
+  type ListProgramsQuery,
+  PublishProgramRequestSchema,
+  type PublishProgramRequest,
+  SetProgramVisibilityRequestSchema,
+  type SetProgramVisibilityRequest,
+  LessonResourceUploadUrlRequestSchema,
+  type LessonResourceUploadUrlRequest,
+  CreateLessonResourceRequestSchema,
+  type CreateLessonResourceRequest,
+  type LessonResource,
+  ProgramImageUploadUrlRequestSchema,
+  type ProgramImageUploadUrlRequest,
+  type SignedUploadResponse,
+  CreateModuleRequestSchema,
+  type CreateModuleRequest,
+  UpdateModuleRequestSchema,
+  type UpdateModuleRequest,
+  ReorderModulesRequestSchema,
+  type ReorderModulesRequest,
+  CreateLessonRequestSchema,
+  type CreateLessonRequest,
+  UpdateLessonRequestSchema,
+  type UpdateLessonRequest,
+  ReorderLessonsRequestSchema,
+  type ReorderLessonsRequest,
+  type ProgramSummary,
+  type ProgramDetail,
+  type ModuleNode,
+  type LessonNode,
+  type CurriculumTree,
+} from "@repo/types";

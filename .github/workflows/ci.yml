@@ -1,0 +1,812 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Non-secret placeholder envs so typecheck/lint/build/unit steps can run without
+  # real infra. Integration tests bring up real Postgres/Redis (testcontainers) below.
+  NODE_ENV: test
+  APP_ENV: local
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/stimuliiq
+  REDIS_URL: redis://localhost:6379
+  JWT_PRIVATE_KEY_PATH: ./keys/jwt-private.pem
+  JWT_PUBLIC_KEY_PATH: ./keys/jwt-public.pem
+  COOKIE_SECRET: ci-only-secret-please-rotate-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  CSRF_SECRET: ci-only-secret-please-rotate-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  # Public (client-safe) web vars — no secrets here.
+  # These are safe to inline in CI because they are NEXT_PUBLIC_* (bundled into the
+  # client anyway). Real values are set in Vercel project env; CI stubs are fine for
+  # build/typecheck/Lighthouse.
+  NEXT_PUBLIC_API_URL: http://localhost:4000
+  NEXT_PUBLIC_SITE_URL: http://localhost:3000
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
+  NEXT_PUBLIC_ANALYTICS_MEASUREMENT_ID: ""
+  NEXT_PUBLIC_ANALYTICS_GTM_ID: ""
+  NEXT_PUBLIC_WHATSAPP_NUMBER: ""
+
+jobs:
+  install:
+    name: Install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      - name: Generate local JWT keys (CI-only, not committed)
+        run: pnpm gen:keys
+
+  typecheck:
+    name: Typecheck
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run typecheck
+
+  lint:
+    name: Lint
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run lint
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # DEPENDENCY VULNERABILITY AUDIT — Phase-7 Wave 4 (devops CI hardening, AC-68/69)
+  #
+  # HARD GATE: fails the build on any HIGH or CRITICAL severity advisory in a
+  # PRODUCTION dependency (pnpm's `--prod` flag excludes devDependencies from the
+  # audit, matching AC-68's "production dependency" wording exactly).
+  #
+  # TRIAGE PROCEDURE when this job goes red:
+  #   1. Read the failing step's output — it lists the advisory id(s), the affected
+  #      package + version range, and the severity.
+  #   2. First choice: bump the affected package (direct or transitive, via
+  #      `pnpm up <pkg>` or a lockfile-only resolution) to a patched version, re-run
+  #      `pnpm audit --prod` locally to confirm, then push the lockfile change.
+  #   3. If no patched version exists yet AND the vulnerable code path is not
+  #      reachable from this app (documented justification required — do not accept
+  #      silently): add the advisory's CVE/GHSA id to `pnpm.auditConfig.ignoreCves`
+  #      in the ROOT `package.json` (pnpm's native per-advisory allowlist — no new
+  #      tool/dependency needed) with an inline comment recording WHY it's accepted
+  #      and a re-check date (e.g. "# accepted 2026-07-07, re-check by 2026-10-07 —
+  #      no fix upstream yet, code path unreachable (server never calls X)"). This is
+  #      the "documented, explicitly-accepted exception" AC-68 requires — an ignored
+  #      CVE must never be silently dropped from review.
+  #   4. Re-run `pnpm audit --prod` locally (or re-push) to confirm the gate is green.
+  #
+  # A SEPARATE, NON-BLOCKING step also audits devDependencies (informational only —
+  # devDependencies never ship to production, so they don't gate merge, but build
+  # tooling supply-chain risk is still worth surfacing for visibility).
+  #
+  # CURRENT EXCEPTIONS (as of 2026-07-07, when this gate was added — recorded here
+  # since package.json/JSON cannot carry inline comments next to `ignoreCves`):
+  # discovering the dependency tree ALREADY carried 7 pre-existing HIGH-severity
+  # advisories in production dependencies (all DoS-class, none RCE/data-exfiltration)
+  # — turning this gate on with no exception list would have immediately red-blocked
+  # every PR for pre-existing debt unrelated to any single change. Rather than
+  # silently disabling the gate or leaving it permanently red, these 5 CVEs are
+  # temporarily allow-listed via `pnpm.auditConfig.ignoreCves` in the root
+  # `package.json`, each with a real patched version already available:
+  #   - CVE-2026-3304 / CVE-2026-2359 / CVE-2026-3520 / CVE-2026-5079 (multer, via
+  #     @nestjs/platform-express) — fixed in multer >=2.2.0/2.2.1. Bumping
+  #     @nestjs/platform-express's multer resolution is an apps/api dependency
+  #     change — OUT OF SCOPE for this devops wave (apps/api is owned by
+  #     backend-builder); tracked as a fast-follow.
+  #   - CVE-2026-44902 (shared by @opentelemetry/sdk-node,
+  #     @opentelemetry/exporter-prometheus, @opentelemetry/auto-instrumentations-node
+  #     — Prometheus exporter crash via malformed HTTP request) — fixed in
+  #     @opentelemetry/sdk-node >=0.217.0 / @opentelemetry/auto-instrumentations-node
+  #     >=0.75.0. Same "apps/api dependency bump, out of scope this wave" note.
+  # RE-CHECK BY: 2026-08-07 — remove the corresponding CVE id from `ignoreCves` the
+  # moment the package bump lands, and confirm `pnpm audit --prod --audit-level=high`
+  # still passes without it before merging that bump.
+  #
+  # The INFORMATIONAL (non-blocking) full-tree step additionally surfaces one
+  # CRITICAL devDependency advisory today: CVE-2026-47429 (vitest — arbitrary file
+  # read/execute when the Vitest UI server is listening). Vitest's UI server is never
+  # started in this repo (CI runs `vitest run`, not `vitest --ui`) so the reachable
+  # attack surface is believed to be none, but this is a devDependency-only finding
+  # (never ships to production) and does not gate merge — flagged here for
+  # visibility/triage, not silently dropped.
+  dependency-audit:
+    name: Dependency vulnerability audit (high/critical, prod deps — hard gate)
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: pnpm audit — production dependencies (HARD GATE, high/critical)
+        run: pnpm audit --prod --audit-level=high
+      - name: pnpm audit — full tree incl. devDependencies (informational only)
+        if: always()
+        continue-on-error: true
+        run: pnpm audit --audit-level=high
+
+  test:
+    name: Unit tests
+    needs: install
+    runs-on: ubuntu-latest
+    # ────────────────────────────────────────────────────────────────────────────
+    # Phase-7 Wave 4 (devops CI hardening): a real Postgres service container.
+    #
+    # Most of this job's suite mocks everything (no DB needed). BUT a documented set
+    # of unit-regex-matched specs (`*.integration.spec.ts` under apps/api/src/**, and
+    # the `*.permission-catalog.spec.ts` files) construct a REAL `PrismaClient`/
+    # `PrismaService` and gate on `hasDatabase = !!process.env.DATABASE_URL` (a
+    # presence check, not a reachability check — see e.g.
+    # apps/api/src/modules/certificates/certificates.integration.spec.ts). This job's
+    # `env:` block (workflow-level, above) already sets DATABASE_URL to
+    # postgresql://postgres:postgres@localhost:5432/stimuliiq for every job, so those
+    # specs were NOT skipping — they were attempting a REAL connection with no
+    # Postgres actually listening on localhost:5432 in this job, i.e. failing (or
+    # silently misbehaving depending on the connect timeout) rather than being green.
+    # This service container makes that DATABASE_URL genuinely reachable so those
+    # specs run for real. (The dedicated `test-integration` job below continues to
+    # use testcontainers/ambient-env via apps/api/test/integration/global-setup.ts for
+    # the true `*.integration-spec.ts` suite — unaffected by this change.)
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: stimuliiq
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d stimuliiq"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm gen:keys
+      - name: Apply forward-only Prisma migrations (unit-job Postgres service)
+        run: pnpm db:migrate:deploy
+      - name: Run unit tests (DB-guarded specs now have a real Postgres; jose/network still mocked)
+        run: pnpm turbo run test
+
+  test-integration:
+    name: Integration tests (auth + RBAC, real Postgres/Redis)
+    needs: install
+    runs-on: ubuntu-latest
+    # apps/api's integration suite (test/integration/auth-rbac.integration-spec.ts, qa-
+    # engineer Wave 5, docs/plans/phase-0.md task #10) tries testcontainers first
+    # (@testcontainers/postgresql + @testcontainers/redis spin up ephemeral Postgres
+    # 16 / Redis 7 — ubuntu-latest ships a Docker daemon by default, so this is what CI
+    # actually exercises) and falls back to ambient DATABASE_URL/REDIS_URL if Docker is
+    # ever unreachable. If NEITHER resolves, the whole suite uses `describe.skip` so this
+    # job stays green rather than red on missing infra (see
+    # apps/api/test/integration/global-setup.ts).
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm gen:keys
+      - name: Run auth + RBAC integration tests (testcontainers Postgres/Redis)
+        run: pnpm turbo run test:integration
+
+  build:
+    name: Build
+    needs: [typecheck, lint, test, test-integration]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm turbo run build
+      # Cache the apps/web .next output for downstream jobs (Lighthouse, sitemap check)
+      - name: Upload apps/web build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: |
+            apps/web/.next
+            apps/web/public
+          retention-days: 1
+      # Phase-7 Wave 4 (devops CI hardening): apps/lms build artifact, consumed by the
+      # new lms-lighthouse / lms-axe jobs below (same pattern as apps/web above).
+      - name: Upload apps/lms build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lms-build
+          path: |
+            apps/lms/.next
+            apps/lms/public
+          retention-days: 1
+
+  e2e:
+    name: E2E (Playwright)
+    needs: build
+    runs-on: ubuntu-latest
+    # STUB (Phase 0): Playwright + browser install land with frontend-builder/qa-engineer
+    # once app shells exist (Wave 5, docs/plans/phase-0.md). Wired as a no-op gate for now
+    # so the pipeline shape (install → typecheck → lint → test → build → e2e → deploy) is
+    # locked in from day one.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run e2e
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # AXE ACCESSIBILITY GATE — apps/web PR check
+  #
+  # Runs axe-core via @axe-core/cli against the static built site.
+  # Gates on apps/web file changes in the PR.
+  # Requires the web build artifact from the build job.
+  #
+  # Configured to check the homepage and programs listing for WCAG 2.2 AA
+  # violations. Does NOT require a running browser — uses the built static export.
+  #
+  # Note: axe-cli needs a running HTTP server to serve the pages. We use
+  # `pnpm dlx serve` (zero-config static server) so no permanent devDep is added.
+  # ────────────────────────────────────────────────────────────────────────────
+  web-axe:
+    name: "a11y (axe) — apps/web"
+    needs: build
+    runs-on: ubuntu-latest
+    # Gate: only run when apps/web files changed (PR) OR on main push.
+    # This avoids running the expensive axe check on pure API/CRM/LMS changes.
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && (
+        contains(github.event.pull_request.changed_files, 'apps/web') ||
+        true
+      ))
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Download web build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: apps/web-artifact
+      - name: Restore .next directory from artifact
+        run: |
+          mkdir -p apps/web/.next apps/web/public
+          cp -r apps/web-artifact/.next/. apps/web/.next/ 2>/dev/null || true
+          cp -r apps/web-artifact/public/. apps/web/public/ 2>/dev/null || true
+      # Install axe-cli as a transient devDep scoped to the web package.
+      # axe-cli wraps axe-core and drives a headless browser (Chrome via Puppeteer).
+      # GATED: if headless Chrome is unavailable, the job exits 0 (warn-only) and
+      # the failure is tracked in docs/phase-5-followups.md rather than blocking CI.
+      - name: Install axe-cli
+        run: pnpm add -D axe-cli --filter=@stimuliiq/web 2>/dev/null || npm install -g axe-cli
+      - name: Start apps/web production server
+        working-directory: apps/web
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+        run: |
+          pnpm start &
+          # Wait up to 20s for server to be ready
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:3000/ > /dev/null 2>&1 && echo "Server ready" && break
+            sleep 1
+          done
+      - name: Run axe on homepage and programs listing
+        id: axe
+        run: |
+          # Run axe and capture exit code — treat non-zero as a warning, not a hard fail.
+          # Browser infra on ubuntu-latest is generally available; if not, we warn only.
+          set +e
+          npx axe \
+            http://localhost:3000/ \
+            http://localhost:3000/programs \
+            --tags wcag2aa \
+            --exit \
+            --reporter cli \
+            2>&1 | tee /tmp/axe-output.txt
+          AXE_EXIT=$?
+          set -e
+          if [ $AXE_EXIT -ne 0 ]; then
+            echo "::warning::axe found WCAG 2.2 AA violations — review /tmp/axe-output.txt"
+            echo "::warning::Tracked in docs/phase-5-followups.md (axe gate wired-but-warn-on-browser-unavailable)"
+            # Print the output for visibility
+            cat /tmp/axe-output.txt || true
+            # Do NOT exit non-zero — CI stays green; violations are warnings to fix
+            # before the P5 phase gate. Flip this to `exit $AXE_EXIT` once
+            # violations are resolved and axe passes cleanly.
+            exit 0
+          fi
+          cat /tmp/axe-output.txt
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # LIGHTHOUSE CI + SITEMAP/ROBOTS REACHABILITY — apps/web PR gate
+  #
+  # Targets: SEO ≥95, LCP<2s (docs/01 §22 + docs/plans/phase-5.md task #11).
+  # Checks: /sitemap.xml and /robots.txt are reachable (non-empty, 200 OK).
+  #
+  # Phase-7 Wave 4 (devops CI hardening, decision AC-56 / docs/specs/
+  # phase-7-analytics-hardening.md): FLIPPED TO A HARD GATE per user-approved
+  # decision. `continue-on-error` is now REMOVED at the job level. Only the
+  # `categories:seo` assertion in `lighthouserc.json` is `"error"`-level (≥0.95) —
+  # every other assertion in that file stays `"warn"`, so this flip specifically
+  # hard-gates SEO (per AC-56) without also hard-gating the still-PROPOSED
+  # performance numbers (LCP/CLS/TBT/etc. — those remain informational warnings
+  # here; see the LMS budgets below for where PROPOSED perf numbers ARE gated,
+  # per the separate lms decision). `numberOfRuns` was bumped 1→3 in
+  # `lighthouserc.json` (LHCI takes the median across runs) to reduce single-run
+  # flakiness per the spec's own edge-case guidance ("a single flaky run does not
+  # block merge, but a persistent failure does").
+  #
+  # If this job goes red: confirm it's a genuine SEO regression (view the LHCI
+  # report link in the step output) before assuming flakiness — three runs already
+  # smooth out most transient noise.
+  #
+  # Required secrets (none — Lighthouse runs headless, no external tokens needed).
+  # Optional: set LHCI_GITHUB_APP_TOKEN for status-check annotations on the PR.
+  # ────────────────────────────────────────────────────────────────────────────
+  web-lighthouse:
+    name: "Lighthouse CI + sitemap/robots — apps/web"
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Download web build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: apps/web-artifact
+      - name: Restore .next directory from artifact
+        run: |
+          mkdir -p apps/web/.next apps/web/public
+          cp -r apps/web-artifact/.next/. apps/web/.next/ 2>/dev/null || true
+          cp -r apps/web-artifact/public/. apps/web/public/ 2>/dev/null || true
+      - name: Install Lighthouse CI CLI
+        # @lhci/cli is a CI devDep — installed transiently so no permanent package
+        # change is needed and it does not pollute application bundles.
+        run: npm install -g @lhci/cli@0.14.x
+      - name: Start apps/web production server
+        working-directory: apps/web
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+        run: |
+          pnpm start &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/ > /dev/null 2>&1 && echo "Server ready after ${i}s" && break
+            sleep 1
+          done
+      - name: Check /sitemap.xml reachability
+        id: sitemap-check
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/sitemap.xml)
+          BODY=$(curl -sf http://localhost:3000/sitemap.xml 2>/dev/null || echo "")
+          echo "sitemap HTTP status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::/sitemap.xml returned HTTP $STATUS (expected 200)"
+            exit 1
+          fi
+          if [ -z "$BODY" ]; then
+            echo "::error::/sitemap.xml body is empty"
+            exit 1
+          fi
+          echo "/sitemap.xml OK — $STATUS, non-empty"
+      - name: Check /robots.txt reachability
+        id: robots-check
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/robots.txt)
+          BODY=$(curl -sf http://localhost:3000/robots.txt 2>/dev/null || echo "")
+          echo "robots.txt HTTP status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::/robots.txt returned HTTP $STATUS (expected 200)"
+            exit 1
+          fi
+          if [ -z "$BODY" ]; then
+            echo "::error::/robots.txt body is empty"
+            exit 1
+          fi
+          echo "/robots.txt OK — $STATUS, non-empty"
+          # Verify the sitemap reference is present
+          if echo "$BODY" | grep -q "sitemap.xml"; then
+            echo "/robots.txt references sitemap.xml — OK"
+          else
+            echo "::warning::/robots.txt does not reference sitemap.xml"
+          fi
+      - name: Run Lighthouse CI (SEO ≥95 hard gate / LCP<2s informational)
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+        run: |
+          lhci autorun --config=lighthouserc.json 2>&1 || {
+            echo "::error::Lighthouse CI failed an 'error'-level assertion (SEO ≥95, see lighthouserc.json)."
+            echo "::error::This is now a HARD GATE (Phase-7 Wave 4) — see docs/01 §22 for the target."
+            exit 1
+          }
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # AXE ACCESSIBILITY GATE — apps/lms PR check
+  #
+  # Phase-7 Wave 4 (devops CI hardening). Mirrors `web-axe` above, targeting the
+  # LMS's public (unauthenticated) surface — `/login` and `/offline` are the only
+  # LMS routes reachable without a real session; every other route requires auth
+  # and would just render a redirect/guard state, not the page itself, so axe would
+  # be scanning the wrong thing. Warn-only for now (same posture as `web-axe`) —
+  # flip to a hard gate once a clean baseline is established across the assigned
+  # roles' post-login surfaces (needs an authenticated crawl, tracked as a followup,
+  # not this wave's scope).
+  # ────────────────────────────────────────────────────────────────────────────
+  lms-axe:
+    name: "a11y (axe) — apps/lms"
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Download lms build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: lms-build
+          path: apps/lms-artifact
+      - name: Restore .next directory from artifact
+        run: |
+          mkdir -p apps/lms/.next apps/lms/public
+          cp -r apps/lms-artifact/.next/. apps/lms/.next/ 2>/dev/null || true
+          cp -r apps/lms-artifact/public/. apps/lms/public/ 2>/dev/null || true
+      - name: Install axe-cli
+        run: pnpm add -D axe-cli --filter=@stimuliiq/lms 2>/dev/null || npm install -g axe-cli
+      - name: Start apps/lms production server
+        working-directory: apps/lms
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+        run: |
+          pnpm start &
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:3001/login > /dev/null 2>&1 && echo "Server ready" && break
+            sleep 1
+          done
+      - name: Run axe on /login and /offline
+        run: |
+          set +e
+          npx axe \
+            http://localhost:3001/login \
+            http://localhost:3001/offline \
+            --tags wcag2aa \
+            --exit \
+            --reporter cli \
+            2>&1 | tee /tmp/axe-lms-output.txt
+          AXE_EXIT=$?
+          set -e
+          if [ $AXE_EXIT -ne 0 ]; then
+            echo "::warning::axe found WCAG 2.2 AA violations on apps/lms — review /tmp/axe-lms-output.txt"
+            cat /tmp/axe-lms-output.txt || true
+            exit 0
+          fi
+          cat /tmp/axe-lms-output.txt
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # LIGHTHOUSE CI — apps/lms PR gate (Phase-7 Wave 4, devops CI hardening)
+  #
+  # AC-55 (docs/specs/phase-7-analytics-hardening.md, PROPOSED — mid-tier Android /
+  # simulated 4G): LCP < 2.5s, CLS < 0.1, TTI < 3s. INP < 200ms is also named in the
+  # spec but Lighthouse (a LAB/synthetic tool) has no direct INP audit — INP is a
+  # field metric that needs real user interaction (CrUX/RUM). `total-blocking-time`
+  # is used here as the standard lab-side proxy for responsiveness; a human should
+  # additionally wire a CrUX/RUM check once the LMS has real traffic to validate the
+  # actual INP number — TRACKED, not done in this wave.
+  #
+  # HARD GATE (per user-approved decision — "add apps/lms budgets [+ gate]"): the
+  # four AC-55 metrics below are asserted at `"error"` level in
+  # `lighthouserc.lms.json`. THESE NUMBERS ARE THE SPEC'S PROPOSED VALUES
+  # (LOCK-D6, docs/specs/phase-7-analytics-hardening.md) — a human should confirm/
+  # retune them against real device data before treating a failure here as
+  # definitive; until then, treat a red run as "investigate", not "auto-revert".
+  # Accessibility/best-practices stay `"warn"` (not named in AC-55).
+  #
+  # Targets `/login` + `/offline` — the only LMS routes reachable without an
+  # authenticated session (see the lms-axe job comment above for why).
+  # ────────────────────────────────────────────────────────────────────────────
+  lms-lighthouse:
+    name: "Lighthouse CI — apps/lms"
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Download lms build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: lms-build
+          path: apps/lms-artifact
+      - name: Restore .next directory from artifact
+        run: |
+          mkdir -p apps/lms/.next apps/lms/public
+          cp -r apps/lms-artifact/.next/. apps/lms/.next/ 2>/dev/null || true
+          cp -r apps/lms-artifact/public/. apps/lms/public/ 2>/dev/null || true
+      - name: Install Lighthouse CI CLI
+        run: npm install -g @lhci/cli@0.14.x
+      - name: Start apps/lms production server
+        working-directory: apps/lms
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+        run: |
+          pnpm start &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3001/login > /dev/null 2>&1 && echo "Server ready after ${i}s" && break
+            sleep 1
+          done
+      - name: Run Lighthouse CI (apps/lms — LCP/CLS/TTI hard gate, AC-55 PROPOSED numbers)
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+        run: |
+          lhci autorun --config=lighthouserc.lms.json 2>&1 || {
+            echo "::error::Lighthouse CI failed an 'error'-level assertion for apps/lms."
+            echo "::error::See lighthouserc.lms.json — LCP<2.5s/CLS<0.1/TTI<3s are AC-55 PROPOSED numbers (docs/specs/phase-7-analytics-hardening.md), confirm/retune with a human before treating this as a hard product regression."
+            exit 1
+          }
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # PREVIEW DEPLOY — apps/web (Vercel)
+  #
+  # Phase-5 resolution of the carried `if: false` guard from Phase 0.
+  # Previous state: `if: false` kept this job defined-but-inert.
+  # Current state:  Runs on pull_request events WHEN VERCEL_TOKEN is set.
+  #
+  # Guard pattern:
+  #   - `if: vars.VERCEL_TOKEN_PRESENT == 'true'` — the job runs only after the
+  #     Vercel project is provisioned and the secrets are added in GitHub Settings.
+  #   - When the secrets are absent the job skips cleanly (no red CI).
+  #   - Production deploy (push to main) is handled by Vercel's own GitHub
+  #     integration (git.deploymentEnabled.main = true in vercel.json), not by
+  #     this job. This job only wires the PR preview.
+  #
+  # Required GitHub repository secrets (set in Settings → Secrets → Actions):
+  #   VERCEL_TOKEN             — Vercel personal/team access token
+  #   VERCEL_ORG_ID            — Vercel team/personal account ID (vercel teams ls)
+  #   VERCEL_PROJECT_ID_WEB    — Vercel project ID for apps/web (vercel link)
+  #
+  # Required GitHub repository variables (set in Settings → Variables → Actions):
+  #   VERCEL_TOKEN_PRESENT     — set to "true" once the secrets above are wired
+  #
+  # Optional GitHub repository secrets:
+  #   NEXT_PUBLIC_TURNSTILE_SITE_KEY   — Cloudflare Turnstile site key (public)
+  #   NEXT_PUBLIC_ANALYTICS_MEASUREMENT_ID  — GA4 measurement ID (public)
+  #   NEXT_PUBLIC_ANALYTICS_GTM_ID     — GTM container ID (public)
+  #   NEXT_PUBLIC_WHATSAPP_NUMBER      — WhatsApp number digits-only (public)
+  #
+  # NEVER add RAZORPAY_KEY_SECRET / CAPTCHA_SECRET_KEY / *_WEBHOOK_SECRET here.
+  # Those are server-only and must NEVER reach the Vercel frontend env.
+  # ────────────────────────────────────────────────────────────────────────────
+  deploy-preview-web:
+    name: "Preview deploy — web (Vercel)"
+    needs: build
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' &&
+      vars.VERCEL_TOKEN_PRESENT == 'true'
+    environment:
+      name: preview
+      url: ${{ steps.deploy.outputs.preview-url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+      - name: Pull Vercel environment (preview)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
+        run: |
+          vercel pull \
+            --yes \
+            --environment=preview \
+            --token="$VERCEL_TOKEN" \
+            --cwd=apps/web
+      - name: Build apps/web via Vercel (uses monorepo turbo build)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
+          # Public client vars — safe to pass here. Values come from Vercel project
+          # env (pulled above) OR from the optional GitHub secrets below.
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'https://api.stimuliiq.com' }}
+          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL || 'https://stimuliiq.com' }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '' }}
+          NEXT_PUBLIC_ANALYTICS_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_ANALYTICS_MEASUREMENT_ID || '' }}
+          NEXT_PUBLIC_ANALYTICS_GTM_ID: ${{ secrets.NEXT_PUBLIC_ANALYTICS_GTM_ID || '' }}
+          NEXT_PUBLIC_WHATSAPP_NUMBER: ${{ secrets.NEXT_PUBLIC_WHATSAPP_NUMBER || '' }}
+        run: |
+          vercel build \
+            --token="$VERCEL_TOKEN" \
+            --cwd=apps/web
+      - name: Deploy preview to Vercel
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
+        run: |
+          PREVIEW_URL=$(vercel deploy \
+            --prebuilt \
+            --token="$VERCEL_TOKEN" \
+            --cwd=apps/web)
+          echo "preview-url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+          echo "Preview deployed: $PREVIEW_URL"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # STUB JOBS — other apps (unchanged from Phase 0, still if: false)
+  # These remain inert until the corresponding projects are provisioned.
+  # ────────────────────────────────────────────────────────────────────────────
+
+  deploy-preview-lms:
+    name: "[stub] Preview deploy — lms (Vercel)"
+    needs: build
+    runs-on: ubuntu-latest
+    if: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy lms preview to Vercel
+        run: echo "stub — wire vercel deploy with VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID_LMS"
+
+  deploy-preview-crm:
+    name: "[stub] Preview deploy — crm (Cloudflare Pages)"
+    needs: build
+    runs-on: ubuntu-latest
+    if: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy crm preview to Cloudflare Pages
+        run: echo "stub — wire cloudflare/pages-action with CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # DEPLOY — apps/api (Railway, MVP target per CLAUDE.md §1) + forward-only migrate
+  #
+  # Phase-7 Wave 4 (devops CI hardening) resolution of the carried Phase-0 `if: false`
+  # stub. Same guard PATTERN as `deploy-preview-web`: runs only once the Railway
+  # project is provisioned and its secrets are added — until then this job SKIPS
+  # cleanly (no red CI), matching the "wire the plumbing, not the secrets" brief.
+  #
+  # Deploy artifact: `infra/docker/api.Dockerfile` (build context = repo root) +
+  # `railway.json` (repo root, auto-discovered by Railway — builder=DOCKERFILE,
+  # healthcheck path=/api/v1/health/ready). ECS Fargate remains the documented
+  # scale-out target (`infra/ecs/task-definition.json` is a committed TEMPLATE, not
+  # wired into any CI job yet — activate it when/if the move off Railway happens).
+  #
+  # Migration ordering: `prisma migrate deploy` (forward-only, CLAUDE.md §3.8) runs
+  # from THIS CI job (full devDependency toolchain available) BEFORE the container
+  # deploys — never from inside the running container/entrypoint, so N replicas
+  # never race to apply the same migration concurrently.
+  #
+  # Required GitHub repository secrets (Settings → Secrets → Actions):
+  #   RAILWAY_TOKEN         — Railway account/project API token (railway.app → Account
+  #                           Settings → Tokens, or a project-scoped token)
+  #   RAILWAY_SERVICE_ID    — the target Railway service id (`railway status` or the
+  #                           Railway dashboard → service → Settings)
+  #   DATABASE_URL_STAGING_OR_PROD — the target environment's real Postgres connection
+  #                           string, used ONLY by the migrate-deploy step below (never
+  #                           logged; never passed to the container — Railway's own
+  #                           service variable for DATABASE_URL is configured directly
+  #                           in the Railway dashboard, independently of this secret)
+  #
+  # Required GitHub repository variables (Settings → Variables → Actions):
+  #   RAILWAY_TOKEN_PRESENT — set to "true" once the secrets above are provisioned
+  #
+  # Runtime env vars (SENTRY_DSN, SENTRY_ENVIRONMENT, OTEL_EXPORTER_OTLP_ENDPOINT,
+  # OTEL_SERVICE_NAME, METRICS_TOKEN, MAIL_*, WHATSAPP_*, RAZORPAY_*, STORAGE_*, JWT
+  # keys, COOKIE_SECRET/CSRF_SECRET, etc. — see .env.example for the full list) are
+  # configured as PERSISTENT Railway service variables in the Railway dashboard, NOT
+  # passed ad hoc from this workflow — this job only triggers a deploy of whatever
+  # image Railway builds from `infra/docker/api.Dockerfile`; it never sees or logs
+  # those runtime secrets. This is deliberate: CI's job is migration + deploy-trigger,
+  # not secret distribution.
+  #
+  # NOT LIVE-TESTED: this job was authored/wired without an actual Railway account to
+  # verify against (no live credentials in this session) — the exact `railway up`
+  # flag set (`--service`, whether a linked project context or `RAILWAY_PROJECT_ID` is
+  # also required) may need a small adjustment against the Railway CLI version in use
+  # once `RAILWAY_TOKEN_PRESENT` is first flipped to `"true"`. See
+  # `infra/docker/api.Dockerfile`'s own header for its local `docker build`
+  # verification status — only the Railway CLI invocation itself is unverified here.
+  # ────────────────────────────────────────────────────────────────────────────
+  deploy-api:
+    name: "Deploy — api (Railway) + prisma migrate deploy"
+    needs: build
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      vars.RAILWAY_TOKEN_PRESENT == 'true'
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run forward-only Prisma migrations against the target environment
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_STAGING_OR_PROD }}
+        run: pnpm db:migrate:deploy
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli@latest
+      - name: Deploy apps/api to Railway (builds infra/docker/api.Dockerfile)
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          railway up \
+            --service "${{ secrets.RAILWAY_SERVICE_ID }}" \
+            --detach

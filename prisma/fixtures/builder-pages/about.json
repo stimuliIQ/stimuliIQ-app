@@ -1,0 +1,112 @@
+[
+  {
+    "type": "hero",
+    "data": {
+      "variant": "centered",
+      "eyebrow": "About StimuliiQ",
+      "headline": "We bridge the gap between college and career.",
+      "headlineHighlight": "college and career",
+      "subheadline": "StimuliiQ is an internship-training platform for India's B.Tech, Degree, Diploma, MCA, and MBA students. We teach the way industry works — live mentors, real projects, verifiable certificates — so your first job doesn't depend on your college tier."
+    }
+  },
+  {
+    "type": "content_split",
+    "data": {
+      "heading": "Why we exist",
+      "headingHighlight": "exist",
+      "body": [
+        "Every year, hundreds of thousands of Indian engineering graduates struggle to land their first job — not because they lack intelligence, but because college curriculums don't match what companies actually need.",
+        "Our founders — engineers from Hyderabad, Bangalore, and Pune — lived that gap themselves. In 2021 they built StimuliiQ to close it: a system where students learn by building, are mentored by people who do the job, and graduate with proof employers can check.",
+        "Our mission: give every Indian student — regardless of college tier — access to the training they need to build a real tech career."
+      ],
+      "mediaImageKey": "/images/hero/person.avif",
+      "mediaPosition": "right",
+      "badge": { "iconKey": "check", "title": "Since 2021", "subtitle": "Built by engineers" }
+    }
+  },
+  {
+    "type": "stat_group",
+    "data": {
+      "variant": "band",
+      "items": [
+        { "label": "Students trained", "value": "15,000+" },
+        { "label": "Programs", "value": "30+" },
+        { "label": "Placement rate", "value": "89%" },
+        { "label": "Hiring partners", "value": "200+" }
+      ]
+    }
+  },
+  {
+    "type": "numbered_steps",
+    "data": {
+      "heading": { "title": "How the system works for you", "titleHighlight": "system works", "subtitle": "One guided journey from first click to first offer." },
+      "variant": "timeline",
+      "items": [
+        { "title": "Discover the right program", "description": "Browse 30+ project-based programs across software, data, cloud, and design — or book a free counselling slot and let a mentor guide your choice. Transparent pricing, 0% EMI, no hidden fees." },
+        { "title": "Learn live and on-demand", "description": "Our learning portal combines scheduled live sessions with industry mentors and recorded video lessons you can rewatch anytime. Track your own progress and attendance in one place." },
+        { "title": "Build real projects", "description": "Every program is structured around industry-grade projects — reviewed by working engineers, not graders. Your portfolio becomes the proof employers actually look at." },
+        { "title": "Earn a verifiable certificate", "description": "Finish your assessment and receive a certificate with a unique ID and QR code. Any employer can verify it on our public verification page in seconds — no fake credentials, ever." },
+        { "title": "Get placed", "description": "Resume reviews, mock interviews, and direct referrals into our network of 200+ hiring partners. We stay with you until you sign your offer — that's how we get to 89%." }
+      ]
+    }
+  },
+  {
+    "type": "feature_grid",
+    "data": {
+      "variant": "cards",
+      "heading": { "title": "What's inside the platform", "titleHighlight": "platform", "subtitle": "Everything a student needs — nothing they don't." },
+      "columns": "3",
+      "items": [
+        { "iconKey": "lms", "title": "A structured learning portal", "description": "One dashboard for lessons, live classes, assignments, progress, and attendance — built for focus, not distraction." },
+        { "iconKey": "mentor", "title": "Mentors who do the job", "description": "Active engineers and data scientists from top companies — people who ship code, review yours." },
+        { "iconKey": "project", "title": "Projects, not just lectures", "description": "Assignments and capstone projects modelled on real industry work, individually evaluated with feedback." },
+        { "iconKey": "certificate", "title": "Certificates employers can check", "description": "Every certificate carries a unique ID and QR code, instantly verifiable on our public portal." },
+        { "iconKey": "placement", "title": "A real placement engine", "description": "Referrals to 200+ hiring partners, interview prep, and placement tracking — not a PDF of job links." },
+        { "iconKey": "pricing", "title": "Student-first pricing", "description": "Priced for students in India, with 0% EMI plans and a 7-day no-questions-asked refund policy." }
+      ]
+    }
+  },
+  {
+    "type": "cta_band",
+    "data": {
+      "heading": "Don't take our word for it.",
+      "subheading": "Every StimuliiQ certificate is publicly verifiable. Employers — paste a certificate ID or scan its QR code and see the result instantly.",
+      "background": "brand",
+      "buttons": [{ "label": "Verify a certificate", "href": "/verify", "style": "primary" }]
+    }
+  },
+  {
+    "type": "live_collection_ref",
+    "data": {
+      "collection": "testimonials",
+      "heading": { "title": "Students who made the jump", "titleHighlight": "jump" },
+      "layout": "grid-3",
+      "selection": { "mode": "filter", "limit": 3, "sort": "order" }
+    }
+  },
+  {
+    "type": "feature_grid",
+    "data": {
+      "variant": "strip",
+      "columns": "4",
+      "items": [
+        { "iconKey": "check", "title": "7-day refund", "description": "Not satisfied? Full refund within 7 days, no questions asked." },
+        { "iconKey": "check", "title": "Transparent pricing", "description": "The price you see is the price you pay — 0% EMI available." },
+        { "iconKey": "check", "title": "Your data, protected", "description": "DPDP-compliant privacy: consent-first analytics, no data resale." },
+        { "iconKey": "check", "title": "Verified outcomes", "description": "Ratings and reviews come from enrolled students only." }
+      ]
+    }
+  },
+  {
+    "type": "cta_band",
+    "data": {
+      "heading": "Your career won't wait. Neither should you.",
+      "headingHighlight": "career",
+      "background": "surface",
+      "buttons": [
+        { "label": "Explore our courses", "href": "/programs", "style": "primary" },
+        { "label": "Book a free slot", "href": "/book-free-slot", "style": "secondary" }
+      ]
+    }
+  }
+]

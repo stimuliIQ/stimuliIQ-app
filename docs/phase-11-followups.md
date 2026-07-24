@@ -1,0 +1,28 @@
+# Phase-11 follow-ups (Locked Page Templates — carried into future work)
+
+Recorded at Phase-11 closeout (`docs/plans/phase-11-locked-templates.md` — locked,
+fixed-layout page templates replacing the Phase-10 free block builder; dedicated Colleges
+CRM list; per-page OG image) so nothing found during the build gets lost. None of these
+blocked the Phase-11 build; they are tracked here for prioritization, not as open
+incidents. The notable architectural decision from this phase is ADR-0063
+(`docs/adr/README.md`), not this file.
+
+---
+
+## Deferred / partial items
+
+| ID | Item | Notes |
+|----|------|-------|
+| P11-1 | **Same-`blockType`-position swap is not detected by `validatePageBodyAgainstTemplate`** | The stored wire shape (`ContentPage.body` as `{ type, data }[]`) carries no per-section `key` — only `{type, data}`. `validatePageBodyAgainstTemplate` (`packages/types/src/content/page-templates.schemas.ts`) detects a reorder/mismatch only by comparing the `type` found at each array index against the template. For pages that pin the same `blockType` at more than one position (e.g. scholarship's three `stat_group` sections, about's two `feature_grid`/`cta_band` sections), swapping the *data* between two of a page's own pinned same-type slots is indistinguishable from independently editing both slots, and passes validation. Documented as an accepted trade-off in the file's header (kept the wire format unchanged per the plan's explicit "storage ... unchanged" decision) and in ADR-0063's Consequences. Durable fix would add a `key` to every stored block — a breaking storage-format change requiring a backfill migration, out of this pass's additive scope. |
+| P11-2 | **Server 422 template-shape violation surfaces as a generic toast, not a per-section highlight** | `ContentPagesBuilderService.enforceTemplateLock` rejects a locked-template shape violation with structured, per-section errors (`TemplateValidationError[]`), but `apps/crm/src/components/page-builder/page-builder-editor.tsx`'s save/preview handlers route the error through the generic `surfaceError(toast, error, "Couldn't save this page")` path — a single toast, not an inline per-section error state. Since the CRM UI no longer exposes add/remove/reorder (only field edits), this should be rare in practice, but when a per-section `data` edit still fails template validation, staff get no indication of *which* section/field is wrong beyond the toast text. Fix: thread the structured error array into the template-form editor's per-section error display. |
+| P11-3 | **Dead `/pages/${slug}` fallback branch in `apps/crm/src/lib/public-urls.ts`** | `publicPagePath(slug)` still falls back to `` `/pages/${slug}` `` for any slug outside the 5 migrated-route slugs (`about`/`scholarship`/`for-colleges`/`gallery`/`careers`) plus `home`. Now unreachable in practice — the `/pages/[slug]` catch-all route was removed from `apps/web` in this phase, and no ad-hoc-page authoring path remains to create a page at any other slug. The branch and its explanatory comment should be removed (or replaced with a hard error / `unknown slug` fallback) now that every real `ContentPage` row is one of the fixed core-template slugs. |
+| P11-4 | **A college `Partner` row recategorized off `college_partner` silently disappears from the Colleges list** | `CollegesRepository.list` filters strictly on `category: "college_partner"` (`COLLEGE_PARTNER_CATEGORY`), but `CollegesService.update`/`UpdatePartnerRequestSchema` allow `category` to be changed on a `PATCH`. If a staff member edits a college row and changes (or clears) its `category`, the row still exists (soft-delete-safe, still addressable by id via `findById`/`update`/`softDelete`, which deliberately do not filter by category — mirrors `partners.repository.ts`) but vanishes from `/crm/colleges`'s list view with no warning, and there is no "orphaned college" recovery UI short of knowing the row's id. Fix options: omit `category` from the Colleges update DTO entirely (colleges can only ever be `college_partner`, so there is no legitimate reason to change it from this screen), or warn in the UI before a category change that would remove the row from this list. |
+| P11-5 | **`PublicPartnerSchema` still doesn't expose `focus`/`established`/`city` on the public path** | These three fields (added to the `Partner` model in Phase 10) are readable server-side only through the page-builder-internal `ResolvedPartnerItemSchema` (used by the `live_collection_ref(partners)` server-side resolver) — not through the generic public `GET /public/partners` contract (`PublicPartnerSchema`, `packages/types/src/content/partners.schemas.ts`), which remains name/logo/url/category only, unchanged since Phase 10. This is documented as a deliberate scope boundary in both the schema file's comment and ADR-0063 (not a bug), noted here so a future reader doesn't rediscover it as a surprise gap if a consumer other than the page-builder resolver ever needs those fields from the public API. |
+
+---
+
+## Where decisions (vs. TODOs) live
+
+The notable architectural decision made during Phase 11 is recorded as ADR-0063 in
+`docs/adr/` (indexed in `docs/adr/README.md`, superseding ADR-0062's authoring model), not
+in this file. This file is for known gaps and planned work, not decisions.
