@@ -4,7 +4,6 @@
   "buildCommand": "cd ../.. && pnpm turbo run build --filter=@stimuliiq/web",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "outputDirectory": ".next",
-  "rootDirectory": "apps/web",
   "regions": ["bom1"],
 
   "git": {
