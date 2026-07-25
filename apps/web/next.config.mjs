@@ -62,7 +62,12 @@ async function headers() {
   //
   // script-src:
   //   dev  → unsafe-inline + unsafe-eval to keep Next.js HMR working.
-  //   prod → explicit allow-list only (no unsafe-inline).
+  //   prod → allow-list + 'unsafe-inline'. Next.js App Router hydrates via INLINE
+  //          <script> bootstrap tags (self.__next_f.push(...)); a strict
+  //          `script-src 'self'` with no nonce/hash blocks them and the app renders a
+  //          blank page. A per-request nonce + 'strict-dynamic' (via middleware) is the
+  //          stricter alternative and is tracked as a hardening follow-up; 'unsafe-inline'
+  //          alongside the explicit host allow-list is the shippable posture for launch.
   //          GTM (*.googletagmanager.com) is loaded post-consent only (AnalyticsLoader).
   //          Razorpay checkout.js is loaded when the enroll funnel opens.
   //          Turnstile challenge script is loaded by the widget.
@@ -98,6 +103,8 @@ async function headers() {
       ].join(" ")
     : [
         "'self'",
+        // Required for Next.js App Router inline hydration scripts (see note above).
+        "'unsafe-inline'",
         "https://checkout.razorpay.com",
         "https://*.razorpay.com",
         "https://*.googletagmanager.com",
