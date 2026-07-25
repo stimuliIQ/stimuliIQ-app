@@ -297,6 +297,7 @@ export class StudentsRepository {
     name: string;
     email: string;
     phone?: string;
+    alternatePhone?: string;
     college?: string;
     courseType: StudentCourseType;
     year?: number;
@@ -332,6 +333,7 @@ export class StudentsRepository {
         data: {
           tenantId: args.tenantId,
           userId: user.id,
+          alternatePhone: args.alternatePhone,
           college: args.college,
           courseType: args.courseType,
           year: args.year,

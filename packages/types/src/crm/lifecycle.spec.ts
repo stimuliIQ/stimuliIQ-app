@@ -28,6 +28,20 @@ describe("resolveLifecycleStage", () => {
         "contacted",
       );
     });
+
+    it("won but NOT converted → registration_started (registered requires a student record)", () => {
+      expect(resolveLifecycleStage({ lead: { stage: "won", hasOwner: true, converted: false } })).toBe(
+        "registration_started",
+      );
+    });
+
+    it("won AND converted → registered (student signal present)", () => {
+      const s: LifecycleSignals = {
+        lead: { stage: "won", hasOwner: true, converted: true },
+        student: { status: "active" },
+      };
+      expect(resolveLifecycleStage(s)).toBe("registered");
+    });
   });
 
   describe("terminal: lost lead", () => {

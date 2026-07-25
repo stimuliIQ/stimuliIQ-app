@@ -211,8 +211,12 @@ export function resolveLifecycleStage(signals: LifecycleSignals): LifecycleStage
         candidates.push(STAGE_ORDINAL.contacted);
         break;
       case "won":
-        // Won but not yet materialized as a student record — treat as registered.
-        candidates.push(STAGE_ORDINAL.registered);
+        // Won but NOT yet converted — the student record doesn't exist yet, so
+        // this must NOT read "registered" (that chip next to a still-visible
+        // "Convert to student" button reads as a contradiction). It maps to
+        // registration_started: ready to enrol, conversion in progress. The
+        // `registered` rung is reserved for an actual student record (step 5).
+        candidates.push(STAGE_ORDINAL.registration_started);
         break;
       case "lost":
         // No forward progress at all AND lost AND never converted → terminal.

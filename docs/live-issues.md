@@ -52,3 +52,27 @@ explicit approval (CLAUDE.md §3.13 — every push triggers Vercel deploys).
 - **Root cause:** every entry traces to `normal?lang=auto:1` — Chrome's built-in
   translation feature / an injected extension context, not site code (the marketing
   site ships no WebGL/WebGPU). Clean in incognito.
+
+### 4. Lead drawer: "Won" lead shows "Registered" + conversion isn't full registration — FIXED (awaiting push + API deploy)
+
+- **Symptom:** moving a lead to Won makes the Lifecycle chip read "Registered" while
+  the "Convert to student" button is still showing — contradictory (no student record
+  exists yet). Also conversion only captured name/email/course-type; the student then
+  needed a separate registration step to get working LMS access, and the convert modal
+  was cramped.
+- **Root cause:** (a) `resolveLifecycleStage` deliberately mapped a won-but-unconverted
+  lead to `registered`; (b) the convert dialog exposed 3 of the 8 student fields the
+  contract already accepted, and the server dropped `alternatePhone` entirely;
+  (c) LMS account provisioning (temp password email + forced first-login change) only
+  ran at first enrollment, not at conversion.
+- **Fix:**
+  - `@repo/types` lifecycle resolver: won + unconverted → `registration_started`
+    ("Registration Started"); `registered` now strictly means a student record exists.
+  - API: conversion now provisions the LMS login immediately (idempotent; email failure
+    never fails the conversion — credentials re-sendable from CRM) and passes
+    `alternatePhone` / defaults `college` from the lead.
+  - CRM: convert dialog is the full registration form — phone, alternate/guardian
+    phone, college, year, city (prefilled from the lead), two-column layout,
+    `size="lg"` modal.
+- **Status:** committed locally. NOTE: needs both the Vercel push (crm) AND an API
+  deploy on the VPS (pm2) to take effect.

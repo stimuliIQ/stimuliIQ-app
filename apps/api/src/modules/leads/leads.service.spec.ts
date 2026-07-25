@@ -11,6 +11,7 @@ import { LeadsService } from "./leads.service";
 import { LeadsRepository, type LeadRow } from "./leads.repository";
 import { ActivitiesRepository } from "./activities.repository";
 import { StudentsRepository } from "../students/students.repository";
+import { LmsAccountProvisioningService } from "../students/lms-account-provisioning.service";
 import { CommerceService } from "../commerce/commerce.service";
 import { scopeContextStorage, type ScopeContext } from "../auth/lib/scope-context";
 
@@ -54,6 +55,13 @@ function mockActivitiesRepository(): Mocked<ActivitiesRepository> {
   return { create: jest.fn() } as unknown as Mocked<ActivitiesRepository>;
 }
 
+function mockLmsProvisioning(): Mocked<LmsAccountProvisioningService> {
+  return {
+    provisionForStudentProfile: jest.fn().mockResolvedValue(true),
+    resendCredentials: jest.fn(),
+  } as unknown as Mocked<LmsAccountProvisioningService>;
+}
+
 const ROW: LeadRow = {
   id: "lead-1",
   tenantId: "tenant-1",
@@ -94,17 +102,20 @@ describe("LeadsService", () => {
   let studentsRepo: Mocked<StudentsRepository>;
   let commerce: Mocked<CommerceService>;
   let activitiesRepo: Mocked<ActivitiesRepository>;
+  let lmsProvisioning: Mocked<LmsAccountProvisioningService>;
 
   beforeEach(() => {
     repo = mockLeadsRepository();
     studentsRepo = mockStudentsRepository();
     commerce = mockCommerceService();
     activitiesRepo = mockActivitiesRepository();
+    lmsProvisioning = mockLmsProvisioning();
     service = new LeadsService(
       repo as unknown as LeadsRepository,
       studentsRepo as unknown as StudentsRepository,
       commerce as unknown as CommerceService,
       activitiesRepo as unknown as ActivitiesRepository,
+      lmsProvisioning as unknown as LmsAccountProvisioningService,
     );
   });
 
@@ -396,6 +407,60 @@ describe("LeadsService", () => {
 
       expect(studentsRepo.createStudentWithUser).toHaveBeenCalled();
       expect(result.studentId).toBe("student-new");
+    });
+
+    it("provisions the LMS login at conversion (conversion IS registration — credentials emailed)", async () => {
+      repo.findById.mockResolvedValue(ROW);
+      studentsRepo.findUserByEmail.mockResolvedValue(null);
+      studentsRepo.createStudentWithUser.mockResolvedValue({ id: "student-new", userId: "user-new" });
+      repo.setConverted.mockResolvedValue(undefined);
+
+      await runWithScope("own", () =>
+        service.convert("tenant-1", "actor-1", ROW.id, {
+          studentFields: { name: "Asha", email: "asha@new.com", courseType: "btech", status: "lead" },
+        }),
+      );
+
+      expect(lmsProvisioning.provisionForStudentProfile).toHaveBeenCalledWith("tenant-1", "student-new");
+    });
+
+    it("conversion still succeeds when LMS provisioning throws (credentials re-sendable from CRM)", async () => {
+      repo.findById.mockResolvedValue(ROW);
+      studentsRepo.findUserByEmail.mockResolvedValue(null);
+      studentsRepo.createStudentWithUser.mockResolvedValue({ id: "student-new", userId: "user-new" });
+      repo.setConverted.mockResolvedValue(undefined);
+      lmsProvisioning.provisionForStudentProfile.mockRejectedValue(new Error("smtp down"));
+
+      const result = await runWithScope("own", () =>
+        service.convert("tenant-1", "actor-1", ROW.id, {
+          studentFields: { name: "Asha", email: "asha@new.com", courseType: "btech", status: "lead" },
+        }),
+      );
+
+      expect(result.studentId).toBe("student-new");
+    });
+
+    it("passes alternatePhone through to the student profile and defaults college from the lead", async () => {
+      repo.findById.mockResolvedValue({ ...ROW, college: "JNTU Kakinada" });
+      studentsRepo.findUserByEmail.mockResolvedValue(null);
+      studentsRepo.createStudentWithUser.mockResolvedValue({ id: "student-new", userId: "user-new" });
+      repo.setConverted.mockResolvedValue(undefined);
+
+      await runWithScope("own", () =>
+        service.convert("tenant-1", "actor-1", ROW.id, {
+          studentFields: {
+            name: "Asha",
+            email: "asha@new.com",
+            courseType: "btech",
+            status: "lead",
+            alternatePhone: "+918888888888",
+          },
+        }),
+      );
+
+      expect(studentsRepo.createStudentWithUser).toHaveBeenCalledWith(
+        expect.objectContaining({ alternatePhone: "+918888888888", college: "JNTU Kakinada" }),
+      );
     });
 
     it("rejects converting an already-converted lead", async () => {

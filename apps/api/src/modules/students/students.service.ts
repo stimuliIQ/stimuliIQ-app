@@ -218,6 +218,7 @@ export class StudentsService {
       name: body.name,
       email: body.email,
       phone: body.phone,
+      alternatePhone: body.alternatePhone,
       college: body.college,
       courseType: body.courseType,
       year: body.year,

@@ -18,6 +18,7 @@ import {
   SelectItem,
   useToast,
 } from "@repo/ui";
+import { ZodError } from "zod";
 import { ConvertLeadRequestSchema, type ConvertLeadRequest, type CourseType, type LeadDetail } from "@repo/types";
 
 import { useConvertLead } from "../../hooks/use-leads";
@@ -43,6 +44,11 @@ interface ConvertLeadDialogProps {
 interface ConvertFormValues {
   name: string;
   email: string;
+  phone?: string;
+  alternatePhone?: string;
+  college?: string;
+  year?: string;
+  city?: string;
   courseType: CourseType;
   programId?: string;
   batchId?: string;
@@ -69,7 +75,14 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
 
   React.useEffect(() => {
     if (open) {
-      reset({ name: lead.name, email: lead.email ?? "" });
+      // Prefill everything the lead already told us — conversion is the single
+      // registration step now, so staff complete/correct the details here.
+      reset({
+        name: lead.name,
+        email: lead.email ?? "",
+        phone: lead.phone,
+        college: lead.college ?? "",
+      });
       clearErrors();
     }
   }, [open, lead, reset, clearErrors]);
@@ -95,16 +108,36 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
           name: values.name,
           email: values.email,
           courseType: values.courseType,
+          phone: values.phone?.trim() || undefined,
+          alternatePhone: values.alternatePhone?.trim() || undefined,
+          college: values.college?.trim() || undefined,
+          year: values.year?.trim() ? Number(values.year) : undefined,
+          city: values.city?.trim() || undefined,
         },
         programId: values.programId || undefined,
         batchId: values.batchId || undefined,
         couponCode: values.couponCode || undefined,
       });
       const result = await convertLead.mutateAsync({ id: lead.id, body });
-      toast({ title: "Lead converted", description: "The student record has been created.", variant: "success" });
+      toast({
+        title: "Lead converted",
+        description: "Student created — LMS login credentials are being emailed to them.",
+        variant: "success",
+      });
       onOpenChange(false);
       onConverted(result.studentId);
     } catch (error) {
+      // Client-side contract violations (bad phone format, year out of range)
+      // land on their own fields instead of the generic program error.
+      if (error instanceof ZodError) {
+        for (const issue of error.issues) {
+          const field = issue.path[issue.path.length - 1];
+          if (typeof field === "string") {
+            setError(field as keyof ConvertFormValues, { message: issue.message });
+          }
+        }
+        return;
+      }
       const problem = error && typeof error === "object" && "problem" in error
         ? (error as { problem: { detail?: string; title?: string; status?: number } }).problem
         : undefined;
@@ -126,6 +159,7 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent position="center"
+        size="lg"
         title="Convert to student"
         description={lead.name}
         data-testid="convert-lead-drawer"
@@ -142,84 +176,130 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
           <form onSubmit={onSubmit} className="flex flex-1 flex-col overflow-hidden">
             <DrawerBody className="flex flex-col gap-4">
               <p className="text-xs text-fg-muted">
-                Creates a student record from this lead. Optionally provide a program + batch to also create an order and
-                enrollment in the same atomic step.
+                Conversion is the full registration: it creates the student record and emails them their LMS login
+                credentials (they set their own password on first sign-in) — no separate registration step. Optionally
+                pick a program + batch to also create the order in the same atomic step.
               </p>
-              <Input
-                label="Student name"
-                placeholder="e.g. Priya Sharma"
-                required
-                {...register("name", { required: true })}
-                error={errors.name?.message}
-                data-testid="convert-lead-name"
-              />
-              <Input
-                label="Email"
-                type="email"
-                placeholder="name@example.com"
-                required
-                {...register("email", { required: true })}
-                error={errors.email?.message}
-                data-testid="convert-lead-email"
-              />
-              <Select
-                label="Course type"
-                placeholder="Select course type"
-                required
-                value={watch("courseType")}
-                onValueChange={(value) => setValue("courseType", value as CourseType)}
-                error={errors.courseType?.message}
-                data-testid="convert-lead-course-type"
-              >
-                {COURSE_TYPES.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </Select>
-              <Select
-                label="Program (optional)"
-                placeholder="No order — student only"
-                value={programId}
-                onValueChange={(value) => {
-                  setValue("programId", value === "__none__" ? undefined : value);
-                  setValue("batchId", undefined);
-                }}
-                helperText="Creating an order requires both program and batch."
-                error={errors.programId?.message}
-                data-testid="convert-lead-program"
-              >
-                <SelectItem value="__none__">No order — student only</SelectItem>
-                {programs.map((program) => (
-                  <SelectItem key={program.id} value={program.id}>
-                    {program.title}
-                  </SelectItem>
-                ))}
-              </Select>
-              {programId ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Input
+                  label="Student name"
+                  placeholder="e.g. Priya Sharma"
+                  required
+                  {...register("name", { required: true })}
+                  error={errors.name?.message}
+                  data-testid="convert-lead-name"
+                />
+                <Input
+                  label="Email"
+                  type="email"
+                  placeholder="name@example.com"
+                  required
+                  helperText="LMS login credentials are emailed here."
+                  {...register("email", { required: true })}
+                  error={errors.email?.message}
+                  data-testid="convert-lead-email"
+                />
+                <Input
+                  label="Phone"
+                  type="tel"
+                  placeholder="+91XXXXXXXXXX"
+                  {...register("phone")}
+                  error={errors.phone?.message}
+                  data-testid="convert-lead-phone"
+                />
+                <Input
+                  label="Alternate / guardian phone"
+                  type="tel"
+                  placeholder="+91XXXXXXXXXX"
+                  {...register("alternatePhone")}
+                  error={errors.alternatePhone?.message}
+                  data-testid="convert-lead-alternate-phone"
+                />
                 <Select
-                  label="Batch"
-                  placeholder="Select a batch"
-                  value={watch("batchId")}
-                  onValueChange={(value) => setValue("batchId", value)}
-                  error={errors.batchId?.message}
-                  data-testid="convert-lead-batch"
+                  label="Course type"
+                  placeholder="Select course type"
+                  required
+                  value={watch("courseType")}
+                  onValueChange={(value) => setValue("courseType", value as CourseType)}
+                  error={errors.courseType?.message}
+                  data-testid="convert-lead-course-type"
                 >
-                  {batches.map((batch) => (
-                    <SelectItem key={batch.id} value={batch.id}>
-                      {batch.name}
+                  {COURSE_TYPES.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
                     </SelectItem>
                   ))}
                 </Select>
-              ) : null}
-              {programId ? (
                 <Input
-                  label="Coupon code (optional)"
-                  placeholder="e.g. WELCOME10"
-                  {...register("couponCode")}
-                  data-testid="convert-lead-coupon"
+                  label="Year of study"
+                  type="number"
+                  min={1}
+                  max={8}
+                  placeholder="e.g. 3"
+                  {...register("year")}
+                  error={errors.year?.message}
+                  data-testid="convert-lead-year"
                 />
-              ) : null}
+                <Input
+                  label="College / University"
+                  placeholder="e.g. JNTU Hyderabad"
+                  {...register("college")}
+                  error={errors.college?.message}
+                  data-testid="convert-lead-college"
+                />
+                <Input
+                  label="City"
+                  placeholder="e.g. Hyderabad"
+                  {...register("city")}
+                  error={errors.city?.message}
+                  data-testid="convert-lead-city"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-2">
+                <Select
+                  label="Program (optional)"
+                  placeholder="No order — student only"
+                  value={programId}
+                  onValueChange={(value) => {
+                    setValue("programId", value === "__none__" ? undefined : value);
+                    setValue("batchId", undefined);
+                  }}
+                  helperText="Creating an order requires both program and batch."
+                  error={errors.programId?.message}
+                  data-testid="convert-lead-program"
+                >
+                  <SelectItem value="__none__">No order — student only</SelectItem>
+                  {programs.map((program) => (
+                    <SelectItem key={program.id} value={program.id}>
+                      {program.title}
+                    </SelectItem>
+                  ))}
+                </Select>
+                {programId ? (
+                  <Select
+                    label="Batch"
+                    placeholder="Select a batch"
+                    value={watch("batchId")}
+                    onValueChange={(value) => setValue("batchId", value)}
+                    error={errors.batchId?.message}
+                    data-testid="convert-lead-batch"
+                  >
+                    {batches.map((batch) => (
+                      <SelectItem key={batch.id} value={batch.id}>
+                        {batch.name}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                ) : null}
+                {programId ? (
+                  <Input
+                    label="Coupon code (optional)"
+                    placeholder="e.g. WELCOME10"
+                    {...register("couponCode")}
+                    data-testid="convert-lead-coupon"
+                  />
+                ) : null}
+              </div>
             </DrawerBody>
             <DrawerFooter>
               <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} data-testid="convert-lead-cancel">

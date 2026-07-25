@@ -26,6 +26,7 @@ import { ActivitiesRepository } from "./activities.repository";
 import { PaginatedResult } from "../../common/dto/paginated-result";
 import { requireScopeContext, type ScopeContext } from "../auth/lib/scope-context";
 import { StudentsRepository } from "../students/students.repository";
+import { LmsAccountProvisioningService } from "../students/lms-account-provisioning.service";
 import { CommerceService } from "../commerce/commerce.service";
 import type {
   CreateLeadRequest,
@@ -66,6 +67,7 @@ export class LeadsService {
     private readonly studentsRepository: StudentsRepository,
     private readonly commerceService: CommerceService,
     private readonly activitiesRepository: ActivitiesRepository,
+    private readonly lmsProvisioning: LmsAccountProvisioningService,
   ) {}
 
   /**
@@ -400,7 +402,8 @@ export class LeadsService {
       name: fields.name,
       email: fields.email,
       phone: fields.phone ?? lead.phone,
-      college: fields.college,
+      alternatePhone: fields.alternatePhone,
+      college: fields.college ?? lead.college ?? undefined,
       courseType: fields.courseType,
       year: fields.year,
       city: fields.city,
@@ -409,6 +412,18 @@ export class LeadsService {
     });
 
     await this.repository.setConverted(id, student.id);
+
+    // Conversion IS registration (2026-07 redesign): provision the LMS login right
+    // here — temp password emailed, forced change on first sign-in — instead of
+    // waiting for the first enrollment to trigger it. Idempotent + non-destructive
+    // (only ever acts on a never-provisioned account), and a provisioning/email
+    // failure must never fail the conversion the staff member just performed —
+    // credentials can be re-sent from the student's CRM profile.
+    try {
+      await this.lmsProvisioning.provisionForStudentProfile(tenantId, student.id);
+    } catch {
+      // Logged inside the provisioning service; conversion itself succeeded.
+    }
 
     let orderId: string | null = null;
     if (body.programId && body.batchId) {

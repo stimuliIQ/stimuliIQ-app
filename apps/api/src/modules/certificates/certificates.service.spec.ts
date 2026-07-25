@@ -110,6 +110,7 @@ function makeStudentRow(overrides: Partial<StudentRow> = {}): StudentRow {
     name: "Test Student",
     email: "student@test.com",
     phone: null,
+    alternatePhone: null,
     college: null,
     courseType: "btech",
     year: 3,
