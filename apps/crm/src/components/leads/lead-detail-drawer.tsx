@@ -315,7 +315,11 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
                           <ArrowRightLeft className="size-4" aria-hidden="true" />
                           Move stage
                         </span>
+                        {/* key: Radix Select's trigger label doesn't reliably re-render
+                            when the controlled value changes from outside (cache update
+                            after a stage move) — remount it so it always shows lead.stage. */}
                         <Select
+                          key={`stage-${lead.stage}`}
                           aria-label="Move to stage"
                           placeholder="Select stage"
                           value={lead.stage}

@@ -18,6 +18,7 @@ import type {
   AssignLeadOwnerRequest,
   ConvertLeadRequest,
   CreateLeadRequest,
+  LeadDetail,
   ListLeadsQuery,
   MoveLeadStageRequest,
   UpdateLeadRequest,
@@ -123,14 +124,32 @@ export function useMoveLeadStage() {
           };
         },
       );
-      return { previous };
+      // Also patch the DETAIL cache: the lead drawer's stage select is bound to
+      // it, and its same-stage guard compares against it. Leaving it to the
+      // settle-time invalidate means the dropdown shows the old stage for a
+      // round-trip — long enough for a retry that the server then rejects
+      // ("cannot move won → won").
+      const detailKey = leadDetailKey(id);
+      const previousDetail = queryClient.getQueryData<LeadDetail>(detailKey);
+      if (previousDetail) {
+        queryClient.setQueryData<LeadDetail>(detailKey, { ...previousDetail, stage: body.stage });
+      }
+      return { previous, previousDetail, detailKey };
     },
     onError: (_error, _variables, context) => {
-      // Roll back the optimistic patch — the settle-time invalidate below
+      // Roll back the optimistic patches — the settle-time invalidate below
       // will then re-fetch the authoritative state anyway.
       context?.previous.forEach(([key, value]) => {
         queryClient.setQueryData(key, value);
       });
+      if (context?.previousDetail) {
+        queryClient.setQueryData(context.detailKey, context.previousDetail);
+      }
+    },
+    onSuccess: (data, variables) => {
+      // The endpoint returns the updated LeadDetail — make it authoritative
+      // immediately instead of waiting on the invalidate refetch.
+      queryClient.setQueryData(leadDetailKey(variables.id), data);
     },
     onSettled: (_data, _error, variables) => invalidate(variables.id),
   });
