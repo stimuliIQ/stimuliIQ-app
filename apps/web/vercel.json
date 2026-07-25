@@ -12,17 +12,6 @@
     }
   },
 
-  "env": {
-    "NEXT_PUBLIC_API_URL": "@stimuliiq-web-api-url",
-    "NEXT_PUBLIC_SITE_URL": "@stimuliiq-web-site-url",
-    "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "@stimuliiq-web-turnstile-site-key",
-    "NEXT_PUBLIC_ANALYTICS_MEASUREMENT_ID": "@stimuliiq-web-ga4-id",
-    "NEXT_PUBLIC_ANALYTICS_GTM_ID": "@stimuliiq-web-gtm-id",
-    "NEXT_PUBLIC_WHATSAPP_NUMBER": "@stimuliiq-web-whatsapp-number",
-    "NEXT_PUBLIC_WHATSAPP_MESSAGE": "@stimuliiq-web-whatsapp-message",
-    "TOS_VERSION": "@stimuliiq-tos-version"
-  },
-
   "headers": [
     {
       "source": "/(.*)",
