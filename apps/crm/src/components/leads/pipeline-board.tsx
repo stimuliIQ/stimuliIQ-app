@@ -180,15 +180,32 @@ export function PipelineBoard({ me }: PipelineBoardProps): React.JSX.Element {
 
   const tableColumns: Array<DataTableColumn<LeadSummary>> = [
     { id: "name", header: "Name", cell: (row) => row.name, sortable: true },
-    { id: "phone", header: "Phone", cell: (row) => row.phone },
-    { id: "email", header: "Email", cell: (row) => row.email ?? "—" },
+    {
+      id: "contact",
+      header: "Contact",
+      // Phone + email share one cell to keep the table narrow; either may be
+      // missing (newsletter leads have no phone, popup leads often no email).
+      cell: (row) => {
+        const phone = row.phone.trim();
+        return (
+          <div className="space-y-0.5">
+            <div>{phone || row.email || "—"}</div>
+            {phone && row.email ? <div className="text-xs text-fg-muted">{row.email}</div> : null}
+          </div>
+        );
+      },
+    },
     {
       id: "programInterestTitle",
-      header: "Program interest",
+      header: "Program / College",
       // Popup leads carry a free-typed course instead of a catalog program id.
-      cell: (row) => row.programInterestTitle ?? row.courseInterest ?? "—",
+      cell: (row) => (
+        <div className="space-y-0.5">
+          <div>{row.programInterestTitle ?? row.courseInterest ?? "—"}</div>
+          {row.college ? <div className="text-xs text-fg-muted">{row.college}</div> : null}
+        </div>
+      ),
     },
-    { id: "college", header: "College", cell: (row) => row.college ?? "—" },
     { id: "stage", header: "Stage", cell: (row) => <LeadStageChip stage={row.stage} /> },
     { id: "source", header: "Source", cell: (row) => row.source },
     { id: "ownerName", header: "Owner", cell: (row) => row.ownerName ?? "Unassigned" },
