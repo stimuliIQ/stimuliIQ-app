@@ -84,6 +84,22 @@ export interface ForumHealthAggRow {
   postCount: bigint;
 }
 
+/**
+ * The 8 Phase-7 analytics MVs (migration `20260704060200_analytics_read_model`), in the
+ * same refresh order as the original `refresh_analytics_views()` procedure. Must stay in
+ * lock-step with the `analytics_mv_refresh_log` seed rows.
+ */
+const ANALYTICS_MATERIALIZED_VIEWS = [
+  "mv_revenue_daily",
+  "mv_enrollment_daily",
+  "mv_lead_funnel_daily",
+  "mv_attendance_daily",
+  "mv_course_engagement_daily",
+  "mv_campaign_performance_daily",
+  "mv_gamification_daily",
+  "mv_forum_health_daily",
+] as const;
+
 @Injectable()
 export class AnalyticsRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -91,18 +107,48 @@ export class AnalyticsRepository {
   // ─── MV refresh (Wave 2 task #11 — AnalyticsMvRefreshScheduler) ─────────────
 
   /**
-   * Invokes the `refresh_analytics_views()` Postgres procedure (migration
-   * `20260704060200_analytics_read_model` / `20260704060400_analytics_refresh_log`),
-   * which `REFRESH MATERIALIZED VIEW CONCURRENTLY`s each of the 8 Phase-7 MVs and updates
-   * `analytics_mv_refresh_log` per-MV (see that migration's header — each MV's refresh is
-   * isolated in its own exception block, so one MV failing never blocks the others). No
-   * parameters — a fixed tagged-template call, never string-built (no injection surface).
-   * Callers (the scheduler) are responsible for catching/logging any error this throws —
-   * this method itself does not swallow failures, since `getFreshness()` is what actually
-   * exposes staleness to dashboard responses regardless of whether this call succeeds.
+   * Refreshes the 8 Phase-7 materialized views, maintaining `analytics_mv_refresh_log`
+   * exactly as the `refresh_analytics_views()` procedure (migration
+   * `20260704060400_analytics_refresh_log`) did.
+   *
+   * WHY NOT `CALL refresh_analytics_views()` anymore (2026-07-26 prod incident): the
+   * procedure `COMMIT`s between MVs, and production's runtime DATABASE_URL goes through
+   * the Supabase pgbouncer pooler in TRANSACTION mode — transaction control inside a
+   * procedure is illegal in that context, so every scheduled run failed with SQLSTATE
+   * 2D000 ("invalid transaction termination") and the MVs silently went stale. Issuing
+   * each REFRESH as its own single autocommit statement is pooler-safe and preserves the
+   * procedure's isolation semantics: one MV's failure is recorded in `last_error` and
+   * never blocks the remaining MVs. The procedure itself is left in place (forward-only
+   * migrations) — it simply is no longer the path the app takes.
+   *
+   * MV names come from the fixed const list below — `$executeRawUnsafe` interpolates
+   * only those known identifiers (REFRESH cannot be parameterized); error text is bound
+   * as a real parameter via the tagged template.
    */
   async refreshMaterializedViews(): Promise<void> {
-    await this.prisma.client.$executeRaw`CALL refresh_analytics_views()`;
+    // Upserts, not UPDATEs: production's log table was found EMPTY (2026-07-26 — the
+    // migration's seed rows are gone, likely from a pre-launch data reset), and a
+    // missing row reads as maximally stale in getFreshness() forever. Upserting heals
+    // the bookkeeping rows on the next refresh tick instead of silently no-op'ing.
+    for (const mv of ANALYTICS_MATERIALIZED_VIEWS) {
+      await this.prisma.client.$executeRaw`
+        INSERT INTO "analytics_mv_refresh_log" (mv_name, last_attempt_at)
+        VALUES (${mv}, now())
+        ON CONFLICT (mv_name) DO UPDATE SET last_attempt_at = now()`;
+      try {
+        await this.prisma.client.$executeRawUnsafe(`REFRESH MATERIALIZED VIEW CONCURRENTLY "${mv}"`);
+        await this.prisma.client.$executeRaw`
+          INSERT INTO "analytics_mv_refresh_log" (mv_name, last_success_at, last_attempt_at)
+          VALUES (${mv}, now(), now())
+          ON CONFLICT (mv_name) DO UPDATE SET last_success_at = now(), last_error = NULL`;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        await this.prisma.client.$executeRaw`
+          INSERT INTO "analytics_mv_refresh_log" (mv_name, last_attempt_at, last_error)
+          VALUES (${mv}, now(), ${message})
+          ON CONFLICT (mv_name) DO UPDATE SET last_error = ${message}`;
+      }
+    }
   }
 
   // ─── Freshness ──────────────────────────────────────────────────────────────

@@ -76,3 +76,38 @@ explicit approval (CLAUDE.md §3.13 — every push triggers Vercel deploys).
     `size="lg"` modal.
 - **Status:** committed locally. NOTE: needs both the Vercel push (crm) AND an API
   deploy on the VPS (pm2) to take effect.
+
+### 5. `POST /commerce/payments/manual` 500 — FIXED (awaiting API deploy)
+
+- **Symptom:** recording an offline payment in the CRM returns 500 (three retries, all
+  500). One earlier manual payment that day had succeeded.
+- **Root cause (from VPS pm2 logs):** `Transaction already closed: ... The timeout for
+  this transaction was 5000 ms, however 5535 ms passed`. The capture transaction
+  (payment → order → enrollment → invoice, each write also emitting an audit row) makes
+  10+ DB round trips, and production's VPS→Supabase-pooler latency puts the total right
+  at Prisma's default 5 s interactive-transaction ceiling — succeeding or failing on
+  latency variance.
+- **Fix:** global `transactionOptions { maxWait: 15s, timeout: 30s }` on both Prisma
+  clients (prisma.service.ts) — a ceiling, not a slowdown. Also soft-deleted the 4
+  orphan `created`-status manual payment rows the failed attempts left on order
+  `9698f437` (payment row is created before the tx); re-record the payment after the
+  API deploy.
+- **Status:** committed locally; requires the VPS API deploy.
+
+### 6. Analytics MV refresh cron failing on EVERY run in prod (found while debugging #5) — FIXED (awaiting API deploy)
+
+- **Symptom:** pm2 logs show `refresh_analytics_views() FAILED ... ERROR: invalid
+  transaction termination` (SQLSTATE 2D000) on every scheduler tick — analytics
+  dashboards were only ever refreshed manually.
+- **Root cause:** the `refresh_analytics_views()` procedure `COMMIT`s between MVs;
+  production's runtime `DATABASE_URL` goes through the Supabase pgbouncer pooler in
+  TRANSACTION mode, where transaction control inside a procedure is illegal. Verified by
+  reproducing 2D000 through the pooler directly. Bonus finding: the
+  `analytics_mv_refresh_log` seed rows are missing in prod (pre-launch data reset), so
+  freshness would read permanently stale even after successful refreshes.
+- **Fix:** `AnalyticsRepository.refreshMaterializedViews()` no longer CALLs the
+  procedure — it refreshes each of the 8 MVs as its own single autocommit statement
+  (pooler-safe, verified live through the pooler: all 8 refreshed) with the same
+  per-MV failure isolation, and upserts the freshness log rows so the missing seeds
+  self-heal on the first tick.
+- **Status:** committed locally; requires the VPS API deploy.
