@@ -85,6 +85,7 @@ import { Module, Logger } from "@nestjs/common";
 import { validateEnv, isProductionEnv, missingEnvVars } from "../../../../config/env";
 import { PAYMENT_PROVIDER, type PaymentProvider } from "./payment-provider.interface";
 import { RazorpayPaymentProvider } from "./razorpay-payment.provider";
+import { NoopPaymentProvider } from "./noop-payment.provider";
 
 const bootLogger = new Logger("PaymentProviderModule");
 
@@ -106,6 +107,18 @@ const bootLogger = new Logger("PaymentProviderModule");
 function createPaymentProvider(): PaymentProvider {
   const env = validateEnv();
   const isProd = isProductionEnv(env);
+
+  // PAYMENT_PROVIDER=disabled turns online payments OFF (mirrors LIVE_CLASS/VIDEO=disabled).
+  // Bind Noop with NO production boot-throw — no Razorpay keys required. The checkout/enroll
+  // funnel is inert (enrol students manually via the CRM). Use ONLY when you are not taking
+  // online payments yet; set PAYMENT_PROVIDER=razorpay with live keys to enable checkout.
+  if (env.PAYMENT_PROVIDER === "disabled") {
+    bootLogger.log(
+      "[PaymentProviderModule] PAYMENT_PROVIDER=disabled — online payments are off. " +
+        "Binding NoopPaymentProvider (checkout/enroll funnel inert; enrol via the CRM).",
+    );
+    return new NoopPaymentProvider();
+  }
 
   const missing = missingEnvVars({
     RAZORPAY_KEY_ID: env.RAZORPAY_KEY_ID,

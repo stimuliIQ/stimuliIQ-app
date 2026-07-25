@@ -91,4 +91,17 @@ describe("PaymentProviderModule fail-closed guard", () => {
       }),
     ).rejects.toThrow(/LIVE key .* outside a production environment/i);
   });
+
+  it("BOOTS in production when PAYMENT_PROVIDER=disabled — no Razorpay keys needed", async () => {
+    await expect(
+      bootWith({ NODE_ENV: "production", PAYMENT_PROVIDER: "disabled" }),
+    ).resolves.not.toThrow();
+  });
+
+  it("BOOTS in production when PAYMENT_PROVIDER=disabled even with a rzp_test_ key present", async () => {
+    // disabled short-circuits before the test/live-key-prefix guard runs.
+    await expect(
+      bootWith({ NODE_ENV: "production", PAYMENT_PROVIDER: "disabled", ...FULL_KEYS }),
+    ).resolves.not.toThrow();
+  });
 });

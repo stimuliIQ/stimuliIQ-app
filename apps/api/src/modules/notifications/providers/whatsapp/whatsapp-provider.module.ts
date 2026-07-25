@@ -109,6 +109,18 @@ function createWhatsAppProvider(): WhatsAppProvider {
       return new WhatsAppCloudProvider();
     }
 
+    case "disabled": {
+      // WhatsApp feature turned OFF (mirrors LIVE_CLASS/VIDEO=disabled). Bind Noop with NO
+      // production boot-throw — no Meta credentials required. Outbound WhatsApp messages
+      // and campaigns are inert. Use ONLY when WhatsApp is not live yet; flip to
+      // whatsapp_cloud (with keys) to enable.
+      bootLogger.log(
+        "[WhatsAppProviderModule] WHATSAPP_PROVIDER=disabled — WhatsApp feature is off. " +
+          "Binding NoopWhatsAppProvider (no messages sent).",
+      );
+      return new NoopWhatsAppProvider();
+    }
+
     case "noop": {
       if (isProd) {
         throw new Error(

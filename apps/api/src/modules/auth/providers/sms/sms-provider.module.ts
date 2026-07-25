@@ -106,6 +106,18 @@ function createSmsProvider(): SmsProvider {
       return new Msg91SmsProvider();
     }
 
+    case "disabled": {
+      // SMS feature turned OFF (mirrors LIVE_CLASS/VIDEO=disabled). Bind Noop with NO
+      // production boot-throw — no MSG91 credentials required. Phone-OTP login and all
+      // transactional SMS are inert; email/password login is unaffected. Use ONLY when
+      // SMS is not live yet; flip to msg91 (with keys) to enable.
+      bootLogger.log(
+        "[SmsProviderModule] SMS_PROVIDER=disabled — SMS feature is off. Binding " +
+          "NoopSmsProvider (no SMS sent; phone-OTP login inert, password login unaffected).",
+      );
+      return new NoopSmsProvider();
+    }
+
     case "noop": {
       if (isProd) {
         throw new Error(

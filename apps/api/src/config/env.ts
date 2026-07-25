@@ -181,6 +181,16 @@ const envSchema = z.object({
   MSG91_SENDER: z.string().optional(),
   MSG91_TEMPLATE_ID: z.string().optional(),
 
+  // PAYMENT_PROVIDER selects the payment adapter bound at boot.
+  //   razorpay  (default) → RazorpayPaymentProvider (requires the RAZORPAY_* keys below;
+  //                         fail-closed boot-throw in production if any are missing).
+  //   disabled            → NoopPaymentProvider, bound WITHOUT the production boot-throw
+  //                         (mirrors LIVE_CLASS/VIDEO=disabled). The online checkout/enroll
+  //                         funnel is OFF — enrol students manually via the CRM. Use ONLY
+  //                         when you are not taking online payments yet; flip to razorpay
+  //                         (with live keys) to enable checkout.
+  PAYMENT_PROVIDER: z.enum(["razorpay", "disabled"]).default("razorpay"),
+
   // Razorpay payment keys (docs/04 §2.10, docs/plans/phase-2.md task #4).
   // KEY_ID is the public Razorpay key (safe to send to the checkout client).
   // KEY_SECRET is used for HMAC-SHA256 payment signature verification — never expose.
@@ -247,7 +257,10 @@ const envSchema = z.object({
   //                            subscription verification (GET challenge from Meta).
   //                            Not a secret per se, but treat it as one. Choose a random
   //                            string and set it in both Meta's webhook config and here.
-  WHATSAPP_PROVIDER: z.enum(["noop", "whatsapp_cloud"]).default("noop"),
+  // "disabled" turns outbound WhatsApp OFF (mirrors LIVE_CLASS/VIDEO=disabled): binds
+  // Noop WITHOUT the production boot-throw, so no Meta credentials are required. Use ONLY
+  // when WhatsApp messaging is not live yet. Flip to whatsapp_cloud (with keys) to enable.
+  WHATSAPP_PROVIDER: z.enum(["noop", "whatsapp_cloud", "disabled"]).default("noop"),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(), // SERVER-ONLY
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),    // SERVER-ONLY — never log
   WHATSAPP_APP_SECRET: z.string().optional(),      // SERVER-ONLY — never log
@@ -475,7 +488,12 @@ const envSchema = z.object({
   // FAIL CLOSED: noop or missing keys in production causes a boot-time throw.
   // MSG91_TEMPLATE_ID here is the DEFAULT/OTP DLT template; sendSms() callers may pass a
   // more specific per-message dltTemplateId (Rule C-3) which takes precedence.
-  SMS_PROVIDER: z.enum(["noop", "msg91"]).default("noop"),
+  //
+  // "disabled" turns outbound SMS OFF (mirrors LIVE_CLASS/VIDEO=disabled): binds Noop
+  // WITHOUT the production boot-throw, so no MSG91 credentials are required. Use ONLY when
+  // SMS is not live yet — this ALSO disables phone-OTP login (email/password login still
+  // works). Flip to msg91 (with keys) to enable SMS.
+  SMS_PROVIDER: z.enum(["noop", "msg91", "disabled"]).default("noop"),
 
   // ─── Queue driver (R1 — BullMQ, docs/plans/phase-9-completion.md T18) ───
   // QUEUE_DRIVER selects whether the dispatch/invoice-gen/webhook/PDF seams run

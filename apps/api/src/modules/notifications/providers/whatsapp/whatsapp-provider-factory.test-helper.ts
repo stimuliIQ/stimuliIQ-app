@@ -44,6 +44,10 @@ export function createWhatsAppProviderForTest(): WhatsAppProvider {
       }
       return new WhatsAppCloudProvider();
     }
+    case "disabled": {
+      // Mirrors the real module: WhatsApp OFF, bind Noop with no production boot-throw.
+      return new NoopWhatsAppProvider();
+    }
     case "noop": {
       if (isProd) {
         throw new Error(

@@ -554,6 +554,20 @@ describe("WhatsAppProviderModule factory (fail-closed in prod)", () => {
     expect(() => createWhatsAppProviderForTest()).toThrow(/noop.*production|production.*noop/i);
   });
 
+  it("BOOTS in production when WHATSAPP_PROVIDER=disabled — binds Noop, no Meta keys needed", async () => {
+    setEnvWith({
+      WHATSAPP_PROVIDER: "disabled",
+      NODE_ENV: "production",
+      APP_ENV: "production",
+    });
+    const { createWhatsAppProviderForTest } = await import("./whatsapp-provider-factory.test-helper");
+    let provider: unknown;
+    expect(() => {
+      provider = createWhatsAppProviderForTest();
+    }).not.toThrow();
+    expect(provider).toBeInstanceOf(NoopWhatsAppProvider);
+  });
+
   it("DEFECT-1 guard: WhatsAppProviderModule compiles as a NestJS module without crashing", async () => {
     setEnvWith({
       WHATSAPP_PROVIDER: "noop",

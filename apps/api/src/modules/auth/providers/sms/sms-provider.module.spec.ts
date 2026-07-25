@@ -86,4 +86,9 @@ describe("SmsProviderModule fail-closed guard", () => {
     const provider = await bootWith({ NODE_ENV: "production", SMS_PROVIDER: "msg91", ...FULL_KEYS });
     expect(provider).toBeInstanceOf(Msg91SmsProvider);
   });
+
+  it("BOOTS in production when SMS_PROVIDER=disabled — binds NoopSmsProvider, no keys needed", async () => {
+    const provider = await bootWith({ NODE_ENV: "production", SMS_PROVIDER: "disabled" });
+    expect(provider).toBeInstanceOf(NoopSmsProvider);
+  });
 });
