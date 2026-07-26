@@ -68,9 +68,9 @@ explicit approval (CLAUDE.md §3.13 — every push triggers Vercel deploys).
 - **Fix:**
   - `@repo/types` lifecycle resolver: won + unconverted → `registration_started`
     ("Registration Started"); `registered` now strictly means a student record exists.
-  - API: conversion now provisions the LMS login immediately (idempotent; email failure
-    never fails the conversion — credentials re-sendable from CRM) and passes
-    `alternatePhone` / defaults `college` from the lead.
+  - API: conversion passes `alternatePhone` through and defaults `college` from the
+    lead. (An initial cut also provisioned the LMS login at conversion; superseded by
+    #8 — LMS access is a paid entitlement, credentials go out at payment completion.)
   - CRM: convert dialog is the full registration form — phone, alternate/guardian
     phone, college, year, city (prefilled from the lead), two-column layout,
     `size="lg"` modal.
@@ -123,3 +123,17 @@ explicit approval (CLAUDE.md §3.13 — every push triggers Vercel deploys).
   indefinitely. Applies to ALL CRM-driven marketing content (testimonials, mentors,
   programs, site settings) until #1 deploys.
 - **Status:** resolves automatically with the #1 push; no additional code change.
+
+### 8. Post-conversion UX gates (local QA) — FIXED (awaiting push + API deploy)
+
+- **Symptom:** (a) a converted lead's drawer still shows "Convert to student" (clicking
+  can only say "already converted"); (b) the student drawer offers "Resend LMS
+  credentials" while payment is still pending.
+- **Decision:** LMS access is a PAID entitlement. Credentials are first emailed when
+  payment completes (the existing enrollment-time provisioning seam) — conversion
+  captures the details only. The provision-at-convert cut from #4 was reverted.
+- **Fix:** lead drawer hides Convert once `convertedStudentId` is set; student drawer
+  shows "Resend LMS credentials" only from `payment_completed` onward (incl. dropped —
+  an account exists to reissue); convert-dialog copy states credentials arrive after
+  payment.
+- **Status:** committed locally; ships with the batch.

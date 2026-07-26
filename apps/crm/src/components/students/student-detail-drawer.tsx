@@ -17,7 +17,7 @@ import {
   Skeleton,
   useToast,
 } from "@repo/ui";
-import type { MeResponse } from "@repo/types";
+import type { LifecycleStage, MeResponse } from "@repo/types";
 
 import { useStudent, useDeleteStudent, useRestoreStudent, useResendCredentials } from "../../hooks/use-students";
 import { getModulePermissions } from "../../lib/permissions";
@@ -38,6 +38,18 @@ interface StudentDetailDrawerProps {
   onOpenChange: (open: boolean) => void;
   me: MeResponse | undefined;
 }
+
+// Lifecycle stages at/after payment completion — the point where enrollment-time
+// LMS provisioning has (or could have) issued credentials. `dropped` is included:
+// a withdrawn student was enrolled, so an account exists to reissue if needed.
+const LMS_PROVISIONED_STAGES: ReadonlySet<LifecycleStage> = new Set<LifecycleStage>([
+  "payment_completed",
+  "active_student",
+  "learning_in_progress",
+  "course_completed",
+  "certified",
+  "dropped",
+]);
 
 export function StudentDetailDrawer({ studentId, onOpenChange, me }: StudentDetailDrawerProps): React.JSX.Element {
   const open = Boolean(studentId);
@@ -266,11 +278,14 @@ export function StudentDetailDrawer({ studentId, onOpenChange, me }: StudentDeta
                       Complete registration
                     </Button>
                   ) : null}
-                  {permissions.canEdit && (student.status === "active" || student.status === "alumni") ? (
-                    // "active"/"alumni" both imply LMS provisioning happened at some
-                    // point — a "lead" has no LMS account yet, so there's nothing to
-                    // reissue. Destructive from the student's POV (rotates their
-                    // current password immediately), hence the confirm dialog below.
+                  {permissions.canEdit && LMS_PROVISIONED_STAGES.has(student.lifecycleStage) ? (
+                    // LMS access is a paid entitlement: credentials are first issued when
+                    // payment completes (enrollment-time provisioning), so the resend
+                    // action only appears from payment_completed onward — showing it for a
+                    // payment-pending student would let staff hand out access early
+                    // (resendCredentials rotates/activates unconditionally). Destructive
+                    // from the student's POV (rotates their current password immediately),
+                    // hence the confirm dialog below.
                     <Button
                       variant="secondary"
                       onClick={() => setConfirmResendOpen(true)}

@@ -121,7 +121,7 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
       const result = await convertLead.mutateAsync({ id: lead.id, body });
       toast({
         title: "Lead converted",
-        description: "Student created — LMS login credentials are being emailed to them.",
+        description: "Student created — LMS credentials will be emailed once payment completes.",
         variant: "success",
       });
       onOpenChange(false);
@@ -176,9 +176,9 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
           <form onSubmit={onSubmit} className="flex flex-1 flex-col overflow-hidden">
             <DrawerBody className="flex flex-col gap-4">
               <p className="text-xs text-fg-muted">
-                Conversion is the full registration: it creates the student record and emails them their LMS login
-                credentials (they set their own password on first sign-in) — no separate registration step. Optionally
-                pick a program + batch to also create the order in the same atomic step.
+                Conversion is the full registration — capture every student detail here; there is no separate
+                registration step. LMS login credentials are emailed automatically once their payment completes.
+                Optionally pick a program + batch to also create the order in the same atomic step.
               </p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
@@ -194,7 +194,7 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
                   type="email"
                   placeholder="name@example.com"
                   required
-                  helperText="LMS login credentials are emailed here."
+                  helperText="LMS credentials go here after payment completes."
                   {...register("email", { required: true })}
                   error={errors.email?.message}
                   data-testid="convert-lead-email"

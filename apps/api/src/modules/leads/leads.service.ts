@@ -26,7 +26,6 @@ import { ActivitiesRepository } from "./activities.repository";
 import { PaginatedResult } from "../../common/dto/paginated-result";
 import { requireScopeContext, type ScopeContext } from "../auth/lib/scope-context";
 import { StudentsRepository } from "../students/students.repository";
-import { LmsAccountProvisioningService } from "../students/lms-account-provisioning.service";
 import { CommerceService } from "../commerce/commerce.service";
 import type {
   CreateLeadRequest,
@@ -67,7 +66,6 @@ export class LeadsService {
     private readonly studentsRepository: StudentsRepository,
     private readonly commerceService: CommerceService,
     private readonly activitiesRepository: ActivitiesRepository,
-    private readonly lmsProvisioning: LmsAccountProvisioningService,
   ) {}
 
   /**
@@ -413,17 +411,11 @@ export class LeadsService {
 
     await this.repository.setConverted(id, student.id);
 
-    // Conversion IS registration (2026-07 redesign): provision the LMS login right
-    // here — temp password emailed, forced change on first sign-in — instead of
-    // waiting for the first enrollment to trigger it. Idempotent + non-destructive
-    // (only ever acts on a never-provisioned account), and a provisioning/email
-    // failure must never fail the conversion the staff member just performed —
-    // credentials can be re-sent from the student's CRM profile.
-    try {
-      await this.lmsProvisioning.provisionForStudentProfile(tenantId, student.id);
-    } catch {
-      // Logged inside the provisioning service; conversion itself succeeded.
-    }
+    // NOTE (2026-07-26): conversion deliberately does NOT provision the LMS login.
+    // Credentials are emailed by LmsAccountProvisioningService when the student's
+    // first enrollment is created — i.e. when payment completes (verify/manual) or
+    // on a manual roster enrollment. LMS access is a paid entitlement; conversion
+    // only captures the full registration details.
 
     let orderId: string | null = null;
     if (body.programId && body.batchId) {
