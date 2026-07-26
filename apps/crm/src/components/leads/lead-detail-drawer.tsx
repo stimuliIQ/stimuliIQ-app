@@ -464,7 +464,9 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
                   Delete
                 </Button>
               ) : null}
-              {canConvert ? (
+              {/* Hidden once converted — the action is one-shot (the dialog would only
+                  say "already converted"); the Overview's "Converted: Yes" is the state. */}
+              {canConvert && !lead.convertedStudentId ? (
                 <Button onClick={() => setConvertOpen(true)} data-testid="lead-detail-convert-button">
                   Convert to student
                 </Button>
