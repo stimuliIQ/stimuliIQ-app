@@ -787,6 +787,15 @@ export class PublicRepository {
 
   // ─── Audit log write for public mutations ───────────────────────────────────
 
+  /** Resolve a student PROFILE id to its USER id (audit_logs.actor_id FK target). */
+  async findStudentUserIdByProfileId(tenantId: string, profileId: string): Promise<string | null> {
+    const profile = await this.prisma.client.studentProfile.findFirst({
+      where: { id: profileId, tenantId },
+      select: { userId: true },
+    });
+    return profile?.userId ?? null;
+  }
+
   async writeAuditLog(data: {
     tenantId: string;
     actorId: string | null;

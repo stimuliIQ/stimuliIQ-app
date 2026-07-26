@@ -679,15 +679,27 @@ export class PublicFunnelService {
       () => this.commerceService.verifyPayment(tenantId, order.studentId, verifyBody),
     );
 
-    await this.publicRepository.writeAuditLog({
-      tenantId,
-      actorId: order.studentId,
-      entity: "payment",
-      entityId: payment.id,
-      action: "update",
-      after: { source: "public-pay-link-verify" },
-      ip: null,
-    });
+    // Best-effort bookkeeping — the payment/order/enrollment writes above are already
+    // audited by the Prisma audit extension; this explicit row only adds the
+    // "came via pay link" source marker. It must NEVER fail the response: the money
+    // has moved, and a post-payment 500 shows the payer a false "verification failed".
+    // (2026-07-26 incident: this write used order.studentId — a student PROFILE id —
+    // as actor_id, violating the audit_logs→users FK and 500ing every pay-link verify
+    // AFTER a fully successful capture+enrollment.)
+    try {
+      const actorUserId = await this.publicRepository.findStudentUserIdByProfileId(tenantId, order.studentId);
+      await this.publicRepository.writeAuditLog({
+        tenantId,
+        actorId: actorUserId,
+        entity: "payment",
+        entityId: payment.id,
+        action: "update",
+        after: { source: "public-pay-link-verify" },
+        ip: null,
+      });
+    } catch (err) {
+      this.logger.warn(`[PayLink] post-verify audit write failed (non-fatal): ${String(err)}`);
+    }
 
     const enrollment = await this.publicRepository.findEnrollmentByOrderId(tenantId, order.id);
     if (!enrollment) {

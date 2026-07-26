@@ -138,6 +138,27 @@ explicit approval (CLAUDE.md §3.13 — every push triggers Vercel deploys).
   payment.
 - **Status:** committed locally; ships with the batch.
 
+### 10. Pay-link verify 500s AFTER a successful payment — FIXED (found in e2e test)
+
+- **Symptom:** paying through a /pay/:token link completes the charge, but the page
+  shows "Payment verification failed … contact support". DB inspection shows the
+  payment WAS captured (signature verified), the order paid, the enrollment active,
+  and the invoice created — only the response 500'd.
+- **Root cause:** the pay-link verify path's post-payment audit write passed
+  `order.studentId` (a student PROFILE id) as `audit_logs.actor_id`, which is an FK
+  to `users` — FK violation → unhandled 500 after the money moved. The session-based
+  enroll-funnel path was correct; only the pay-link path had it.
+- **Fix:** resolve the profile's USER id for the audit row, and make this bookkeeping
+  write best-effort (the underlying payment/order/enrollment writes are already
+  audited by the Prisma extension) — a failed marker row must never show the payer a
+  false failure.
+- **Verified:** full e2e against local API + real Razorpay TEST keys: token → summary
+  → checkout (real rzp order) → signed verify → order paid, payment captured
+  (signature verified), enrollment active, invoice INV-2026-0003, profile promoted,
+  LMS login provisioned (temp password + forced change), receipt + credentials
+  emails sent, audit row with the correct user actor.
+- **Status:** committed locally; requires the VPS API deploy.
+
 ### 9. Paid student never received LMS credentials email — FIXED (awaiting API deploy)
 
 - **Symptom:** payment completed on live (receipt email arrived, enrollment created)
