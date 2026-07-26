@@ -21,6 +21,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { ARGON2_HASH_OPTIONS } from "../auth/lib/argon2-params";
 import { AuthRepository } from "../auth/auth.repository";
 import { MAIL_PROVIDER, type MailProvider } from "../notifications/providers/mail/mail-provider.interface";
+import { renderBrandedEmail, escapeEmailHtml } from "../notifications/dispatch/email-layout";
 import { validateEnv } from "../../config/env";
 import type { CreateFacultyRequest, ListFacultyQuery, UpdateFacultyRequest } from "./dto";
 
@@ -267,18 +268,22 @@ export class FacultyService {
       await this.mail.send({
         to: email,
         subject: "Your stimuliIQ staff password has been reset",
-        html:
-          `<p>Hi ${escapeHtml(name)},</p>` +
-          `<p>Your stimuliIQ staff account password has been reset by an administrator. Use the details ` +
-          `below to sign in to the admin dashboard:</p>` +
-          `<ul>` +
-          `<li><strong>Login:</strong> <a href="${loginUrl}">${loginUrl}</a></li>` +
-          `<li><strong>Username:</strong> ${escapeHtml(email)}</li>` +
-          `<li><strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</li>` +
-          `</ul>` +
-          `<p>For your security you'll be asked to set a new password the next time you sign in. ` +
-          `Please don't share these details with anyone.</p>` +
-          `<p>If you didn't expect this, please contact your administrator immediately.</p>`,
+        html: renderBrandedEmail({
+          title: "Staff password reset",
+          greeting: `Hi ${escapeEmailHtml(name)},`,
+          paragraphs: [
+            "Your stimuliIQ staff account password has been reset by an administrator. " +
+              "Use the details below to sign in to the admin dashboard:",
+          ],
+          details: [
+            { label: "Username", value: escapeEmailHtml(email) },
+            { label: "Temporary password", value: escapeEmailHtml(tempPassword) },
+          ],
+          button: { label: "Sign in to the dashboard", url: loginUrl },
+          footnote:
+            "For your security you'll be asked to set a new password the next time you sign in. " +
+            "Please don't share these details with anyone. If you didn't expect this, contact your administrator immediately.",
+        }),
         tags: [{ name: "category", value: "staff_password_reset" }],
       });
     } catch (err) {
@@ -302,15 +307,6 @@ export class FacultyService {
  */
 function generateTemporaryPassword(): string {
   return randomBytes(12).toString("base64url");
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
 
 function toSummary(row: FacultyRow): FacultySummary {

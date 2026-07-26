@@ -21,6 +21,7 @@ import { ARGON2_HASH_OPTIONS } from "./lib/argon2-params";
 import { RedisService } from "../../redis/redis.service";
 import { hitRedisWindow } from "../../common/rate-limit/redis-window-rate-limiter";
 import { MAIL_PROVIDER, type MailProvider } from "../notifications/providers/mail/mail-provider.interface";
+import { renderBrandedEmail } from "../notifications/dispatch/email-layout";
 import { validateEnv } from "../../config/env";
 
 const TENANT_SLUG = "stimuliiq"; // Phase 0: single tenant (matches auth.service.ts precedent).
@@ -70,7 +71,14 @@ export class PasswordResetService {
         await this.mail.send({
           to: user.email,
           subject: "Reset your stimuliIQ password",
-          html: `<p>Click the link below to reset your password. This link expires in 30 minutes and can only be used once.</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>If you did not request this, you can safely ignore this email.</p>`,
+          html: renderBrandedEmail({
+            title: "Reset your password",
+            paragraphs: [
+              "Click the button below to reset your password. This link expires in 30 minutes and can only be used once.",
+            ],
+            button: { label: "Reset Password", url: resetUrl },
+            footnote: "If you did not request this, you can safely ignore this email — your password stays unchanged.",
+          }),
           tags: [{ name: "category", value: "password_reset" }],
         });
       } catch (err) {

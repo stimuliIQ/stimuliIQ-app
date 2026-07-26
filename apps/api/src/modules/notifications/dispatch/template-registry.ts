@@ -53,6 +53,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { NotificationType } from "@repo/types";
 
+import { renderBrandedEmail } from "./email-layout";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
@@ -155,16 +157,17 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
     inAppBody: "Your assignment '{{assignmentTitle}}' has been graded. Score: {{score}}.",
 
     emailSubject: "Your assignment has been graded — {{assignmentTitle}}",
-    emailBody: `
-<html><body style="font-family:sans-serif;color:#333;max-width:600px;margin:0 auto;padding:24px">
-  <h2 style="color:#1a1a2e">Assignment Graded</h2>
-  <p>Hi {{studentName}},</p>
-  <p>Your assignment <strong>{{assignmentTitle}}</strong> has been graded.</p>
-  <p style="font-size:24px;font-weight:bold;color:#1a1a2e">Score: {{score}}</p>
-  <p><a href="{{lmsUrl}}/assignments/{{submissionId}}" style="background:#1a1a2e;color:#fff;padding:12px 24px;text-decoration:none;border-radius:4px">View Feedback</a></p>
-  <hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
-  <p style="font-size:12px;color:#888">${BRAND_NAME} · <a href="{{unsubscribeUrl}}">Unsubscribe</a></p>
-</body></html>`.trim(),
+    emailBody: renderBrandedEmail({
+      title: "Assignment Graded",
+      greeting: "Hi {{studentName}},",
+      paragraphs: ["Your assignment <strong>{{assignmentTitle}}</strong> has been graded."],
+      details: [
+        { label: "Assignment", value: "{{assignmentTitle}}" },
+        { label: "Score", value: "{{score}}" },
+      ],
+      button: { label: "View Feedback", url: "{{lmsUrl}}/assignments/{{submissionId}}" },
+      unsubscribeUrl: "{{unsubscribeUrl}}",
+    }),
 
     smsBody: `${BRAND_NAME}: Your assignment {{assignmentTitle}} has been graded. Score: {{score}}. View: {{lmsUrl}}`,
     smsDltTemplateId: "DLT_PENDING", // Replace with real DLT ID from portal
@@ -179,16 +182,14 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
     inAppBody: "Your certificate for '{{programTitle}}' is ready! Download it now.",
 
     emailSubject: "Your certificate is ready — {{programTitle}}",
-    emailBody: `
-<html><body style="font-family:sans-serif;color:#333;max-width:600px;margin:0 auto;padding:24px">
-  <h2 style="color:#b8860b">Certificate Ready!</h2>
-  <p>Hi {{studentName}},</p>
-  <p>Congratulations! Your certificate of completion for <strong>{{programTitle}}</strong> is ready.</p>
-  <p><a href="{{lmsUrl}}/certificates/{{certificateId}}" style="background:#b8860b;color:#fff;padding:12px 24px;text-decoration:none;border-radius:4px">Download Certificate</a></p>
-  <p style="font-size:12px;color:#888">Share your achievement on LinkedIn and other platforms.</p>
-  <hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
-  <p style="font-size:12px;color:#888">${BRAND_NAME} · <a href="{{unsubscribeUrl}}">Unsubscribe</a></p>
-</body></html>`.trim(),
+    emailBody: renderBrandedEmail({
+      title: "Certificate Ready!",
+      greeting: "Hi {{studentName}},",
+      paragraphs: ["Congratulations! Your certificate of completion for <strong>{{programTitle}}</strong> is ready."],
+      button: { label: "Download Certificate", url: "{{lmsUrl}}/certificates/{{certificateId}}" },
+      footnote: "Share your achievement on LinkedIn and other platforms.",
+      unsubscribeUrl: "{{unsubscribeUrl}}",
+    }),
 
     smsBody: `${BRAND_NAME}: Congratulations! Your certificate for {{programTitle}} is ready. Download: {{lmsUrl}}/certificates/{{certificateId}}`,
     smsDltTemplateId: "DLT_PENDING",
@@ -204,15 +205,13 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
     inAppBody: "Reminder: '{{eventTitle}}' starts at {{startsAt}}. Join now!",
 
     emailSubject: "Live class starting soon — {{eventTitle}}",
-    emailBody: `
-<html><body style="font-family:sans-serif;color:#333;max-width:600px;margin:0 auto;padding:24px">
-  <h2 style="color:#1a1a2e">Live Class Reminder</h2>
-  <p>Hi {{studentName}},</p>
-  <p>Your live class <strong>{{eventTitle}}</strong> starts at <strong>{{startsAt}}</strong>.</p>
-  <p><a href="{{joinUrl}}" style="background:#1a1a2e;color:#fff;padding:12px 24px;text-decoration:none;border-radius:4px">Join Now</a></p>
-  <hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
-  <p style="font-size:12px;color:#888">${BRAND_NAME} · <a href="{{unsubscribeUrl}}">Unsubscribe</a></p>
-</body></html>`.trim(),
+    emailBody: renderBrandedEmail({
+      title: "Live Class Reminder",
+      greeting: "Hi {{studentName}},",
+      paragraphs: ["Your live class <strong>{{eventTitle}}</strong> starts at <strong>{{startsAt}}</strong>."],
+      button: { label: "Join Now", url: "{{joinUrl}}" },
+      unsubscribeUrl: "{{unsubscribeUrl}}",
+    }),
 
     smsBody: `${BRAND_NAME}: Reminder — {{eventTitle}} starts at {{startsAt}}. Join: {{joinUrl}}`,
     smsDltTemplateId: "DLT_PENDING",
@@ -227,15 +226,13 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
     inAppBody: "{{authorName}} replied to your thread '{{threadTitle}}'.",
 
     emailSubject: "New reply on your forum thread — {{threadTitle}}",
-    emailBody: `
-<html><body style="font-family:sans-serif;color:#333;max-width:600px;margin:0 auto;padding:24px">
-  <h2 style="color:#1a1a2e">New Reply</h2>
-  <p>Hi {{studentName}},</p>
-  <p><strong>{{authorName}}</strong> replied to your thread <em>{{threadTitle}}</em>.</p>
-  <p><a href="{{lmsUrl}}/forum/threads/{{threadId}}" style="background:#1a1a2e;color:#fff;padding:12px 24px;text-decoration:none;border-radius:4px">View Reply</a></p>
-  <hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
-  <p style="font-size:12px;color:#888">${BRAND_NAME} · <a href="{{unsubscribeUrl}}">Unsubscribe</a></p>
-</body></html>`.trim(),
+    emailBody: renderBrandedEmail({
+      title: "New Reply",
+      greeting: "Hi {{studentName}},",
+      paragraphs: ["<strong>{{authorName}}</strong> replied to your thread <em>{{threadTitle}}</em>."],
+      button: { label: "View Reply", url: "{{lmsUrl}}/forum/threads/{{threadId}}" },
+      unsubscribeUrl: "{{unsubscribeUrl}}",
+    }),
 
     smsBody: `${BRAND_NAME}: {{authorName}} replied to your thread "{{threadTitle}}". View: {{lmsUrl}}/forum/threads/{{threadId}}`,
     smsDltTemplateId: "DLT_PENDING",
@@ -250,13 +247,11 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
     inAppBody: "{{title}}: {{body}}",
 
     emailSubject: "Announcement: {{title}}",
-    emailBody: `
-<html><body style="font-family:sans-serif;color:#333;max-width:600px;margin:0 auto;padding:24px">
-  <h2 style="color:#1a1a2e">{{title}}</h2>
-  <p>{{body}}</p>
-  <hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
-  <p style="font-size:12px;color:#888">${BRAND_NAME} · <a href="{{unsubscribeUrl}}">Unsubscribe</a></p>
-</body></html>`.trim(),
+    emailBody: renderBrandedEmail({
+      title: "{{title}}",
+      paragraphs: ["{{body}}"],
+      unsubscribeUrl: "{{unsubscribeUrl}}",
+    }),
 
     smsBody: `${BRAND_NAME}: {{title}} — {{body}}`,
     smsDltTemplateId: "DLT_PENDING",
@@ -271,15 +266,14 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
     inAppBody: "Thank you for your interest in {{programTitle}}! Our team will contact you soon.",
 
     emailSubject: "We received your inquiry — {{programTitle}}",
-    emailBody: `
-<html><body style="font-family:sans-serif;color:#333;max-width:600px;margin:0 auto;padding:24px">
-  <h2 style="color:#1a1a2e">Thank You!</h2>
-  <p>Hi {{name}},</p>
-  <p>We've received your inquiry about <strong>{{programTitle}}</strong>. Our team will contact you within 24–48 hours.</p>
-  <p style="font-size:12px;color:#888">Questions? Email us at ${SUPPORT_EMAIL}</p>
-  <hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
-  <p style="font-size:12px;color:#888">${BRAND_NAME} · <a href="{{unsubscribeUrl}}">Unsubscribe</a></p>
-</body></html>`.trim(),
+    emailBody: renderBrandedEmail({
+      title: "Thank You!",
+      greeting: "Hi {{name}},",
+      paragraphs: [
+        "We've received your inquiry about <strong>{{programTitle}}</strong>. Our team will contact you within 24–48 hours.",
+      ],
+      unsubscribeUrl: "{{unsubscribeUrl}}",
+    }),
 
     smsBody: `${BRAND_NAME}: Hi {{name}}, thank you for your interest in {{programTitle}}. Our team will contact you soon.`,
     smsDltTemplateId: "DLT_PENDING",
@@ -294,15 +288,17 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
     inAppBody: "Your booking for '{{programTitle}}' on {{slotDate}} is confirmed!",
 
     emailSubject: "Booking confirmed — {{programTitle}} on {{slotDate}}",
-    emailBody: `
-<html><body style="font-family:sans-serif;color:#333;max-width:600px;margin:0 auto;padding:24px">
-  <h2 style="color:#1a1a2e">Booking Confirmed!</h2>
-  <p>Hi {{name}},</p>
-  <p>Your slot for <strong>{{programTitle}}</strong> on <strong>{{slotDate}}</strong> is confirmed.</p>
-  <p>Booking reference: <code>{{bookingId}}</code></p>
-  <hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
-  <p style="font-size:12px;color:#888">${BRAND_NAME} · <a href="{{unsubscribeUrl}}">Unsubscribe</a></p>
-</body></html>`.trim(),
+    emailBody: renderBrandedEmail({
+      title: "Booking Confirmed!",
+      greeting: "Hi {{name}},",
+      paragraphs: ["Your slot for <strong>{{programTitle}}</strong> on <strong>{{slotDate}}</strong> is confirmed."],
+      details: [
+        { label: "Program", value: "{{programTitle}}" },
+        { label: "Slot", value: "{{slotDate}}" },
+        { label: "Booking reference", value: "{{bookingId}}" },
+      ],
+      unsubscribeUrl: "{{unsubscribeUrl}}",
+    }),
 
     smsBody: `${BRAND_NAME}: Your slot for {{programTitle}} on {{slotDate}} is confirmed. Ref: {{bookingId}}`,
     smsDltTemplateId: "DLT_PENDING",
@@ -317,21 +313,19 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
     inAppBody: "Payment of ₹{{amountRupees}} received for your enrollment. Order: {{orderId}}.",
 
     emailSubject: "Payment receipt — ₹{{amountRupees}} received",
-    emailBody: `
-<html><body style="font-family:sans-serif;color:#333;max-width:600px;margin:0 auto;padding:24px">
-  <h2 style="color:#1a1a2e">Payment Received</h2>
-  <p>Hi {{studentName}},</p>
-  <p>We've received your payment of <strong>₹{{amountRupees}}</strong>.</p>
-  <table style="width:100%;border-collapse:collapse;margin:16px 0">
-    <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#888">Order ID</td><td style="padding:8px 0;border-bottom:1px solid #eee">{{orderId}}</td></tr>
-    <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#888">Invoice</td><td style="padding:8px 0;border-bottom:1px solid #eee">{{invoiceNumber}}</td></tr>
-    <tr><td style="padding:8px 0;color:#888">Amount</td><td style="padding:8px 0">₹{{amountRupees}}</td></tr>
-  </table>
-  <p>You are now enrolled. Head to the LMS to begin your program.</p>
-  <p><a href="{{lmsUrl}}" style="background:#1a1a2e;color:#fff;padding:12px 24px;text-decoration:none;border-radius:4px">Go to LMS</a></p>
-  <hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
-  <p style="font-size:12px;color:#888">${BRAND_NAME} · <a href="{{unsubscribeUrl}}">Unsubscribe</a></p>
-</body></html>`.trim(),
+    emailBody: renderBrandedEmail({
+      title: "Payment Received",
+      greeting: "Hi {{studentName}},",
+      paragraphs: ["We've received your payment of <strong>₹{{amountRupees}}</strong>."],
+      details: [
+        { label: "Order ID", value: "{{orderId}}" },
+        { label: "Invoice", value: "{{invoiceNumber}}" },
+        { label: "Amount", value: "₹{{amountRupees}}" },
+      ],
+      closing: ["You are now enrolled. Head to the LMS to begin your program."],
+      button: { label: "Go to LMS", url: "{{lmsUrl}}" },
+      unsubscribeUrl: "{{unsubscribeUrl}}",
+    }),
 
     smsBody: `${BRAND_NAME}: Payment of Rs.{{amountRupees}} received. Order: {{orderId}}. You are now enrolled!`,
     smsDltTemplateId: "DLT_PENDING",
@@ -346,15 +340,13 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
     inAppBody: "Welcome to {{brandName}}, {{userName}}! Your learning journey starts now.",
 
     emailSubject: "Welcome to stimuliIQ, {{userName}}!",
-    emailBody: `
-<html><body style="font-family:sans-serif;color:#333;max-width:600px;margin:0 auto;padding:24px">
-  <h2 style="color:#1a1a2e">Welcome to ${BRAND_NAME}!</h2>
-  <p>Hi {{userName}},</p>
-  <p>Your account is ready. Start learning today!</p>
-  <p><a href="{{lmsUrl}}" style="background:#1a1a2e;color:#fff;padding:12px 24px;text-decoration:none;border-radius:4px">Go to LMS</a></p>
-  <hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
-  <p style="font-size:12px;color:#888">${BRAND_NAME} · <a href="{{unsubscribeUrl}}">Unsubscribe</a></p>
-</body></html>`.trim(),
+    emailBody: renderBrandedEmail({
+      title: `Welcome to ${BRAND_NAME}!`,
+      greeting: "Hi {{userName}},",
+      paragraphs: ["Your account is ready. Start learning today!"],
+      button: { label: "Go to LMS", url: "{{lmsUrl}}" },
+      unsubscribeUrl: "{{unsubscribeUrl}}",
+    }),
 
     smsBody: `${BRAND_NAME}: Welcome, {{userName}}! Your account is ready. Start learning: {{lmsUrl}}`,
     smsDltTemplateId: "DLT_PENDING",

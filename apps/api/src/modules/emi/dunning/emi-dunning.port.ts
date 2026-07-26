@@ -27,6 +27,7 @@ import { getBullMqConnectionOptions } from "../../../queues/queue-connection";
 import { QUEUE_NAMES } from "../../../queues/queue-names";
 import { FIRE_AND_FORGET_JOB_OPTIONS } from "../../../queues/job-options";
 import { MAIL_PROVIDER, type MailProvider } from "../../notifications/providers/mail/mail-provider.interface";
+import { renderBrandedEmail, escapeEmailHtml } from "../../notifications/dispatch/email-layout";
 
 export interface EmiDunningReminderInput {
   tenantId: string;
@@ -53,13 +54,19 @@ function formatAmount(amountPaise: number, currency: string): string {
 }
 
 function buildEmailHtml(input: EmiDunningReminderInput): string {
-  return (
-    `<p>Dear ${input.studentName},</p>` +
-    `<p>This is a reminder that installment #${input.installmentNo} of your EMI plan, ` +
-    `<strong>${formatAmount(input.amountPaise, input.currency)}</strong>, was due on ` +
-    `${new Date(input.dueDate).toLocaleDateString("en-IN")}.</p>` +
-    `<p>Please complete the payment at your earliest convenience to avoid disruption to your enrollment.</p>`
-  );
+  return renderBrandedEmail({
+    title: "EMI installment reminder",
+    greeting: `Dear ${escapeEmailHtml(input.studentName)},`,
+    paragraphs: [
+      `This is a reminder that installment #${input.installmentNo} of your EMI plan is due.`,
+    ],
+    details: [
+      { label: "Installment", value: `#${input.installmentNo}` },
+      { label: "Amount", value: `<strong>${formatAmount(input.amountPaise, input.currency)}</strong>` },
+      { label: "Due date", value: new Date(input.dueDate).toLocaleDateString("en-IN") },
+    ],
+    closing: ["Please complete the payment at your earliest convenience to avoid disruption to your enrollment."],
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

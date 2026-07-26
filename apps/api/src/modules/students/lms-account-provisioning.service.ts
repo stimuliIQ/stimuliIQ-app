@@ -25,6 +25,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { ARGON2_HASH_OPTIONS } from "../auth/lib/argon2-params";
 import { AuthRepository } from "../auth/auth.repository";
 import { MAIL_PROVIDER, type MailProvider } from "../notifications/providers/mail/mail-provider.interface";
+import { renderBrandedEmail, escapeEmailHtml } from "../notifications/dispatch/email-layout";
 import { validateEnv } from "../../config/env";
 
 @Injectable()
@@ -132,17 +133,19 @@ export class LmsAccountProvisioningService {
       await this.mail.send({
         to: email,
         subject: "Welcome to stimuliIQ — your learning account is ready",
-        html:
-          `<p>Hi ${escapeHtml(name)},</p>` +
-          `<p>Your stimuliIQ learning account has been created. Use the details below to sign in:</p>` +
-          `<ul>` +
-          `<li><strong>Login:</strong> <a href="${loginUrl}">${loginUrl}</a></li>` +
-          `<li><strong>Username:</strong> ${escapeHtml(email)}</li>` +
-          `<li><strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</li>` +
-          `</ul>` +
-          `<p>For your security you'll be asked to set a new password the first time you sign in. ` +
-          `Please don't share these details with anyone.</p>` +
-          `<p>Welcome aboard — happy learning!</p>`,
+        html: renderBrandedEmail({
+          title: "Your learning account is ready",
+          greeting: `Hi ${escapeEmailHtml(name)},`,
+          paragraphs: ["Your stimuliIQ learning account has been created. Use the details below to sign in:"],
+          details: [
+            { label: "Username", value: escapeEmailHtml(email) },
+            { label: "Temporary password", value: escapeEmailHtml(tempPassword) },
+          ],
+          button: { label: "Sign in to the LMS", url: loginUrl },
+          footnote:
+            "For your security you'll be asked to set a new password the first time you sign in. " +
+            "Please don't share these details with anyone.",
+        }),
         tags: [{ name: "category", value: "lms_welcome" }],
       });
     } catch (err) {
@@ -166,11 +169,3 @@ function generateTemporaryPassword(): string {
   return randomBytes(12).toString("base64url");
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}

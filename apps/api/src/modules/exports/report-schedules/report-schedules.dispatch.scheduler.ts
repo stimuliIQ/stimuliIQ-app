@@ -62,6 +62,7 @@ import { scopeContextStorage, type ScopeContext } from "../../auth/lib/scope-con
 import type { RequestUser } from "../../auth/lib/request-user";
 import { NotificationsRepository } from "../../notifications/notifications.repository";
 import { MAIL_PROVIDER, type MailProvider } from "../../notifications/providers/mail/mail-provider.interface";
+import { renderBrandedEmail } from "../../notifications/dispatch/email-layout";
 import { ExportsService } from "../exports.service";
 import { TYPE_VIEW_PERMISSION } from "../lib/type-view-permission";
 import { ReportSchedulesRepository, type ReportScheduleRow } from "./report-schedules.repository";
@@ -327,15 +328,25 @@ export class ReportScheduleDispatchScheduler implements OnModuleInit, OnApplicat
 
   private buildEmailHtml(label: string, noData: boolean, downloadUrl: string | null): string {
     if (noData) {
-      return (
-        `<p>Your scheduled <strong>${label}</strong> report ran for this period, but there was ` +
-        `no data to report.</p>`
-      );
+      return renderBrandedEmail({
+        title: `${label} report`,
+        paragraphs: [
+          `Your scheduled <strong>${label}</strong> report ran for this period, but there was no data to report.`,
+        ],
+      });
     }
-    const link = downloadUrl
-      ? `<p><a href="${downloadUrl}">Download your report</a> (link expires shortly).</p>`
-      : `<p>Your report was generated but no download link is currently available — please check the CRM export history.</p>`;
-    return `<p>Your scheduled <strong>${label}</strong> report is ready.</p>${link}`;
+    return renderBrandedEmail({
+      title: `${label} report is ready`,
+      paragraphs: [`Your scheduled <strong>${label}</strong> report is ready.`],
+      ...(downloadUrl
+        ? { button: { label: "Download report", url: downloadUrl }, footnote: "The download link expires shortly." }
+        : {
+            paragraphs: [
+              `Your scheduled <strong>${label}</strong> report is ready.`,
+              "No download link is currently available — please check the CRM export history.",
+            ],
+          }),
+    });
   }
 
   /** Never surface a raw stack trace / internal error message — mirrors ExportsService.sanitizeError. */

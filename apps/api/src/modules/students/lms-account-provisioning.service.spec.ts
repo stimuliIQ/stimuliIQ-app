@@ -1,6 +1,6 @@
-// Unit tests for LmsAccountProvisioningService (lifecycle-redesign P3).
+﻿// Unit tests for LmsAccountProvisioningService (lifecycle-redesign P3).
 //
-// The service builds the login URL from validateEnv().LMS_APP_URL — mocked so this spec
+// The service builds the login URL from validateEnv().LMS_APP_URL â€” mocked so this spec
 // is self-contained (mirrors password-reset.service.spec.ts).
 jest.mock("../../config/env", () => ({
   validateEnv: jest.fn(() => ({ LMS_APP_URL: "https://lms.stimuliiq.test" })),
@@ -73,7 +73,7 @@ describe("LmsAccountProvisioningService", () => {
     expect(sent.html).toContain("asha@example.com");
 
     // The emailed temp password must be the one that was actually hashed onto the account.
-    const emailedPw = /Temporary password:<\/strong> ([^<]+)</.exec(sent.html)?.[1];
+    const emailedPw = /Temporary password<\/td>\s*<td[^>]*>([^<]+)</.exec(sent.html)?.[1];
     expect(emailedPw).toBeTruthy();
     await expect(argon2.verify(hash, emailedPw as string)).resolves.toBe(true);
   });
@@ -138,7 +138,7 @@ describe("LmsAccountProvisioningService", () => {
   describe("resendCredentials (gap-closing pass: CRM 'resend credentials' action)", () => {
     it("rotates the password + re-raises mustChangePassword + emails the student, even when already onboarded", async () => {
       // Unlike provisionForStudentProfile, an EXISTING (non-empty) passwordHash must NOT
-      // block this — it's an explicit staff-triggered reissue.
+      // block this â€” it's an explicit staff-triggered reissue.
       const { prisma, update } = makePrisma(makeProfile({ passwordHash: "$argon2id$existing" }));
       const mail = makeMail();
       const authRepository = makeAuthRepository();
@@ -166,7 +166,7 @@ describe("LmsAccountProvisioningService", () => {
       expect(mail.send).toHaveBeenCalledTimes(1);
       const sent = mail.send.mock.calls[0][0];
       expect(sent.to).toBe("asha@example.com");
-      const emailedPw = /Temporary password:<\/strong> ([^<]+)</.exec(sent.html)?.[1];
+      const emailedPw = /Temporary password<\/td>\s*<td[^>]*>([^<]+)</.exec(sent.html)?.[1];
       expect(emailedPw).toBeTruthy();
       await expect(argon2.verify(hash, emailedPw as string)).resolves.toBe(true);
     });

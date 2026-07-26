@@ -213,7 +213,7 @@ describe("FacultyService", () => {
       expect(sent.html).toContain("https://crm.stimuliiq.test/login");
 
       // The emailed temp password must be the one that was actually hashed onto the account.
-      const emailedPw = /Temporary password:<\/strong> ([^<]+)</.exec(sent.html)?.[1];
+      const emailedPw = /Temporary password<\/td>\s*<td[^>]*>([^<]+)</.exec(sent.html)?.[1];
       expect(emailedPw).toBeTruthy();
       await expect(argon2.verify(hash, emailedPw as string)).resolves.toBe(true);
     });

@@ -33,6 +33,7 @@
 import { Injectable, Logger, Inject } from "@nestjs/common";
 import type { CampaignSendPort, RecipientSendJob, RecipientSendResult } from "./campaign-send.port";
 import { MAIL_PROVIDER, type MailProvider } from "../providers/mail/mail-provider.interface";
+import { wrapInBrandedShell } from "./email-layout";
 import { WHATSAPP_PROVIDER, type WhatsAppProvider } from "../providers/whatsapp/whatsapp-provider.interface";
 import { SMS_PROVIDER, type SmsProvider } from "../../auth/providers/sms/sms-provider.interface";
 
@@ -117,7 +118,10 @@ export class SyncCampaignSendAdapter implements CampaignSendPort {
       const result = await this.mail.send({
         to: job.to,
         subject: job.subject ?? "",
-        html: job.body,
+        // Campaign bodies are CRM-authored fragments; the branded shell adds the
+        // logo header / footer so every outbound email shares one trusted look.
+        // Skip wrapping when the author already supplied a full HTML document.
+        html: /<html[\s>]/i.test(job.body) ? job.body : wrapInBrandedShell(job.body),
         tags: job.emailTags,
       });
       return { sent: true, queued: false, providerMessageId: result.providerMessageId };
