@@ -44,6 +44,17 @@ export class OrdersApi {
   }
 
   /**
+   * DELETE /api/v1/commerce/orders/:id
+   *
+   * Cancels an UNPAID (status=created) order — un-assigns a program opened by
+   * mistake. Soft-deletes the order + never-captured payment rows and releases
+   * the coupon redemption. 422 for a paid order (use the refund flow instead).
+   */
+  async cancel(id: string, idempotencyKey: string = crypto.randomUUID()): Promise<void> {
+    await this.client.request<void>("DELETE", `/api/v1/commerce/orders/${id}`, { idempotencyKey });
+  }
+
+  /**
    * POST /api/v1/commerce/orders/:id/payment-link
    *
    * Mints a signed public payment URL for an OPEN order to send to the student

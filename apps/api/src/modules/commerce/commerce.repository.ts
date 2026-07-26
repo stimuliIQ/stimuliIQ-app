@@ -920,6 +920,38 @@ export class CommerceRepository {
    *
    * Returns the number of rows updated (0 = max_uses already reached, 1 = success).
    */
+  /**
+   * Release one coupon redemption (order-cancel path — the `used` count was
+   * incremented at order CREATE time, so cancelling the unpaid order must give
+   * the redemption back). Floor-guarded so a double-cancel can never go negative.
+   */
+  async decrementCouponUsed(couponId: string): Promise<void> {
+    await this.prisma.client.coupon.updateMany({
+      where: { id: couponId, deletedAt: null, used: { gt: 0 } },
+      data: { used: { decrement: 1 } },
+    });
+  }
+
+  /**
+   * Cancel an UNPAID order (order-cancel path): soft-delete the order row plus
+   * any not-captured payment rows from initiated-but-abandoned checkouts, in one
+   * transaction. Soft delete (deletedAt) is the platform's cancellation idiom —
+   * audited by the Prisma extensions and restorable — and the OrderStatus enum
+   * deliberately gains no "cancelled" value (forward-only migrations).
+   */
+  async softDeleteUnpaidOrder(tenantId: string, orderId: string): Promise<void> {
+    await this.prisma.client.$transaction(async (tx) => {
+      await tx.payment.updateMany({
+        where: { tenantId, orderId, status: { not: "captured" }, deletedAt: null },
+        data: { deletedAt: new Date() },
+      });
+      await tx.order.updateMany({
+        where: { tenantId, id: orderId, status: "created", deletedAt: null },
+        data: { deletedAt: new Date() },
+      });
+    });
+  }
+
   async incrementCouponUsed(couponId: string, maxUses: number | null): Promise<number> {
     if (maxUses === null) {
       // Unlimited usage — simple increment

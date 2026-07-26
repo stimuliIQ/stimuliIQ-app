@@ -355,6 +355,31 @@ export class CommerceService {
   }
 
   /**
+   * DELETE /commerce/orders/:id — cancel an UNPAID (status=created) order:
+   * un-assign a program that was opened by mistake or that the student walked
+   * away from. Soft-deletes the order + its never-captured payment rows and
+   * releases the coupon redemption taken at create time. A paid order can NOT
+   * be cancelled here — that is the refund flow's job.
+   */
+  async cancelOrder(tenantId: string, actorId: string, id: string): Promise<void> {
+    const restriction = await this.resolveListRestriction(actorId);
+    const order = await this.repository.findOrderById(tenantId, id, false, restriction.restrictToBranchIds);
+    if (!order) throw new NotFoundException({ code: "commerce.order_not_found", title: "Order not found" });
+    if (order.status !== "created") {
+      throw new UnprocessableEntityException({
+        code: "commerce.order_not_cancellable",
+        title: "Only unpaid orders can be cancelled",
+        detail: `This order is "${order.status}" — a paid order goes through the refund flow instead.`,
+      });
+    }
+
+    await this.repository.softDeleteUnpaidOrder(tenantId, id);
+    if (order.couponId) {
+      await this.repository.decrementCouponUsed(order.couponId);
+    }
+  }
+
+  /**
    * Fill batchName on OPEN orders in place. Until payment creates the enrollment,
    * an order's batch exists only as notes.batchId (toOrderRowWithBatch surfaces it
    * as row.batchId) — the batch NAME needs this one extra lookup. Paid orders

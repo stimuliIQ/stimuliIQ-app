@@ -52,6 +52,22 @@ export function useCreateOrder() {
 }
 
 /**
+ * Cancel an UNPAID order — un-assign a program opened by mistake. Invalidates
+ * the student queries too: removing the open order moves the derived lifecycle
+ * stage back, so the chip/stepper must refetch.
+ */
+export function useCancelOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => apiClient.commerce.orders.cancel(orderId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: STUDENTS_QUERY_KEY });
+    },
+  });
+}
+
+/**
  * Mint a signed public payment link for an open order (lifecycle-redesign:
  * "send the student a link to pay"). No cache to invalidate — minting is
  * side-effect-free server-side (the link is derived, not stored).

@@ -6,13 +6,14 @@
 // as empty while the header said Payment Pending. An "Add program" action
 // opens another order for this student (orders.create-gated).
 import * as React from "react";
-import { Button, DataTable, type DataTableColumn, EmptyState, StatusChip, formatPaise } from "@repo/ui";
+import { Button, ConfirmDialog, DataTable, type DataTableColumn, EmptyState, StatusChip, formatPaise, useToast } from "@repo/ui";
 import type { Enrollment, EnrollmentStatus, MeResponse, OrderSummary } from "@repo/types";
 
 import { useEnrollmentsList } from "../../hooks/use-enrollments";
-import { useOrdersList } from "../../hooks/use-orders";
+import { useOrdersList, useCancelOrder } from "../../hooks/use-orders";
 import { hasPermission } from "../../lib/permissions";
 import { AddProgramDialog } from "./add-program-dialog";
+import { surfaceError } from "../../lib/surface-error";
 
 const STATUS_TONE: Record<EnrollmentStatus, "success" | "info" | "danger"> = {
   active: "success",
@@ -31,9 +32,29 @@ export function StudentEnrollmentsTab({
   // Open (unpaid) orders = program assignments awaiting payment.
   const orders = useOrdersList({ studentId, status: "created", page: 1, pageSize: 20 });
   const pendingOrders = orders.data?.items ?? [];
+  const { toast } = useToast();
+  const cancelOrder = useCancelOrder();
 
   const canAddProgram = hasPermission(me?.permissions, "orders.create");
+  const canCancelOrder = hasPermission(me?.permissions, "orders.edit");
   const [addOpen, setAddOpen] = React.useState(false);
+  // The pending order (if any) staged for cancellation — drives the confirm dialog.
+  const [cancelTarget, setCancelTarget] = React.useState<OrderSummary | null>(null);
+
+  async function handleCancelOrder() {
+    if (!cancelTarget) return;
+    try {
+      await cancelOrder.mutateAsync(cancelTarget.id);
+      toast({
+        title: "Program un-assigned",
+        description: "The unpaid order was cancelled — nothing was charged.",
+        variant: "success",
+      });
+      setCancelTarget(null);
+    } catch (error) {
+      surfaceError(toast, error, "Couldn't cancel this order");
+    }
+  }
 
   const columns: Array<DataTableColumn<Enrollment>> = [
     { id: "programTitle", header: "Program", cell: (row) => row.programTitle },
@@ -53,6 +74,25 @@ export function StudentEnrollmentsTab({
     },
     { id: "amountPaise", header: "Amount", cell: (row) => formatPaise(row.amountPaise), align: "right" },
     { id: "createdAt", header: "Ordered", cell: (row) => new Date(row.createdAt).toLocaleDateString(), align: "right" },
+    ...(canCancelOrder
+      ? [
+          {
+            id: "actions",
+            header: "",
+            cell: (row: OrderSummary) => (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setCancelTarget(row)}
+                data-testid="student-cancel-order-button"
+              >
+                Cancel
+              </Button>
+            ),
+            align: "right" as const,
+          },
+        ]
+      : []),
   ];
 
   if (isError) {
@@ -115,6 +155,25 @@ export function StudentEnrollmentsTab({
       />
 
       <AddProgramDialog studentId={studentId} open={addOpen} onOpenChange={setAddOpen} />
+
+      <ConfirmDialog
+        open={cancelTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setCancelTarget(null);
+        }}
+        title="Un-assign this program?"
+        description={
+          cancelTarget
+            ? `Cancels the unpaid ${formatPaise(cancelTarget.amountPaise)} order for "${cancelTarget.programTitle}". ` +
+              "Nothing has been charged, and any coupon use is released. Paid orders go through the refund flow instead."
+            : undefined
+        }
+        confirmLabel="Cancel order"
+        tone="danger"
+        loading={cancelOrder.isPending}
+        onConfirm={handleCancelOrder}
+        data-testid="student-cancel-order-confirm"
+      />
     </div>
   );
 }

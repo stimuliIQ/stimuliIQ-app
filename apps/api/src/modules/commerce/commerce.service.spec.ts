@@ -230,6 +230,8 @@ describe("CommerceService", () => {
       updateCoupon: jest.fn(),
       softDeleteCoupon: jest.fn(),
       incrementCouponUsed: jest.fn(),
+      decrementCouponUsed: jest.fn(),
+      softDeleteUnpaidOrder: jest.fn(),
       findExistingEnrollment: jest.fn(),
       createEnrollment: jest.fn(),
       restoreEnrollment: jest.fn(),
@@ -971,6 +973,48 @@ describe("CommerceService", () => {
       );
 
       expect(result.status).toBe("captured");
+    });
+  });
+
+  // ─── cancelOrder (un-assign an unpaid program) ────────────────────────────
+
+  describe("cancelOrder", () => {
+    it("soft-deletes an unpaid order and releases its coupon redemption", async () => {
+      const order = makeMockOrderRow({ status: "created", couponId: COUPON_ID });
+      repository.findOrderById.mockResolvedValue(order);
+      repository.softDeleteUnpaidOrder.mockResolvedValue(undefined);
+      repository.decrementCouponUsed.mockResolvedValue(undefined);
+
+      await withScope("all", () => service.cancelOrder(TENANT_ID, ACTOR_ID, ORDER_ID));
+
+      expect(repository.softDeleteUnpaidOrder).toHaveBeenCalledWith(TENANT_ID, ORDER_ID);
+      expect(repository.decrementCouponUsed).toHaveBeenCalledWith(COUPON_ID);
+    });
+
+    it("does not touch coupons when the order had none", async () => {
+      repository.findOrderById.mockResolvedValue(makeMockOrderRow({ status: "created", couponId: null }));
+      repository.softDeleteUnpaidOrder.mockResolvedValue(undefined);
+
+      await withScope("all", () => service.cancelOrder(TENANT_ID, ACTOR_ID, ORDER_ID));
+
+      expect(repository.decrementCouponUsed).not.toHaveBeenCalled();
+    });
+
+    it("422s a PAID order (refund flow, not cancellation)", async () => {
+      repository.findOrderById.mockResolvedValue(makeMockOrderRow({ status: "paid" }));
+
+      await expect(
+        withScope("all", () => service.cancelOrder(TENANT_ID, ACTOR_ID, ORDER_ID)),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+      expect(repository.softDeleteUnpaidOrder).not.toHaveBeenCalled();
+    });
+
+    it("404s an unknown / out-of-scope order", async () => {
+      repository.findOrderById.mockResolvedValue(null);
+
+      await expect(
+        withScope("all", () => service.cancelOrder(TENANT_ID, ACTOR_ID, ORDER_ID)),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

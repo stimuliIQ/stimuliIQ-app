@@ -155,6 +155,20 @@ export class CommerceController {
     );
   }
 
+  /**
+   * Cancel an UNPAID order (un-assign a program opened by mistake). Soft-delete
+   * + coupon release; 422 for any non-`created` order (paid → refund flow).
+   */
+  @Delete("orders/:id")
+  @HttpCode(204)
+  @RequirePermission("orders.edit")
+  async cancelOrder(
+    @CurrentUser() user: RequestUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+  ): Promise<void> {
+    await this.commerceService.cancelOrder(user.tenantId, user.id, id);
+  }
+
   @Post("orders/:id/pay")
   @HttpCode(200)
   @RequirePermission("orders.edit")
