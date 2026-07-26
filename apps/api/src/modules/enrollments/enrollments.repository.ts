@@ -195,11 +195,23 @@ export class EnrollmentsRepository {
         select: { id: true },
       });
 
+      // An enrolled student is no longer an "admissions" record: promote the
+      // coarse profile status lead → active in the same transaction. (Self-
+      // registered students start active; converted-lead students started as
+      // "lead" and previously stayed there forever, so a paying, enrolled
+      // student still sat in the directory's Admissions bucket.)
+      const promoteProfile = () =>
+        tx.studentProfile.updateMany({
+          where: { id: data.studentId, tenantId, status: "lead" },
+          data: { status: "active" },
+        });
+
       if (existing) {
         await tx.enrollment.update({
           where: { id: existing.id },
           data: { deletedAt: null, status: "active", progressPct: 0, completedAt: null, programId: data.programId },
         });
+        await promoteProfile();
         return { id: existing.id, restored: true };
       }
 
@@ -213,6 +225,7 @@ export class EnrollmentsRepository {
           progressPct: 0,
         },
       });
+      await promoteProfile();
       return { id: row.id, restored: false };
     });
   }

@@ -609,18 +609,30 @@ export class CommerceService {
       source: "order" | "conversion" | "manual";
     },
   ): Promise<void> {
+    // An enrolled student is no longer an "admissions" record: promote the coarse
+    // profile status lead → active in the same transaction (converted-lead students
+    // start as "lead" and otherwise stay in the directory's Admissions bucket even
+    // after paying — mirrors enrollments.repository.enrollOrRestore).
+    const promoteProfile = () =>
+      tx.studentProfile.updateMany({
+        where: { id: data.studentId, tenantId: data.tenantId, status: "lead" },
+        data: { status: "active" },
+      });
+
     // Look for existing enrollment including soft-deleted
     const existing = await this.repository.findExistingEnrollment(data.studentId, data.batchId);
 
     if (!existing) {
       // New enrollment
       await this.repository.createEnrollment(tx, data);
+      await promoteProfile();
       return;
     }
 
     if (existing.deletedAt !== null) {
       // Soft-deleted — hard-restore
       await this.repository.restoreEnrollment(tx, existing.id, data.orderId, data.source);
+      await promoteProfile();
       return;
     }
 

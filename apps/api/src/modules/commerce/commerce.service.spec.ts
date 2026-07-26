@@ -556,6 +556,7 @@ describe("CommerceService", () => {
           findFirst: jest.fn().mockResolvedValue(null),
           create: jest.fn().mockResolvedValue({ id: "inv-1" }),
         },
+        studentProfile: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       };
       repository.transaction.mockImplementation(async (fn) => fn(fakeTx as never));
       repository.findExistingEnrollment.mockResolvedValue(null);
@@ -628,6 +629,7 @@ describe("CommerceService", () => {
           findFirst: jest.fn().mockResolvedValue(null),
           create: jest.fn().mockResolvedValue({ id: "inv-1" }),
         },
+        studentProfile: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       };
       repository.transaction.mockImplementation(async (fn) => fn(fakeTx as never));
       repository.findExistingEnrollment.mockResolvedValue(null);
@@ -897,6 +899,7 @@ describe("CommerceService", () => {
         payment: { update: jest.fn().mockResolvedValue({}) },
         order: { update: jest.fn().mockResolvedValue({}) },
         invoice: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: "inv-1" }) },
+        studentProfile: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       };
       repository.transaction.mockImplementation(async (fn) => fn(fakeTx as never));
       repository.findExistingEnrollment.mockResolvedValue(null);
@@ -946,6 +949,7 @@ describe("CommerceService", () => {
         payment: { update: jest.fn().mockResolvedValue({}) },
         order: { update: jest.fn().mockResolvedValue({}) },
         invoice: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: "inv-1" }) },
+        studentProfile: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       };
       repository.transaction.mockImplementation(async (fn) => fn(fakeTx as never));
       repository.findExistingEnrollment.mockResolvedValue(null);

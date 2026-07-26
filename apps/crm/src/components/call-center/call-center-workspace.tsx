@@ -23,7 +23,6 @@ import { leadsListKey } from "../../hooks/use-leads";
 import { hasPermission } from "../../lib/permissions";
 import { StudentDetailDrawer } from "../students/student-detail-drawer";
 import { LeadDetailDrawer } from "../leads/lead-detail-drawer";
-import { StudentStatusChip } from "../students/student-status-chip";
 import { LeadStageChip } from "../leads/lead-stage-chip";
 import { LifecycleChip } from "../shared/lifecycle-chip";
 
@@ -169,7 +168,11 @@ export function CallCenterWorkspace({ me }: CallCenterWorkspaceProps): React.JSX
   });
 
   const students: StudentSummary[] = studentsQuery.data?.items ?? [];
-  const leads: LeadSummary[] = leadsQuery.data?.items ?? [];
+  // A converted lead and its student record are the SAME person — the student
+  // card is canonical (it carries the richer post-conversion lifecycle), so
+  // converted leads are hidden here to avoid a duplicate card with a staler
+  // stage. The Pipeline keeps showing them (its context is lead history).
+  const leads: LeadSummary[] = (leadsQuery.data?.items ?? []).filter((lead) => !lead.convertedStudentId);
   const isLoading = searching && (studentsQuery.isLoading || leadsQuery.isLoading);
 
   return (
@@ -222,12 +225,10 @@ export function CallCenterWorkspace({ me }: CallCenterWorkspaceProps): React.JSX
                     onOpen={() => setStudentId(student.id)}
                     name={student.name}
                     contactLine={[student.phone, student.email].filter(Boolean).join(" · ")}
-                    chips={
-                      <>
-                        <StudentStatusChip status={student.status} />
-                        <LifecycleChip stage={student.lifecycleStage} />
-                      </>
-                    }
+                    // ONE status chip: the derived lifecycle stage. The coarse
+                    // profile status ("lead" = admissions grouping) reads as a
+                    // contradiction next to it for a paying student.
+                    chips={<LifecycleChip stage={student.lifecycleStage} />}
                     meta={[
                       { label: "College", value: student.college },
                       { label: "Course type", value: student.courseType },
