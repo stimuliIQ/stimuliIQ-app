@@ -1,17 +1,21 @@
 // Call Center — one screen for phone-support staff: type whatever the caller
-// gives you (name / phone / email) and open their full record in one click.
-// Students open the Student 360 drawer (Overview / Enrollments / Payments /
-// Attendance / Certificates / Tickets / Timeline + credential actions); leads
-// open the lead drawer (stage, follow-ups, bookings, convert).
+// gives you (name / phone / email) and their full record is one click away.
 //
-// Credentials note (deliberate): passwords are stored as one-way argon2id
-// hashes — NOBODY can view them, by design. The "forgot my password" call is
-// served by the Student 360's "Resend LMS credentials" action (rotates the
-// password and emails a fresh temporary one; forced change on first sign-in).
+// Result cards are deliberately rich (top-tier support-desk pattern): identity
+// + status chips + the key profile facts + a computed "Next step" line derived
+// from the unified lifecycle stage, so the agent knows what to do for this
+// caller without opening anything. Clicking the card opens the full drawer:
+//   - students → Student 360 (profile / enrollments / payments / attendance /
+//     certificates / tickets / timeline + credential actions)
+//   - leads    → lead drawer (stage moves, follow-ups, bookings, CONVERT)
+//
+// Passwords are one-way hashed and can never be shown; the "forgot my
+// password" call is served inside the Student 360 via "Resend LMS credentials".
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, EmptyState, Input, PageHeader, Skeleton } from "@repo/ui";
-import type { MeResponse } from "@repo/types";
+import { EmptyState, Input, PageHeader, Skeleton } from "@repo/ui";
+import { ArrowRight } from "lucide-react";
+import type { LeadSummary, LifecycleStage, MeResponse, StudentSummary } from "@repo/types";
 
 import { apiClient } from "../../lib/api-client";
 import { studentsListKey } from "../../hooks/use-students";
@@ -27,6 +31,28 @@ interface CallCenterWorkspaceProps {
   me: MeResponse | undefined;
 }
 
+/**
+ * The agent-facing "what do I do for this caller now?" line, derived from the
+ * unified lifecycle stage. Keep imperative and short — it renders on the card.
+ */
+const NEXT_STEP: Record<LifecycleStage, string> = {
+  new_lead: "Qualify the lead and assign an owner",
+  assigned: "Make first contact and qualify",
+  contacted: "Follow up — move to won when ready",
+  interested: "Counsel and close — move to won",
+  registration_started: "Convert to student (full registration)",
+  registered: "Assign a program + batch and create the order",
+  program_assigned: "Create the order and collect payment",
+  payment_pending: "Collect payment — record it if paid offline",
+  payment_completed: "Credentials emailed — help them sign in",
+  active_student: "Enrolled — nudge them to start learning",
+  learning_in_progress: "On track — support with course questions",
+  course_completed: "Issue the certificate",
+  certified: "Journey complete — offer alumni support",
+  lost: "Reopen the lead if interest returns",
+  dropped: "Re-engage or route to the refund flow",
+};
+
 /** Debounce a string value (300 ms) so we don't query per keystroke. */
 function useDebounced(value: string, delayMs = 300): string {
   const [debounced, setDebounced] = React.useState(value);
@@ -35,6 +61,87 @@ function useDebounced(value: string, delayMs = 300): string {
     return () => clearTimeout(t);
   }, [value, delayMs]);
   return debounced;
+}
+
+function Avatar({ name }: { name: string }): React.JSX.Element {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("");
+  return (
+    <span
+      aria-hidden="true"
+      className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-500/10 text-sm font-semibold text-brand-600"
+    >
+      {initials || "?"}
+    </span>
+  );
+}
+
+function MetaRow({ items }: { items: Array<{ label: string; value: string | null | undefined }> }): React.JSX.Element {
+  const present = items.filter((i) => i.value);
+  if (present.length === 0) return <></>;
+  return (
+    <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+      {present.map((item) => (
+        <div key={item.label} className="min-w-0">
+          <dt className="text-[11px] uppercase tracking-wide text-fg-subtle">{item.label}</dt>
+          <dd className="truncate text-sm text-fg">{item.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function NextStep({ stage }: { stage: LifecycleStage }): React.JSX.Element {
+  return (
+    <p className="mt-3 flex items-center gap-1.5 border-t border-border pt-2.5 text-sm font-medium text-brand-600">
+      <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
+      {NEXT_STEP[stage]}
+    </p>
+  );
+}
+
+function CallerCard({
+  onOpen,
+  testId,
+  name,
+  contactLine,
+  chips,
+  meta,
+  lifecycleStage,
+}: {
+  onOpen: () => void;
+  testId: string;
+  name: string;
+  contactLine: string;
+  chips: React.ReactNode;
+  meta: Array<{ label: string; value: string | null | undefined }>;
+  lifecycleStage: LifecycleStage;
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="w-full rounded-lg border border-border bg-card p-4 text-left shadow-sm transition-all hover:border-brand-500/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      data-testid={testId}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar name={name} />
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-fg">{name}</p>
+            <p className="truncate text-sm text-fg-muted">{contactLine}</p>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">{chips}</div>
+      </div>
+      <MetaRow items={meta} />
+      <NextStep stage={lifecycleStage} />
+    </button>
+  );
 }
 
 export function CallCenterWorkspace({ me }: CallCenterWorkspaceProps): React.JSX.Element {
@@ -61,22 +168,16 @@ export function CallCenterWorkspace({ me }: CallCenterWorkspaceProps): React.JSX
     enabled: searching && canViewLeads,
   });
 
-  const students = studentsQuery.data?.items ?? [];
-  const leads = leadsQuery.data?.items ?? [];
+  const students: StudentSummary[] = studentsQuery.data?.items ?? [];
+  const leads: LeadSummary[] = leadsQuery.data?.items ?? [];
   const isLoading = searching && (studentsQuery.isLoading || leadsQuery.isLoading);
 
   return (
     <div className="space-y-6 md:space-y-8" data-testid="call-center-workspace">
       <PageHeader
         title="Call Center"
-        description="Search by name, phone, or email — everything about the caller (profile, enrollments, payments, invoices, tickets, credentials) is one click away."
+        description="Search by name, phone, or email — status, details, and the next step for every caller, one click from their full record."
       />
-
-      <Alert tone="info" title="Forgotten credentials?" data-testid="call-center-credentials-note">
-        Passwords are stored one-way encrypted and can never be viewed. Open the student and use
-        &quot;Resend LMS credentials&quot; — it immediately rotates their password and emails a fresh temporary one
-        (they set their own new password at next sign-in).
-      </Alert>
 
       <div className="max-w-2xl">
         <Input
@@ -96,10 +197,9 @@ export function CallCenterWorkspace({ me }: CallCenterWorkspaceProps): React.JSX
           data-testid="call-center-idle"
         />
       ) : isLoading ? (
-        <div className="flex flex-col gap-3" aria-label="Searching">
-          <Skeleton className="h-16 w-full rounded-md" />
-          <Skeleton className="h-16 w-full rounded-md" />
-          <Skeleton className="h-16 w-full rounded-md" />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-label="Searching">
+          <Skeleton className="h-40 w-full rounded-lg" />
+          <Skeleton className="h-40 w-full rounded-lg" />
         </div>
       ) : students.length === 0 && leads.length === 0 ? (
         <EmptyState
@@ -108,68 +208,72 @@ export function CallCenterWorkspace({ me }: CallCenterWorkspaceProps): React.JSX
           data-testid="call-center-no-results"
         />
       ) : (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <section aria-label="Matching students" className="space-y-2">
-            <h2 className="text-sm font-semibold text-fg">Students ({students.length})</h2>
-            {students.length === 0 ? (
-              <p className="text-sm text-fg-muted">No student matches.</p>
-            ) : (
-              <ul role="list" className="space-y-2">
+        <div className="space-y-6">
+          {students.length > 0 ? (
+            <section aria-label="Matching students" className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
+                Students ({students.length})
+              </h2>
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {students.map((student) => (
-                  <li key={student.id}>
-                    <button
-                      type="button"
-                      onClick={() => setStudentId(student.id)}
-                      className="flex w-full items-center justify-between gap-3 rounded-md border border-border bg-card p-3 text-left transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      data-testid="call-center-student-result"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium text-fg">{student.name}</span>
-                        <span className="block truncate text-sm text-fg-muted">
-                          {student.phone ?? "no phone"} · {student.email}
-                        </span>
-                      </span>
-                      <span className="flex shrink-0 items-center gap-1.5">
+                  <CallerCard
+                    key={student.id}
+                    testId="call-center-student-result"
+                    onOpen={() => setStudentId(student.id)}
+                    name={student.name}
+                    contactLine={[student.phone, student.email].filter(Boolean).join(" · ")}
+                    chips={
+                      <>
                         <StudentStatusChip status={student.status} />
                         <LifecycleChip stage={student.lifecycleStage} />
-                      </span>
-                    </button>
-                  </li>
+                      </>
+                    }
+                    meta={[
+                      { label: "College", value: student.college },
+                      { label: "Course type", value: student.courseType },
+                      { label: "City", value: student.city },
+                      { label: "Year", value: student.year != null ? String(student.year) : null },
+                      { label: "Since", value: new Date(student.createdAt).toLocaleDateString() },
+                    ]}
+                    lifecycleStage={student.lifecycleStage}
+                  />
                 ))}
-              </ul>
-            )}
-          </section>
+              </div>
+            </section>
+          ) : null}
 
-          <section aria-label="Matching leads" className="space-y-2">
-            <h2 className="text-sm font-semibold text-fg">Leads ({leads.length})</h2>
-            {leads.length === 0 ? (
-              <p className="text-sm text-fg-muted">No lead matches.</p>
-            ) : (
-              <ul role="list" className="space-y-2">
+          {leads.length > 0 ? (
+            <section aria-label="Matching leads" className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
+                Leads ({leads.length})
+              </h2>
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {leads.map((lead) => (
-                  <li key={lead.id}>
-                    <button
-                      type="button"
-                      onClick={() => setLeadId(lead.id)}
-                      className="flex w-full items-center justify-between gap-3 rounded-md border border-border bg-card p-3 text-left transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      data-testid="call-center-lead-result"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium text-fg">{lead.name}</span>
-                        <span className="block truncate text-sm text-fg-muted">
-                          {lead.phone || "no phone"}
-                          {lead.email ? ` · ${lead.email}` : ""}
-                        </span>
-                      </span>
-                      <span className="flex shrink-0 items-center gap-1.5">
+                  <CallerCard
+                    key={lead.id}
+                    testId="call-center-lead-result"
+                    onOpen={() => setLeadId(lead.id)}
+                    name={lead.name}
+                    contactLine={[lead.phone || null, lead.email].filter(Boolean).join(" · ")}
+                    chips={
+                      <>
                         <LeadStageChip stage={lead.stage} />
-                      </span>
-                    </button>
-                  </li>
+                        <LifecycleChip stage={lead.lifecycleStage} />
+                      </>
+                    }
+                    meta={[
+                      { label: "Interest", value: lead.programInterestTitle ?? lead.courseInterest },
+                      { label: "College", value: lead.college },
+                      { label: "Source", value: lead.source },
+                      { label: "Owner", value: lead.ownerName ?? "Unassigned" },
+                      { label: "Since", value: new Date(lead.createdAt).toLocaleDateString() },
+                    ]}
+                    lifecycleStage={lead.lifecycleStage}
+                  />
                 ))}
-              </ul>
-            )}
-          </section>
+              </div>
+            </section>
+          ) : null}
         </div>
       )}
 

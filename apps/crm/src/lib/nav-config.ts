@@ -120,13 +120,17 @@ export const NAV_SECTIONS: NavSection[] = [
     permission: "students.view",
   },
   {
-    // One page with an in-page status toggle (All / Admissions / Active /
-    // Alumni) instead of three sub-pages — the old /students/admissions and
-    // /students/alumni URLs redirect into the toggle.
     label: "Students",
     icon: Users,
-    to: "/students",
-    permission: "students.view",
+    children: [
+      // One page with an in-page status toggle (All / Admissions / Active /
+      // Alumni) instead of three sub-pages — the old /students/admissions and
+      // /students/alumni URLs redirect into the toggle.
+      { label: "Directory", to: "/students", permission: "students.view" },
+      // Bulk intake: Excel/CSV upload → validated preview → per-row selection →
+      // created via the same POST /crm/students contract.
+      { label: "Import", to: "/students/import", permission: "students.create" },
+    ],
   },
   {
     label: "Academics",

@@ -21,6 +21,7 @@ import { dashboardRoute } from "./routes/dashboard-route";
 import { studentsRoute } from "./routes/students-route";
 import { studentsAdmissionsRoute } from "./routes/students-admissions-route";
 import { studentsAlumniRoute } from "./routes/students-alumni-route";
+import { studentsImportRoute } from "./routes/students-import-route";
 import { facultyRoute } from "./routes/faculty-route";
 import { coursesRoute } from "./routes/courses-route";
 import { batchesRoute } from "./routes/batches-route";
@@ -88,6 +89,7 @@ const routeTree = rootRoute.addChildren([
   studentsRoute,
   studentsAdmissionsRoute,
   studentsAlumniRoute,
+  studentsImportRoute,
   facultyRoute,
   coursesRoute,
   batchesRoute,
