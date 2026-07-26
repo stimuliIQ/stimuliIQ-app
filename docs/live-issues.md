@@ -111,3 +111,15 @@ explicit approval (CLAUDE.md §3.13 — every push triggers Vercel deploys).
   per-MV failure isolation, and upserts the freshness log rows so the missing seeds
   self-heal on the first tick.
 - **Status:** committed locally; requires the VPS API deploy.
+
+### 7. CRM testimonial add / status change not reflecting on www — DUPLICATE OF #1 (no new fix)
+
+- **Symptom:** publishing/archiving testimonials in the CRM has no effect on the
+  homepage "What Our Students Say" section.
+- **Diagnosis:** the API serves the correct data (`/public/testimonials` returns exactly
+  the published set) — but the live homepage HTML predates it. The homepage is ISR
+  (5-minute revalidate) and every background re-render crashes on the missing
+  `isomorphic-dompurify` module (issue #1), so Vercel pins the last-good HTML
+  indefinitely. Applies to ALL CRM-driven marketing content (testimonials, mentors,
+  programs, site settings) until #1 deploys.
+- **Status:** resolves automatically with the #1 push; no additional code change.
