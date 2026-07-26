@@ -78,6 +78,8 @@ import { mentorsRoute } from "./routes/mentors-route";
 import { mentorDashboardRoute } from "./routes/mentor-dashboard-route";
 import { forgotPasswordRoute } from "./routes/forgot-password-route";
 import { resetPasswordRoute } from "./routes/reset-password-route";
+import { callCenterRoute } from "./routes/call-center-route";
+import { leadsImportRoute } from "./routes/leads-import-route";
 
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
@@ -105,6 +107,8 @@ const routeTree = rootRoute.addChildren([
   leadsTasksRoute,
   leadsBookingsRoute,
   leadsContactMessagesRoute,
+  leadsImportRoute,
+  callCenterRoute,
   academicsAssignmentsRoute,
   academicsProjectsRoute,
   academicsAssessmentsRoute,

@@ -47,6 +47,7 @@ import {
   ShieldCheck,
   Calendar,
   UserCog,
+  Headset,
 } from "lucide-react";
 
 export interface NavLeaf {
@@ -104,8 +105,19 @@ export const NAV_SECTIONS: NavSection[] = [
     children: [
       { label: "Pipeline", to: "/leads", permission: "leads.view" },
       { label: "My Work", to: "/leads/counselling", permission: "leads.view" },
+      // Bulk intake: Excel/CSV upload → validated preview → per-row selection →
+      // created via the same POST /crm/leads contract (server validates each row).
+      { label: "Import", to: "/leads/import", permission: "leads.create" },
       { label: "Contact Messages", to: "/leads/contact-messages", permission: "content.view" },
     ],
+  },
+  {
+    // Phone-support cockpit: one search box across students AND leads, opening
+    // the full 360 drawers (profile/enrollments/payments/tickets/credentials).
+    label: "Call Center",
+    icon: Headset,
+    to: "/call-center",
+    permission: "students.view",
   },
   {
     // One page with an in-page status toggle (All / Admissions / Active /
