@@ -149,12 +149,20 @@ export class CommerceService {
    * this the paying student stayed `invited` with no password and no credentials
    * email (2026-07-26 prod: paid + enrolled, never provisioned). Idempotent
    * (only ever acts on a never-provisioned account) and never fails the payment op.
+   *
+   * QUIET variant: no standalone welcome email — the returned credentials are
+   * embedded in the combined receipt email (one message, everything inside).
+   * Null when the account already had a login (nothing credential-wise to send).
    */
-  private async provisionLmsBestEffort(tenantId: string, studentProfileId: string): Promise<void> {
+  private async provisionLmsBestEffort(
+    tenantId: string,
+    studentProfileId: string,
+  ): Promise<{ email: string; name: string; tempPassword: string } | null> {
     try {
-      await this.lmsProvisioning.provisionForStudentProfile(tenantId, studentProfileId);
+      return await this.lmsProvisioning.provisionQuiet(tenantId, studentProfileId);
     } catch (err) {
       this.logger.error(`[Commerce] LMS provisioning failed for student ${studentProfileId}: ${String(err)}`);
+      return null;
     }
   }
 
@@ -603,16 +611,22 @@ export class CommerceService {
     // Phase-9 Completion T31 / R3: wire the (previously orphaned) payment-receipt
     // notifier at its real event site. Best-effort — a notification failure must never
     // fail the payment-verify response (the payment/enrollment are already committed).
-    // Enrollment just materialized above — issue the LMS login (temp password email,
-    // forced change on first sign-in) right away instead of waiting on the webhook.
-    await this.provisionLmsBestEffort(tenantId, order.studentId);
+    // Enrollment just materialized above — issue the LMS login right away instead
+    // of waiting on the webhook. Quiet: the credentials ride inside the receipt
+    // email (one message: receipt + username + temp password + sign-in button).
+    const creds = await this.provisionLmsBestEffort(tenantId, order.studentId);
 
-    await this.sendPaymentReceiptBestEffort(tenantId, order.studentId, {
-      orderId: payment.orderId,
-      amountPaise: payment.amountPaise,
-      currency: order.currency,
-      invoiceId,
-    });
+    await this.sendPaymentReceiptBestEffort(
+      tenantId,
+      order.studentId,
+      {
+        orderId: payment.orderId,
+        amountPaise: payment.amountPaise,
+        currency: order.currency,
+        invoiceId,
+      },
+      creds,
+    );
 
     const updated = await this.repository.findPaymentByProviderPaymentId(razorpay_payment_id);
     if (!updated) throw new NotFoundException({ code: "commerce.payment_not_found", title: "Payment not found after capture" });
@@ -825,15 +839,21 @@ export class CommerceService {
     // Same receipt email the Razorpay verify path sends — an offline (cash/NEFT)
     // payer deserves the same invoice confirmation (lifecycle-redesign).
     // Manual/offline payments never get a Razorpay webhook — this is the ONLY place
-    // their LMS login can be issued (see provisionLmsBestEffort).
-    await this.provisionLmsBestEffort(tenantId, order.studentId);
+    // their LMS login can be issued (see provisionLmsBestEffort). Quiet: credentials
+    // ride inside the combined receipt email.
+    const creds = await this.provisionLmsBestEffort(tenantId, order.studentId);
 
-    await this.sendPaymentReceiptBestEffort(tenantId, order.studentId, {
-      orderId: body.orderId,
-      amountPaise: body.amountPaise,
-      currency: order.currency,
-      invoiceId,
-    });
+    await this.sendPaymentReceiptBestEffort(
+      tenantId,
+      order.studentId,
+      {
+        orderId: body.orderId,
+        amountPaise: body.amountPaise,
+        currency: order.currency,
+        invoiceId,
+      },
+      creds,
+    );
 
     const updated = await this.repository.findPaymentByProviderPaymentId(manualProviderPaymentId);
     if (!updated) throw new NotFoundException({ code: "commerce.payment_not_found", title: "Payment not found after creation" });
@@ -845,11 +865,18 @@ export class CommerceService {
    * number resolved — shared by the Razorpay-verify, manual-payment and pay-link
    * capture paths. Never throws: the payment/enrollment are already committed and
    * a notification failure must not fail the request.
+   *
+   * FIRST payment (freshly provisioned LMS login, `creds` present): the student
+   * gets ONE combined email — receipt + LMS username/temporary password + sign-in
+   * button — instead of two separate messages. The fan-out notification still runs
+   * for the in-app/SMS channels but with NO email address, so its email channel is
+   * skipped (no duplicate receipt).
    */
   private async sendPaymentReceiptBestEffort(
     tenantId: string,
     studentId: string,
     args: { orderId: string; amountPaise: number; currency: string; invoiceId: string | null },
+    creds?: { email: string; name: string; tempPassword: string } | null,
   ): Promise<void> {
     try {
       const student = await this.studentsRepository.findById(tenantId, studentId);
@@ -859,6 +886,18 @@ export class CommerceService {
         const invoice = await this.repository.findInvoiceById(tenantId, args.invoiceId);
         invoiceNumber = invoice?.number ?? undefined;
       }
+
+      if (creds) {
+        await this.sendReceiptWithCredentialsEmail(student.email, {
+          studentName: student.name,
+          orderId: args.orderId,
+          amountPaise: args.amountPaise,
+          invoiceNumber,
+          username: creds.email,
+          tempPassword: creds.tempPassword,
+        });
+      }
+
       await this.notifSvc.notifyPaymentReceipt(
         student.userId,
         tenantId,
@@ -869,11 +908,53 @@ export class CommerceService {
           studentName: student.name,
           invoiceNumber,
         },
-        { toEmail: student.email, toPhone: student.phone ?? undefined },
+        // Combined email already sent above → omit the address so the fan-out's
+        // email channel skips; in-app (and SMS once DLT-registered) still fire.
+        { toEmail: creds ? undefined : student.email, toPhone: student.phone ?? undefined },
       );
     } catch (err) {
       this.logger.warn(`[Commerce] notifyPaymentReceipt failed (non-fatal): ${String(err)}`);
     }
+  }
+
+  /** The single first-payment email: receipt + LMS credentials + sign-in CTA. */
+  private async sendReceiptWithCredentialsEmail(
+    to: string,
+    data: {
+      studentName: string;
+      orderId: string;
+      amountPaise: number;
+      invoiceNumber: string | undefined;
+      username: string;
+      tempPassword: string;
+    },
+  ): Promise<void> {
+    const env = validateEnv();
+    const amount = `₹${(data.amountPaise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+    await this.mail.send({
+      to,
+      subject: `Payment received — you're enrolled! Your LMS login is inside`,
+      html: renderBrandedEmail({
+        title: "Payment Received — You're Enrolled!",
+        greeting: `Hi ${escapeEmailHtml(data.studentName)},`,
+        paragraphs: [
+          `We've received your payment of <strong>${amount}</strong> — welcome aboard! ` +
+            `Your learning account is ready; sign in with the details below.`,
+        ],
+        details: [
+          { label: "Order ID", value: data.orderId },
+          ...(data.invoiceNumber ? [{ label: "Invoice", value: data.invoiceNumber }] : []),
+          { label: "Amount", value: amount },
+          { label: "LMS username", value: escapeEmailHtml(data.username) },
+          { label: "Temporary password", value: escapeEmailHtml(data.tempPassword) },
+        ],
+        button: { label: "Sign in to the LMS", url: `${env.LMS_APP_URL}/login` },
+        footnote:
+          "For your security you'll be asked to set a new password the first time you sign in. " +
+          "Please don't share these details with anyone.",
+      }),
+      tags: [{ name: "category", value: "payment_receipt_credentials" }],
+    });
   }
 
   /**

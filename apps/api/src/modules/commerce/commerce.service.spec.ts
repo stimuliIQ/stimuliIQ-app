@@ -179,7 +179,7 @@ describe("CommerceService", () => {
   let paymentProvider: jest.Mocked<PaymentProvider>;
   let notifSvc: { notifyPaymentReceipt: jest.Mock };
   let studentsRepository: { findById: jest.Mock };
-  let lmsProvisioning: { provisionForStudentProfile: jest.Mock };
+  let lmsProvisioning: { provisionQuiet: jest.Mock };
   let mail: { send: jest.Mock };
 
   const mockInvoiceGen = { enqueue: jest.fn().mockResolvedValue(undefined) };
@@ -253,7 +253,7 @@ describe("CommerceService", () => {
 
     notifSvc = { notifyPaymentReceipt: jest.fn().mockResolvedValue(undefined) };
     studentsRepository = { findById: jest.fn().mockResolvedValue(null) };
-    lmsProvisioning = { provisionForStudentProfile: jest.fn().mockResolvedValue(true) };
+    lmsProvisioning = { provisionQuiet: jest.fn().mockResolvedValue(null) };
     mail = { send: jest.fn().mockResolvedValue({ providerMessageId: "msg-1" }) };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -943,7 +943,64 @@ describe("CommerceService", () => {
 
       // Manual/offline payments never get a Razorpay webhook — this path is the ONLY
       // place their LMS login can be issued, so the capture must provision.
-      expect(lmsProvisioning.provisionForStudentProfile).toHaveBeenCalledWith(TENANT_ID, order.studentId);
+      expect(lmsProvisioning.provisionQuiet).toHaveBeenCalledWith(TENANT_ID, order.studentId);
+    });
+
+    it("FIRST payment sends ONE combined email (receipt + credentials) and suppresses the fan-out email", async () => {
+      const order = makeMockOrderRow({ status: "created", notes: { batchId: BATCH_ID } });
+      repository.findOrderById.mockResolvedValue(order);
+      repository.listPayments.mockResolvedValue({ rows: [], total: 0 });
+      repository.createPayment.mockResolvedValue({ id: PAYMENT_ID });
+      const fakeTx = {
+        payment: { update: jest.fn().mockResolvedValue({}) },
+        order: { update: jest.fn().mockResolvedValue({}) },
+        invoice: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: "inv-1" }) },
+        studentProfile: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      };
+      repository.transaction.mockImplementation(async (fn) => fn(fakeTx as never));
+      repository.findExistingEnrollment.mockResolvedValue(null);
+      repository.createEnrollment.mockResolvedValue({ id: "enr-1" });
+      repository.generateInvoiceNumber.mockResolvedValue("INV-2026-0001");
+      repository.createInvoice.mockResolvedValue({ id: "inv-1" });
+      repository.findInvoiceById.mockResolvedValue({ number: "INV-2026-0001" } as never);
+      repository.findPaymentByProviderPaymentId.mockResolvedValue(
+        makeMockPaymentRow({ status: "captured", isManual: true, providerPaymentId: `manual_${PAYMENT_ID}` }),
+      );
+      lmsProvisioning.provisionQuiet.mockResolvedValue({
+        email: "student@test.com",
+        name: "Test Student",
+        tempPassword: "tmp-secret-123",
+      });
+      studentsRepository.findById.mockResolvedValue({
+        id: STUDENT_ID,
+        userId: "user-1",
+        name: "Test Student",
+        email: "student@test.com",
+        phone: null,
+      });
+
+      await withScope("all", () =>
+        service.recordManualPayment(TENANT_ID, ACTOR_ID, "idem-manual-3", {
+          orderId: ORDER_ID,
+          amountPaise: 100000,
+          method: "cash",
+          reference: "CASH-1",
+        }),
+      );
+
+      // One combined email carrying the credentials…
+      expect(mail.send).toHaveBeenCalledTimes(1);
+      const sent = mail.send.mock.calls[0][0];
+      expect(sent.to).toBe("student@test.com");
+      expect(sent.html).toContain("tmp-secret-123");
+      expect(sent.html).toContain("INV-2026-0001");
+      // …and the fan-out receipt runs WITHOUT an email address (no duplicate email).
+      expect(notifSvc.notifyPaymentReceipt).toHaveBeenCalledWith(
+        "user-1",
+        TENANT_ID,
+        expect.any(Object),
+        expect.objectContaining({ toEmail: undefined }),
+      );
     });
 
     it("payment capture still succeeds when LMS provisioning throws (best-effort)", async () => {
@@ -966,7 +1023,7 @@ describe("CommerceService", () => {
       repository.findPaymentByProviderPaymentId.mockResolvedValue(
         makeMockPaymentRow({ status: "captured", isManual: true, providerPaymentId: `manual_${PAYMENT_ID}` }),
       );
-      lmsProvisioning.provisionForStudentProfile.mockRejectedValue(new Error("smtp down"));
+      lmsProvisioning.provisionQuiet.mockRejectedValue(new Error("smtp down"));
 
       const result = await withScope("all", () =>
         service.recordManualPayment(TENANT_ID, ACTOR_ID, "idem-manual-2", {

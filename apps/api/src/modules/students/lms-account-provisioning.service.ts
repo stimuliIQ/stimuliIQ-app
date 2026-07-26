@@ -45,19 +45,37 @@ export class LmsAccountProvisioningService {
    * no-op cases — enrollment must not fail because onboarding email did.
    */
   async provisionForStudentProfile(tenantId: string, studentProfileId: string): Promise<boolean> {
+    const creds = await this.provisionQuiet(tenantId, studentProfileId);
+    if (!creds) return false;
+    await this.sendWelcomeEmail(creds.email, creds.name, creds.tempPassword);
+    return true;
+  }
+
+  /**
+   * Provision WITHOUT sending the standalone welcome email — the caller owns the
+   * communication. Used by the payment-capture paths so the student gets ONE email
+   * (receipt + credentials) instead of two. Returns the credentials on a fresh
+   * provision, or null when the account already had a login (nothing to send).
+   * The temp password is returned ONLY so the caller can embed it in its own
+   * email — never log or persist it.
+   */
+  async provisionQuiet(
+    tenantId: string,
+    studentProfileId: string,
+  ): Promise<{ email: string; name: string; tempPassword: string } | null> {
     const profile = await this.prisma.client.studentProfile.findFirst({
       where: { id: studentProfileId, tenantId },
       select: { id: true, user: { select: { id: true, email: true, name: true, passwordHash: true } } },
     });
     if (!profile?.user) {
       this.logger.warn(`[LmsProvisioning] no user for student profile ${studentProfileId} — skipping.`);
-      return false;
+      return null;
     }
 
     const { user } = profile;
     // Idempotency + safety: only provision an account that has NEVER had a password.
     if (user.passwordHash !== "") {
-      return false;
+      return null;
     }
 
     const tempPassword = generateTemporaryPassword();
@@ -71,13 +89,12 @@ export class LmsAccountProvisioningService {
       data: { passwordHash, mustChangePassword: true, status: "active" },
     });
     if (updated.count === 0) {
-      // Lost the race — another path just provisioned. Do NOT send a second email with a
-      // password that is no longer the account's password.
-      return false;
+      // Lost the race — another path just provisioned. Do NOT hand out a password
+      // that is no longer the account's password.
+      return null;
     }
 
-    await this.sendWelcomeEmail(user.email, user.name, tempPassword);
-    return true;
+    return { email: user.email, name: user.name, tempPassword };
   }
 
   /**
