@@ -30,6 +30,7 @@ import { scopeContextStorage } from "../auth/lib/scope-context";
 import { NotificationsService } from "../notifications/notifications.service";
 import { StudentsRepository } from "../students/students.repository";
 import { LmsAccountProvisioningService } from "../students/lms-account-provisioning.service";
+import { MAIL_PROVIDER } from "../notifications/providers/mail/mail-provider.interface";
 import type { PaymentProvider } from "./providers/payment/payment-provider.interface";
 import type { CouponRow, OrderRow, PaymentRow, RefundRow } from "./commerce.repository";
 
@@ -179,6 +180,7 @@ describe("CommerceService", () => {
   let notifSvc: { notifyPaymentReceipt: jest.Mock };
   let studentsRepository: { findById: jest.Mock };
   let lmsProvisioning: { provisionForStudentProfile: jest.Mock };
+  let mail: { send: jest.Mock };
 
   const mockInvoiceGen = { enqueue: jest.fn().mockResolvedValue(undefined) };
   const mockWebhookProcessor = { process: jest.fn().mockResolvedValue(undefined) };
@@ -200,6 +202,7 @@ describe("CommerceService", () => {
       updateOrderStatus: jest.fn(),
       findProgramById: jest.fn(),
       findBatchById: jest.fn(),
+      findBatchNamesByIds: jest.fn().mockResolvedValue(new Map()),
       countBatchEnrollments: jest.fn(),
       findStudentById: jest.fn(),
       findPaymentByProviderPaymentId: jest.fn(),
@@ -251,6 +254,7 @@ describe("CommerceService", () => {
     notifSvc = { notifyPaymentReceipt: jest.fn().mockResolvedValue(undefined) };
     studentsRepository = { findById: jest.fn().mockResolvedValue(null) };
     lmsProvisioning = { provisionForStudentProfile: jest.fn().mockResolvedValue(true) };
+    mail = { send: jest.fn().mockResolvedValue({ providerMessageId: "msg-1" }) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -264,6 +268,7 @@ describe("CommerceService", () => {
         { provide: NotificationsService, useValue: notifSvc },
         { provide: StudentsRepository, useValue: studentsRepository },
         { provide: LmsAccountProvisioningService, useValue: lmsProvisioning },
+        { provide: MAIL_PROVIDER, useValue: mail },
       ],
     }).compile();
 
@@ -973,6 +978,77 @@ describe("CommerceService", () => {
       );
 
       expect(result.status).toBe("captured");
+    });
+  });
+
+  // ─── sendPaymentLinks (email pay links to the student) ────────────────────
+
+  describe("sendPaymentLinks", () => {
+    const STUDENT = { id: STUDENT_ID, name: "Test Student", email: "student@test.com" };
+
+    it("emails ONE combined message for multiple open orders with a total", async () => {
+      const orderA = makeMockOrderRow({ id: ORDER_ID, status: "created", amountPaise: 1499900 });
+      const orderB = makeMockOrderRow({
+        id: "66666666-6666-6666-6666-666666666667",
+        status: "created",
+        amountPaise: 1999900,
+        programTitle: "Second Program",
+      });
+      repository.findOrderById.mockResolvedValueOnce(orderA).mockResolvedValueOnce(orderB);
+      studentsRepository.findById.mockResolvedValue(STUDENT);
+      repository.findBatchNamesByIds.mockResolvedValue(new Map());
+
+      const result = await withScope("all", () =>
+        service.sendPaymentLinks(TENANT_ID, ACTOR_ID, { orderIds: [orderA.id, orderB.id] }),
+      );
+
+      expect(result).toEqual({ email: "student@test.com", count: 2, totalAmountPaise: 3499800 });
+      expect(mail.send).toHaveBeenCalledTimes(1);
+      const sent = mail.send.mock.calls[0][0];
+      expect(sent.to).toBe("student@test.com");
+      expect(sent.html).toContain("Second Program");
+      expect(sent.html).toContain("/pay/");
+    });
+
+    it("422s when any order is not payable", async () => {
+      repository.findOrderById.mockResolvedValue(makeMockOrderRow({ status: "paid" }));
+
+      await expect(
+        withScope("all", () => service.sendPaymentLinks(TENANT_ID, ACTOR_ID, { orderIds: [ORDER_ID] })),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+      expect(mail.send).not.toHaveBeenCalled();
+    });
+
+    it("400s when orders belong to different students", async () => {
+      repository.findOrderById
+        .mockResolvedValueOnce(makeMockOrderRow({ status: "created" }))
+        .mockResolvedValueOnce(
+          makeMockOrderRow({
+            id: "66666666-6666-6666-6666-666666666667",
+            status: "created",
+            studentId: "99999999-9999-9999-9999-999999999990",
+          }),
+        );
+
+      await expect(
+        withScope("all", () =>
+          service.sendPaymentLinks(TENANT_ID, ACTOR_ID, {
+            orderIds: [ORDER_ID, "66666666-6666-6666-6666-666666666667"],
+          }),
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(mail.send).not.toHaveBeenCalled();
+    });
+
+    it("surfaces a clean 422 when the mail provider rejects the send", async () => {
+      repository.findOrderById.mockResolvedValue(makeMockOrderRow({ status: "created" }));
+      studentsRepository.findById.mockResolvedValue(STUDENT);
+      repository.findBatchNamesByIds.mockResolvedValue(new Map());
+      mail.send.mockRejectedValue(new Error("Resend down"));
+
+      await expect(
+        withScope("all", () => service.sendPaymentLinks(TENANT_ID, ACTOR_ID, { orderIds: [ORDER_ID] })),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
     });
   });
 

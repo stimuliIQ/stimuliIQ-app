@@ -9,6 +9,8 @@ import type {
   ListOrdersQuery,
   CreateRazorpayOrderResponse,
   CreatePaymentLinkResponse,
+  SendPaymentLinksRequest,
+  SendPaymentLinksResponse,
 } from "@repo/types";
 import type { ApiClient } from "../http/client.js";
 import { toQueryString } from "../http/query.js";
@@ -63,6 +65,19 @@ export class OrdersApi {
    */
   async createPaymentLink(id: string): Promise<CreatePaymentLinkResponse> {
     return this.client.request<CreatePaymentLinkResponse>("POST", `/api/v1/commerce/orders/${id}/payment-link`);
+  }
+
+  /**
+   * POST /api/v1/commerce/orders/payment-links/send
+   *
+   * Emails payment link(s) straight to the student — pass one open order id, or
+   * several (same student) to send ONE email with a Pay button per program plus
+   * the total, so the student can pay each individually from the same message.
+   */
+  async sendPaymentLinks(body: SendPaymentLinksRequest): Promise<SendPaymentLinksResponse> {
+    return this.client.request<SendPaymentLinksResponse>("POST", "/api/v1/commerce/orders/payment-links/send", {
+      body,
+    });
   }
 
   /**

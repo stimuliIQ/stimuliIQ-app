@@ -52,6 +52,8 @@ import type {
   LedgerReconciliation,
   CreateRazorpayOrderResponse,
   CreatePaymentLinkResponse,
+  SendPaymentLinksRequest,
+  SendPaymentLinksResponse,
 } from "@repo/types";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
@@ -67,6 +69,7 @@ import { Inject } from "@nestjs/common";
 import {
   CreateOrderRequestSchema,
   type CreateOrderRequest,
+  SendPaymentLinksRequestSchema,
   ListOrdersQuerySchema,
   type ListOrdersQuery,
   VerifyPaymentRequestSchema,
@@ -194,6 +197,21 @@ export class CommerceController {
     @Param("id", new ParseUUIDPipe()) id: string,
   ): Promise<CreatePaymentLinkResponse> {
     return this.commerceService.mintPaymentLink(user.tenantId, user.id, id);
+  }
+
+  /**
+   * Email payment link(s) straight to the student — one order or several (same
+   * student, all payable); a multi-order send is ONE email with a Pay button per
+   * program plus the total. Same gate as minting a link.
+   */
+  @Post("orders/payment-links/send")
+  @HttpCode(200)
+  @RequirePermission("payments.create")
+  async sendPaymentLinks(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(SendPaymentLinksRequestSchema)) body: SendPaymentLinksRequest,
+  ): Promise<SendPaymentLinksResponse> {
+    return this.commerceService.sendPaymentLinks(user.tenantId, user.id, body);
   }
 
   // ─── PAYMENTS ────────────────────────────────────────────────────────────

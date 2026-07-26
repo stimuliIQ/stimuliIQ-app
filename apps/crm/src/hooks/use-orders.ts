@@ -77,3 +77,14 @@ export function useCreatePaymentLink() {
     mutationFn: (orderId: string) => apiClient.commerce.orders.createPaymentLink(orderId),
   });
 }
+
+/**
+ * Email payment link(s) straight to the student — one id, or several (same
+ * student) for a single combined email with a Pay button per program + total.
+ * Side-effect is the email itself; no cache to invalidate.
+ */
+export function useSendPaymentLinks() {
+  return useMutation({
+    mutationFn: (orderIds: string[]) => apiClient.commerce.orders.sendPaymentLinks({ orderIds }),
+  });
+}

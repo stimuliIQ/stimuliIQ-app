@@ -55,6 +55,8 @@ import type {
   LedgerReconciliation,
   CreateRazorpayOrderResponse,
   CreatePaymentLinkResponse,
+  SendPaymentLinksRequest,
+  SendPaymentLinksResponse,
 } from "@repo/types";
 import { signPayLinkToken } from "./pay-link.util";
 import { PAYMENT_PROVIDER, type PaymentProvider } from "./providers/payment/payment-provider.interface";
@@ -75,6 +77,8 @@ import { validateEnv } from "../../config/env";
 import { NotificationsService } from "../notifications/notifications.service";
 import { StudentsRepository } from "../students/students.repository";
 import { LmsAccountProvisioningService } from "../students/lms-account-provisioning.service";
+import { MAIL_PROVIDER, type MailProvider } from "../notifications/providers/mail/mail-provider.interface";
+import { renderBrandedEmail, escapeEmailHtml } from "../notifications/dispatch/email-layout";
 import type {
   CreateOrderRequest,
   ListOrdersQuery,
@@ -134,6 +138,7 @@ export class CommerceService {
     private readonly notifSvc: NotificationsService,
     private readonly studentsRepository: StudentsRepository,
     private readonly lmsProvisioning: LmsAccountProvisioningService,
+    @Inject(MAIL_PROVIDER) private readonly mail: MailProvider,
   ) {}
 
   /**
@@ -892,6 +897,116 @@ export class CommerceService {
     const { token, expiresAt } = signPayLinkToken({ tenantId, orderId });
     const base = validateEnv().WEB_APP_URL.replace(/\/$/, "");
     return { url: `${base}/pay/${token}`, token, expiresAt: expiresAt.toISOString() };
+  }
+
+  /**
+   * POST /commerce/orders/payment-links/send — EMAIL payment link(s) to the student
+   * instead of relying on staff to copy-paste them. One order → a single-payment
+   * email; several → ONE email listing every pending program with its own Pay
+   * button plus the grand total, so the student can settle each individually from
+   * the same message. Validation: every order must exist (scope-checked like
+   * getOrder), be payable (status=created), and belong to the SAME student.
+   */
+  async sendPaymentLinks(
+    tenantId: string,
+    actorId: string,
+    body: SendPaymentLinksRequest,
+  ): Promise<SendPaymentLinksResponse> {
+    const restriction = await this.resolveListRestriction(actorId);
+    const orders: OrderRow[] = [];
+    for (const id of [...new Set(body.orderIds)]) {
+      const row = await this.repository.findOrderById(tenantId, id, false, restriction.restrictToBranchIds);
+      if (!row) throw new NotFoundException({ code: "commerce.order_not_found", title: "Order not found" });
+      if (row.status !== "created") {
+        throw new UnprocessableEntityException({
+          code: "commerce.order_not_payable",
+          title: "Order is not payable",
+          detail: `Order for "${row.programTitle}" is "${row.status}" — only open orders can be paid via a link.`,
+        });
+      }
+      orders.push(row);
+    }
+    if (new Set(orders.map((o) => o.studentId)).size > 1) {
+      throw new BadRequestException({
+        code: "commerce.mixed_students",
+        title: "All orders must belong to the same student",
+      });
+    }
+
+    const student = await this.studentsRepository.findById(tenantId, orders[0]!.studentId);
+    if (!student) throw new NotFoundException({ code: "students.not_found", title: "Student not found" });
+
+    await this.hydrateOpenOrderBatchNames(tenantId, orders);
+    const base = validateEnv().WEB_APP_URL.replace(/\/$/, "");
+    const links = orders.map((order) => {
+      const { token, expiresAt } = signPayLinkToken({ tenantId, orderId: order.id });
+      return { order, url: `${base}/pay/${token}`, expiresAt };
+    });
+    const totalAmountPaise = orders.reduce((sum, o) => sum + o.amountPaise, 0);
+    const fmt = (paise: number) => `₹${(paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+    // Inline-styled anchor "button" — same look as the layout's primary CTA; the
+    // shared layout supports one button, and a multi-order email needs one per program.
+    const payButton = (url: string, label: string) =>
+      `<a href="${url}" target="_blank" style="display:inline-block;padding:10px 22px;font-size:14px;font-weight:600;` +
+      `color:#ffffff;text-decoration:none;border-radius:6px;background:#047857;">${label}</a>`;
+
+    const single = links.length === 1;
+    const html = renderBrandedEmail({
+      title: single ? "Complete your payment" : "Complete your payments",
+      greeting: `Hi ${escapeEmailHtml(student.name)},`,
+      paragraphs: single
+        ? [
+            `Your enrollment for <strong>${escapeEmailHtml(links[0]!.order.programTitle)}</strong>` +
+              `${links[0]!.order.batchName ? ` (${escapeEmailHtml(links[0]!.order.batchName)})` : ""} is one step away — ` +
+              `complete the payment of <strong>${fmt(links[0]!.order.amountPaise)}</strong> below.`,
+            `<div style="margin:4px 0 6px;">${payButton(links[0]!.url, `Pay ${fmt(links[0]!.order.amountPaise)} securely`)}</div>`,
+          ]
+        : [
+            `You have ${links.length} program payments pending — pay each one below, in any order.`,
+            ...links.map(
+              ({ order, url }) =>
+                `<strong>${escapeEmailHtml(order.programTitle)}</strong>` +
+                `${order.batchName ? ` — ${escapeEmailHtml(order.batchName)}` : ""}<br/>` +
+                `<div style="margin:6px 0 10px;">${payButton(url, `Pay ${fmt(order.amountPaise)}`)}</div>`,
+            ),
+          ],
+      details: single
+        ? [
+            { label: "Program", value: escapeEmailHtml(links[0]!.order.programTitle) },
+            ...(links[0]!.order.batchName ? [{ label: "Batch", value: escapeEmailHtml(links[0]!.order.batchName) }] : []),
+            { label: "Amount", value: fmt(links[0]!.order.amountPaise) },
+          ]
+        : [
+            ...links.map(({ order }) => ({
+              label: escapeEmailHtml(order.programTitle),
+              value: fmt(order.amountPaise),
+            })),
+            { label: "Total", value: `<strong>${fmt(totalAmountPaise)}</strong>` },
+          ],
+      footnote:
+        "Payments are processed securely by Razorpay. " +
+        `Each link expires on ${links[0]!.expiresAt.toLocaleDateString("en-IN")} — ask us for a fresh one anytime.`,
+    });
+
+    try {
+      await this.mail.send({
+        to: student.email,
+        subject: single
+          ? `Complete your payment — ${links[0]!.order.programTitle}`
+          : `Complete your payments — ${links.length} programs pending (${fmt(totalAmountPaise)})`,
+        html,
+        tags: [{ name: "category", value: "payment_link" }],
+      });
+    } catch (err) {
+      this.logger.error(`[Commerce] payment-link email failed for order(s) ${body.orderIds.join(", ")}: ${String(err)}`);
+      throw new UnprocessableEntityException({
+        code: "commerce.payment_link_email_failed",
+        title: "Couldn't send the payment email",
+        detail: "The mail provider rejected the send — the links are unaffected; try again or copy the link instead.",
+      });
+    }
+
+    return { email: student.email, count: links.length, totalAmountPaise };
   }
 
   async listPayments(

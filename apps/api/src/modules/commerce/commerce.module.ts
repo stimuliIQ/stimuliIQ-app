@@ -25,6 +25,7 @@ import { PaymentProviderModule } from "./providers/payment/payment-provider.modu
 import { StorageProviderModule } from "../storage/providers/storage/storage-provider.module";
 import { ReportPdfModule } from "../exports/providers/pdf/report-pdf.module";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { MailProviderModule } from "../notifications/providers/mail/mail-provider.module";
 import { StudentsModule } from "../students/students.module";
 import { CommerceController } from "./commerce.controller";
 import { WebhookController } from "./webhook.controller";
@@ -85,6 +86,8 @@ function createReceiptGenPort(sync: SyncReceiptGenAdapter): ReceiptGenPort {
     NotificationsModule,
     // Resolves order.studentId -> {userId, email, phone, name}.
     StudentsModule,
+    // sendPaymentLinks: emails pay-link(s) directly to the student.
+    MailProviderModule,
   ],
   controllers: [
     CommerceController,

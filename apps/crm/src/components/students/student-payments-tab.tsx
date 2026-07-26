@@ -10,7 +10,7 @@ import { Button, DataTable, type DataTableColumn, formatPaise, useToast } from "
 import type { MeResponse, OrderSummary, PaymentSummary } from "@repo/types";
 
 import { usePaymentsList, usePaymentReceipt } from "../../hooks/use-payments";
-import { useOrdersList, useCreatePaymentLink } from "../../hooks/use-orders";
+import { useOrdersList, useCreatePaymentLink, useSendPaymentLinks } from "../../hooks/use-orders";
 import { useInvoiceDownload } from "../../hooks/use-invoices";
 import { hasPermission } from "../../lib/permissions";
 import { PaymentStatusChip } from "../commerce/payment-status-chip";
@@ -85,21 +85,44 @@ export function StudentPaymentsTab({
   const canRecordPayment = hasPermission(me?.permissions, "payments.create");
   const [payOrder, setPayOrder] = React.useState<OrderSummary | null>(null);
   const createPaymentLink = useCreatePaymentLink();
+  const sendLinks = useSendPaymentLinks();
 
-  // Mint + copy a public pay URL for the student (secure Razorpay checkout, no login —
-  // the signed token in the link is the authorization).
-  const sendPaymentLink = async (orderId: string) => {
+  const openOrders = (orders.data?.items ?? []).filter((o) => o.status === "created");
+  const openTotal = openOrders.reduce((sum, o) => sum + o.amountPaise, 0);
+
+  // Mint + copy a public pay URL (fallback for staff who want to paste it into
+  // WhatsApp/another channel themselves).
+  const copyPaymentLink = async (orderId: string) => {
     try {
       const link = await createPaymentLink.mutateAsync(orderId);
       await navigator.clipboard.writeText(link.url);
       toast({
         title: "Payment link copied",
-        description: `Valid until ${new Date(link.expiresAt).toLocaleDateString()} — paste it into an email or WhatsApp to the student.`,
+        description: `Valid until ${new Date(link.expiresAt).toLocaleDateString()} — paste it into WhatsApp or a chat.`,
         variant: "success",
       });
     } catch (error) {
       toast({
         title: "Couldn't create payment link",
+        description: error instanceof Error ? error.message : undefined,
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Email link(s) straight to the student — one order, or every open order in a
+  // single combined email (Pay button per program + total).
+  const emailPaymentLinks = async (orderIds: string[]) => {
+    try {
+      const result = await sendLinks.mutateAsync(orderIds);
+      toast({
+        title: result.count === 1 ? "Payment link emailed" : `${result.count} payment links emailed`,
+        description: `Sent to ${result.email} — the student can pay securely from the email.`,
+        variant: "success",
+      });
+    } catch (error) {
+      toast({
+        title: "Couldn't email the payment link",
         description: error instanceof Error ? error.message : undefined,
         variant: "destructive",
       });
@@ -119,16 +142,28 @@ export function StudentPaymentsTab({
         row.status === "created" && canRecordPayment ? (
           <div className="flex items-center justify-end gap-1.5">
             <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                void copyPaymentLink(row.id);
+              }}
+              loading={createPaymentLink.isPending}
+              data-testid={`copy-payment-link-${row.id}`}
+            >
+              Copy link
+            </Button>
+            <Button
               variant="secondary"
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                void sendPaymentLink(row.id);
+                void emailPaymentLinks([row.id]);
               }}
-              loading={createPaymentLink.isPending}
+              loading={sendLinks.isPending}
               data-testid={`send-payment-link-${row.id}`}
             >
-              Send payment link
+              Email link
             </Button>
             <Button
               size="sm"
@@ -174,7 +209,22 @@ export function StudentPaymentsTab({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2" data-testid="student-orders-section">
-        <h4 className="text-sm font-medium text-fg">Orders</h4>
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="text-sm font-medium text-fg">Orders</h4>
+          {canRecordPayment && openOrders.length > 1 ? (
+            // One email covering every pending program — a Pay button per program
+            // plus the total, so the student settles everything from one message.
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void emailPaymentLinks(openOrders.map((o) => o.id))}
+              loading={sendLinks.isPending}
+              data-testid="send-all-payment-links"
+            >
+              Email all {openOrders.length} links ({formatPaise(openTotal)})
+            </Button>
+          ) : null}
+        </div>
         <DataTable
           columns={orderColumns}
           rows={orders.data?.items ?? []}

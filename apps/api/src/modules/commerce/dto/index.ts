@@ -16,6 +16,10 @@ export {
   type OrderSummary,
   type OrderDetail,
   type CreateRazorpayOrderResponse,
+  // Payment links (staff-side email send)
+  SendPaymentLinksRequestSchema,
+  type SendPaymentLinksRequest,
+  type SendPaymentLinksResponse,
   // Payments
   VerifyPaymentRequestSchema,
   type VerifyPaymentRequest,
