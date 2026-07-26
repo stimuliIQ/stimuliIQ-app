@@ -17,6 +17,7 @@
  */
 import * as React from "react";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import {
   MarketingHeader,
   MarketingFooter,
@@ -120,6 +121,12 @@ export function SiteShell({
   // rather than trusting the caller/source to have pre-encoded them (a raw phone number
   // is a no-op under encodeURIComponent; the message needs it for spaces/punctuation).
   const waHref = `https://wa.me/${encodeURIComponent(whatsappNumber)}?text=${encodeURIComponent(whatsappMessage)}`;
+  const pathname = usePathname();
+  // FOCUSED CHECKOUT MODE (/pay/:token): a payment page must read as a checkout,
+  // not a marketing page — no nav, mega-menu, newsletter band, footer link forest,
+  // WhatsApp FAB, lead popup, or analytics. Just the logo (trust anchor), a
+  // "Secure checkout" badge, the payment card, and a one-line reassurance footer.
+  const isFocusedCheckout = pathname?.startsWith("/pay/") ?? false;
   // Consent state — initialised from localStorage (SSR-safe: readStoredConsent returns null on server)
   const [analyticsConsent, setAnalyticsConsent] = React.useState<boolean>(false);
 
@@ -133,6 +140,39 @@ export function SiteShell({
 
   function handleConsentAccept() {
     setAnalyticsConsent(true);
+  }
+
+  if (isFocusedCheckout) {
+    return (
+      <>
+        <header className="border-b border-border bg-bg" data-testid="checkout-header">
+          <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-4">
+            <SiteLogo />
+            <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+              <svg
+                aria-hidden="true"
+                className="size-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              Secure checkout
+            </span>
+          </div>
+        </header>
+        {/* The pay page provides its own <main id="main-content"> landmark. */}
+        {children}
+        <footer className="pb-8 text-center text-xs text-fg-subtle" data-testid="checkout-footer">
+          Payments processed securely by Razorpay · {copyrightText}
+        </footer>
+      </>
+    );
   }
 
   return (

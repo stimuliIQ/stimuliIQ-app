@@ -123,7 +123,7 @@ export function PayLinkClient({ token }: { token: string }) {
   };
 
   return (
-    <main id="main-content" className="mx-auto flex min-h-screen w-full max-w-lg flex-col justify-center gap-6 p-6">
+    <main id="main-content" className="mx-auto flex min-h-[70vh] w-full max-w-lg flex-col justify-center gap-6 p-6 py-12">
       <h1 className="text-2xl font-bold text-fg">Complete your payment</h1>
 
       {phase === "loading" ? (
@@ -163,7 +163,7 @@ export function PayLinkClient({ token }: { token: string }) {
           type="button"
           onClick={pay}
           disabled={phase === "paying"}
-          className="rounded-md bg-fg px-6 py-3 font-semibold text-bg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-md bg-brand-500 px-6 py-3 font-semibold text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
           data-testid="pay-link-pay-button"
         >
           {phase === "paying" ? "Opening secure checkout…" : order ? `Pay ${formatPaise(order.amountPaise)} securely` : "Pay now"}
@@ -184,7 +184,7 @@ export function PayLinkClient({ token }: { token: string }) {
           </p>
           <a
             href={result.lmsRedirectUrl}
-            className="mt-2 inline-block rounded-md bg-fg px-5 py-2.5 text-center font-medium text-bg hover:opacity-90"
+            className="mt-2 inline-block rounded-md bg-brand-500 px-5 py-2.5 text-center font-medium text-white transition-colors hover:bg-brand-600"
           >
             Go to the LMS
           </a>
