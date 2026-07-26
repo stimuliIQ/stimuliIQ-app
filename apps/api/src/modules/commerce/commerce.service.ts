@@ -74,6 +74,7 @@ import { buildStorageKey } from "../storage/providers/storage/s3-storage.provide
 import { validateEnv } from "../../config/env";
 import { NotificationsService } from "../notifications/notifications.service";
 import { StudentsRepository } from "../students/students.repository";
+import { LmsAccountProvisioningService } from "../students/lms-account-provisioning.service";
 import type {
   CreateOrderRequest,
   ListOrdersQuery,
@@ -132,7 +133,25 @@ export class CommerceService {
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
     private readonly notifSvc: NotificationsService,
     private readonly studentsRepository: StudentsRepository,
+    private readonly lmsProvisioning: LmsAccountProvisioningService,
   ) {}
+
+  /**
+   * Best-effort LMS provisioning after a payment-completed enrollment. The webhook
+   * path (webhook-processor.adapter) already provisions; the two synchronous capture
+   * paths (verifyPayment / recordManualPayment) create the enrollment inline and MUST
+   * do the same — a manual/offline payment never gets a Razorpay webhook, so without
+   * this the paying student stayed `invited` with no password and no credentials
+   * email (2026-07-26 prod: paid + enrolled, never provisioned). Idempotent
+   * (only ever acts on a never-provisioned account) and never fails the payment op.
+   */
+  private async provisionLmsBestEffort(tenantId: string, studentProfileId: string): Promise<void> {
+    try {
+      await this.lmsProvisioning.provisionForStudentProfile(tenantId, studentProfileId);
+    } catch (err) {
+      this.logger.error(`[Commerce] LMS provisioning failed for student ${studentProfileId}: ${String(err)}`);
+    }
+  }
 
   // ─── SCOPE RESOLUTION ──────────────────────────────────────────────────
 
@@ -554,6 +573,10 @@ export class CommerceService {
     // Phase-9 Completion T31 / R3: wire the (previously orphaned) payment-receipt
     // notifier at its real event site. Best-effort — a notification failure must never
     // fail the payment-verify response (the payment/enrollment are already committed).
+    // Enrollment just materialized above — issue the LMS login (temp password email,
+    // forced change on first sign-in) right away instead of waiting on the webhook.
+    await this.provisionLmsBestEffort(tenantId, order.studentId);
+
     await this.sendPaymentReceiptBestEffort(tenantId, order.studentId, {
       orderId: payment.orderId,
       amountPaise: payment.amountPaise,
@@ -759,6 +782,10 @@ export class CommerceService {
 
     // Same receipt email the Razorpay verify path sends — an offline (cash/NEFT)
     // payer deserves the same invoice confirmation (lifecycle-redesign).
+    // Manual/offline payments never get a Razorpay webhook — this is the ONLY place
+    // their LMS login can be issued (see provisionLmsBestEffort).
+    await this.provisionLmsBestEffort(tenantId, order.studentId);
+
     await this.sendPaymentReceiptBestEffort(tenantId, order.studentId, {
       orderId: body.orderId,
       amountPaise: body.amountPaise,

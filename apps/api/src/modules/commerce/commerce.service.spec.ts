@@ -29,6 +29,7 @@ import { STORAGE_PROVIDER } from "../storage/providers/storage/storage-provider.
 import { scopeContextStorage } from "../auth/lib/scope-context";
 import { NotificationsService } from "../notifications/notifications.service";
 import { StudentsRepository } from "../students/students.repository";
+import { LmsAccountProvisioningService } from "../students/lms-account-provisioning.service";
 import type { PaymentProvider } from "./providers/payment/payment-provider.interface";
 import type { CouponRow, OrderRow, PaymentRow, RefundRow } from "./commerce.repository";
 
@@ -177,6 +178,7 @@ describe("CommerceService", () => {
   let paymentProvider: jest.Mocked<PaymentProvider>;
   let notifSvc: { notifyPaymentReceipt: jest.Mock };
   let studentsRepository: { findById: jest.Mock };
+  let lmsProvisioning: { provisionForStudentProfile: jest.Mock };
 
   const mockInvoiceGen = { enqueue: jest.fn().mockResolvedValue(undefined) };
   const mockWebhookProcessor = { process: jest.fn().mockResolvedValue(undefined) };
@@ -246,6 +248,7 @@ describe("CommerceService", () => {
 
     notifSvc = { notifyPaymentReceipt: jest.fn().mockResolvedValue(undefined) };
     studentsRepository = { findById: jest.fn().mockResolvedValue(null) };
+    lmsProvisioning = { provisionForStudentProfile: jest.fn().mockResolvedValue(true) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -258,6 +261,7 @@ describe("CommerceService", () => {
         { provide: STORAGE_PROVIDER, useValue: mockStorage },
         { provide: NotificationsService, useValue: notifSvc },
         { provide: StudentsRepository, useValue: studentsRepository },
+        { provide: LmsAccountProvisioningService, useValue: lmsProvisioning },
       ],
     }).compile();
 
@@ -926,6 +930,43 @@ describe("CommerceService", () => {
           notes: "Cheque received at branch",
         }),
       );
+
+      // Manual/offline payments never get a Razorpay webhook — this path is the ONLY
+      // place their LMS login can be issued, so the capture must provision.
+      expect(lmsProvisioning.provisionForStudentProfile).toHaveBeenCalledWith(TENANT_ID, order.studentId);
+    });
+
+    it("payment capture still succeeds when LMS provisioning throws (best-effort)", async () => {
+      const order = makeMockOrderRow({ status: "created", notes: { batchId: BATCH_ID } });
+      repository.findOrderById.mockResolvedValue(order);
+      repository.listPayments.mockResolvedValue({ rows: [], total: 0 });
+      repository.createPayment.mockResolvedValue({ id: PAYMENT_ID });
+
+      const fakeTx = {
+        payment: { update: jest.fn().mockResolvedValue({}) },
+        order: { update: jest.fn().mockResolvedValue({}) },
+        invoice: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: "inv-1" }) },
+      };
+      repository.transaction.mockImplementation(async (fn) => fn(fakeTx as never));
+      repository.findExistingEnrollment.mockResolvedValue(null);
+      repository.createEnrollment.mockResolvedValue({ id: "enr-1" });
+      repository.generateInvoiceNumber.mockResolvedValue("INV-2026-0001");
+      repository.createInvoice.mockResolvedValue({ id: "inv-1" });
+      repository.findPaymentByProviderPaymentId.mockResolvedValue(
+        makeMockPaymentRow({ status: "captured", isManual: true, providerPaymentId: `manual_${PAYMENT_ID}` }),
+      );
+      lmsProvisioning.provisionForStudentProfile.mockRejectedValue(new Error("smtp down"));
+
+      const result = await withScope("all", () =>
+        service.recordManualPayment(TENANT_ID, ACTOR_ID, "idem-manual-2", {
+          orderId: ORDER_ID,
+          amountPaise: 100000,
+          method: "cheque",
+          reference: "CHQ-99999",
+        }),
+      );
+
+      expect(result.status).toBe("captured");
     });
   });
 

@@ -137,3 +137,23 @@ explicit approval (CLAUDE.md §3.13 — every push triggers Vercel deploys).
   an account exists to reissue); convert-dialog copy states credentials arrive after
   payment.
 - **Status:** committed locally; ships with the batch.
+
+### 9. Paid student never received LMS credentials email — FIXED (awaiting API deploy)
+
+- **Symptom:** payment completed on live (receipt email arrived, enrollment created)
+  but no LMS credentials email (temp password + forced first-login change). DB
+  confirmed: the paid student's user row was still `invited` with an empty
+  `passwordHash` — provisioning never ran.
+- **Root cause:** `LmsAccountProvisioningService` is invoked only from the Razorpay
+  WEBHOOK path and the manual roster-enroll path. The two synchronous capture paths —
+  `verifyPayment` (browser checkout) and `recordManualPayment` (offline payment) —
+  create the enrollment inline and never provision. A manual payment gets NO webhook,
+  so its student could never be provisioned at all.
+- **Fix:** both capture paths now call `provisionForStudentProfile` right after the
+  enrollment transaction (best-effort — an email failure never fails the payment;
+  idempotent — the webhook double-fire case is a no-op). The already-affected student
+  (paid 2026-07-25) was provisioned manually with the exact same guarded logic and the
+  welcome email was delivered via Resend (accepted, id 5b7a3ad3).
+- **Note:** the forced first-login password change the user described is the existing
+  `mustChangePassword` gate — already implemented in the LMS; no change needed there.
+- **Status:** committed locally; requires the VPS API deploy.
