@@ -101,6 +101,11 @@ async function headers() {
         "https://*.googletagmanager.com",
         "https://*.google-analytics.com",
         "https://challenges.cloudflare.com",
+        // Vercel Web Analytics (<Analytics/>) loads a DEBUG script from this host in
+        // development only; in production it serves same-origin from
+        // /_vercel/insights/script.js, already covered by 'self'. Dev-only entry so the
+        // production script-src allow-list stays untouched.
+        "https://va.vercel-scripts.com",
       ].join(" ")
     : [
         "'self'",

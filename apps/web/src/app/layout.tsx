@@ -8,6 +8,7 @@
  *   - MarketingFooter
  *   - ConsentBanner + WhatsAppFab (client-side, deferred)
  *   - AnalyticsLoader (consent-gated GA4/GTM via @next/third-parties)
+ *   - Vercel Web Analytics (<Analytics/>, page views / visitors)
  *   - Organization JSON-LD (sitewide structured data)
  *
  * SSR-safe: header/footer are RSC; banner/fab/analytics are Client Components.
@@ -36,6 +37,12 @@ import { getSiteSettings, interpolateCopyrightTemplate } from "../lib/site-setti
 import { buildMetadata, SITE_URL } from "../lib/seo/metadata";
 import { buildOrganizationJsonLd } from "../lib/seo/json-ld";
 import { ADDRESS, PHONE_HREF } from "../lib/contact";
+// Vercel Web Analytics. Deliberately NOT behind the AnalyticsLoader consent gate that
+// wraps GA4/GTM: this collects no cookies and no client identifiers, so it doesn't carry
+// the DPDP consent obligation AC-34 exists for. It also needs no CSP change — the script
+// and its beacon are same-origin (`/_vercel/insights/*`), already covered by
+// `script-src 'self'` / `connect-src 'self'` in next.config.mjs.
+import { Analytics } from "@vercel/analytics/next";
 
 // ---------------------------------------------------------------------------
 // Sitewide default metadata (per-page overrides via generateMetadata)
@@ -142,6 +149,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             {children}
           </SiteShell>
         </Providers>
+
+        <Analytics />
       </body>
     </html>
   );

@@ -3,7 +3,7 @@
  *
  * CODE-OWNED HOMEPAGE (opted out of the CMS page builder): this renders the
  * bespoke, hand-built homepage (`HomePageFallback` — hero, stats-bento world-map
- * band, why-us, explore-courses, mentors-teaser, how-it-works-steps,
+ * band, why-us, explore-courses, how-it-works-steps,
  * testimonial-spotlight, partner-colleges, CTA) DIRECTLY. It intentionally does
  * NOT render the P10/P11 CMS page-builder blocks for `slug="home"`
  * (`stat-group-block` BentoVariant, etc.) — the homepage design is owned in these
@@ -18,10 +18,10 @@
  * still feeds SEO via generateMetadata below); it just no longer drives the layout.
  * Other builder-managed pages (about/scholarship/etc.) are unchanged.
  *
- * `HomePageFallback` isn't CMS-driven, so it needs the live programs/mentors lists
+ * `HomePageFallback` isn't CMS-driven, so it needs the live programs list
  * fetched and passed in directly (see HomePage() below).
  *
- * ISR: revalidate every 300s (5 min) so the live programs/mentors lists refresh
+ * ISR: revalidate every 300s (5 min) so the live programs list refreshes
  * without a redeploy.
  */
 import type { Metadata } from "next";
@@ -30,7 +30,7 @@ import { buildMetadata } from "../lib/seo/metadata";
 import { resolveAssetUrl } from "../lib/media";
 import { serverApiClient } from "../lib/api-client";
 import { HomePageFallback } from "../components/page-builder/fallbacks/home-fallback";
-import type { PublicProgramSummary, PublicMentorCard, PublicPartner, PublicTestimonial } from "@repo/types";
+import type { PublicProgramSummary, PublicPartner, PublicTestimonial } from "@repo/types";
 
 const COLLEGE_PARTNER_CATEGORY = "college_partner";
 
@@ -67,9 +67,8 @@ export default async function HomePage() {
   // these components again, so edits to them appear live regardless of API state.
   // (generateMetadata() above still sources SEO title/description from the CMS
   // page when reachable.) HomePageFallback isn't CMS-driven, so it needs the live
-  // programs/mentors lists fetched directly here.
+  // programs list fetched directly here.
   let exploreCourses: PublicProgramSummary[] = [];
-  let mentors: PublicMentorCard[] = [];
   // Live CRM-managed content — colleges (Partner rows, category=college_partner) and
   // testimonials. Both degrade to the hardcoded showcase inside HomePageFallback when empty
   // (clean DB / failed fetch), so the sections are never blank.
@@ -81,13 +80,6 @@ export default async function HomePage() {
     exploreCourses = Array.isArray(result.items) ? result.items : [];
   } catch {
     exploreCourses = [];
-  }
-
-  try {
-    const result = await serverApiClient.public.mentors.list({ limit: 8 });
-    mentors = Array.isArray(result.items) ? result.items : [];
-  } catch {
-    mentors = [];
   }
 
   try {
@@ -107,7 +99,6 @@ export default async function HomePage() {
   return (
     <HomePageFallback
       exploreCourses={exploreCourses}
-      mentors={mentors}
       colleges={colleges}
       testimonials={testimonials}
     />

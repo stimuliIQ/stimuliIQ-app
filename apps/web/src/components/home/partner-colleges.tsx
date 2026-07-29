@@ -233,12 +233,10 @@ export function PartnerColleges({ colleges }: { colleges?: PublicPartner[] }) {
       <div className="mx-auto max-w-screen-xl px-4 md:px-6">
         <div className="mx-auto mb-8 max-w-xl text-center lg:mb-10">
           <h2 className="text-2xl font-bold tracking-tight text-fg md:text-3xl">
-            In Collaboration with{" "}
-            <span className="text-chart-3">Leading Institutions</span>
+            Institutional <span className="text-chart-3">Network</span>
           </h2>
           <p className="mx-auto mt-3 text-sm leading-relaxed text-fg-muted">
-            Our programs are developed in partnership with top colleges and
-            institutions across India.
+            Endorsed by students from Leading Educational Institutions
           </p>
         </div>
 

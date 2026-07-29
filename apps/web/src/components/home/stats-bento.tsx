@@ -106,7 +106,7 @@ const STATS: Stat[] = [
   },
   {
     label: "Cities",
-    description: "Students join us from medical, dental, nursing, and pharmacy campuses across the country.",
+    description: "Students join us from medical, dental, allied health sciences campuses across the country.",
     icon: <MapPinIcon />,
   },
 ];

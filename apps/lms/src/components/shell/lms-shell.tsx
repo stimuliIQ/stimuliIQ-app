@@ -705,18 +705,44 @@ export interface LmsShellProps {
  * - Mobile: bottom tab bar (4 primary tabs + "More" drawer)
  * - Main: scrollable content area with padding to clear the fixed bars
  *
- * Auth gating: SignedOutGate redirects signed-out visitors to /login (with a
- * ?next= return target); the per-page isSignedOut cards remain only as a
- * fallback for the frame before the redirect lands. The shell itself still
- * renders immediately to avoid flash while the session is being resolved.
+ * Auth gating, in two layers:
+ *   1. `src/middleware.ts` redirects cookie-less visitors to /login at the edge, so
+ *      they never receive this shell at all.
+ *   2. This component refuses to paint the authenticated chrome until `/me` confirms
+ *      a session — covering the case middleware can't judge, a cookie that is present
+ *      but expired or revoked. Previously the shell rendered immediately "to avoid
+ *      flash", which meant a signed-out visitor saw the whole side nav and tab bar
+ *      around a "You're signed out" card until SignedOutGate's redirect landed.
+ * `SignedOutGate` still performs the client-side redirect for layer 2; the per-page
+ * isSignedOut cards remain as a last-resort fallback.
  */
 export function LmsShell({ children, wide = false }: LmsShellProps): React.JSX.Element {
   const pathname = usePathname();
   const { preference, effectiveCollapsed, toggle } = useSidenavCollapsed();
+  const { isLoading, isSignedOut } = useMe();
+
+  // No session (or not yet known) -> no nav, no tab bar, no account menu. Rendered as
+  // a bare status region rather than null so assistive tech isn't left on a silent
+  // empty page while the redirect is in flight. NOTE: every hook above runs on both
+  // paths, so this early return can't change hook order between renders.
+  if (isSignedOut || isLoading) {
+    return (
+      <div className="min-h-screen bg-bg text-fg">
+        <SignedOutGate />
+        <div role="status" aria-live="polite" className="flex min-h-screen items-center justify-center px-4">
+          <span className="sr-only">{isSignedOut ? "Redirecting to sign in" : "Loading your account"}</span>
+          <span
+            aria-hidden="true"
+            className="size-6 animate-spin rounded-full border-2 border-border border-t-transparent"
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-bg text-fg">
-      {/* Signed-out visitors go straight to /login instead of an empty state. */}
+      {/* Layer-2 redirect for a present-but-invalid session (see doc comment). */}
       <SignedOutGate />
       {/* Forced first-login password change (lifecycle-redesign P3). */}
       <FirstLoginGate />

@@ -319,3 +319,107 @@ describe("MarketingHeader — mega-menu hover", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Active state
+// ---------------------------------------------------------------------------
+
+describe("MarketingHeader — active nav state", () => {
+  it("marks the plain link whose path is current with aria-current='page'", () => {
+    render(
+      <MarketingHeader
+        logo={logo}
+        navItems={navItems}
+        bookSlotHref="/book"
+        activePath="/about"
+      />,
+    );
+    expect(screen.getByRole("link", { name: "About" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "Blog" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("keeps a section link active on its descendant pages", () => {
+    render(
+      <MarketingHeader
+        logo={logo}
+        navItems={navItems}
+        bookSlotHref="/book"
+        activePath="/blog/why-neurology"
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Blog" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("marks the mega-menu trigger active when the current page is inside its panel", () => {
+    render(
+      <MarketingHeader
+        logo={logo}
+        navItems={navItems}
+        bookSlotHref="/book"
+        activePath="/programs/python"
+      />,
+    );
+    expect(screen.getByRole("button", { name: /programs/i })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+  });
+
+  it("marks the mega-menu trigger active via activeMatch, for pages not listed in the panel", () => {
+    const items: NavItem[] = [
+      { ...navItems[0]!, activeMatch: ["/programs"] },
+      ...navItems.slice(1),
+    ];
+    render(
+      <MarketingHeader
+        logo={logo}
+        navItems={items}
+        bookSlotHref="/book"
+        activePath="/programs"
+      />,
+    );
+    // "/programs" is the catalog index — the panel only lists /programs/[slug] pages,
+    // so without activeMatch this trigger would stay unlit.
+    expect(screen.getByRole("button", { name: /programs/i })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+  });
+
+  it("marks the current program inside an open mega-menu panel", async () => {
+    const user = userEvent.setup();
+    render(
+      <MarketingHeader
+        logo={logo}
+        navItems={navItems}
+        bookSlotHref="/book"
+        activePath="/programs/python"
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /programs/i }));
+
+    expect(screen.getByRole("link", { name: /^python$/i })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: /data science/i })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
+  it("marks nothing active when activePath is omitted", () => {
+    render(<MarketingHeader logo={logo} navItems={navItems} bookSlotHref="/book" />);
+    for (const name of ["About", "Blog"]) {
+      expect(screen.getByRole("link", { name })).not.toHaveAttribute("aria-current");
+    }
+    expect(screen.getByRole("button", { name: /programs/i })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+});

@@ -276,7 +276,7 @@ function OutcomesSection({ outcomes }: { outcomes: string[] }) {
   if (outcomes.length === 0) return null;
   return (
     <section aria-label="Learning outcomes" data-testid="program-outcomes">
-      <h2 className="mb-4 text-xl font-semibold text-fg">What you'll achieve</h2>
+      <h2 className="mb-4 text-xl font-semibold text-fg">What you'll Learn</h2>
       <ul role="list" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {outcomes.map((outcome) => (
           <li key={outcome} className="flex items-start gap-2 text-sm text-fg-muted">

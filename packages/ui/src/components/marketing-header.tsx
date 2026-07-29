@@ -6,6 +6,7 @@ import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { ChevronDown, Menu, X } from "lucide-react";
 
 import { cn } from "../lib/cn";
+import { isPathActive } from "../lib/active-path";
 
 /**
  * MarketingHeader + MegaMenu — sticky site header for the `web` app, per
@@ -65,6 +66,13 @@ export interface NavItem {
   href?: string;
   /** Mega-menu config; when present this item behaves as a popover trigger. */
   megaMenu?: MegaMenuConfig;
+  /**
+   * Extra paths this item owns for ACTIVE-STATE matching only — never rendered as a
+   * link. Needed when `href` can't express it: a mega-menu entry renders as a button
+   * with no href of its own, so the "Courses" item carries `activeMatch: ["/programs"]`
+   * to light up on the catalog page as well as on each program inside its panel.
+   */
+  activeMatch?: string[];
 }
 
 export interface MarketingHeaderProps {
@@ -74,12 +82,58 @@ export interface MarketingHeaderProps {
   navItems: NavItem[];
   /** href for the persistent "Book Free Slot" CTA. */
   bookSlotHref: string;
+  /**
+   * Current pathname (Next: `usePathname()`). The nav item that owns it renders in the
+   * active style and carries `aria-current`. Optional so this package stays
+   * router-agnostic — omitted, nothing is marked active.
+   */
+  activePath?: string;
   /** Called when the CTA button is clicked (optional — href still works). */
   onBookSlotClick?: () => void;
   /** Additional className on the outer <header>. */
   className?: string;
   /** Test hook; defaults to "marketing-header". */
   "data-testid"?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Active state
+// ---------------------------------------------------------------------------
+
+/**
+ * Underline bar under the active desktop nav item. An underline rather than a filled
+ * pill because the header's whole visual language is "background stays white, only the
+ * text colour moves" (see the trigger className below) — a pill would be the only solid
+ * shape in the bar. Rendered as an ::after so it costs no extra DOM node and can't be
+ * picked up by the accessibility tree.
+ */
+const ACTIVE_UNDERLINE =
+  "after:absolute after:inset-x-3 after:bottom-1 after:h-0.5 after:rounded-full after:bg-brand-500 after:content-['']";
+
+/**
+ * Active row in the mobile sheet. The rows are full-width blocks stacked on a divided
+ * list, so the desktop underline reads as a divider there — a leading brand bar plus a
+ * tinted row is the equivalent that survives the different layout. `pl` compensates for
+ * the 2px border so the labels stay optically aligned with the inactive rows.
+ */
+const MOBILE_ACTIVE =
+  "border-l-2 border-brand-500 bg-brand-50 pl-[calc(1rem_-_2px)] text-brand-700";
+
+/**
+ * Does this nav entry own the current path? Checked in cost order:
+ * its own href → its declared `activeMatch` paths → any destination inside its
+ * mega-menu panel (so a program detail page lights up "Courses" without the caller
+ * having to enumerate every slug).
+ */
+function isNavItemActive(item: NavItem, activePath?: string): boolean {
+  if (!activePath) return false;
+  if (isPathActive(item.href, activePath)) return true;
+  if (item.activeMatch?.some((href) => isPathActive(href, activePath))) return true;
+  return (
+    item.megaMenu?.sections.some((section) =>
+      section.items.some((link) => isPathActive(link.href, activePath)),
+    ) ?? false
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -92,6 +146,7 @@ interface DesktopMegaMenuProps {
   onClose: () => void;
   triggerId: string;
   panelId: string;
+  activePath?: string;
 }
 
 function DesktopMegaMenu({
@@ -100,6 +155,7 @@ function DesktopMegaMenu({
   onClose,
   triggerId,
   panelId,
+  activePath,
 }: DesktopMegaMenuProps): React.JSX.Element | null {
   const panelRef = React.useRef<HTMLDivElement>(null);
 
@@ -157,11 +213,14 @@ function DesktopMegaMenu({
                 {section.heading}
               </p>
               <ul className="flex flex-col gap-1" role="list">
-                {section.items.map((item) => (
+                {section.items.map((item) => {
+                  const isCurrent = isPathActive(item.href, activePath);
+                  return (
                   <li key={item.href}>
                     <a
                       href={item.href}
                       onClick={onClose}
+                      aria-current={isCurrent ? "page" : undefined}
                       className={cn(
                         // Group so the label can take the accent colour on row hover.
                         "group block rounded-md px-2 py-1.5 text-sm text-fg-muted",
@@ -169,9 +228,16 @@ function DesktopMegaMenu({
                         // row is active without breaking the white surface.
                         "transition-colors duration-[150ms] ease-out hover:bg-brand-50",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                        // The current program keeps the hover tint permanently.
+                        isCurrent && "bg-brand-50",
                       )}
                     >
-                      <span className="font-medium text-fg transition-colors group-hover:text-brand-700">
+                      <span
+                        className={cn(
+                          "font-medium text-fg transition-colors group-hover:text-brand-700",
+                          isCurrent && "text-brand-700",
+                        )}
+                      >
                         {item.label}
                       </span>
                       {item.description ? (
@@ -181,7 +247,8 @@ function DesktopMegaMenu({
                       ) : null}
                     </a>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </div>
           ))}
@@ -204,6 +271,7 @@ interface MobileMenuProps {
   onBookSlotClick?: () => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  activePath?: string;
 }
 
 function MobileMenu({
@@ -212,6 +280,7 @@ function MobileMenu({
   onBookSlotClick,
   open,
   onOpenChange,
+  activePath,
 }: MobileMenuProps): React.JSX.Element {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -250,19 +319,31 @@ function MobileMenu({
 
           {/* Nav items */}
           <nav aria-label="Mobile navigation">
-            <AccordionPrimitive.Root type="multiple" className="divide-y divide-border">
+            <AccordionPrimitive.Root
+              type="multiple"
+              // The section containing the current page starts expanded, so opening the
+              // menu on a program page shows where you are without a tap.
+              defaultValue={navItems
+                .filter((item) => item.megaMenu && isNavItemActive(item, activePath))
+                .map((item) => item.label)}
+              className="divide-y divide-border"
+            >
               {navItems.map((item) => {
+                const isActive = isNavItemActive(item, activePath);
+
                 if (item.megaMenu) {
                   return (
                     <AccordionPrimitive.Item key={item.label} value={item.label}>
                       <AccordionPrimitive.Header asChild>
                         <h2 className="m-0">
                           <AccordionPrimitive.Trigger
+                            aria-current={isActive ? "true" : undefined}
                             className={cn(
                               "flex w-full items-center justify-between px-4 py-4 text-base font-medium text-fg",
                               "transition-colors hover:bg-surface",
                               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                               "[&[data-state=open]>svg]:rotate-180",
+                              isActive && MOBILE_ACTIVE,
                             )}
                           >
                             {item.label}
@@ -281,21 +362,26 @@ function MobileMenu({
                                 {section.heading}
                               </p>
                               <ul className="flex flex-col gap-1" role="list">
-                                {section.items.map((link) => (
-                                  <li key={link.href}>
-                                    <a
-                                      href={link.href}
-                                      onClick={() => onOpenChange(false)}
-                                      className={cn(
-                                        "block rounded-md px-2 py-2 text-sm text-fg-muted",
-                                        "hover:bg-card hover:text-fg",
-                                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                                      )}
-                                    >
-                                      {link.label}
-                                    </a>
-                                  </li>
-                                ))}
+                                {section.items.map((link) => {
+                                  const isCurrent = isPathActive(link.href, activePath);
+                                  return (
+                                    <li key={link.href}>
+                                      <a
+                                        href={link.href}
+                                        onClick={() => onOpenChange(false)}
+                                        aria-current={isCurrent ? "page" : undefined}
+                                        className={cn(
+                                          "block rounded-md px-2 py-2 text-sm text-fg-muted",
+                                          "hover:bg-card hover:text-fg",
+                                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                                          isCurrent && "bg-card font-medium text-brand-700",
+                                        )}
+                                      >
+                                        {link.label}
+                                      </a>
+                                    </li>
+                                  );
+                                })}
                               </ul>
                             </div>
                           ))}
@@ -310,10 +396,12 @@ function MobileMenu({
                     <a
                       href={item.href}
                       onClick={() => onOpenChange(false)}
+                      aria-current={isActive ? "page" : undefined}
                       className={cn(
                         "block px-4 py-4 text-base font-medium text-fg",
                         "transition-colors hover:bg-surface",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                        isActive && MOBILE_ACTIVE,
                       )}
                     >
                       {item.label}
@@ -356,6 +444,7 @@ export function MarketingHeader({
   navItems,
   bookSlotHref,
   onBookSlotClick,
+  activePath,
   className,
   "data-testid": testId,
 }: MarketingHeaderProps): React.JSX.Element {
@@ -421,6 +510,8 @@ export function MarketingHeader({
           {/* Desktop nav */}
           <nav aria-label="Primary navigation" className="hidden lg:flex lg:flex-1 lg:items-center lg:gap-1">
             {navItems.map((item) => {
+              const isActive = isNavItemActive(item, activePath);
+
               if (item.megaMenu) {
                 const isOpen = openMegaMenu === item.label;
                 const triggerId = `mega-trigger-${item.label.replace(/\s+/g, "-").toLowerCase()}`;
@@ -440,14 +531,18 @@ export function MarketingHeader({
                       aria-expanded={isOpen}
                       aria-controls={isOpen ? panelId : undefined}
                       aria-haspopup="true"
+                      // "true" rather than "page": the trigger is a button that opens a
+                      // panel, not the link to the current page — one of its children is.
+                      aria-current={isActive ? "true" : undefined}
                       onClick={() => setOpenMegaMenu(isOpen ? null : item.label)}
                       className={cn(
-                        "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium",
+                        "relative inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium",
                         // Minimal: no filled pill in any state — the background stays white
                         // and only the text/chevron colour carries hover + open.
                         "bg-transparent text-fg-muted transition-colors hover:text-brand-600",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        isOpen && "text-brand-600",
+                        (isOpen || isActive) && "text-brand-600",
+                        isActive && ACTIVE_UNDERLINE,
                       )}
                     >
                       {item.label}
@@ -467,6 +562,7 @@ export function MarketingHeader({
                 <a
                   key={item.label}
                   href={item.href}
+                  aria-current={isActive ? "page" : undefined}
                   // Hovering a plain link also dismisses an open mega-menu — otherwise
                   // sliding from "Courses" to "Mentors" leaves the panel hanging open
                   // over the page.
@@ -474,9 +570,10 @@ export function MarketingHeader({
                     if (supportsHover.current) setOpenMegaMenu(null);
                   }}
                   className={cn(
-                    "rounded-md px-3 py-2 text-sm font-medium text-fg-muted",
+                    "relative rounded-md px-3 py-2 text-sm font-medium text-fg-muted",
                     "transition-colors hover:text-brand-600",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    isActive && ["text-brand-600", ACTIVE_UNDERLINE],
                   )}
                 >
                   {item.label}
@@ -531,6 +628,7 @@ export function MarketingHeader({
               onClose={() => setOpenMegaMenu(null)}
               triggerId={triggerId}
               panelId={panelId}
+              activePath={activePath}
             />
           );
         })}
@@ -543,6 +641,7 @@ export function MarketingHeader({
         onBookSlotClick={onBookSlotClick}
         open={mobileOpen}
         onOpenChange={setMobileOpen}
+        activePath={activePath}
       />
     </>
   );

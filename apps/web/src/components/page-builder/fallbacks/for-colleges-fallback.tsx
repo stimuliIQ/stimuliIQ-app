@@ -3,6 +3,8 @@
  * verbatim as the resilience fallback for `app/for-colleges/page.tsx`
  * (docs/specs/phase-10-page-builder.md item B).
  */
+import { HeroMotif } from "../hero-motif";
+
 const ITEMS = [
   { title: "Campus Training Programs", desc: "Tailored 8 to 16 week internship programs delivered on campus or hybrid. We handle curriculum, mentors, and assessments." },
   { title: "Career Roadmaps & Guidance", desc: "Give your students access to structured career roadmaps for health sciences — built with mentor insights, real time opportunities, and guidance from our growing healthcare community." },
@@ -13,11 +15,15 @@ const ITEMS = [
 export function ForCollegesPageFallback() {
   return (
     <>
-      <header className="mb-10">
-        <h1 className="text-3xl font-bold text-fg sm:text-4xl">
+      {/* `relative` + `overflow-hidden` scope the campus-network motif to this band —
+          same treatment the CMS-driven hero gets via HeroBlock, so both render paths
+          look identical. */}
+      <header className="relative -mx-4 mb-10 overflow-hidden px-4 py-10 md:-mx-6 md:px-6">
+        <HeroMotif kind="campus-network" />
+        <h1 className="relative text-3xl font-bold text-fg sm:text-4xl">
           For <span className="text-chart-3">Campus Communities</span>
         </h1>
-        <p className="mt-3 text-lg text-fg-muted">Collaborate with us to bring hands-on healthcare training, workshops, mentorship, and career exposure to your fellow students.</p>
+        <p className="relative mt-3 text-lg text-fg-muted">Collaborate with us to bring hands-on healthcare training, workshops, mentorship, and career exposure to your fellow students.</p>
       </header>
 
       <div className="grid gap-6 sm:grid-cols-2">

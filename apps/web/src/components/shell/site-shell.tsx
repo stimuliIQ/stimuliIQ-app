@@ -195,6 +195,7 @@ export function SiteShell({
         logo={<SiteLogo />}
         navItems={navItems}
         bookSlotHref={BOOK_SLOT_HREF}
+        activePath={pathname ?? undefined}
         data-testid="site-header"
       />
 

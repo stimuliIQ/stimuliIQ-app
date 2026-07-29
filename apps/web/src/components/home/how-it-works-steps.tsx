@@ -79,9 +79,29 @@ export function HowItWorksSteps({ steps }: { steps: Step[] }) {
 
         return (
           <li key={step.title} className="relative">
-            <article className={`relative overflow-hidden rounded-3xl py-6 pl-16 pr-6 sm:pl-20 sm:pr-8 lg:w-[62%] ${cardTint} ${even ? "lg:mr-auto" : "lg:ml-auto"}`}>
+            <article
+              className={[
+                "group relative overflow-hidden rounded-3xl py-6 pl-16 pr-6 sm:pl-20 sm:pr-8 lg:w-[62%]",
+                cardTint,
+                even ? "lg:mr-auto" : "lg:ml-auto",
+                // Hover treatment: the card lifts toward the reader and picks up a
+                // brand ring, while its step pill and icon chip animate in sympathy
+                // (see below). Transform + shadow only — the tint stays put so the
+                // alternating green/neutral rhythm of the zigzag is preserved.
+                "ring-1 ring-transparent transition-[transform,box-shadow] duration-300 ease-out",
+                "hover:-translate-y-1.5 hover:shadow-xl hover:ring-brand-500/25",
+                "focus-within:-translate-y-1.5 focus-within:shadow-xl focus-within:ring-brand-500/25",
+              ].join(" ")}
+            >
+              {/* Sheen that sweeps across on hover — decorative, non-interactive. */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/0 via-white/40 to-white/0 opacity-0 transition-opacity duration-500 ease-out group-hover:opacity-100"
+              />
               {/* Vertical "STEP 0N" pill down the left edge */}
-              <div className={`absolute inset-y-2.5 left-2.5 flex w-10 items-center justify-center rounded-full ${pillColor}`}>
+              <div
+                className={`absolute inset-y-2.5 left-2.5 flex w-10 items-center justify-center rounded-full transition-transform duration-300 ease-out group-hover:scale-y-[1.03] ${pillColor}`}
+              >
                 <span
                   aria-hidden="true"
                   className="text-[10px] font-bold uppercase tracking-[0.2em] text-white [writing-mode:vertical-rl] rotate-180"
@@ -90,15 +110,15 @@ export function HowItWorksSteps({ steps }: { steps: Step[] }) {
                 </span>
               </div>
 
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-card text-chart-3 shadow-sm">
+              <div className="relative flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-card text-chart-3 shadow-sm transition-[transform,color] duration-300 ease-out group-hover:scale-110 group-hover:text-brand-600">
                   <Icon />
                 </span>
                 <h3 className="text-lg font-bold text-fg">
                   <span aria-hidden="true" className="text-fg-muted">{index + 1}</span> {step.title}
                 </h3>
               </div>
-              <p className="mt-3 text-sm leading-relaxed text-fg-muted">{step.description}</p>
+              <p className="relative mt-3 text-sm leading-relaxed text-fg-muted">{step.description}</p>
             </article>
 
             {/* Dashed elbow connector into the next (opposite-side) card. Anchored

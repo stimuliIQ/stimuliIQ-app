@@ -10,7 +10,6 @@ import {
 } from "@repo/ui";
 import { HeroCentered } from "../../home/hero-centered";
 import { WhyUsSection } from "../../home/why-us";
-import { MentorsTeaser } from "../../home/mentors-teaser";
 import { StatsBento } from "../../home/stats-bento";
 import { ExploreCourses } from "../../home/explore-courses";
 import { TestimonialSpotlight } from "../../home/testimonial-spotlight";
@@ -19,7 +18,7 @@ import { HowItWorksSteps } from "../../home/how-it-works-steps";
 import { PartnerColleges } from "../../home/partner-colleges";
 import { BOOK_SLOT_HREF } from "../../shell/nav-config";
 import { LeadFormConnected } from "../../leads/lead-form-connected";
-import type { PublicProgramSummary, PublicMentorCard, PublicPartner, PublicTestimonial } from "@repo/types";
+import type { PublicProgramSummary, PublicPartner, PublicTestimonial } from "@repo/types";
 import type { TestimonialSpotlightItem } from "../../home/testimonial-spotlight";
 
 const TESTIMONIALS: TestimonialSpotlightItem[] = [
@@ -48,6 +47,33 @@ const TESTIMONIALS: TestimonialSpotlightItem[] = [
     studentName: "Rahul M.",
     college: "Osmania University",
     program: "Public Health & Data",
+    ratingStars: 5 as const,
+  },
+  {
+    id: "t4",
+    quote:
+      "I came in with only classroom theory. The case discussions forced me to actually reason through a patient's history instead of reciting it, and that shift showed up immediately in my clinical postings.",
+    studentName: "Sneha K.",
+    college: "Kasturba Medical College, Mangalore",
+    program: "Clinical Psychology",
+    ratingStars: 5 as const,
+  },
+  {
+    id: "t5",
+    quote:
+      "Being able to rewatch the recorded sessions during exam months was the reason I finished. I could keep up with the program without it competing with my college schedule.",
+    studentName: "Arjun V.",
+    college: "Bangalore Medical College & RI",
+    program: "Clinical Research",
+    ratingStars: 5 as const,
+  },
+  {
+    id: "t6",
+    quote:
+      "My mentor reviewed every case submission properly and told me what was weak rather than just marking it done. That feedback loop is what I actually paid for.",
+    studentName: "Fathima N.",
+    college: "Government Medical College, Kozhikode",
+    program: "Hospital Administration",
     ratingStars: 5 as const,
   },
 ];
@@ -131,12 +157,10 @@ function toTestimonialItem(t: PublicTestimonial): TestimonialSpotlightItem {
 
 export function HomePageFallback({
   exploreCourses,
-  mentors,
   colleges = [],
   testimonials = [],
 }: {
   exploreCourses: PublicProgramSummary[];
-  mentors: PublicMentorCard[];
   /** Live CRM college partners; falls back to a hardcoded showcase when empty. */
   colleges?: PublicPartner[];
   /** Live CRM testimonials; falls back to the hardcoded set when empty. */
@@ -167,7 +191,8 @@ export function HomePageFallback({
         </div>
       </section>
 
-      <MentorsTeaser mentors={mentors} />
+      {/* The mentors teaser used to sit here. Removed from the homepage on request —
+          mentors remain reachable via the "Mentors" nav link and /mentors. */}
 
       <section aria-label="Student testimonials" data-testid="testimonials" className="bg-surface py-16 lg:py-20">
         <div className="mx-auto max-w-screen-xl px-4 md:px-6">

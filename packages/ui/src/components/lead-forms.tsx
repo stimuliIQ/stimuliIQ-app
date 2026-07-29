@@ -530,7 +530,10 @@ export function ExitIntentModal({
             // No overflow-hidden with an imageSlot — the side panel's artwork
             // may break out above the card (pop-out effect); the slot rounds
             // and clips its own background instead.
-            imageSlot ? "p-0 sm:max-w-2xl" : "p-6",
+            // With an imageSlot the card carries a photo panel alongside the form, so it
+            // needs more room than the plain max-w-md form-only dialog. 3xl (768px) keeps
+            // the form column at its previous width while the photo panel grows.
+            imageSlot ? "p-0 sm:max-w-3xl" : "p-6",
             "data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95",
             "data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95",
             "focus-visible:outline-none",
@@ -579,8 +582,14 @@ export function ExitIntentModal({
               <LeadFormCore {...props} heading={undefined} subheading={undefined} />
             </div>
 
+            {/*
+              Photo panel width steps up at md rather than jumping straight to w-96:
+              between sm and md the dialog is capped by the VIEWPORT (max-w-3xl exceeds
+              it), so a 384px panel there would squeeze the form column to ~256px. At md+
+              the dialog reaches its full 768px and the wider panel is free.
+            */}
             {imageSlot ? (
-              <div aria-hidden="true" className="hidden w-72 shrink-0 self-stretch sm:block">
+              <div aria-hidden="true" className="hidden w-80 shrink-0 self-stretch sm:block md:w-96">
                 {imageSlot}
               </div>
             ) : null}

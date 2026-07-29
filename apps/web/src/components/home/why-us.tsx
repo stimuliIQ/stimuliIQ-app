@@ -16,7 +16,7 @@
  * a11y: section landmark with aria-label, h2 + h3 hierarchy, decorative
  * icons/photo hidden from screen readers.
  */
-import Image from "next/image";
+import { WhyUsVisual } from "./why-us-visual";
 
 // ---------------------------------------------------------------------------
 // Icons (inline SVG, stroke = currentColor)
@@ -152,15 +152,34 @@ function WhyUsCard({
   description: string;
 }) {
   return (
-    <div className="flex flex-1 flex-col rounded-2xl bg-card p-7 shadow-sm">
+    // `group` drives the hover treatment on the icon chip and title below.
+    // focus-within mirrors :hover so the same affordance appears for keyboard
+    // users if a card ever gains a focusable child (WCAG 2.2 §2.4.11).
+    <div
+      className={[
+        "group relative flex flex-1 flex-col overflow-hidden rounded-2xl bg-card p-7 shadow-sm",
+        "ring-1 ring-transparent transition-[transform,box-shadow] duration-300 ease-out",
+        "hover:-translate-y-1 hover:shadow-lg hover:ring-brand-500/25",
+        "focus-within:-translate-y-1 focus-within:shadow-lg focus-within:ring-brand-500/25",
+      ].join(" ")}
+    >
+      {/* Brand wash that fades up behind the content on hover. Decorative and
+          pointer-events-none so it never intercepts a click on the card. */}
       <span
         aria-hidden="true"
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-surface text-fg"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand-50 via-transparent to-transparent opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100 group-focus-within:opacity-100"
+      />
+
+      <span
+        aria-hidden="true"
+        className="relative flex h-14 w-14 items-center justify-center rounded-full bg-surface text-fg transition-colors duration-300 ease-out group-hover:bg-brand-500 group-hover:text-white group-focus-within:bg-brand-500 group-focus-within:text-white"
       >
         {icon}
       </span>
-      <h3 className="mt-12 text-2xl font-bold text-fg">{title}</h3>
-      <p className="mt-3 max-w-xs text-base leading-relaxed text-fg-muted">
+      <h3 className="relative mt-12 text-2xl font-bold text-fg transition-colors duration-300 ease-out group-hover:text-brand-700 group-focus-within:text-brand-700">
+        {title}
+      </h3>
+      <p className="relative mt-3 max-w-xs text-base leading-relaxed text-fg-muted">
         {description}
       </p>
     </div>
@@ -185,9 +204,9 @@ export function WhyUsSection() {
             Why <span className="text-chart-3">Stimuli IQ</span>?
           </h2>
           <p className="mx-auto mt-5 max-w-md text-lg leading-relaxed text-fg-muted">
-            We focus on what actually prepares you for a real healthcare
-            career &mdash; real training, real clinical exposure, real
-            mentorship.
+            We focus on what actually prepares you for a healthcare career
+            &mdash; hands-on training, clinical exposure, and mentorship that
+            goes beyond the classroom.
           </p>
         </div>
 
@@ -202,19 +221,11 @@ export function WhyUsSection() {
             ))}
           </div>
 
-          {/* Center visual (decorative) — the branded team composition (portrait,
-              941×1672). The box is LOCKED to the image's own aspect at every
-              breakpoint so the logo (top) and badge (bottom) are never cropped
-              — it sets the row height and the flanking cards stretch to it. */}
-          <div aria-hidden="true" className="relative aspect-[941/1672]">
-            <Image
-              src="/images/why-us-team-portrait.webp"
-              alt=""
-              fill
-              sizes="(min-width: 1024px) 33vw, 100vw"
-              className="rounded-2xl object-cover"
-            />
-          </div>
+          {/* Center visual (decorative) — an animated brand composition
+              (WhyUsVisual) that replaced the static team portrait. It keeps the
+              portrait's 941×1672 aspect, so it still sets the row height and the
+              flanking cards stretch to match it, exactly as before. */}
+          <WhyUsVisual />
 
           <div className="flex flex-col gap-6">
             {RIGHT_CARDS.map((card) => (

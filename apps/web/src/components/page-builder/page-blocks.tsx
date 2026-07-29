@@ -30,11 +30,15 @@ import { MediaGalleryBlock } from "./blocks/media-gallery-block";
 import { JobOpeningsBlock } from "./blocks/job-openings-block";
 import { LiveCollectionRefBlock } from "./blocks/live-collection-ref-block";
 import { BrainShowcaseBlock } from "./blocks/brain-showcase-block";
+import { heroMotifForSlug, type HeroMotifKind } from "./hero-motif";
 
-function renderBlock(block: ResolvedPageBuilderBlock): React.ReactNode {
+function renderBlock(
+  block: ResolvedPageBuilderBlock,
+  motif: HeroMotifKind | undefined,
+): React.ReactNode {
   switch (block.type) {
     case "hero":
-      return <HeroBlock data={block.data} />;
+      return <HeroBlock data={block.data} motif={motif} />;
     case "content_split":
       return <ContentSplitBlock data={block.data} />;
     case "stat_group":
@@ -70,9 +74,17 @@ function renderBlock(block: ResolvedPageBuilderBlock): React.ReactNode {
 
 export interface PageBlocksProps {
   blocks: ResolvedPageBuilderBlock[];
+  /**
+   * Slug of the page being rendered. Used only to pick the decorative hero motif
+   * (`hero-motif.tsx`) for pages whose hero carries no background image — see
+   * `heroMotifForSlug`. Omitted, heroes render exactly as before.
+   */
+  pageSlug?: string;
 }
 
-export function PageBlocks({ blocks }: PageBlocksProps): React.JSX.Element {
+export function PageBlocks({ blocks, pageSlug }: PageBlocksProps): React.JSX.Element {
+  const heroMotif = heroMotifForSlug(pageSlug);
+
   // Edge case #1 / AC 13: an empty page is valid — render a minimal shell, not a crash.
   if (!blocks || blocks.length === 0) {
     return <div data-testid="page-builder-empty-shell" className="py-4" />;
@@ -83,7 +95,7 @@ export function PageBlocks({ blocks }: PageBlocksProps): React.JSX.Element {
       {blocks.map((block, index) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: blocks have no stable id on the wire (same envelope as the legacy ContentBlockRenderer)
         <BlockErrorBoundary key={index} blockType={block.type} blockIndex={index}>
-          {renderBlock(block)}
+          {renderBlock(block, heroMotif)}
         </BlockErrorBoundary>
       ))}
     </>

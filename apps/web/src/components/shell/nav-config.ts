@@ -105,7 +105,15 @@ export function buildNavItems(
 
   return links.map((link) =>
     link.label.trim().toLowerCase() === "courses"
-      ? { label: link.label, megaMenu: { sections, footer: allCoursesFooter() } }
+      ? {
+          label: link.label,
+          megaMenu: { sections, footer: allCoursesFooter() },
+          // The mega-menu renders as a button, so the setting's href survives only as the
+          // ACTIVE-STATE match (never a destination — see the reconciliation note above).
+          // Without it "Courses" would stay unlit on /programs itself, since the panel
+          // lists /programs/[slug] detail pages, not the catalog index.
+          activeMatch: [link.href],
+        }
       : { label: link.label, href: link.href },
   );
 }

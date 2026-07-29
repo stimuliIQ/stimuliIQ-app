@@ -7,6 +7,7 @@
 import Image from "next/image";
 import { TestimonialCard } from "@repo/ui";
 import { BOOK_SLOT_HREF } from "../../shell/nav-config";
+import { HeroMotif } from "../hero-motif";
 
 const JOURNEY = [
   {
@@ -149,8 +150,12 @@ function CheckIcon() {
 export function AboutPageFallback() {
   return (
     <div data-testid="about-content">
-      <section aria-label="About StimuliiQ" className="mx-auto max-w-screen-xl px-4 pt-10 md:px-6">
-        <div className="mx-auto max-w-3xl pb-16 text-center lg:pb-24">
+      {/* `relative` + `overflow-hidden` scope the decorative motif to this band —
+          same treatment the CMS-driven hero gets via HeroBlock, so both render paths
+          look identical. */}
+      <section aria-label="About StimuliiQ" className="relative overflow-hidden px-4 pt-10 md:px-6">
+        <HeroMotif kind="brand-mark" />
+        <div className="relative mx-auto max-w-3xl pb-16 text-center lg:pb-24">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-fg-muted">About Stimuli IQ</p>
           <h1 className="mt-6 font-display text-4xl font-bold leading-[1.08] tracking-tight text-fg sm:text-5xl lg:text-6xl">
             We bridge the gap between

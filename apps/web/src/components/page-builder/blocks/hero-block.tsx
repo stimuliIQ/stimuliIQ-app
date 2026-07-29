@@ -14,6 +14,7 @@ import { resolveAssetUrl } from "../../../lib/media";
 import { safeHref } from "../../../lib/safe-href";
 import { BlockIcon } from "../icon-registry";
 import { HighlightText } from "../highlight-text";
+import { HeroMotif, type HeroMotifKind } from "../hero-motif";
 
 function ArrowRightIcon() {
   return (
@@ -173,8 +174,20 @@ function SplitWithCardsHero({ data }: { data: HeroBlockData }) {
   );
 }
 
-export function HeroBlock({ data }: { data: HeroBlockData }): React.JSX.Element {
+export function HeroBlock({
+  data,
+  motif,
+}: {
+  data: HeroBlockData;
+  /**
+   * Decorative animated background, chosen per page by `PageBlocks` (see
+   * `hero-motif.tsx`). Applied ONLY when the block has no `backgroundImageKey`, so a
+   * CRM-uploaded background always wins and staff keep full control from the CRM.
+   */
+  motif?: HeroMotifKind;
+}): React.JSX.Element {
   const backgroundSrc = resolveAssetUrl(data.backgroundImageKey);
+  const showMotif = !backgroundSrc && motif != null;
 
   if (data.variant === "split-with-cards") {
     return (
@@ -184,6 +197,7 @@ export function HeroBlock({ data }: { data: HeroBlockData }): React.JSX.Element 
             <Image src={backgroundSrc} alt="" fill priority sizes="100vw" className="object-cover" />
           </div>
         ) : null}
+        {showMotif ? <HeroMotif kind={motif} /> : null}
         <SplitWithCardsHero data={data} />
       </section>
     );
@@ -196,6 +210,7 @@ export function HeroBlock({ data }: { data: HeroBlockData }): React.JSX.Element 
           <Image src={backgroundSrc} alt="" fill priority sizes="100vw" className="object-cover" />
         </div>
       ) : null}
+      {showMotif ? <HeroMotif kind={motif} /> : null}
 
       <div className="relative mx-auto max-w-screen-2xl px-4 py-20 md:px-6 lg:py-32">
         {data.variant === "centered-with-flanking-photos" && data.flankingPhotos?.[0] ? (

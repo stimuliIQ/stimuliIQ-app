@@ -101,17 +101,28 @@ export function TimedLeadPopupConnected(): React.JSX.Element {
       heading="Have Questions?"
       subheading="Share your number — we'll call you back."
       imageSlot={
-        <div className="relative h-full overflow-hidden rounded-r-xl">
-          {/* call-person.jpg — opaque landscape photo (caller on the RIGHT of the
-              frame, white studio background), unlike the previous transparent
-              counsellor.png cutout: no gradient underlay or head-overhang tricks
-              needed. object-position keeps the crop on the caller when the
-              portrait panel slices the landscape frame. */}
+        <div className="relative h-full overflow-hidden rounded-r-xl bg-white">
+          {/* call-person.jpg — opaque 1600x1066 landscape photo (caller occupying roughly
+              the right 44–91% of the frame, white studio background), unlike the previous
+              transparent counsellor.png cutout: no gradient underlay or head-overhang
+              tricks needed.
+
+              The panel is portrait and the source is landscape, so `object-cover` always
+              scales to the panel's HEIGHT and crops horizontally — which makes
+              object-position's X the only value that matters (Y is a no-op here, hence
+              `center` rather than a tuned percentage that reads as meaningful but isn't).
+
+              X is 82%, not 65%: at 65% the visible window stopped around x=1272 of 1600
+              and sliced off her right shoulder and arm while wasting the panel's left edge
+              on empty backdrop. 82% lands the window on roughly x=700–1450 in the source —
+              the subject's full extent — at BOTH panel widths (w-80 and md:w-96), so she
+              stays whole instead of clipped. bg-white on the wrapper matches the photo's
+              own studio backdrop, so any sliver left uncovered blends in. */}
           <img
             src="/images/popup/call-person.jpg"
             alt=""
             loading="lazy"
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[65%_30%]"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[82%_center]"
           />
         </div>
       }

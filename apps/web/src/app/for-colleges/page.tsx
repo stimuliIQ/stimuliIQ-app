@@ -74,7 +74,7 @@ export default async function ForCollegesPage() {
       </section>
 
       {blocks ? (
-        <PageBlocks blocks={blocks} />
+        <PageBlocks blocks={blocks} pageSlug={FOR_COLLEGES_SLUG} />
       ) : (
         // The pre-migration fallback has no container of its own — keep the
         // original narrow wrapper so it renders exactly as it always did.

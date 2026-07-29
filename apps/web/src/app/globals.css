@@ -135,6 +135,124 @@
   will-change: transform;
 }
 
+/* ---------------------------------------------------------------------------
+ * Marketing motion primitives — shared by the Why-Us centre panel
+ * (components/home/why-us-visual.tsx) and the page-builder hero motifs
+ * (components/page-builder/hero-motif.tsx).
+ *
+ * All are decorative and sit on aria-hidden elements. The global
+ * prefers-reduced-motion rule in @repo/ui/styles.css collapses every animation
+ * here to 0.01ms, so an opted-out user gets the composition's resting frame —
+ * which is why each keyframe is authored so that its 0% state is the one worth
+ * seeing on its own (no zero-opacity or zero-scale starts).
+ * ------------------------------------------------------------------------- */
+
+/* Slow drifting colour field. Two or three of these at different durations and
+   offsets read as an aurora rather than a single moving blob. */
+@keyframes aurora-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(6%, -8%, 0) scale(1.12);
+  }
+  66% {
+    transform: translate3d(-5%, 6%, 0) scale(0.94);
+  }
+}
+
+.animate-aurora {
+  animation: aurora-drift 18s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Concentric "vitals" rings expanding out of a centre point. Starts at full
+   opacity and scale 1 so the resting frame is a visible ring, not nothing. */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 3.6s cubic-bezier(0.25, 0.6, 0.35, 1) infinite;
+  will-change: transform, opacity;
+}
+
+/* ECG/heartbeat trace that strokes itself on, holds, then clears. `stroke-dasharray`
+   is set inline per path (it must equal the path's own length). */
+@keyframes trace-draw {
+  0% {
+    stroke-dashoffset: var(--trace-len);
+  }
+  55%,
+  75% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: calc(var(--trace-len) * -1);
+  }
+}
+
+.animate-trace {
+  animation: trace-draw 5s linear infinite;
+}
+
+/* Gentle bob for floating chips/nodes. Offset per element with an inline delay. */
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+.animate-float-soft {
+  animation: float-soft 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Brand mark "breathing" — a slow scale + glow cycle for the About hero motif. */
+@keyframes logo-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.045);
+    opacity: 1;
+  }
+}
+
+.animate-logo-breathe {
+  animation: logo-breathe 6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Signal travelling along a connector line in the campus-network motif. */
+@keyframes link-flow {
+  0% {
+    stroke-dashoffset: 24;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-link-flow {
+  stroke-dasharray: 4 8;
+  animation: link-flow 2.4s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .announcement-marquee {
     animation: none;

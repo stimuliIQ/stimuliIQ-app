@@ -89,7 +89,7 @@ export default async function AboutPage() {
 
       {blocks ? (
         <div data-testid="about-content">
-          <PageBlocks blocks={blocks} />
+          <PageBlocks blocks={blocks} pageSlug={ABOUT_SLUG} />
         </div>
       ) : (
         <AboutPageFallback />
