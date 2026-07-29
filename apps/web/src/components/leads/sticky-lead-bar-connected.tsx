@@ -69,8 +69,10 @@ export function StickyLeadBarConnected({
       placeholder="Your phone number"
       submitLabel="Call Me"
       captchaSlot={
-        // Hidden Turnstile — auto-fires token without user interaction
+        // interaction-only: invisible unless Cloudflare requires the visitor to
+        // interact; the token still auto-mints on load.
         <TurnstileWidget
+          appearance="interaction-only"
           onToken={setToken}
           onExpire={resetToken}
           onError={resetToken}

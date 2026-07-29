@@ -762,6 +762,31 @@ async function main(): Promise<void> {
     ),
   );
 
+  // ── Admin ▸ Users permissions (staff-account credential management) ─────────────
+  // Dedicated block outside `permissionCatalog` (same pattern as the page-builder keys
+  // above) so the grant surface stays explicit: super_admin + admin only, scope=all.
+  // Backs apps/api/src/modules/admin/users.controller.ts (/crm/admin/users CRUD).
+  const USERS_ADMIN_PERMISSIONS: Array<{ key: string; label: string }> = [
+    { key: "users.view", label: "View Staff Users" },
+    { key: "users.create", label: "Create Staff Users" },
+    { key: "users.edit", label: "Edit Staff Users" },
+    { key: "users.delete", label: "Deactivate Staff Users" },
+  ];
+  const usersAdminPermissions = await Promise.all(
+    USERS_ADMIN_PERMISSIONS.map((perm) =>
+      prisma.permission.upsert({
+        where: { key: perm.key },
+        update: { label: perm.label },
+        create: perm,
+      }),
+    ),
+  );
+  for (const role of [superAdminRole, adminRole]) {
+    await Promise.all(
+      usersAdminPermissions.map((permission) => grant(role.id, permission.id, RolePermissionScope.all)),
+    );
+  }
+
   // branch_manager: docs/03 §9 row "BranchMgr" — students/faculty/batches = branch;
   // courses = view; payments(not in P1)/reports(not in P1) skipped; admin = none;
   // audit = none. roles/branches not in BranchMgr's §9 row -> no grant.
@@ -3334,7 +3359,7 @@ async function main(): Promise<void> {
         channel: CampaignChannel.email,
         name: "Newsletter — Welcome",
         subject: "Welcome to Stimuliiq, {{name}}! 🎉",
-        body: "Hi {{name}},\n\nThanks for subscribing to the Stimuliiq newsletter! You're now on the list for weekly career & tech tips, early access to new batches, and exclusive scholarships.\n\nExplore our programs: {{cta_url}}\n\nSee you inside,\nThe Stimuliiq Team",
+        body: "Hi {{name}},\n\nThanks for subscribing to the Stimuliiq newsletter! You're now on the list for weekly career and clinical learning tips, early access to new batches, and exclusive scholarships.\n\nExplore our programs: {{cta_url}}\n\nSee you inside,\nThe Stimuliiq Team",
         dltTemplateId: null,
         variables: [
           { key: "name", label: "Subscriber Name" },
@@ -4150,7 +4175,7 @@ async function main(): Promise<void> {
       tenantId: tenant.id,
       slug: "about-us",
       title: "About Stimuliiq",
-      body: [{ type: "hero", data: { heading: "We train India's next generation of engineers" } }],
+      body: [{ type: "hero", data: { heading: "We train India's next generation of healthcare professionals" } }],
       status: "published" as const,
       publishedAt: new Date("2026-01-01T00:00:00Z"),
     };
@@ -4266,15 +4291,14 @@ async function main(): Promise<void> {
   await upsertSiteSetting("seo.defaults", "seo", {
     siteName: "StimuliiQ",
     defaultDescription:
-      "StimuliiQ — India's leading internship and career training platform for B.Tech, MBA, MCA, and Diploma students. Industry-grade programs, verifiable certificates, expert mentors.",
+      "StimuliiQ is India's internship and career training platform for MBBS, BDS, Nursing, Pharmacy, and Allied Health students. Structured programs, verifiable certificates, clinician mentors.",
     // Relative path — combined with NEXT_PUBLIC_SITE_URL at render time (matches
     // apps/web/src/lib/seo/metadata.ts DEFAULT_OG_IMAGE, which is env-derived).
     defaultOgImagePath: "/og-default.png",
   });
 
   await upsertSiteSetting("contact.details", "contact", {
-    contactText:
-      "India's leading internship & career training platform for B.Tech, MBA, MCA, and Diploma students.",
+    contactText: "India's Next Generation Healthcare Learning Platform",
   });
 
   // contact.whatsapp — matches site-shell.tsx's NEXT_PUBLIC_WHATSAPP_NUMBER/_MESSAGE
@@ -4291,8 +4315,17 @@ async function main(): Promise<void> {
   // still validates, but whoever next touches that file should update its now-stale doc
   // comment to match this raw-text convention.
   await upsertSiteSetting("contact.whatsapp", "contact", {
-    number: "919999999999",
+    number: "919177748321",
     message: "Hi, I want to know more about StimuliiQ programs",
+  });
+
+  // announcement.bar — the CRM-toggleable message strip above the website header
+  // (apps/web SiteShell → AnnouncementBar). Seeded OFF: the strip renders nothing
+  // until a super_admin enables it in CRM → Marketing → Site settings → Announcement.
+  await upsertSiteSetting("announcement.bar", "announcement", {
+    enabled: false,
+    message: "Admissions are open — book a free counselling slot today.",
+    mode: "static",
   });
 
   // P10-2 (real-user defect promoted from follow-up): `stats.headline` was REMOVED
@@ -4333,41 +4366,42 @@ async function main(): Promise<void> {
   const BUILDER_PAGES: Array<{ slug: string; title: string; seoTitle: string; seoDescription: string }> = [
     {
       slug: "home",
-      title: "StimuliiQ — Internship & Career Training for Students in India",
-      seoTitle: "StimuliiQ — Internship & Career Training in India",
+      title: "StimuliiQ | Healthcare Training & Internships for Students in India",
+      seoTitle: "StimuliiQ — Healthcare Training & Internships in India",
       seoDescription:
-        "Project-based internship programs in Full Stack, Python, Data Science, Cloud, and DevOps. Industry mentors, hands-on projects, verifiable certificates.",
+        "Structured training and internship tracks in psychology, clinical practice, and allied healthcare. Healthcare mentors, real case work, and verifiable certificates.",
     },
     {
       slug: "about",
       title: "About Us",
       seoTitle: "About StimuliiQ",
-      seoDescription: "StimuliiQ is India's leading internship and career training platform for B.Tech, MBA, MCA, and Diploma students.",
+      seoDescription:
+        "Stimuli IQ is a healthcare education and training platform for India's medical, psychology, and allied health science students — bridging the gap between academics and real practice.",
     },
     {
       slug: "scholarship",
       title: "StimuliiQ Scholarship Programme",
       seoTitle: "StimuliiQ Scholarship Programme — Merit & Need Based Fee Waivers",
       seoDescription:
-        "The StimuliiQ Scholarship grants merit-and-need-based fee waivers of up to 50% on internship-training programs for students across India.",
+        "The StimuliiQ Scholarship grants merit-and-need-based fee waivers of up to 50% on healthcare training and internship programs for students across India.",
     },
     {
       slug: "for-colleges",
-      title: "For Colleges",
-      seoTitle: "For Colleges — Campus Training Partnerships",
-      seoDescription: "Partner with StimuliiQ to provide industry-grade tech training to your students. We work with 80+ colleges across India.",
+      title: "For Campus Communities",
+      seoTitle: "For Campus Communities — Healthcare Training Collaborations",
+      seoDescription: "Collaborate with StimuliiQ to bring hands-on healthcare training, workshops, mentorship, and career exposure to your campus community.",
     },
     {
       slug: "gallery",
       title: "Gallery",
-      seoTitle: "Gallery — Sessions, Certificates & Events",
+      seoTitle: "Gallery | Sessions, Certificates & Events",
       seoDescription: "Photos and highlights from StimuliiQ training sessions, certificate ceremonies, and industry events.",
     },
     {
       slug: "careers",
       title: "Careers at StimuliiQ",
       seoTitle: "Careers at StimuliiQ",
-      seoDescription: "Join the StimuliiQ team. We are hiring instructors, counsellors, and engineers passionate about transforming tech education in India.",
+      seoDescription: "Join the StimuliiQ team. We are hiring instructors, counsellors, and engineers passionate about transforming medical training in India.",
     },
   ];
 

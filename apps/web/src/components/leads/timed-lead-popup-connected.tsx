@@ -101,16 +101,17 @@ export function TimedLeadPopupConnected(): React.JSX.Element {
       heading="Have Questions?"
       subheading="Share your number — we'll call you back."
       imageSlot={
-        <div className="relative h-full rounded-r-xl bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700">
-          {/* Portrait crop of the counsellor artwork (derived from
-              images/scholarship/contact-person.png). The image box is anchored
-              to the panel's bottom and taller than the panel, so her head pops
-              out above the card while the sides stay flush with the panel. */}
+        <div className="relative h-full overflow-hidden rounded-r-xl">
+          {/* call-person.jpg — opaque landscape photo (caller on the RIGHT of the
+              frame, white studio background), unlike the previous transparent
+              counsellor.png cutout: no gradient underlay or head-overhang tricks
+              needed. object-position keeps the crop on the caller when the
+              portrait panel slices the landscape frame. */}
           <img
-            src="/images/popup/counsellor.png"
+            src="/images/popup/call-person.jpg"
             alt=""
             loading="lazy"
-            className="pointer-events-none absolute bottom-0 left-0 h-[calc(100%+4rem)] w-full rounded-br-xl object-cover object-top"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[65%_30%]"
           />
         </div>
       }

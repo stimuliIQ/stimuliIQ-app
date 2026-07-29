@@ -17,6 +17,7 @@
 import { MultiStepForm } from "@repo/ui";
 import type { MultiStep } from "@repo/ui";
 import { useBookSlot } from "../../../hooks/use-book-slot";
+import { buildWhatsAppHref } from "../../../lib/contact";
 import { ProgramStep, type ProgramOption } from "./book-slot-step-program";
 import { SlotStep } from "./book-slot-step-slot";
 import { DetailsStep } from "./book-slot-step-details";
@@ -159,7 +160,7 @@ export function BookSlotForm({ programs = [] }: BookSlotFormProps) {
         <p className="mt-3 text-center text-sm text-fg-muted">
           Having trouble?{" "}
           <a
-            href="https://wa.me/919999999999"
+            href={buildWhatsAppHref()}
             className="text-brand-500 underline hover:text-brand-600"
             target="_blank"
             rel="noopener noreferrer"

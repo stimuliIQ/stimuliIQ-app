@@ -234,3 +234,88 @@ describe("MarketingHeader — onBookSlotClick", () => {
     expect(onBookSlotClick).toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Mega-menu hover-to-open
+// ---------------------------------------------------------------------------
+
+/**
+ * Force `matchMedia("(hover: hover) and (pointer: fine)")` to a known answer for one
+ * test. The shared setup stubs matchMedia to always report `matches: false`, which is
+ * the touch-device branch — so hover tests must opt in explicitly.
+ */
+function setHoverCapable(hoverCapable: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) =>
+      ({
+        matches: hoverCapable && query.includes("hover: hover"),
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }) as MediaQueryList,
+  });
+  return () => {
+    Object.defineProperty(window, "matchMedia", { writable: true, value: original });
+  };
+}
+
+describe("MarketingHeader — mega-menu hover", () => {
+  it("opens the mega-menu on hover when the device supports hover", async () => {
+    const restore = setHoverCapable(true);
+    try {
+      const user = userEvent.setup();
+      render(<MarketingHeader logo={logo} navItems={navItems} bookSlotHref="/book" />);
+      const trigger = screen.getByRole("button", { name: /programs/i });
+      expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+      await user.hover(trigger);
+
+      expect(trigger).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("link", { name: /python/i })).toBeInTheDocument();
+    } finally {
+      restore();
+    }
+  });
+
+  it("closes the mega-menu when the pointer leaves the header", async () => {
+    const restore = setHoverCapable(true);
+    try {
+      const user = userEvent.setup();
+      render(<MarketingHeader logo={logo} navItems={navItems} bookSlotHref="/book" />);
+      const trigger = screen.getByRole("button", { name: /programs/i });
+      await user.hover(trigger);
+      expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+      await user.unhover(screen.getByTestId("marketing-header"));
+
+      expect(trigger).toHaveAttribute("aria-expanded", "false");
+    } finally {
+      restore();
+    }
+  });
+
+  it("does NOT open on hover for touch devices — click still toggles it open", async () => {
+    const restore = setHoverCapable(false);
+    try {
+      const user = userEvent.setup();
+      render(<MarketingHeader logo={logo} navItems={navItems} bookSlotHref="/book" />);
+      const trigger = screen.getByRole("button", { name: /programs/i });
+
+      await user.hover(trigger);
+      // A tap fires mouseenter then click; if hover opened the panel here, the click
+      // below would toggle it straight back shut and the menu would be unopenable.
+      expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+      await user.click(trigger);
+      expect(trigger).toHaveAttribute("aria-expanded", "true");
+    } finally {
+      restore();
+    }
+  });
+});

@@ -871,6 +871,21 @@ model Program {
   // "Scholarship available" badge on the course card and detail page (links to
   // /scholarship). Display-only; actual waivers are handled in the leads/commerce flow.
   scholarshipAvailable Boolean @default(false) @map("scholarship_available")
+  // enrollmentEnabled: controls whether the public site offers self-serve enrollment for
+  // this program — the "Enroll Now" CTA on the detail page (hero, sticky buy card, mobile
+  // buy bar, curriculum-preview lock). When false the site shows only "Book Free Slot",
+  // so a program still converts to a lead while direct purchase is closed (pricing not
+  // finalised, cohort full, invite-only intake, staff-enrolled program).
+  //
+  // NOT display-only, unlike `scholarshipAvailable`: `CommerceService.createOrder`
+  // rejects an order for a program with this false, so hiding the button is backed by a
+  // server-side guard rather than trusting the UI (CLAUDE.md §3.5).
+  //
+  // DEFAULT true — the column is added to a live table where every existing program is
+  // already sellable; defaulting false would silently pull the Enroll button from all of
+  // them on deploy. This is the opposite choice to `isPublic`, which fails CLOSED because
+  // there the risk runs the other way (accidental publication).
+  enrollmentEnabled Boolean @default(true) @map("enrollment_enabled")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

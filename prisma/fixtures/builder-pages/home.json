@@ -3,16 +3,16 @@
     "type": "hero",
     "data": {
       "variant": "centered-with-flanking-photos",
-      "headline": "Build skills for new opportunities.",
-      "headlineHighlight": "opportunities",
-      "subheadline": "StimuliiQ gives you a complete learning experience that helps you gain real, job-ready skills and take the next step in your career.",
+      "headline": "Your medical career starts with real experience.",
+      "headlineHighlight": "real experience",
+      "subheadline": "StimuliiQ gives medical students structured internships, clinician mentors, and hands-on case work, so you walk into your first posting prepared.",
       "backgroundImageKey": "/images/hero/hero-background.avif",
-      "trustBadge": { "ratingStars": 5, "caption": "Trusted by 15,000+ students" },
+      "trustBadge": { "ratingStars": 5, "caption": "Trusted by 15,000+ medical students" },
       "flankingPhotos": [
-        { "imageKey": "/images/hero/image-1.jpg", "statValue": "100+", "statLabel": "Expert Mentors", "statIconKey": "user" },
-        { "imageKey": "/images/hero/image-2.jpg", "statValue": "120+", "statLabel": "Video Courses", "statIconKey": "video" }
+        { "imageKey": "/images/hero/image-1.jpg", "statValue": "100+", "statLabel": "Clinician Mentors", "statIconKey": "user" },
+        { "imageKey": "/images/hero/image-2.jpg", "statValue": "120+", "statLabel": "Video Lessons", "statIconKey": "video" }
       ],
-      "ctas": [{ "label": "Explore our courses", "href": "/programs", "style": "primary" }]
+      "ctas": [{ "label": "Explore our internships", "href": "/programs", "style": "primary" }]
     }
   },
   { "type": "brain_showcase", "data": {} },
@@ -22,13 +22,13 @@
       "variant": "bento",
       "heading": {
         "eyebrow": "By the numbers",
-        "title": "A hands-on internship program, trusted across India",
-        "titleHighlight": "internship program"
+        "title": "A hands-on medical internship program, trusted across India",
+        "titleHighlight": "medical internship program"
       },
       "items": [
-        { "label": "Students trained", "value": "15,000+", "description": "Learners upskilled through project-based internship programs across India.", "iconKey": "graduation-cap" },
-        { "label": "Programs", "value": "30+", "description": "Hands-on internship tracks spanning web, data, cloud, AI, and more.", "iconKey": "stack" },
-        { "label": "Cities", "value": "50+", "description": "Students joining from campuses in every corner of the country.", "iconKey": "map-pin" }
+        { "label": "Students trained", "value": "15,000+", "description": "Medical students trained through structured, hands-on internship programs across India.", "iconKey": "graduation-cap" },
+        { "label": "Programs", "value": "30+", "description": "Internship tracks spanning clinical research, hospital administration, medical coding, and public health.", "iconKey": "stack" },
+        { "label": "Cities", "value": "50+", "description": "Students join us from medical, dental, nursing, and pharmacy campuses across the country.", "iconKey": "map-pin" }
       ]
     }
   },
@@ -36,7 +36,7 @@
     "type": "live_collection_ref",
     "data": {
       "collection": "programs",
-      "heading": { "title": "Explore our internship courses", "titleHighlight": "internship", "subtitle": "Pick a track and start building job-ready skills with industry mentors." },
+      "heading": { "title": "Explore our medical internship programs", "titleHighlight": "medical internship", "subtitle": "Pick a track and start building the clinical and research skills hospitals actually look for." },
       "viewAllHref": "/programs",
       "layout": "grid-3",
       "selection": { "limit": 8, "sort": "popularity" }
@@ -46,27 +46,27 @@
     "type": "feature_grid",
     "data": {
       "variant": "split-media",
-      "heading": { "title": "Why StimuliiQ?", "titleHighlight": "StimuliiQ", "subtitle": "We focus on what actually gets you hired — real skills, real projects, real proof." },
+      "heading": { "title": "Why StimuliiQ?", "titleHighlight": "StimuliiQ", "subtitle": "Your internship here is built around real clinical work, guided by people who practise medicine every day." },
       "columns": "2",
-      "centerImageKey": "/images/hero/person.avif",
+      "centerImageKey": "/images/why-us-team-portrait.webp",
       "items": [
-        { "iconKey": "mentor", "title": "Expert Mentors", "description": "Our mentors are active engineers from top companies, dedicated to your success." },
-        { "iconKey": "pricing", "title": "Affordable Pricing", "description": "High-quality, project-based training priced for students — with 0% EMI options." },
-        { "iconKey": "trophy", "title": "Proven Placements", "description": "An 89% placement rate, with direct referrals to 200+ hiring partners." },
-        { "iconKey": "star", "title": "Student Reviews", "description": "Rated 4.9/5 by 2,400+ students who transformed their careers with us." }
+        { "iconKey": "mentor", "title": "Expert Mentors", "description": "Our mentors are practicing healthcare professionals and psychologists, dedicated to your success." },
+        { "iconKey": "pricing", "title": "Affordable Pricing", "description": "High-quality, mentor-led training priced for students — with scholarships." },
+        { "iconKey": "trophy", "title": "Structured Career Pathway", "description": "Backed by a growing network of healthcare mentors, alumni, and medical referrals." },
+        { "iconKey": "star", "title": "Student Reviews", "description": "Built on feedback from students who've completed our training and internship programs." }
       ]
     }
   },
   {
     "type": "numbered_steps",
     "data": {
-      "heading": { "title": "How It Works", "titleHighlight": "Works", "subtitle": "From enrollment to placement — a clear 4-step journey." },
+      "heading": { "title": "How It Works", "titleHighlight": "Works", "subtitle": "From enrolment to placement in four clear steps." },
       "variant": "arrows",
       "items": [
-        { "title": "Enroll", "description": "Choose a program, complete payment, and get instant access to the LMS. The entire process takes under 5 minutes." },
-        { "title": "Learn live + recorded", "description": "Attend live mentor-led sessions, watch recorded videos at your pace, and access a growing library of resources." },
-        { "title": "Build real projects", "description": "Apply your skills on industry-grade projects evaluated by mentors. Your portfolio of completed projects is what employers see." },
-        { "title": "Get certified & placed", "description": "Earn a verifiable certificate after assessment. Access our placement network and get referred to 200+ hiring partners." }
+        { "title": "Enroll", "description": "Choose an internship program, complete payment, and get instant access to the learning portal. The whole process takes under 5 minutes." },
+        { "title": "Learn live + recorded", "description": "Attend live sessions led by clinicians, rewatch recorded lectures at your own pace, and study from a growing library of case material." },
+        { "title": "Practise on real cases", "description": "Work through case studies and clinical projects that your mentors review personally. This portfolio is what hospitals and recruiters see." },
+        { "title": "Get certified", "description": "Earn a verifiable certificate after assessment. Your gateway into healthcare careers — powered by mentor referrals and a community." }
       ]
     }
   },
@@ -74,7 +74,7 @@
     "type": "live_collection_ref",
     "data": {
       "collection": "mentors",
-      "heading": { "title": "Meet Your Mentors", "titleHighlight": "Mentors", "subtitle": "Connect with active engineers and specialists from top companies — guiding you with real-world perspective, honest feedback, and proven expertise." },
+      "heading": { "title": "Meet Your Mentors", "titleHighlight": "Mentors", "subtitle": "Practising doctors, researchers, and healthcare specialists who review your work, answer your questions, and tell you honestly what to improve." },
       "viewAllHref": "/mentors",
       "layout": "grid-4",
       "selection": { "limit": 8 }
@@ -105,19 +105,19 @@
       "heading": { "title": "Frequently Asked Questions", "titleHighlight": "Questions" },
       "viewAllHref": "/faq",
       "items": [
-        { "question": "What qualifications do I need to enroll?", "answer": "Our programs are designed for B.Tech, BCA, MCA, MBA, and Diploma students. No prior industry experience is required — just a willingness to learn and build real projects." },
-        { "question": "Are the classes live or recorded?", "answer": "Most programs offer a hybrid format — scheduled live sessions with industry mentors plus recorded videos for flexible re-watching. Some programs are fully recorded (self-paced). Check the program detail page for the exact mode." },
-        { "question": "Is the certificate recognised by employers?", "answer": "Yes. Every StimuliiQ certificate is digitally verifiable — employers can scan a QR code or enter the certificate ID on our verification page to confirm authenticity instantly. We have active hiring partnerships with 200+ companies." },
-        { "question": "How do EMI options work?", "answer": "We offer 0% EMI plans through partner payment providers. Choose your installment plan at checkout — the EMI amount and tenure are shown clearly before you pay. Your card or bank must support the selected tenure." },
-        { "question": "What is the refund policy?", "answer": "We offer a 7-day no-questions-asked refund if you're not satisfied after accessing the program. After 7 days, a pro-rated refund applies. See our full Refund Policy for details." }
+        { "question": "What qualifications do I need to enroll?", "answer": "Our programs are designed for MBBS, BDS, BPT, BA & BSc, BAMS, BHMS and other health sciences students. No prior industry experience is required — just a willingness to learn and build real projects." },
+        { "question": "Are the classes live or recorded?", "answer": "Most programs combine scheduled live sessions with clinician mentors and recorded lectures you can rewatch anytime. Some programs are fully self-paced. Check the program detail page for the exact format." },
+        { "question": "Is the certificate recognised by employers?", "answer": "Yes. Every StimuliiQ certificate is digitally verifiable. An employer can scan its QR code or enter the certificate ID on our verification page to confirm it instantly." },
+        { "question": "What are the payment options?", "answer": "We accept all major payment methods via Razorpay: UPI, credit/debit cards, net banking, and wallets. Coupon codes can be applied at checkout for additional discounts." },
+        { "question": "What is the refund policy?", "answer": "Our courses are crafted with care and commitment, and as such, we do not offer refunds. We believe in the value and quality of our educational services!" }
       ]
     }
   },
   {
     "type": "cta_band",
     "data": {
-      "heading": "Not sure which program is right for you?",
-      "subheading": "Book a free 30-minute counselling session with one of our program advisors. No pressure, just clarity.",
+      "heading": "Not sure which internship is right for you?",
+      "subheading": "Book a free 30-minute counselling session with a program advisor who will help you choose, with no pressure to enrol.",
       "background": "brand",
       "buttons": [
         { "label": "Book Free Slot", "href": "/book-free-slot", "style": "primary" },

@@ -39,6 +39,7 @@ export interface PublicProgramListRow {
   ratingCount: number | null;
   ogImageKey: string | null; // raw key — converted to CDN URL in the service
   scholarshipAvailable: boolean;
+  enrollmentEnabled: boolean;
 }
 
 export interface PublicProgramDetailRow extends PublicProgramListRow {
@@ -115,6 +116,10 @@ const PUBLIC_PROGRAM_LIST_SELECT = {
   ratingCount: true,
   ogImageKey: true,
   scholarshipAvailable: true,
+  // enrollmentEnabled is safe to expose: it only tells the site which CTA to render.
+  // Unlike `isPublic` it reveals nothing about unpublished inventory — every row reaching
+  // this select already passed the isPublic + status=published gate.
+  enrollmentEnabled: true,
   // FORBIDDEN (never selected): status, isPublic, tenantId, deletedAt, updatedAt, createdAt,
   // seoTitle, seoDescription, cost, margin, notes, summary, seo, outcomes
 } satisfies Prisma.ProgramSelect;

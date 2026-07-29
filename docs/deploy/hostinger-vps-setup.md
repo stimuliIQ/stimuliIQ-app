@@ -103,7 +103,7 @@ values for THIS box:
 NODE_ENV=production
 APP_ENV=production
 API_PORT=4000
-WEB_APP_URL=https://stimuliiq.com
+WEB_APP_URL=https://www.stimuliiq.com   # www is canonical — apex redirects to www; apex here breaks CORS
 LMS_APP_URL=https://learn.stimuliiq.com
 CRM_APP_URL=https://admin.stimuliiq.com
 
@@ -194,7 +194,7 @@ curl -s https://api.stimuliiq.com/api/v1/health/ready | jq
 - **Vercel** (`web`, `lms`): `NEXT_PUBLIC_API_URL=https://api.stimuliiq.com` +
   `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_WHATSAPP_NUMBER=919177748321`, Turnstile/GA public keys.
 - **Cloudflare Pages** (`crm`): `VITE_API_URL=https://api.stimuliiq.com`,
-  `VITE_WEB_APP_URL=https://stimuliiq.com`, `VITE_ASSET_BASE_URL`.
+  `VITE_WEB_APP_URL=https://www.stimuliiq.com`, `VITE_ASSET_BASE_URL`.
 - The API's CORS allow-list = `WEB_APP_URL`/`LMS_APP_URL`/`CRM_APP_URL` — set to the real origins.
 
 ## 11. Redeploy (future)

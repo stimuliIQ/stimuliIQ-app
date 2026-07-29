@@ -13,11 +13,14 @@ import { RolesRepository } from "./roles.repository";
 import { BranchesController } from "./branches.controller";
 import { BranchesService } from "./branches.service";
 import { BranchesRepository } from "./branches.repository";
+import { UsersAdminController } from "./users.controller";
+import { UsersAdminService } from "./users.service";
+import { UsersAdminRepository } from "./users.repository";
 
 @Module({
   imports: [AuthModule],
-  controllers: [RolesController, BranchesController],
-  providers: [RolesService, RolesRepository, BranchesService, BranchesRepository],
+  controllers: [RolesController, BranchesController, UsersAdminController],
+  providers: [RolesService, RolesRepository, BranchesService, BranchesRepository, UsersAdminService, UsersAdminRepository],
   exports: [RolesRepository, BranchesRepository],
 })
 export class AdminModule {}

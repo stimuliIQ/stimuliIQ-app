@@ -42,11 +42,12 @@ export const SiteSettingKeySchema = z.enum([
   "seo.defaults",
   "contact.details",
   "contact.whatsapp",
+  "announcement.bar",
 ]);
 export type SiteSettingKey = z.infer<typeof SiteSettingKeySchema>;
 
 /** `group` mirrors each key's leading dotted-namespace segment — CRM UI tab grouping only. */
-export const SiteSettingGroupSchema = z.enum(["nav", "footer", "seo", "contact"]);
+export const SiteSettingGroupSchema = z.enum(["nav", "footer", "seo", "contact", "announcement"]);
 export type SiteSettingGroup = z.infer<typeof SiteSettingGroupSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -106,9 +107,15 @@ export type ContactDetailsValue = z.infer<typeof ContactDetailsValueSchema>;
 
 /**
  * `contact.whatsapp` — the WhatsApp float button's number + prefilled message.
- * `number` reuses the shared `PhoneSchema` (matches the seeded "919999999999" — E.164-ish,
- * no leading `+` required). `message` is stored URL-encoded (matches the seed value and
- * `site-shell.tsx`'s existing `NEXT_PUBLIC_WHATSAPP_MESSAGE` convention).
+ * `number` reuses the shared `PhoneSchema` (E.164-ish digits, no leading `+` required —
+ * the form `wa.me/<number>` expects).
+ *
+ * `message` is stored as RAW human-readable text, NOT URL-encoded: `site-shell.tsx`
+ * applies `encodeURIComponent()` exactly once when building the `wa.me` href, so a
+ * pre-encoded value stored here would double-encode. (This doc comment previously
+ * claimed the opposite; the raw-text convention has been the actual behaviour since the
+ * L3 security-review fix, and the API fallback in `site-settings.constants.ts` has now
+ * been corrected to match.)
  */
 export const ContactWhatsappValueSchema = z
   .object({
@@ -117,6 +124,24 @@ export const ContactWhatsappValueSchema = z
   })
   .strict();
 export type ContactWhatsappValue = z.infer<typeof ContactWhatsappValueSchema>;
+
+/**
+ * `announcement.bar` — the site-wide announcement strip rendered ABOVE the marketing
+ * header (`apps/web` SiteShell). `enabled` is the CRM on/off toggle; when off (or when
+ * the CMS is unreachable) the strip renders nothing at all. `mode` picks the display
+ * treatment: `"static"` = fixed, centered text; `"scroll"` = continuous marquee
+ * (apps/web falls back to static under `prefers-reduced-motion`). `href` optionally
+ * makes the whole message a link.
+ */
+export const AnnouncementBarValueSchema = z
+  .object({
+    enabled: z.boolean(),
+    message: z.string().min(1).max(300),
+    mode: z.enum(["static", "scroll"]),
+    href: HrefSchema.optional(),
+  })
+  .strict();
+export type AnnouncementBarValue = z.infer<typeof AnnouncementBarValueSchema>;
 
 /**
  * Keyed lookup map: `SiteSettingValueSchemaByKey[key]` is the schema that MUST validate
@@ -132,6 +157,7 @@ export const SiteSettingValueSchemaByKey = {
   "seo.defaults": SeoDefaultsValueSchema,
   "contact.details": ContactDetailsValueSchema,
   "contact.whatsapp": ContactWhatsappValueSchema,
+  "announcement.bar": AnnouncementBarValueSchema,
 } as const satisfies Record<SiteSettingKey, z.ZodTypeAny>;
 
 /** Discriminated-by-key value union — mainly useful for CRM form typing (`key` narrows `value`). */
@@ -143,6 +169,7 @@ export const SiteSettingKeyedValueSchema = z.discriminatedUnion("key", [
   z.object({ key: z.literal("seo.defaults"), value: SeoDefaultsValueSchema }).strict(),
   z.object({ key: z.literal("contact.details"), value: ContactDetailsValueSchema }).strict(),
   z.object({ key: z.literal("contact.whatsapp"), value: ContactWhatsappValueSchema }).strict(),
+  z.object({ key: z.literal("announcement.bar"), value: AnnouncementBarValueSchema }).strict(),
 ]);
 export type SiteSettingKeyedValue = z.infer<typeof SiteSettingKeyedValueSchema>;
 
@@ -203,5 +230,6 @@ export const PublicSiteSettingsResponseSchema = z.object({
   "seo.defaults": SeoDefaultsValueSchema,
   "contact.details": ContactDetailsValueSchema,
   "contact.whatsapp": ContactWhatsappValueSchema,
+  "announcement.bar": AnnouncementBarValueSchema,
 });
 export type PublicSiteSettingsResponse = z.infer<typeof PublicSiteSettingsResponseSchema>;

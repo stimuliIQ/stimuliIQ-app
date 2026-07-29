@@ -255,6 +255,7 @@ export class CoursesService {
       outcomes: body.outcomes,
       ogImageKey: body.ogImageKey,
       scholarshipAvailable: body.scholarshipAvailable,
+      enrollmentEnabled: body.enrollmentEnabled,
     });
     return toDetail(row);
   }
@@ -481,6 +482,7 @@ function toDetail(row: ProgramRow): ProgramDetail {
     outcomes: Array.isArray(row.outcomes) ? (row.outcomes as string[]) : null,
     ogImageUrl: mintCdnUrl(row.ogImageKey),
     scholarshipAvailable: row.scholarshipAvailable,
+    enrollmentEnabled: row.enrollmentEnabled,
     deletedAt: row.deletedAt ? row.deletedAt.toISOString() : null,
     updatedAt: row.updatedAt.toISOString(),
   };

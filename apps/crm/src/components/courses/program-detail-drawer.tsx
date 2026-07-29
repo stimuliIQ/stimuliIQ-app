@@ -6,7 +6,7 @@ import * as React from "react";
 import { Button, ConfirmDialog, Drawer, DrawerContent, DrawerBody, DrawerFooter, EmptyState, Skeleton, Switch, useToast } from "@repo/ui";
 import type { MeResponse } from "@repo/types";
 
-import { useProgram, usePublishProgram, useUnpublishProgram, useSetProgramVisibility } from "../../hooks/use-courses";
+import { useProgram, usePublishProgram, useUnpublishProgram, useSetProgramVisibility, useUpdateProgram } from "../../hooks/use-courses";
 import { getModulePermissions, hasPermission } from "../../lib/permissions";
 import { formatPaiseAsInr } from "../../lib/money";
 import { ProgramStatusChip } from "./program-status-chip";
@@ -25,6 +25,9 @@ export function ProgramDetailDrawer({ programId, onOpenChange, me }: ProgramDeta
   const publishProgram = usePublishProgram();
   const unpublishProgram = useUnpublishProgram();
   const setVisibility = useSetProgramVisibility();
+  // No dedicated /enrollment route like /visibility — `enrollmentEnabled` rides the
+  // normal PATCH /crm/courses/:id partial update.
+  const updateProgram = useUpdateProgram();
   const { toast } = useToast();
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmPublishOpen, setConfirmPublishOpen] = React.useState(false);
@@ -65,6 +68,22 @@ export function ProgramDetailDrawer({ programId, onOpenChange, me }: ProgramDeta
       toast({ title: next ? "Now visible on the website" : "Hidden from the website", variant: "success" });
     } catch (error) {
       toast({ title: "Couldn't update visibility", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    }
+  };
+
+  const handleToggleEnrollment = async (next: boolean) => {
+    if (!program) return;
+    try {
+      await updateProgram.mutateAsync({ id: program.id, body: { enrollmentEnabled: next } });
+      toast({
+        title: next ? "Enrollment opened" : "Enrollment closed",
+        description: next
+          ? "The website now shows the Enroll Now button for this program."
+          : "The website now offers Book Free Slot only.",
+        variant: "success",
+      });
+    } catch (error) {
+      toast({ title: "Couldn't update enrollment", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     }
   };
 
@@ -150,6 +169,32 @@ export function ProgramDetailDrawer({ programId, onOpenChange, me }: ProgramDeta
                   {program.isPublic && program.status !== "published" ? (
                     <p className="mt-2 text-xs text-warning" data-testid="program-visibility-hint">
                       Marked visible, but it won&apos;t appear on the site until you Publish it (status is {program.status}).
+                    </p>
+                  ) : null}
+                </div>
+
+                {/* Self-serve enrollment (enrollmentEnabled). Independent of visibility:
+                    a program can be listed and browsable while its checkout is closed. */}
+                <div className="rounded-md border border-border p-4" data-testid="program-enrollment">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-fg">Enrollment open</p>
+                      <p className="mt-0.5 text-xs text-fg-muted">
+                        Show the <span className="font-medium">Enroll Now</span> button on the website and
+                        allow students to pay online. When off, the program is still browsable but only
+                        offers <span className="font-medium">Book Free Slot</span>.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={program.enrollmentEnabled}
+                      onCheckedChange={handleToggleEnrollment}
+                      disabled={!permissions.canEdit || updateProgram.isPending}
+                      aria-label="Enrollment open"
+                    />
+                  </div>
+                  {!program.enrollmentEnabled ? (
+                    <p className="mt-2 text-xs text-fg-muted" data-testid="program-enrollment-hint">
+                      Online checkout is closed. Staff can still enrol students manually from the CRM.
                     </p>
                   ) : null}
                 </div>

@@ -4,11 +4,13 @@
  * NewsletterSignupForm — footer newsletter opt-in (T32, docs/plans/phase-9-completion.md).
  *
  * Renders into `MarketingFooter`'s `newsletterSlot`. Compact single-field form:
- * email + hidden Turnstile captcha + submit. Success/error states are announced
- * via `role="status"`/`role="alert"`.
+ * email + interaction-only Turnstile captcha + submit. Success/error states are
+ * announced via `role="status"`/`role="alert"`. The widget must NOT sit inside
+ * `display:none` — Turnstile cannot run its challenge in a hidden container, so
+ * no token is minted and the server fail-closes ("invalid-input-response").
  */
 
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 import { TurnstileWidget } from "../captcha/turnstile-widget";
 import { useCaptchaToken } from "../../hooks/use-captcha-token";
 import { useNewsletterSignup } from "../../hooks/use-newsletter-signup";
@@ -19,14 +21,25 @@ export function NewsletterSignupForm() {
   const errorId = useId();
   const { state, fieldError, submit, reset } = useNewsletterSignup();
   const { token: captchaToken, setToken, resetToken } = useCaptchaToken();
+  // Turnstile tokens are single-use: after a failed submit the token is already
+  // consumed server-side, so remount the widget (key bump) to mint a fresh one
+  // before the visitor retries.
+  const [captchaEpoch, setCaptchaEpoch] = useState(0);
 
   const isSubmitting = state.kind === "submitting";
   const isSuccess = state.kind === "success";
   const errorMessage = fieldError ?? (state.kind === "error" ? state.message : undefined);
 
+  useEffect(() => {
+    if (state.kind === "error") {
+      resetToken();
+      setCaptchaEpoch((n) => n + 1);
+    }
+  }, [state.kind, resetToken]);
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    await submit({ email, captchaToken: captchaToken ?? "noop" });
+    await submit({ email, captchaToken });
   }
 
   if (isSuccess) {
@@ -99,14 +112,14 @@ export function NewsletterSignupForm() {
           Career tips + program updates. Unsubscribe anytime.
         </p>
       )}
-      <div aria-hidden="true" style={{ display: "none" }}>
-        <TurnstileWidget
-          onToken={setToken}
-          onExpire={resetToken}
-          onError={resetToken}
-          data-testid="newsletter-captcha"
-        />
-      </div>
+      <TurnstileWidget
+        key={captchaEpoch}
+        appearance="interaction-only"
+        onToken={setToken}
+        onExpire={resetToken}
+        onError={resetToken}
+        data-testid="newsletter-captcha"
+      />
     </form>
   );
 }

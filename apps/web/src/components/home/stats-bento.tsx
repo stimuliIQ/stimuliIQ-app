@@ -1,13 +1,13 @@
 /**
- * StatsBento — homepage "by the numbers" section (section 2): a full-width,
+ * StatsBento — homepage "at a glance" section (section 2): a full-width,
  * light "premium" band. A dot-matrix world map sits behind a centered heading
- * and a single row of stats (icon chip, oversized figure, label, supporting
- * line), divided by hairlines — no cards/boxes, letting the map read through.
+ * and a single row of pillars (icon chip, bold label, supporting line),
+ * divided by hairlines — no cards/boxes, letting the map read through.
  *
- * Metrics are deliberately internship-focused — Students trained · Programs ·
- * Cities. There is NO "placement rate": StimuliiQ is a hands-on internship
- * training program, not a placement service, so a placement stat would
- * misrepresent it.
+ * Pillars are deliberately training-focused — Students trained · Programs ·
+ * Cities. There are NO numeric figures ("15,000+", "placement rate", etc.):
+ * unverifiable stats are a credibility risk, so figures only return here once
+ * real, defensible numbers exist to back them.
  *
  * VISUAL SYSTEM (docs/07-design-system.md): stays on the site's black-and-white
  * brand — white band, dark text — lifted with a single restrained accent
@@ -15,15 +15,10 @@
  * rather than the previous per-card rainbow. Colour is decorative only and
  * never the sole carrier of meaning (icon + label + figure always present).
  *
- * The figures count up from 0 when scrolled into view (CountUp island); the
- * final value is server-rendered for SEO / no-JS / reduced-motion.
- *
- * Server component (static marketing figures live in the HTML for SEO). a11y:
- * <dl>/<dt>/<dd> so the figure↔caption pairing is programmatic; tabular figures;
- * heading hierarchy under the hero's <h1>; decorative map/icons hidden.
+ * Server component (static marketing copy lives in the HTML for SEO). a11y:
+ * h2 + h3 hierarchy under the hero's <h1>; decorative map/icons hidden.
  */
 
-import { CountUp } from "./count-up";
 import { WorldMapDots } from "./world-map-dots";
 
 // ---------------------------------------------------------------------------
@@ -91,10 +86,8 @@ function MapPinIcon() {
 }
 
 interface Stat {
-  /** Small caption above the figure (e.g. "Students trained"). */
+  /** Bold pillar label (e.g. "Students trained"). */
   label: string;
-  /** The oversized figure, pre-formatted (e.g. "15,000+"). */
-  value: string;
   /** One-line supporting sentence. */
   description: string;
   icon: React.ReactNode;
@@ -103,20 +96,17 @@ interface Stat {
 const STATS: Stat[] = [
   {
     label: "Students trained",
-    value: "15,000+",
-    description: "Learners upskilled through project-based internship programs across India.",
+    description: "Medical and psychology students trained through structured, mentor-led programs across India.",
     icon: <GraduationCapIcon />,
   },
   {
     label: "Programs",
-    value: "30+",
-    description: "Hands-on internship tracks spanning web, data, cloud, AI, and more.",
+    description: "Hands-on training and internship tracks spanning psychology, clinical practice, and allied healthcare.",
     icon: <StackIcon />,
   },
   {
     label: "Cities",
-    value: "50+",
-    description: "Students joining from campuses in every corner of the country.",
+    description: "Students join us from medical, dental, nursing, and pharmacy campuses across the country.",
     icon: <MapPinIcon />,
   },
 ];
@@ -124,7 +114,7 @@ const STATS: Stat[] = [
 export function StatsBento() {
   return (
     <section
-      aria-label="StimuliiQ by the numbers"
+      aria-label="StimuliiQ at a glance"
       data-testid="homepage-stats"
       className="relative overflow-hidden bg-bg py-20 lg:py-28"
     >
@@ -141,26 +131,23 @@ export function StatsBento() {
 
       <div className="relative mx-auto max-w-screen-xl px-4 md:px-6">
         <div className="mx-auto mb-16 max-w-2xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-fg-muted">By the numbers</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-fg-muted">At a glance</p>
           <h2 className="mt-3 font-display text-3xl font-bold tracking-tight text-fg md:text-4xl">
-            A hands-on <span className="text-chart-3">internship program</span>, trusted across India
+            A hands-on <span className="text-chart-3">healthcare training program</span>, trusted across India
           </h2>
         </div>
 
-        <dl className="grid grid-cols-1 divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           {STATS.map((stat) => (
             <div key={stat.label} className="flex flex-col items-center gap-3 px-6 py-10 text-center first:pt-0 last:pb-0 sm:py-0">
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-chart-3/10 text-chart-3">
                 {stat.icon}
               </span>
-              <dd className="font-display text-5xl font-bold tabular-nums leading-none text-fg lg:text-6xl">
-                <CountUp value={stat.value} />
-              </dd>
-              <dt className="text-sm font-medium uppercase tracking-wider text-fg-muted">{stat.label}</dt>
+              <h3 className="font-display text-xl font-bold uppercase tracking-wider text-fg">{stat.label}</h3>
               <p className="max-w-[16rem] text-sm text-fg-muted">{stat.description}</p>
             </div>
           ))}
-        </dl>
+        </div>
       </div>
     </section>
   );

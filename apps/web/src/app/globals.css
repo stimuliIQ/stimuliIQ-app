@@ -106,3 +106,44 @@
   /* delay so the tick draws just after the circle finishes popping in */
   animation: success-check-draw 0.35s ease-out 0.28s forwards;
 }
+
+/* ---------------------------------------------------------------------------
+ * Announcement bar marquee (components/shell/announcement-bar.tsx — the
+ * CRM-driven `announcement.bar` SiteSetting, mode="scroll"). Classic ticker:
+ * `padding-left: 100%` parks the message fully off the strip's RIGHT edge, and
+ * translating to -100% (the track's own width: that padding + the text) carries
+ * it left until it has fully exited — then the loop re-enters it from the
+ * right. Duration is set inline per message length. Under
+ * prefers-reduced-motion the marquee collapses to the static treatment:
+ * animation off, single centered line.
+ * ------------------------------------------------------------------------- */
+@keyframes announcement-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+.announcement-marquee {
+  display: inline-block;
+  padding-left: 100%;
+  animation-name: announcement-marquee;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-marquee {
+    animation: none;
+    display: block;
+    width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

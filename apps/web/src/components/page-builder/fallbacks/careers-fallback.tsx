@@ -8,17 +8,17 @@ import { CareersRoleList } from "../../careers/careers-role-list";
 const OPEN_ROLES = [
   {
     id: "r1",
-    title: "Senior Python Instructor",
+    title: "Senior Clinical Research Instructor",
     type: "Full-time",
     location: "Hyderabad / Remote",
-    description: "Lead live and recorded Python + Data Science training for cohorts of 20–30 students. 3+ years of industry experience required.",
+    description: "Lead live and recorded clinical research training for cohorts of 20 to 30 students. 3+ years of hospital or industry research experience required.",
   },
   {
     id: "r2",
     title: "Career Counsellor",
     type: "Full-time",
     location: "Hyderabad / Remote",
-    description: "Guide students through program selection and placement preparation. Strong communication skills + edtech background preferred.",
+    description: "Guide medical students through program selection and placement preparation. Strong communication skills and a healthcare or edtech background preferred.",
   },
   {
     id: "r3",
@@ -36,7 +36,7 @@ export function CareersPageFallback() {
         <h1 className="text-3xl font-bold text-fg sm:text-4xl">
           Careers at <span className="text-chart-3">StimuliiQ</span>
         </h1>
-        <p className="mt-3 text-lg text-fg-muted">Help us build the future of tech education in India. We are a remote-friendly team.</p>
+        <p className="mt-3 text-lg text-fg-muted">Help us build the future of medical training in India. We are a remote-friendly team.</p>
       </header>
 
       {OPEN_ROLES.length > 0 ? (

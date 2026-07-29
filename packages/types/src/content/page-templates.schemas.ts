@@ -358,7 +358,7 @@ export function validatePageBodyAgainstTemplate(slug: string, body: unknown): Te
 
 /** A safe, existing placeholder object key (matches the pre-existing "/images/..." exception
  *  ObjectKeySchema carves out for legacy static-asset paths — common/primitives.ts). */
-const PLACEHOLDER_IMAGE_KEY = "/images/hero/person.avif";
+const PLACEHOLDER_IMAGE_KEY = "/images/hero/image-1.jpg";
 
 /**
  * Produces minimal-but-valid `data` for one section, satisfying that section's own

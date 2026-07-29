@@ -4,6 +4,7 @@
  */
 import type { Metadata } from "next";
 import { buildMetadata } from "../../lib/seo/metadata";
+import { SUPPORT_EMAIL, WHATSAPP_DISPLAY, buildWhatsAppHref } from "../../lib/contact";
 
 export const metadata: Metadata = buildMetadata({
   title: "Refund Policy",
@@ -28,10 +29,10 @@ export default function RefundPolicyPage() {
           We offer a full refund within 7 days of purchase, no questions asked. If you enroll
           in a program and are not satisfied after accessing it, contact our support team at{" "}
           <a
-            href="mailto:support@stimuliiq.com"
+            href={`mailto:${SUPPORT_EMAIL}`}
             className="text-brand-500 hover:underline focus-visible:outline-none focus-visible:underline"
           >
-            support@stimuliiq.com
+            {SUPPORT_EMAIL}
           </a>{" "}
           within 7 days of your enrollment date.
         </p>
@@ -54,19 +55,19 @@ export default function RefundPolicyPage() {
         <p>
           To request a refund or for any queries, contact us at{" "}
           <a
-            href="mailto:support@stimuliiq.com"
+            href={`mailto:${SUPPORT_EMAIL}`}
             className="text-brand-500 hover:underline focus-visible:outline-none focus-visible:underline"
           >
-            support@stimuliiq.com
+            {SUPPORT_EMAIL}
           </a>{" "}
           or via WhatsApp at{" "}
           <a
-            href="https://wa.me/919999999999"
+            href={buildWhatsAppHref()}
             target="_blank"
             rel="noopener noreferrer"
             className="text-brand-500 hover:underline focus-visible:outline-none focus-visible:underline"
           >
-            +91 99999 99999
+            {WHATSAPP_DISPLAY}
           </a>.
         </p>
       </div>

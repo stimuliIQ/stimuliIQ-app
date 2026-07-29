@@ -142,8 +142,11 @@ function DesktopMegaMenu({
       role="region"
       aria-label="Programs menu"
       className={cn(
-        "absolute left-0 right-0 top-full z-50 mt-px border-t border-border bg-card shadow-md",
-        "animate-in fade-in slide-in-from-top-2 duration-[150ms]",
+        // Solid white panel, hairline top border, soft shadow — no tinted surface, so
+        // it reads as one continuous white sheet with the header above it.
+        "absolute left-0 right-0 top-full z-50 mt-px border-t border-border bg-card",
+        "shadow-[0_8px_24px_-12px_rgb(0_0_0/0.18)]",
+        "animate-in fade-in slide-in-from-top-1 duration-[150ms]",
       )}
     >
       <div className="mx-auto max-w-screen-xl px-6 py-8">
@@ -160,12 +163,17 @@ function DesktopMegaMenu({
                       href={item.href}
                       onClick={onClose}
                       className={cn(
-                        "block rounded-md px-2 py-1.5 text-sm text-fg-muted",
-                        "transition-colors duration-[150ms] ease-out hover:bg-surface hover:text-fg",
+                        // Group so the label can take the accent colour on row hover.
+                        "group block rounded-md px-2 py-1.5 text-sm text-fg-muted",
+                        // Faint brand tint instead of a grey fill — enough to show which
+                        // row is active without breaking the white surface.
+                        "transition-colors duration-[150ms] ease-out hover:bg-brand-50",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                       )}
                     >
-                      <span className="font-medium text-fg">{item.label}</span>
+                      <span className="font-medium text-fg transition-colors group-hover:text-brand-700">
+                        {item.label}
+                      </span>
                       {item.description ? (
                         <span className="mt-0.5 block text-xs text-fg-muted">
                           {item.description}
@@ -369,14 +377,34 @@ export function MarketingHeader({
     if (mobileOpen) setOpenMegaMenu(null);
   }, [mobileOpen]);
 
+  // Hover-to-open, but ONLY on devices that genuinely hover. On a touchscreen a tap
+  // fires mouseenter AND click; with hover-open wired to mouseenter the click would
+  // immediately toggle the just-opened panel shut, so the menu could never be opened
+  // by tapping. Gating on `(hover: hover) and (pointer: fine)` leaves touch on the
+  // click-to-toggle path. Read in an effect — `matchMedia` is browser-only.
+  const supportsHover = React.useRef(false);
+  React.useEffect(() => {
+    supportsHover.current = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  }, []);
+
   return (
     <>
       <header
         data-testid={testId ?? "marketing-header"}
+        // Closing on the HEADER's mouseleave (not the trigger's) is what makes
+        // hover-to-open usable: the mega-menu panel is rendered inside this element, so
+        // moving the pointer from the trigger down into the panel never leaves the
+        // header and never closes it. No timers, no gap-bridging hacks.
+        onMouseLeave={() => {
+          if (supportsHover.current) setOpenMegaMenu(null);
+        }}
         className={cn(
-          "sticky top-0 z-40 w-full border-b border-border bg-card/95 backdrop-blur-sm",
+          // Solid white rather than bg-card/95 + blur: with a white panel hanging off
+          // the bottom, a translucent header let page content ghost through and made
+          // the two surfaces read as slightly different whites.
+          "sticky top-0 z-40 w-full border-b border-border bg-card",
           "transition-shadow duration-[150ms] ease-out",
-          isSticky && "shadow-md",
+          isSticky && "shadow-sm",
           className,
         )}
       >
@@ -399,7 +427,13 @@ export function MarketingHeader({
                 const panelId = `mega-panel-${item.label.replace(/\s+/g, "-").toLowerCase()}`;
 
                 return (
-                  <div key={item.label} className="relative">
+                  <div
+                    key={item.label}
+                    className="relative"
+                    onMouseEnter={() => {
+                      if (supportsHover.current) setOpenMegaMenu(item.label);
+                    }}
+                  >
                     <button
                       id={triggerId}
                       type="button"
@@ -409,9 +443,11 @@ export function MarketingHeader({
                       onClick={() => setOpenMegaMenu(isOpen ? null : item.label)}
                       className={cn(
                         "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium",
-                        "text-fg-muted transition-colors hover:bg-surface hover:text-fg",
+                        // Minimal: no filled pill in any state — the background stays white
+                        // and only the text/chevron colour carries hover + open.
+                        "bg-transparent text-fg-muted transition-colors hover:text-brand-600",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        isOpen && "bg-surface text-fg",
+                        isOpen && "text-brand-600",
                       )}
                     >
                       {item.label}
@@ -431,9 +467,15 @@ export function MarketingHeader({
                 <a
                   key={item.label}
                   href={item.href}
+                  // Hovering a plain link also dismisses an open mega-menu — otherwise
+                  // sliding from "Courses" to "Mentors" leaves the panel hanging open
+                  // over the page.
+                  onMouseEnter={() => {
+                    if (supportsHover.current) setOpenMegaMenu(null);
+                  }}
                   className={cn(
                     "rounded-md px-3 py-2 text-sm font-medium text-fg-muted",
-                    "transition-colors hover:bg-surface hover:text-fg",
+                    "transition-colors hover:text-brand-600",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   )}
                 >

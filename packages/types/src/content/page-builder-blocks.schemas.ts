@@ -195,6 +195,14 @@ const ContentSplitBlockDataBaseSchema = z
     headingHighlight: z.string().min(1).optional(),
     body: z.array(z.string().min(1).max(600)).min(1).max(6),
     mediaImageKey: ObjectKeySchema,
+    /**
+     * Text alternative for `mediaImageKey`. Optional because the block's media is
+     * DECORATIVE by default (the adjacent heading + body already carry the meaning, so the
+     * renderer emits `alt="" aria-hidden`). Set it when the image is NOT decorative —
+     * notably an image-of-text poster, where WCAG 2.2 SC 1.1.1 requires the words baked
+     * into the artwork to be available as text.
+     */
+    mediaAlt: z.string().max(1000).optional(),
     mediaPosition: z.enum(["left", "right"]).default("right"),
     badge: z
       .object({

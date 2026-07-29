@@ -78,7 +78,7 @@ export const IsoDateSchema = z
  *     prefix (checked against `prisma/fixtures/builder-pages/*.json`, the Phase-10
  *     migration fixtures for the 6 audited pages — EVERY `*ImageKey` value there is a
  *     pre-existing `/images/...` public-folder path from before the S3/R2 migration,
- *     e.g. "/images/hero/person.avif"; this exception keeps those fixtures parseable).
+ *     e.g. "/images/hero/hero-background.avif"; this exception keeps those fixtures parseable).
  *   - "//" anywhere (protocol-relative URL trick).
  *   - any URI scheme — a ":" appearing before the first "/" (or with no "/" at all).
  *   - any "../" path-traversal segment.

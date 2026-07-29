@@ -1,0 +1,14 @@
+-- Program commerce: self-serve enrollment toggle.
+--
+-- Controls whether the public site offers the "Enroll Now" CTA for this program
+-- (hero, sticky buy card, mobile buy bar, curriculum-preview lock). When false the
+-- site falls back to "Book Free Slot" only, so the program still captures leads
+-- while direct purchase is closed.
+--
+-- Enforced server-side too: CommerceService.createOrder rejects an order for a
+-- program with this false, so the hidden CTA is not the only gate (CLAUDE.md §3.5).
+--
+-- DEFAULT true (not false, unlike scholarship_available/is_public): every program
+-- already on this table is sellable today, and defaulting false would silently
+-- withdraw the Enroll button from all of them the moment this migration runs.
+ALTER TABLE "programs" ADD COLUMN "enrollment_enabled" BOOLEAN NOT NULL DEFAULT true;

@@ -26,28 +26,28 @@ const TESTIMONIALS: TestimonialSpotlightItem[] = [
   {
     id: "t1",
     quote:
-      "The Full Stack program completely changed my career prospects. I went from zero to landing a frontend role at a Bangalore startup within 3 months of graduating.",
+      "The Clinical Research internship changed my career prospects completely. Within 3 months of finishing, I joined a research team at a Bangalore hospital.",
     studentName: "Aditya R.",
-    college: "NIT Warangal",
-    program: "Full Stack Web Development",
+    college: "Government Medical College, Warangal",
+    program: "Clinical Research",
     ratingStars: 5 as const,
   },
   {
     id: "t2",
     quote:
-      "The live sessions with mentors from top companies made all the difference. I could ask real-world questions and get answers that no textbook gives you.",
+      "The live sessions with practising clinicians made all the difference. I could ask questions about real cases and get answers that no textbook gives you.",
     studentName: "Priya S.",
-    college: "JNTU Hyderabad",
-    program: "Python for Data Science",
+    college: "Osmania Medical College, Hyderabad",
+    program: "Hospital Administration",
     ratingStars: 5 as const,
   },
   {
     id: "t3",
     quote:
-      "The verifiable certificate was a major trust signal when I applied for jobs. Interviewers could actually check it on the platform — that's a huge differentiator.",
+      "The verifiable certificate was a major trust signal when I applied for postings. Interviewers could actually check it on the platform, and that set my application apart.",
     studentName: "Rahul M.",
     college: "Osmania University",
-    program: "Data Science & ML",
+    program: "Public Health & Data",
     ratingStars: 5 as const,
   },
 ];
@@ -57,41 +57,41 @@ const FAQ_ITEMS = [
     id: "faq-1",
     question: "What qualifications do I need to enroll?",
     answer:
-      "Our programs are designed for B.Tech, BCA, MCA, MBA, and Diploma students. No prior industry experience is required — just a willingness to learn and build real projects.",
+      "Our programs are designed for MBBS, BDS, BPT, BA & BSc, BAMS, BHMS and other health sciences students. No prior industry experience is required — just a willingness to learn and build real projects.",
     answerText:
-      "Our programs are designed for B.Tech, BCA, MCA, MBA, and Diploma students. No prior industry experience is required — just a willingness to learn and build real projects.",
+      "Our programs are designed for MBBS, BDS, BPT, BA & BSc, BAMS, BHMS and other health sciences students. No prior industry experience is required — just a willingness to learn and build real projects.",
   },
   {
     id: "faq-2",
     question: "Are the classes live or recorded?",
     answer:
-      "Most programs offer a hybrid format — scheduled live sessions with industry mentors plus recorded videos for flexible re-watching. Some programs are fully recorded (self-paced). Check the program detail page for the exact mode.",
+      "Most programs combine scheduled live sessions with clinician mentors and recorded lectures you can rewatch anytime. Some programs are fully self-paced. Check the program detail page for the exact format.",
     answerText:
-      "Most programs offer a hybrid format — scheduled live sessions with industry mentors plus recorded videos for flexible re-watching. Some programs are fully recorded (self-paced). Check the program detail page for the exact mode.",
+      "Most programs combine scheduled live sessions with clinician mentors and recorded lectures you can rewatch anytime. Some programs are fully self-paced. Check the program detail page for the exact format.",
   },
   {
     id: "faq-3",
     question: "Is the certificate recognised by employers?",
     answer:
-      "Yes. Every StimuliiQ certificate is digitally verifiable — employers can scan a QR code or enter the certificate ID on our verification page to confirm authenticity instantly. We have active hiring partnerships with 200+ companies.",
+      "Yes. Every StimuliiQ certificate is digitally verifiable. An employer can scan its QR code or enter the certificate ID on our verification page to confirm it instantly.",
     answerText:
-      "Yes. Every StimuliiQ certificate is digitally verifiable — employers can scan a QR code or enter the certificate ID on our verification page to confirm authenticity instantly. We have active hiring partnerships with 200+ companies.",
+      "Yes. Every StimuliiQ certificate is digitally verifiable. An employer can scan its QR code or enter the certificate ID on our verification page to confirm it instantly.",
   },
   {
     id: "faq-4",
-    question: "How do EMI options work?",
+    question: "What are the payment options?",
     answer:
-      "We offer 0% EMI plans through partner payment providers. Choose your installment plan at checkout — the EMI amount and tenure are shown clearly before you pay. Your card or bank must support the selected tenure.",
+      "We accept all major payment methods via Razorpay: UPI, credit/debit cards, net banking, and wallets. Coupon codes can be applied at checkout for additional discounts.",
     answerText:
-      "We offer 0% EMI plans through partner payment providers. Choose your installment plan at checkout — the EMI amount and tenure are shown clearly before you pay. Your card or bank must support the selected tenure.",
+      "We accept all major payment methods via Razorpay: UPI, credit/debit cards, net banking, and wallets. Coupon codes can be applied at checkout for additional discounts.",
   },
   {
     id: "faq-5",
     question: "What is the refund policy?",
     answer:
-      "We offer a 7-day no-questions-asked refund if you're not satisfied after accessing the program. After 7 days, a pro-rated refund applies. See our full Refund Policy for details.",
+      "Our courses are crafted with care and commitment, and as such, we do not offer refunds. We believe in the value and quality of our educational services!",
     answerText:
-      "We offer a 7-day no-questions-asked refund if you're not satisfied after accessing the program. After 7 days, a pro-rated refund applies. See our full Refund Policy for details.",
+      "Our courses are crafted with care and commitment, and as such, we do not offer refunds. We believe in the value and quality of our educational services!",
   },
 ];
 
@@ -99,22 +99,22 @@ const HOW_IT_WORKS = [
   {
     title: "Enroll",
     description:
-      "Choose a program, complete payment, and get instant access to the LMS. The entire process takes under 5 minutes.",
+      "Choose an internship program, complete payment, and get instant access to the learning portal. The whole process takes under 5 minutes.",
   },
   {
     title: "Learn live + recorded",
     description:
-      "Attend live mentor-led sessions, watch recorded videos at your pace, and access a growing library of resources.",
+      "Attend live sessions led by clinicians, rewatch recorded lectures at your own pace, and study from a growing library of case material.",
   },
   {
     title: "Build real projects",
     description:
-      "Apply your skills on industry-grade projects evaluated by mentors. Your portfolio of completed projects is what employers see.",
+      "Apply your skills on live case studies evaluated by mentors. Your portfolio of completed case studies and research papers is what sets you apart.",
   },
   {
-    title: "Get certified & placed",
+    title: "Get certified",
     description:
-      "Earn a verifiable certificate after assessment. Access our placement network and get referred to 200+ hiring partners.",
+      "Earn a verifiable certificate after assessment. Your gateway into healthcare careers — powered by mentor referrals and a community.",
   },
 ];
 
@@ -150,7 +150,9 @@ export function HomePageFallback({
       <HeroCentered />
       <BrainShowcase />
       <StatsBento />
-      <ExploreCourses programs={exploreCourses} />
+      {/* showScholarshipBadge={false}: homepage only. Scholarship availability is still
+          surfaced on /programs, /programs/city/[citySlug] and the program detail page. */}
+      <ExploreCourses programs={exploreCourses} showScholarshipBadge={false} />
       <WhyUsSection />
 
       <section aria-label="How it works" data-testid="how-it-works" className="py-16 lg:py-20">
@@ -159,7 +161,7 @@ export function HomePageFallback({
             <h2 className="text-3xl font-bold text-fg md:text-4xl">
               How It <span className="text-chart-3">Works</span>
             </h2>
-            <p className="mt-3 text-lg text-fg-muted">From enrollment to placement — a clear 4-step journey.</p>
+            <p className="mt-3 text-lg text-fg-muted">From enrolment to certification in four clear steps.</p>
           </div>
           <HowItWorksSteps steps={HOW_IT_WORKS} />
         </div>
@@ -173,7 +175,7 @@ export function HomePageFallback({
             <h2 className="text-3xl font-bold text-fg md:text-4xl">
               What Our <span className="text-chart-3">Students</span> Say
             </h2>
-            <p className="mt-3 text-lg text-fg-muted">Real stories from students who launched their careers with StimuliiQ.</p>
+            <p className="mt-3 text-lg text-fg-muted">Real stories from medical students who started their careers with StimuliiQ.</p>
           </div>
           <TestimonialSpotlight items={testimonialItems} />
         </div>
@@ -201,9 +203,9 @@ export function HomePageFallback({
 
       <section aria-label="Talk to a counsellor" data-testid="cta-band" className="border-t border-border bg-brand-500 py-20 lg:py-24">
         <div className="mx-auto max-w-screen-xl px-4 text-center md:px-6">
-          <h2 className="text-3xl font-bold text-white md:text-4xl">Not sure which program is right for you?</h2>
+          <h2 className="text-3xl font-bold text-white md:text-4xl">Not sure which internship is right for you?</h2>
           <p className="mt-4 text-lg text-brand-100">
-            Book a free 30-minute counselling session with one of our program advisors. No pressure, just clarity.
+            Book a free 30-minute counselling session with a program advisor who will help you choose, with no pressure to enrol.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <a

@@ -18,7 +18,7 @@ import { FacultyApi } from "./faculty.api.js";
 import { CoursesApi } from "./courses.api.js";
 import { BatchesApi } from "./batches.api.js";
 import { EnrollmentsApi } from "./enrollments.api.js";
-import { RolesApi, BranchesApi } from "./admin.api.js";
+import { RolesApi, BranchesApi, StaffUsersApi } from "./admin.api.js";
 import { AuditApi } from "./audit.api.js";
 import { LeadsApi } from "./leads.api.js";
 import { ActivitiesApi } from "./activities.api.js";
@@ -42,14 +42,16 @@ import { SavedViewsApi } from "./saved-views.api.js";
 import { VideoLibraryApi } from "./video-library.api.js";
 import { AttendanceCrmApi } from "./attendance.api.js";
 
-/** Admin sub-namespace → `client.crm.admin.roles` / `client.crm.admin.branches`. */
+/** Admin sub-namespace → `client.crm.admin.roles` / `.branches` / `.users`. */
 export class AdminApi {
   readonly roles: RolesApi;
   readonly branches: BranchesApi;
+  readonly users: StaffUsersApi;
 
   constructor(client: ApiClient) {
     this.roles = new RolesApi(client);
     this.branches = new BranchesApi(client);
+    this.users = new StaffUsersApi(client);
   }
 }
 

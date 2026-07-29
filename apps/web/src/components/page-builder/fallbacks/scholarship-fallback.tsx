@@ -15,9 +15,9 @@ const HERO_STATS = [
 const BENEFITS = [
   { title: "Completely merit and need based", description: "Awards are decided on academic merit and financial need — nothing else." },
   { title: "Up to 50% fee waiver", description: "No repayment, no service obligation. The waiver applies directly to your program fee." },
-  { title: "Covers every StimuliiQ program", description: "Full Stack, Data Science & AI, Cloud & DevOps, Cybersecurity, UI/UX and Digital Marketing tracks are all eligible." },
-  { title: "Open to students across India", description: "B.Tech, Degree, Diploma, MCA, MBA and Engineering students from any college or university can apply." },
-  { title: "Extended mentor access", description: "Scholars get additional 1:1 mentor sessions and personalised career guidance throughout the program." },
+  { title: "Covers every StimuliiQ program", description: "Psychology, Clinical & Counselling Psychology, Neurology, Healthcare Training, and Internship tracks are all eligible." },
+  { title: "Open to students across India", description: "MBBS, BDS, BSc Nursing, Psychology, Life Sciences, Allied Health, and related degree students from any college or university can apply." },
+  { title: "Extended mentor access", description: "Scholars get additional 1:1 sessions with clinician mentors and personalised career guidance throughout the program." },
   { title: "Placement assistance included", description: "Resume reviews, mock interviews and referrals to our hiring partners continue until you are placed." },
 ];
 
@@ -29,10 +29,10 @@ const IMPACT_STATS = [
 ];
 
 const FUND_DISTRIBUTION = [
-  { track: "Software Development", lakhs: 17.3 },
-  { track: "Data & AI", lakhs: 13.8 },
-  { track: "Cloud & DevOps", lakhs: 11.4 },
-  { track: "Design & Marketing", lakhs: 9.4 },
+  { track: "Clinical Research", lakhs: 17.3 },
+  { track: "Medical Coding & Billing", lakhs: 13.8 },
+  { track: "Hospital Administration", lakhs: 11.4 },
+  { track: "Public Health & Data", lakhs: 9.4 },
 ];
 
 const PROCESS_STEPS = [
@@ -89,8 +89,8 @@ export function ScholarshipPageFallback() {
             <div className="order-2 flex flex-col items-start gap-6 lg:order-1">
               <div className="w-full rounded-xl border border-border bg-card p-6 shadow-sm">
                 <p className="text-base leading-relaxed text-fg">
-                  <span className="font-semibold text-brand-600">An initiative by StimuliiQ</span> for meritorious and financially constrained students building careers in
-                  software, data, cloud and design.
+                  <span className="font-semibold text-brand-600">An initiative by Stimuli IQ</span> for meritorious and needy healthcare aspirants across the
+                  world.
                 </p>
               </div>
               <span aria-hidden="true" className="h-1 w-40 rounded-full bg-brand-500" />
@@ -122,7 +122,7 @@ export function ScholarshipPageFallback() {
             </div>
 
             <div className="order-3 rounded-xl border border-border bg-card p-6 shadow-sm">
-              <p className="text-base font-semibold leading-snug text-brand-600">Do not let financial setbacks hold you back from a successful tech career.</p>
+              <p className="text-base font-semibold leading-snug text-brand-600">Don&apos;t let financial setbacks hold you back from a successful healthcare career.</p>
               <div aria-hidden="true" className="mt-4 flex items-center">
                 <span className="h-px flex-1 bg-border" />
                 <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
@@ -152,7 +152,7 @@ export function ScholarshipPageFallback() {
         <div className="mx-auto max-w-screen-xl px-4 md:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold text-fg md:text-4xl">
-              Built for every <span className="text-chart-3">tech career aspirant</span>
+              Built for every <span className="text-chart-3">healthcare career aspirant</span>
             </h2>
             <p className="mt-4 text-lg text-fg-muted">One scholarship, every program — here is what it gives you.</p>
           </div>
@@ -203,7 +203,7 @@ export function ScholarshipPageFallback() {
           <div className="mx-auto mt-12 grid max-w-5xl grid-cols-1 items-center gap-10 lg:grid-cols-2">
             <div>
               <h3 className="text-xl font-semibold leading-snug text-fg">
-                Financial constraints should never stop a capable student from building a global tech career.
+                Financial constraints should never stop a capable student from building a career in healthcare.
               </h3>
               <p className="mt-4 text-base leading-relaxed text-fg-muted">
                 The fund is structured to democratise access to industry-grade internship training — awards are spread across every track so students from any discipline can

@@ -545,7 +545,10 @@ export function ExitIntentModal({
               aria-label="Close dialog"
               className={cn(
                 "absolute right-3 top-3 z-10 rounded-md p-1.5 text-fg-subtle transition-colors hover:bg-surface hover:text-fg",
-                "sm:text-white/80 sm:hover:bg-white/15 sm:hover:text-white",
+                // ≥sm the button sits ON TOP of the imageSlot photo — a translucent dark
+                // chip keeps the icon legible on any imagery (the previous white-on-
+                // transparent styling vanished against light photos).
+                "sm:bg-fg/45 sm:text-white sm:hover:bg-fg/65 sm:hover:text-white",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               )}
             >

@@ -14,6 +14,10 @@ import type {
   ListBranchesQuery,
   CreateBranchRequest,
   UpdateBranchRequest,
+  StaffUser,
+  ListStaffUsersQuery,
+  CreateStaffUserRequest,
+  UpdateStaffUserRequest,
 } from "@repo/types";
 import type { ApiClient } from "../http/client.js";
 import { toQueryString } from "../http/query.js";
@@ -102,5 +106,41 @@ export class BranchesApi {
       body,
       idempotencyKey,
     });
+  }
+}
+
+export class StaffUsersApi {
+  constructor(private readonly client: ApiClient) {}
+
+  /** GET /api/v1/crm/admin/users — staff accounts (non-student roles) only. */
+  async list(query: ListStaffUsersQuery) {
+    return this.client.requestPaginated<StaffUser>(
+      "GET",
+      `/api/v1/crm/admin/users${toQueryString(query)}`,
+    );
+  }
+
+  /** GET /api/v1/crm/admin/users/:id */
+  async get(id: string): Promise<StaffUser> {
+    return this.client.request<StaffUser>("GET", `/api/v1/crm/admin/users/${id}`);
+  }
+
+  /** POST /api/v1/crm/admin/users — creates a staff login (name/email/password/roles). */
+  async create(body: CreateStaffUserRequest, idempotencyKey: string = crypto.randomUUID()): Promise<StaffUser> {
+    return this.client.request<StaffUser>("POST", "/api/v1/crm/admin/users", { body, idempotencyKey });
+  }
+
+  /** PATCH /api/v1/crm/admin/users/:id — partial update; `password` resets the credential. */
+  async update(
+    id: string,
+    body: UpdateStaffUserRequest,
+    idempotencyKey: string = crypto.randomUUID(),
+  ): Promise<StaffUser> {
+    return this.client.request<StaffUser>("PATCH", `/api/v1/crm/admin/users/${id}`, { body, idempotencyKey });
+  }
+
+  /** DELETE /api/v1/crm/admin/users/:id — deactivates the account (blocks login), never a hard delete. */
+  async deactivate(id: string, idempotencyKey: string = crypto.randomUUID()): Promise<StaffUser> {
+    return this.client.request<StaffUser>("DELETE", `/api/v1/crm/admin/users/${id}`, { idempotencyKey });
   }
 }

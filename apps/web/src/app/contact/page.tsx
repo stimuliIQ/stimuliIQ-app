@@ -16,6 +16,7 @@ import { buildMetadata, SITE_URL } from "../../lib/seo/metadata";
 import { buildBreadcrumbJsonLd } from "../../lib/seo/json-ld";
 import { ContactForm } from "../../components/contact/contact-form";
 import { BOOK_SLOT_HREF } from "../../components/shell/nav-config";
+import { ADDRESS, CONTACT_EMAIL, WHATSAPP_DISPLAY, buildWhatsAppHref } from "../../lib/contact";
 
 export const metadata: Metadata = buildMetadata({
   title: "Contact Us",
@@ -26,7 +27,7 @@ export const metadata: Metadata = buildMetadata({
 
 const BREADCRUMBS = [{ label: "Home", href: "/" }, { label: "Contact" }];
 
-const WA_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "919999999999";
+const WA_HREF = buildWhatsAppHref();
 
 // ---------------------------------------------------------------------------
 // Icons
@@ -108,6 +109,25 @@ function ClockIcon() {
   );
 }
 
+function PinIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+    >
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Channel card
 // ---------------------------------------------------------------------------
@@ -184,10 +204,10 @@ export default function ContactPage() {
               description="Best for detailed questions — attach anything you like."
               action={
                 <a
-                  href="mailto:hello@stimuliiq.com"
+                  href={`mailto:${CONTACT_EMAIL}`}
                   className="text-fg underline underline-offset-4 hover:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded"
                 >
-                  hello@stimuliiq.com
+                  {CONTACT_EMAIL}
                 </a>
               }
             />
@@ -197,12 +217,12 @@ export default function ContactPage() {
               description="Quickest way to reach a counsellor during working hours."
               action={
                 <a
-                  href={`https://wa.me/${WA_NUMBER}`}
+                  href={WA_HREF}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-fg underline underline-offset-4 hover:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded"
                 >
-                  +91 99999 99999
+                  {WHATSAPP_DISPLAY}
                 </a>
               }
             />
@@ -219,6 +239,28 @@ export default function ContactPage() {
                 </a>
               }
             />
+
+            {/* Registered office */}
+            <div className="flex items-start gap-4 rounded-2xl border border-border p-6">
+              <span
+                aria-hidden="true"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface text-fg"
+              >
+                <PinIcon />
+              </span>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-fg">Visit us</h3>
+                {/* <address> is the semantic element for contact details; the browser
+                    italicises it by default, hence not-italic. */}
+                <address className="mt-1 text-sm not-italic leading-relaxed text-fg-muted">
+                  {ADDRESS.lines.map((line, i) => (
+                    <span key={line} className="block">
+                      {i === 0 ? <span className="font-medium text-fg">{line}</span> : line}
+                    </span>
+                  ))}
+                </address>
+              </div>
+            </div>
 
             {/* Hours + expectations */}
             <div className="flex items-start gap-4 rounded-2xl border border-border p-6">

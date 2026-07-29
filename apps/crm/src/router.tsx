@@ -27,6 +27,7 @@ import { coursesRoute } from "./routes/courses-route";
 import { batchesRoute } from "./routes/batches-route";
 import { adminRolesRoute } from "./routes/admin-roles-route";
 import { adminBranchesRoute } from "./routes/admin-branches-route";
+import { adminUsersRoute } from "./routes/admin-users-route";
 import { adminAuditRoute } from "./routes/admin-audit-route";
 import { adminSettingsRoute } from "./routes/admin-settings-route";
 import { adminFeatureFlagsRoute } from "./routes/admin-feature-flags-route";
@@ -95,6 +96,7 @@ const routeTree = rootRoute.addChildren([
   batchesRoute,
   adminRolesRoute,
   adminBranchesRoute,
+  adminUsersRoute,
   adminAuditRoute,
   adminSettingsRoute,
   adminFeatureFlagsRoute,

@@ -3,10 +3,10 @@
     "type": "hero",
     "data": {
       "variant": "centered",
-      "eyebrow": "About StimuliiQ",
-      "headline": "We bridge the gap between college and career.",
-      "headlineHighlight": "college and career",
-      "subheadline": "StimuliiQ is an internship-training platform for India's B.Tech, Degree, Diploma, MCA, and MBA students. We teach the way industry works — live mentors, real projects, verifiable certificates — so your first job doesn't depend on your college tier."
+      "eyebrow": "About Stimuli IQ",
+      "headline": "We bridge the gap between academics and real practice.",
+      "headlineHighlight": "academics and real practice",
+      "subheadline": "Stimuli IQ is a healthcare education and training platform for India's medical, psychology, and allied health science students. We teach the way healthcare actually works — live mentors, real clinical exposure, verifiable certificates — so your career readiness doesn't depend on your college tier."
     }
   },
   {
@@ -15,13 +15,13 @@
       "heading": "Why we exist",
       "headingHighlight": "exist",
       "body": [
-        "Every year, hundreds of thousands of Indian engineering graduates struggle to land their first job — not because they lack intelligence, but because college curriculums don't match what companies actually need.",
-        "Our founders — engineers from Hyderabad, Bangalore, and Pune — lived that gap themselves. In 2021 they built StimuliiQ to close it: a system where students learn by building, are mentored by people who do the job, and graduate with proof employers can check.",
-        "Our mission: give every Indian student — regardless of college tier — access to the training they need to build a real tech career."
+        "Every year, thousands of Indian medical and psychology graduates step into their careers without the practical exposure the field actually demands — not because they lack knowledge, but because academic curriculums don't match what real clinical and healthcare practice requires.",
+        "Our mentors lived that gap themselves. We built Stimuli IQ to close it: a system where students learn through real practice, are mentored by people who work in healthcare, and graduate with proof employers and institutions can trust.",
+        "Our mission: give every Indian student — regardless of college tier — access to the training and mentorship they need to build a real career in healthcare."
       ],
-      "mediaImageKey": "/images/hero/person.avif",
-      "mediaPosition": "right",
-      "badge": { "iconKey": "check", "title": "Since 2021", "subtitle": "Built by engineers" }
+      "mediaImageKey": "/images/about/why-we-exist.webp",
+      "mediaAlt": "Stimuli IQ \"Why We Exist\" poster. Healthcare needs more skilled, confident, compassionate professionals who are ready for real-world challenges. Bridging the Gap: we bridge the gap between education and real-world healthcare. Empowering Futures: we empower learners with the skills, exposure, and mentorship they deserve. Building Better Healthcare: we exist to build a stronger, more compassionate, and future-ready healthcare community. Better training today. Better healthcare tomorrow.",
+      "mediaPosition": "right"
     }
   },
   {
@@ -29,24 +29,24 @@
     "data": {
       "variant": "band",
       "items": [
-        { "label": "Students trained", "value": "15,000+" },
-        { "label": "Programs", "value": "30+" },
-        { "label": "Placement rate", "value": "89%" },
-        { "label": "Hiring partners", "value": "200+" }
+        { "label": "Structured healthcare programs", "value": "Mentor-led" },
+        { "label": "Internships & case work", "value": "Real" },
+        { "label": "Certificates", "value": "Verifiable" },
+        { "label": "Student community", "value": "Pan-India" }
       ]
     }
   },
   {
     "type": "numbered_steps",
     "data": {
-      "heading": { "title": "How the system works for you", "titleHighlight": "system works", "subtitle": "One guided journey from first click to first offer." },
+      "heading": { "title": "How the journey works for you", "titleHighlight": "journey works", "subtitle": "One guided journey from first step to career-ready." },
       "variant": "timeline",
       "items": [
-        { "title": "Discover the right program", "description": "Browse 30+ project-based programs across software, data, cloud, and design — or book a free counselling slot and let a mentor guide your choice. Transparent pricing, 0% EMI, no hidden fees." },
-        { "title": "Learn live and on-demand", "description": "Our learning portal combines scheduled live sessions with industry mentors and recorded video lessons you can rewatch anytime. Track your own progress and attendance in one place." },
-        { "title": "Build real projects", "description": "Every program is structured around industry-grade projects — reviewed by working engineers, not graders. Your portfolio becomes the proof employers actually look at." },
-        { "title": "Earn a verifiable certificate", "description": "Finish your assessment and receive a certificate with a unique ID and QR code. Any employer can verify it on our public verification page in seconds — no fake credentials, ever." },
-        { "title": "Get placed", "description": "Resume reviews, mock interviews, and direct referrals into our network of 200+ hiring partners. We stay with you until you sign your offer — that's how we get to 89%." }
+        { "title": "Discover the right program", "description": "Browse programs across psychology, neurology, clinical research, and allied health sciences — or book a free counselling slot and let a mentor guide your choice. Transparent pricing, easy pre-registration, no hidden fees." },
+        { "title": "Learn live and on-demand", "description": "Our learning portal combines scheduled live sessions with clinician mentors and recorded lessons you can rewatch anytime. Your progress and attendance stay visible in one place." },
+        { "title": "Build real case studies", "description": "Every program is structured around real-world case studies and practice scenarios — reviewed by working healthcare professionals, not graders. Your portfolio becomes the proof that shows you're genuinely prepared." },
+        { "title": "Earn a verifiable certificate", "description": "Finish your assessment and receive a certificate with a unique ID and QR code. Any employer can verify it on our public verification page in seconds." },
+        { "title": "Get career ready", "description": "Portfolio reviews, counselling sessions, and direct referrals through our network." }
       ]
     }
   },
@@ -54,15 +54,15 @@
     "type": "feature_grid",
     "data": {
       "variant": "cards",
-      "heading": { "title": "What's inside the platform", "titleHighlight": "platform", "subtitle": "Everything a student needs — nothing they don't." },
+      "heading": { "title": "What's inside the platform", "titleHighlight": "platform", "subtitle": "Everything a student needs to go from classroom to clinic." },
       "columns": "3",
       "items": [
-        { "iconKey": "lms", "title": "A structured learning portal", "description": "One dashboard for lessons, live classes, assignments, progress, and attendance — built for focus, not distraction." },
-        { "iconKey": "mentor", "title": "Mentors who do the job", "description": "Active engineers and data scientists from top companies — people who ship code, review yours." },
-        { "iconKey": "project", "title": "Projects, not just lectures", "description": "Assignments and capstone projects modelled on real industry work, individually evaluated with feedback." },
+        { "iconKey": "lms", "title": "A structured learning portal", "description": "One dashboard for lessons, live classes, assignments, progress, and attendance." },
+        { "iconKey": "mentor", "title": "Mentors who do the job", "description": "Active healthcare professionals and psychologists from real practice — people who work in the field, and guide yours." },
+        { "iconKey": "project", "title": "Case studies & research, not just lectures", "description": "Assignments and capstone case studies modelled on real healthcare practice, individually evaluated with feedback." },
         { "iconKey": "certificate", "title": "Certificates employers can check", "description": "Every certificate carries a unique ID and QR code, instantly verifiable on our public portal." },
-        { "iconKey": "placement", "title": "A real placement engine", "description": "Referrals to 200+ hiring partners, interview prep, and placement tracking — not a PDF of job links." },
-        { "iconKey": "pricing", "title": "Student-first pricing", "description": "Priced for students in India, with 0% EMI plans and a 7-day no-questions-asked refund policy." }
+        { "iconKey": "placement", "title": "A growing career network", "description": "Direct referrals through our network of healthcare mentors and alumni, with portfolio reviews and career guidance." },
+        { "iconKey": "pricing", "title": "Student-first pricing", "description": "Priced for students in India, with simple pre-registration and transparent, upfront costs." }
       ]
     }
   },
@@ -70,7 +70,7 @@
     "type": "cta_band",
     "data": {
       "heading": "Don't take our word for it.",
-      "subheading": "Every StimuliiQ certificate is publicly verifiable. Employers — paste a certificate ID or scan its QR code and see the result instantly.",
+      "subheading": "Every StimuliiQ certificate is publicly verifiable. Employers can paste a certificate ID or scan its QR code and see the result instantly.",
       "background": "brand",
       "buttons": [{ "label": "Verify a certificate", "href": "/verify", "style": "primary" }]
     }
@@ -90,8 +90,8 @@
       "variant": "strip",
       "columns": "4",
       "items": [
-        { "iconKey": "check", "title": "7-day refund", "description": "Not satisfied? Full refund within 7 days, no questions asked." },
-        { "iconKey": "check", "title": "Transparent pricing", "description": "The price you see is the price you pay — 0% EMI available." },
+        { "iconKey": "check", "title": "Mentor-led training", "description": "Every program is guided by practicing healthcare professionals." },
+        { "iconKey": "check", "title": "Transparent pricing", "description": "The price you see is the price you pay — upfront, with no hidden fees." },
         { "iconKey": "check", "title": "Your data, protected", "description": "DPDP-compliant privacy: consent-first analytics, no data resale." },
         { "iconKey": "check", "title": "Verified outcomes", "description": "Ratings and reviews come from enrolled students only." }
       ]
@@ -100,11 +100,11 @@
   {
     "type": "cta_band",
     "data": {
-      "heading": "Your career won't wait. Neither should you.",
-      "headingHighlight": "career",
+      "heading": "Your first posting is closer than you think.",
+      "headingHighlight": "first posting",
       "background": "surface",
       "buttons": [
-        { "label": "Explore our courses", "href": "/programs", "style": "primary" },
+        { "label": "Explore our programs", "href": "/programs", "style": "primary" },
         { "label": "Book a free slot", "href": "/book-free-slot", "style": "secondary" }
       ]
     }

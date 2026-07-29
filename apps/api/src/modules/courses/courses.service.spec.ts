@@ -52,6 +52,7 @@ const ROW: ProgramRow = {
   outcomes: null,
   ogImageKey: null,
   scholarshipAvailable: false,
+  enrollmentEnabled: true,
   createdAt: new Date("2026-01-01T00:00:00Z"),
   updatedAt: new Date("2026-01-01T00:00:00Z"),
   deletedAt: null,
@@ -150,6 +151,7 @@ describe("CoursesService", () => {
             emi: [],
             status: "draft",
             scholarshipAvailable: false,
+            enrollmentEnabled: true,
           }),
         ),
       ).rejects.toBeInstanceOf(ForbiddenException);
@@ -186,6 +188,55 @@ describe("CoursesService", () => {
         runWithScope("all", () => service.setVisibility("tenant-1", "missing", true)),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(repo.setVisibility).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("enrollmentEnabled", () => {
+    it("surfaces the flag on the detail DTO", async () => {
+      repo.findById.mockResolvedValue({ ...ROW, enrollmentEnabled: false });
+
+      const detail = await runWithScope("all", () => service.getById("tenant-1", ROW.id));
+
+      expect(detail.enrollmentEnabled).toBe(false);
+    });
+
+    it("closes enrollment through the normal partial update", async () => {
+      repo.findById.mockResolvedValue(ROW);
+      repo.update.mockResolvedValue({ ...ROW, enrollmentEnabled: false });
+
+      const detail = await runWithScope("all", () =>
+        service.update("tenant-1", ROW.id, { enrollmentEnabled: false }),
+      );
+
+      expect(repo.update).toHaveBeenCalledWith(ROW.id, { enrollmentEnabled: false });
+      expect(detail.enrollmentEnabled).toBe(false);
+    });
+
+    it("defaults a newly created program to enrollment OPEN", async () => {
+      repo.findBySlug.mockResolvedValue(null);
+      repo.create.mockResolvedValue(ROW);
+
+      const detail = await runWithScope("all", () =>
+        service.create("tenant-1", {
+          slug: "new-program",
+          title: "New Program",
+          domain: "web-development",
+          level: "beginner",
+          mode: "recorded",
+          durationWeeks: 4,
+          pricePaise: 100000,
+          emi: [],
+          status: "draft",
+          scholarshipAvailable: false,
+          enrollmentEnabled: true,
+        }),
+      );
+
+      expect(repo.create).toHaveBeenCalledWith(
+        "tenant-1",
+        expect.objectContaining({ enrollmentEnabled: true }),
+      );
+      expect(detail.enrollmentEnabled).toBe(true);
     });
   });
 });

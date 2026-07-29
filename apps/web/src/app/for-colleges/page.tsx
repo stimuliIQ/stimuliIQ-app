@@ -65,11 +65,23 @@ export default async function ForCollegesPage() {
         dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }}
       />
 
-      <div className="mx-auto max-w-4xl px-4 py-12 sm:py-16 md:px-6">
-        <Breadcrumbs items={BREADCRUMBS} className="mb-8" data-testid="colleges-breadcrumbs" />
+      {/* Site-standard container for the breadcrumb; blocks render full-bleed below
+          because every registry block owns its own `max-w-screen-xl px-4 md:px-6`
+          container (same pattern as /about — a narrower outer wrapper here would
+          double-constrain and double-pad every section). */}
+      <section aria-label="Breadcrumb" className="mx-auto max-w-screen-xl px-4 pt-10 md:px-6">
+        <Breadcrumbs items={BREADCRUMBS} className="mb-0 text-sm" data-testid="colleges-breadcrumbs" />
+      </section>
 
-        {blocks ? <PageBlocks blocks={blocks} /> : <ForCollegesPageFallback />}
-      </div>
+      {blocks ? (
+        <PageBlocks blocks={blocks} />
+      ) : (
+        // The pre-migration fallback has no container of its own — keep the
+        // original narrow wrapper so it renders exactly as it always did.
+        <div className="mx-auto max-w-4xl px-4 py-12 sm:py-16 md:px-6">
+          <ForCollegesPageFallback />
+        </div>
+      )}
     </>
   );
 }

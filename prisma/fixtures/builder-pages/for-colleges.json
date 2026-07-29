@@ -3,9 +3,9 @@
     "type": "hero",
     "data": {
       "variant": "centered",
-      "headline": "For Colleges",
-      "headlineHighlight": "Colleges",
-      "subheadline": "Partner with us to give your students industry-grade training and placement support."
+      "headline": "For Campus Communities",
+      "headlineHighlight": "Campus Communities",
+      "subheadline": "Collaborate with us to bring hands-on healthcare training, workshops, mentorship, and career exposure to your fellow students."
     }
   },
   {
@@ -14,10 +14,10 @@
       "variant": "cards",
       "columns": "2",
       "items": [
-        { "iconKey": "lms", "title": "Campus Training Programs", "description": "Tailored 8–16 week programs delivered on-campus or hybrid. We handle curriculum, mentors, and assessments." },
-        { "iconKey": "placement", "title": "Placement Drives", "description": "Connect your students with our 150+ hiring partners. We run dedicated placement drives for partner colleges." },
-        { "iconKey": "certificate", "title": "Internship Certification", "description": "Students earn verifiable StimuliiQ certificates recognised across India's tech industry." },
-        { "iconKey": "mentor", "title": "Faculty Development", "description": "Upskill your faculty with our industry-grade curriculum workshops and teaching resources." }
+        { "iconKey": "lms", "title": "Campus Training Programs", "description": "Tailored 8 to 16 week internship programs delivered on campus or hybrid. We handle curriculum, mentors, and assessments." },
+        { "iconKey": "placement", "title": "Career Roadmaps & Guidance", "description": "Give your students access to structured career roadmaps for health sciences — built with mentor insights, real time opportunities, and guidance from our growing healthcare community." },
+        { "iconKey": "certificate", "title": "Internship Certification", "description": "Students earn verifiable StimuliiQ certificates recognised by hospitals and healthcare employers across India." },
+        { "iconKey": "mentor", "title": "Collaborate & Get Sponsored", "description": "Collaborate with us and get sponsorship support for your campus fests and events — helping your committee bring bigger, more impactful events." }
       ]
     }
   },
@@ -25,7 +25,7 @@
     "type": "live_collection_ref",
     "data": {
       "collection": "partners",
-      "heading": { "title": "Our Partner Colleges", "titleHighlight": "Partner Colleges", "subtitle": "Trusted by leading colleges and universities across India for industry-grade training." },
+      "heading": { "title": "Our Partner Colleges", "titleHighlight": "Partner Colleges", "subtitle": "Trusted by leading medical, dental, nursing, and pharmacy colleges across India." },
       "layout": "grid-3",
       "selection": { "category": "college_partner", "limit": 12, "sort": "order" }
     }
@@ -33,8 +33,8 @@
   {
     "type": "cta_band",
     "data": {
-      "heading": "Ready to partner with us?",
-      "subheading": "Email our college partnerships team or schedule a call to discuss your institution's needs.",
+      "heading": "Ready to collaborate with us?",
+      "subheading": "Reach out to our campus team or grab a quick call — let's figure out what works for your committee.",
       "background": "surface",
       "buttons": [{ "label": "Contact College Partnerships Team", "href": "mailto:colleges@stimuliiq.com", "style": "primary" }]
     }

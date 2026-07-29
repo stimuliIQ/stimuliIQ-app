@@ -28,7 +28,7 @@ export const SITE_NAME = "StimuliiQ" as const;
 export const SITE_URL =
   (process.env.NEXT_PUBLIC_SITE_URL ?? "https://stimuliiq.com").replace(/\/$/, "");
 export const DEFAULT_DESCRIPTION =
-  "StimuliiQ — India's leading internship and career training platform for B.Tech, MBA, MCA, and Diploma students. Industry-grade programs, verifiable certificates, expert mentors.";
+  "StimuliiQ — India's next generation healthcare learning platform. Structured training, real internships, and mentorship from healthcare industry experts for medical, psychology, and allied health science students.";
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
 
 // ---------------------------------------------------------------------------

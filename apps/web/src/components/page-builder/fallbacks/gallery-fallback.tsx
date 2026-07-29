@@ -4,12 +4,12 @@
  * (docs/specs/phase-10-page-builder.md item B).
  */
 const GALLERY_ITEMS = [
-  { id: "g1", alt: "Students attending a live Python training session", caption: "Python Live Session — Cohort 14" },
-  { id: "g2", alt: "Certificate distribution ceremony for Full Stack alumni", caption: "Certificate Ceremony — Full Stack Cohort 8" },
-  { id: "g3", alt: "Mentor-led code review session for data science students", caption: "Data Science Code Review" },
-  { id: "g4", alt: "Industry expert guest lecture on system design", caption: "System Design Masterclass" },
+  { id: "g1", alt: "Students attending a live clinical skills training session", caption: "Clinical Skills Live Session, Cohort 14" },
+  { id: "g2", alt: "Certificate distribution ceremony for clinical research interns", caption: "Certificate Ceremony, Clinical Research Cohort 8" },
+  { id: "g3", alt: "Mentor-led case review session with nursing students", caption: "Case Review with Nursing Interns" },
+  { id: "g4", alt: "Guest lecture by a senior hospital administrator", caption: "Hospital Administration Masterclass" },
   { id: "g5", alt: "Students presenting their final capstone projects", caption: "Capstone Project Demo Day" },
-  { id: "g6", alt: "Panel discussion with hiring partners at StimuliiQ campus event", caption: "Hiring Partner Connect 2026" },
+  { id: "g6", alt: "Panel discussion with hospital hiring partners at a StimuliiQ event", caption: "Hospital Partner Connect 2026" },
 ];
 
 export function GalleryPageFallback() {
@@ -17,7 +17,7 @@ export function GalleryPageFallback() {
     <>
       <header className="mb-12">
         <h1 className="text-3xl font-bold text-fg sm:text-4xl">Gallery</h1>
-        <p className="mt-3 text-lg text-fg-muted">A glimpse into StimuliiQ learning sessions, events, and achievements.</p>
+        <p className="mt-3 text-lg text-fg-muted">A glimpse into StimuliiQ training sessions, events, and student milestones.</p>
       </header>
 
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" role="list" data-testid="gallery-list">

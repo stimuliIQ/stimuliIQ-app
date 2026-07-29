@@ -39,9 +39,9 @@ export const revalidate = 300; // 5 min
 const HOME_SLUG = "home";
 
 const FALLBACK_METADATA = {
-  title: "StimuliiQ — Internship & Career Training for Students in India",
+  title: "StimuliiQ — Healthcare Training & Internships for Students in India",
   description:
-    "Project-based internship programs in Full Stack, Python, Data Science, Cloud, DevOps, and more. Industry mentors, hands-on projects, and verifiable certificates.",
+    "Structured training and internship tracks in psychology, clinical practice, and allied healthcare. Healthcare mentors, real case work, and verifiable certificates.",
 };
 
 export async function generateMetadata(): Promise<Metadata> {

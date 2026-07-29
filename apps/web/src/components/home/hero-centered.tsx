@@ -97,7 +97,7 @@ function StatBadge({
       </span>
       <span className="flex flex-col leading-tight">
         <span className="text-base font-bold text-fg">{value}</span>
-        <span className="text-sm text-fg-muted">{label}</span>
+        <span className="max-w-[11rem] text-sm text-fg-muted">{label}</span>
       </span>
     </div>
   );
@@ -122,7 +122,7 @@ export function HeroCentered() {
         />
       </div>
 
-      <div className="relative mx-auto max-w-screen-2xl px-4 py-20 md:px-6 lg:py-32">
+      <div className="relative mx-auto max-w-screen-2xl px-4 pb-20 pt-8 md:px-6 lg:pb-32 lg:pt-12">
         {/* Left floating photo card (lg+) */}
         <div className="absolute left-[6%] top-1/2 hidden -translate-y-1/2 lg:block xl:left-[9%]">
           <div className="relative">
@@ -135,9 +135,9 @@ export function HeroCentered() {
             />
             <StatBadge
               icon={<UserIcon />}
-              value="100+"
-              label="Expert Mentors"
-              className="absolute -left-16 bottom-10"
+              value="Mentors"
+              label="From real clinical & healthcare backgrounds"
+              className="absolute -bottom-8 left-1/2 w-max -translate-x-1/2"
             />
           </div>
         </div>
@@ -154,9 +154,9 @@ export function HeroCentered() {
             />
             <StatBadge
               icon={<VideoIcon />}
-              value="120+"
-              label="Video Courses"
-              className="absolute -left-20 bottom-8"
+              value="Structured Training"
+              label="+ Internship Tracks"
+              className="absolute -bottom-8 left-1/2 w-max -translate-x-1/2"
             />
           </div>
         </div>
@@ -177,7 +177,7 @@ export function HeroCentered() {
               </span>
               <span className="sr-only">Rated 5 out of 5.</span>
               <p className="text-base font-medium text-fg">
-                Trusted by 15,000+ students
+                Trusted by aspiring healthcare professionals across India
               </p>
             </div>
             <img
@@ -190,15 +190,17 @@ export function HeroCentered() {
 
           {/* Headline */}
           <h1 className="mt-8 font-display text-5xl font-bold leading-[1.05] tracking-tight text-fg sm:text-6xl lg:text-7xl">
-            Build skills for
+            Build the skills real
             <br />
-            new <span className="text-chart-3">opportunities</span>.
+            <span className="text-chart-3">healthcare careers</span> demand.
           </h1>
 
           {/* Subheading */}
           <p className="mt-7 max-w-xl text-lg leading-relaxed text-fg-muted">
-            StimuliiQ gives you a complete learning experience that helps you
-            gain real, job-ready skills and take the next step in your career.
+            Stimuli IQ helps health science students bridge the gap between
+            classroom learning and clinical practice &mdash; through structured
+            training, real internships, and mentorship from healthcare
+            industry experts.
           </p>
 
           {/* CTA */}
@@ -206,7 +208,7 @@ export function HeroCentered() {
             href="/programs"
             className="group mt-10 inline-flex min-h-[44px] items-center gap-4 rounded-full bg-brand-500 py-2 pl-8 pr-2 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-brand-600 active:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            Explore our courses
+            Explore our programs
             <span
               aria-hidden="true"
               className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-fg transition-transform duration-fast group-hover:translate-x-0.5"

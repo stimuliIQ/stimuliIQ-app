@@ -42,7 +42,15 @@ export function CtaBandBlock({ data }: { data: CtaBandBlockData }): React.JSX.El
   const onBrand = data.background === "brand";
 
   return (
-    <section aria-label={data.heading} data-testid="page-builder-cta-band" className={`${BACKGROUND_CLASSES[data.background]} py-20 lg:py-24`}>
+    // id="apply": the band that carries a lead form IS the page's application/signup
+    // section, and CMS-authored hero CTAs link to it as "#apply" (e.g. Scholarship's
+    // "Take an Eligibility Test"). scroll-mt offsets the sticky header on anchor jumps.
+    <section
+      id={data.leadForm ? "apply" : undefined}
+      aria-label={data.heading}
+      data-testid="page-builder-cta-band"
+      className={`${BACKGROUND_CLASSES[data.background]} scroll-mt-20 py-20 lg:py-24`}
+    >
       <div className="mx-auto max-w-screen-xl px-4 text-center md:px-6">
         <h2 className={`text-3xl font-bold md:text-4xl ${HEADING_CLASS[data.background]}`}>
           <HighlightText text={data.heading} highlight={data.headingHighlight} />

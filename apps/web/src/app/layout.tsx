@@ -35,6 +35,7 @@ import { getProgramsNav } from "../lib/nav-programs";
 import { getSiteSettings, interpolateCopyrightTemplate } from "../lib/site-settings";
 import { buildMetadata, SITE_URL } from "../lib/seo/metadata";
 import { buildOrganizationJsonLd } from "../lib/seo/json-ld";
+import { ADDRESS, PHONE_HREF } from "../lib/contact";
 
 // ---------------------------------------------------------------------------
 // Sitewide default metadata (per-page overrides via generateMetadata)
@@ -75,10 +76,21 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const contactText = settings?.["contact.details"]?.contactText;
   const whatsappNumber = settings?.["contact.whatsapp"]?.number;
   const whatsappMessage = settings?.["contact.whatsapp"]?.message;
+  // Announcement strip (announcement.bar) — undefined when the CMS is unreachable,
+  // which the shell treats as "no bar" (an announcement is never load-bearing).
+  const announcement = settings?.["announcement.bar"];
 
   // Sitewide Organization JSON-LD — injected once in the root layout.
   const orgJsonLd = buildOrganizationJsonLd({
     logoUrl: `${SITE_URL}/logo.png`,
+    contactPhone: PHONE_HREF,
+    address: {
+      streetAddress: ADDRESS.streetAddress,
+      addressLocality: ADDRESS.addressLocality,
+      addressRegion: ADDRESS.addressRegion,
+      postalCode: ADDRESS.postalCode,
+      addressCountry: ADDRESS.addressCountry,
+    },
     sameAs: [
       "https://linkedin.com/company/stimuliiq",
       "https://instagram.com/stimuliiq",
@@ -125,6 +137,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             contactText={contactText}
             whatsappNumber={whatsappNumber}
             whatsappMessage={whatsappMessage}
+            announcement={announcement}
           >
             {children}
           </SiteShell>

@@ -1,6 +1,7 @@
 /**
  * PartnerColleges — homepage "In Collaboration with…" block: a card grid of
- * partner colleges (logo, name, focus line, established year, city).
+ * partner colleges. Centered-column cards: logo chip on top, then name, focus
+ * line, and an Est./city meta row pinned to a shared bottom baseline.
  *
  * Server Component — purely presentational, no client JS.
  *
@@ -16,10 +17,15 @@
  * fallback entries may carry a `logo` path under /public. When neither is present we
  * render a monogram chip from the initials, so the grid stays visually complete.
  *
- * Responsive: 1 col → 2 cols (sm) → 3 cols (lg) → 4 (xl).
+ * Responsive: 1 col → 2 cols (sm) → 3 cols (lg) → 4 (xl). The grid sits inside a
+ * height-capped, vertically-scrolling viewport so the section's footprint stays fixed
+ * however many colleges the CRM holds. At 3–4 columns twelve cards fit without
+ * scrolling; at 1–2 columns the box scrolls instead of stretching the page.
  *
  * a11y: section landmark + aria-label, h2/h3 hierarchy, role="list" grid,
- * decorative logo/monogram + location pin hidden from screen readers.
+ * decorative logo/monogram + location pin hidden from screen readers. The scroll
+ * viewport is keyboard-focusable and labelled (WCAG 2.2 §2.1.1 — a scrollable region
+ * must be operable without a mouse).
  */
 import type { PublicPartner } from "@repo/types";
 
@@ -158,10 +164,15 @@ function PinIcon() {
 
 function CollegeCard({ college }: { college: PartnerCollege }) {
   return (
-    <li className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5 transition-colors duration-[150ms] hover:border-chart-3">
+    // Horizontal card: logo chip on the LEFT, text stacked on the right. This was a
+    // centered column (logo above the name, meta row pinned to a shared baseline),
+    // which read well but cost ~180px of height per card — twelve of those pushed the
+    // section past a full screen. Laying it out on one axis roughly halves the height
+    // and lets the meta row sit inline instead of on its own bordered line.
+    <li className="group flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm transition-all duration-[150ms] hover:border-chart-3/50 hover:shadow-md">
       <span
         aria-hidden="true"
-        className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface"
+        className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-chart-3/10 ring-1 ring-inset ring-chart-3/15"
       >
         {college.logo ? (
           <img
@@ -172,28 +183,28 @@ function CollegeCard({ college }: { college: PartnerCollege }) {
             className="h-full w-full object-contain p-1"
           />
         ) : (
-          <span className="text-xs font-bold tracking-tight text-fg-muted">
+          <span className="text-xs font-bold tracking-tight text-chart-3">
             {monogram(college.name)}
           </span>
         )}
       </span>
 
-      <div className="min-w-0">
-        <h3 className="text-sm font-semibold leading-snug text-fg">
+      <div className="min-w-0 flex-1">
+        <h3 className="truncate text-[13px] font-semibold leading-snug text-fg" title={college.name}>
           {college.name}
         </h3>
         {college.focus ? (
-          <p className="mt-0.5 text-xs leading-snug text-chart-3">
+          <p className="truncate text-[11px] leading-snug text-chart-3" title={college.focus}>
             {college.focus}
           </p>
         ) : null}
         {college.established || college.city ? (
-          <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-fg-subtle">
+          <p className="mt-0.5 flex items-center gap-2 text-[10px] text-fg-subtle">
             {college.established ? <span>Est. {college.established}</span> : null}
             {college.city ? (
-              <span className="inline-flex items-center gap-1">
+              <span className="inline-flex min-w-0 items-center gap-0.5">
                 <PinIcon />
-                {college.city}
+                <span className="truncate">{college.city}</span>
               </span>
             ) : null}
           </p>
@@ -231,14 +242,30 @@ export function PartnerColleges({ colleges }: { colleges?: PublicPartner[] }) {
           </p>
         </div>
 
-        <ul
-          role="list"
-          className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        {/* Capped, vertically-scrolling viewport. The list is CRM-managed and open-ended,
+            so its height must not grow with the row count — past ~8 entries the section
+            was pushing the rest of the homepage below the fold.
+
+            a11y (WCAG 2.2 §2.1.1): a scrollable region must be reachable and operable by
+            keyboard, so this carries tabIndex={0} + role="group" + a label and a visible
+            focus ring. `overscroll-contain` stops a scroll that reaches the bottom of this
+            box from chaining into the page behind it. */}
+        <div
+          tabIndex={0}
+          role="group"
+          aria-label="Partner colleges and institutions, scrollable list"
+          className="max-h-[22rem] overflow-y-auto overscroll-contain rounded-xl pr-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:max-h-[24rem]"
+          data-testid="partner-colleges-scroll"
         >
-          {list.map((college) => (
-            <CollegeCard key={college.name} college={college} />
-          ))}
-        </ul>
+          <ul
+            role="list"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          >
+            {list.map((college) => (
+              <CollegeCard key={college.name} college={college} />
+            ))}
+          </ul>
+        </div>
       </div>
     </section>
   );

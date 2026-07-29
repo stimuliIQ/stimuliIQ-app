@@ -27,7 +27,7 @@ type SubscribeState =
 export interface UseNewsletterSignupReturn {
   state: SubscribeState;
   fieldError: string | undefined;
-  submit: (input: { email: string; captchaToken: string }) => Promise<void>;
+  submit: (input: { email: string; captchaToken: string | undefined }) => Promise<void>;
   reset: () => void;
 }
 
@@ -36,11 +36,20 @@ export function useNewsletterSignup(): UseNewsletterSignupReturn {
   const [fieldError, setFieldError] = useState<string | undefined>(undefined);
   const submittingRef = useRef(false);
 
-  const submit = useCallback(async (input: { email: string; captchaToken: string }) => {
+  const submit = useCallback(async (input: { email: string; captchaToken: string | undefined }) => {
+    // Turnstile mints its token asynchronously after mount (and after each remount on
+    // retry). Submitting a placeholder instead would make the server fail closed with
+    // "invalid-input-response" — so hold the submit client-side until a token exists.
+    // (In dev/noop mode the widget fires onToken("noop") immediately, so this never trips.)
+    if (!input.captchaToken) {
+      setFieldError("Still verifying you're human — please try again in a moment.");
+      return;
+    }
+
     const parsed = SubscribeNewsletterRequestSchema.safeParse({
       email: input.email.trim(),
       consent: { marketingOptIn: true, tosVersion: TOS_VERSION },
-      captchaToken: input.captchaToken || "noop",
+      captchaToken: input.captchaToken,
     });
 
     if (!parsed.success) {

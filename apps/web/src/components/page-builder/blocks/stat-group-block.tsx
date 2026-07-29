@@ -97,9 +97,12 @@ function BandVariant({ data }: { data: StatGroupBlockData }) {
       className="relative z-10 grid grid-cols-1 divide-y divide-border rounded-2xl border border-border bg-card shadow-lg sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4"
     >
       {data.items.map((stat) => (
-        <div key={stat.label} className="flex flex-col gap-1 p-8 text-center">
+        // items-center + justify-center: a long value ("Up to ₹1 Crore") wraps to two
+        // lines, so cells must center-align vertically or the shorter cells' content
+        // floats at the top and the band reads misaligned.
+        <div key={stat.label} className="flex h-full flex-col items-center justify-center gap-1 p-8 text-center">
           <dt className="order-2 text-sm text-fg-muted">{stat.label}</dt>
-          <dd className="order-1 text-3xl font-bold text-brand-600 lg:text-4xl">{stat.value}</dd>
+          <dd className="order-1 text-3xl font-bold leading-tight text-brand-600 lg:text-4xl">{stat.value}</dd>
         </div>
       ))}
     </dl>

@@ -113,28 +113,28 @@ const LEFT_CARDS = [
     icon: <MentorIcon />,
     title: "Expert Mentors",
     description:
-      "Our mentors are active engineers from top companies, dedicated to your success.",
+      "Our mentors are practicing healthcare professionals and psychologists, dedicated to your success.",
   },
   {
     icon: <PricingIcon />,
     title: "Affordable Pricing",
     description:
-      "High-quality, project-based training priced for students — with 0% EMI options.",
+      "High-quality, mentor-led training priced for students — with scholarships.",
   },
 ];
 
 const RIGHT_CARDS = [
   {
     icon: <TrophyIcon />,
-    title: "Proven Placements",
+    title: "Structured Career Pathway",
     description:
-      "An 89% placement rate, with direct referrals to 200+ hiring partners.",
+      "Backed by a growing network of healthcare mentors, alumni, and medical referrals.",
   },
   {
     icon: <StarIcon />,
     title: "Student Reviews",
     description:
-      "Rated 4.9/5 by 2,400+ students who transformed their careers with us.",
+      "Built on feedback from students who've completed our training and internship programs.",
   },
 ];
 
@@ -182,29 +182,36 @@ export function WhyUsSection() {
         {/* Heading */}
         <div className="mx-auto mb-12 max-w-xl text-center lg:mb-16">
           <h2 className="font-display text-4xl font-bold tracking-tight text-fg md:text-5xl">
-            Why <span className="text-chart-3">StimuliiQ</span>?
+            Why <span className="text-chart-3">Stimuli IQ</span>?
           </h2>
           <p className="mx-auto mt-5 max-w-md text-lg leading-relaxed text-fg-muted">
-            We focus on what actually gets you hired — real skills, real
-            projects, real proof.
+            We focus on what actually prepares you for a real healthcare
+            career &mdash; real training, real clinical exposure, real
+            mentorship.
           </p>
         </div>
 
-        {/* 2 cards | photo | 2 cards */}
-        <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-[1fr_1.15fr_1fr]">
+        {/* 2 cards | artwork | 2 cards. The centre column is the NARROW one
+            (1fr vs 1.15fr sides): the portrait artwork's aspect ratio sets the
+            row height, so a narrower centre keeps the whole band from growing
+            too tall while the flanking cards stretch to match. */}
+        <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-[1.15fr_1fr_1.15fr]">
           <div className="flex flex-col gap-6">
             {LEFT_CARDS.map((card) => (
               <WhyUsCard key={card.title} {...card} />
             ))}
           </div>
 
-          {/* Center photo (decorative) */}
-          <div aria-hidden="true" className="relative min-h-[380px] lg:min-h-0">
+          {/* Center visual (decorative) — the branded team composition (portrait,
+              941×1672). The box is LOCKED to the image's own aspect at every
+              breakpoint so the logo (top) and badge (bottom) are never cropped
+              — it sets the row height and the flanking cards stretch to it. */}
+          <div aria-hidden="true" className="relative aspect-[941/1672]">
             <Image
-              src="/images/hero/person.avif"
+              src="/images/why-us-team-portrait.webp"
               alt=""
               fill
-              sizes="(min-width: 1024px) 40vw, 100vw"
+              sizes="(min-width: 1024px) 33vw, 100vw"
               className="rounded-2xl object-cover"
             />
           </div>

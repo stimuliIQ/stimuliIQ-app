@@ -102,6 +102,9 @@ stimuliiq/
 11. **Conventional Commits**; one logical change per PR; every PR has a Definition-of-Done
     checklist (see §6).
 12. **Secrets only via env**, validated at boot with zod. Never commit `.env`.
+13. **NO `git push` without explicit user approval.** Every push triggers Vercel
+    deployments (free tier — limited credits). Commit locally as needed; pushing to
+    any remote requires the user to say so first, each time.
 
 ---
 

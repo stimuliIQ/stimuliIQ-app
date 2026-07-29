@@ -14,7 +14,7 @@
 // renamed — enforced server-side, not encoded in this schema.
 
 import { z } from "zod";
-import { UuidSchema, IsoDateTimeSchema, PermissionScopeSchema } from "../common/primitives.js";
+import { UuidSchema, IsoDateTimeSchema, PermissionScopeSchema, PhoneSchema, PasswordSchema } from "../common/primitives.js";
 import { PageQuerySchema } from "../common/pagination.js";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -162,3 +162,76 @@ export const BranchDetailSchema = z.object({
   updatedAt: IsoDateTimeSchema,
 });
 export type BranchDetail = z.infer<typeof BranchDetailSchema>;
+
+// ─────────────────────────────────────────────────────────────────────────
+// Staff users (Admin ▸ Users — staff-account credential management)
+// ─────────────────────────────────────────────────────────────────────────
+//
+// CRUD over `users` rows that hold at least one NON-student role (staff:
+// super_admin/admin/branch_manager/counsellor/finance/support/content_editor/
+// faculty/mentor/custom roles). Students are deliberately excluded — their
+// accounts are provisioned by the enrollment flow and managed on the Students
+// screen, never here. Permission keys: users.view / users.create / users.edit /
+// users.delete (super_admin + admin only, scope=all — seeded in a dedicated
+// block like the page-builder keys).
+
+export const StaffUserStatusSchema = z.enum(["active", "invited", "suspended", "deactivated"]);
+export type StaffUserStatus = z.infer<typeof StaffUserStatusSchema>;
+
+export const StaffUserSchema = z.object({
+  id: UuidSchema,
+  name: z.string(),
+  email: z.string(),
+  phone: z.string().nullable(),
+  status: StaffUserStatusSchema,
+  roles: z.array(z.object({ id: UuidSchema, key: z.string(), name: z.string() })),
+  lastLoginAt: IsoDateTimeSchema.nullable(),
+  createdAt: IsoDateTimeSchema,
+});
+export type StaffUser = z.infer<typeof StaffUserSchema>;
+
+/** GET /api/v1/crm/admin/users */
+export const ListStaffUsersQuerySchema = z
+  .object({
+    search: z.string().min(1).max(200).optional().describe("Match by name or email."),
+    roleId: UuidSchema.optional(),
+    status: StaffUserStatusSchema.optional(),
+  })
+  .merge(PageQuerySchema)
+  .strict();
+export type ListStaffUsersQuery = z.infer<typeof ListStaffUsersQuerySchema>;
+
+/**
+ * POST /api/v1/crm/admin/users — creates a staff login. `password` is the
+ * initial credential the admin hands to the person (min 10 chars, same
+ * `PasswordSchema` the login form enforces); the account is created `active`.
+ * `roleIds` must name at least one non-student role.
+ */
+export const CreateStaffUserRequestSchema = z
+  .object({
+    name: z.string().min(1).max(200),
+    email: z.string().email().max(254),
+    phone: PhoneSchema.optional(),
+    password: PasswordSchema,
+    roleIds: z.array(UuidSchema).min(1).max(10),
+  })
+  .strict();
+export type CreateStaffUserRequest = z.infer<typeof CreateStaffUserRequestSchema>;
+
+/**
+ * PATCH /api/v1/crm/admin/users/:id — partial update. `password`, when
+ * present, RESETS the user's credential (server re-hashes; all refresh
+ * sessions for the user are revoked). `roleIds`, when present, full-replaces
+ * the user's role assignments. Email is immutable (it is the login identity
+ * and appears in audit history).
+ */
+export const UpdateStaffUserRequestSchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    phone: PhoneSchema.nullable().optional(),
+    status: StaffUserStatusSchema.optional(),
+    password: PasswordSchema.optional(),
+    roleIds: z.array(UuidSchema).min(1).max(10).optional(),
+  })
+  .strict();
+export type UpdateStaffUserRequest = z.infer<typeof UpdateStaffUserRequestSchema>;

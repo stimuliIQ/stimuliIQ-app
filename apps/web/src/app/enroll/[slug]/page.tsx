@@ -21,6 +21,7 @@ import { notFound } from "next/navigation";
 import { serverApiClient } from "../../../lib/api-client";
 import { buildMetadata } from "../../../lib/seo/metadata";
 import { formatPaiseDisplay } from "../../../lib/format";
+import { buildWhatsAppHref } from "../../../lib/contact";
 import { EnrollFunnelClient } from "./_components/enroll-funnel-client";
 import { Breadcrumbs } from "@repo/ui";
 
@@ -100,7 +101,7 @@ export default async function EnrollPage({ params }: PageProps) {
       <p className="mt-6 text-center text-xs text-fg-subtle">
         Questions?{" "}
         <a
-          href="https://wa.me/919999999999"
+          href={buildWhatsAppHref()}
           className="text-brand-500 underline hover:text-brand-600"
           target="_blank"
           rel="noopener noreferrer"

@@ -47,6 +47,14 @@ export interface TurnstileWidgetProps {
    * The caller should prevent form submission.
    */
   onError?: () => void;
+  /**
+   * Turnstile `appearance` render option. "interaction-only" keeps the widget
+   * invisible unless Cloudflare requires the visitor to interact — use this for
+   * compact forms (newsletter, sticky bar) instead of wrapping the widget in
+   * `display:none`, which prevents the challenge from ever running and leaves
+   * the form with no token (server then fail-closes with invalid-input-response).
+   */
+  appearance?: "always" | "interaction-only";
   className?: string;
   "data-testid"?: string;
 }
@@ -82,6 +90,7 @@ export function TurnstileWidget({
   onToken,
   onExpire,
   onError,
+  appearance = "always",
   className,
   "data-testid": testId,
 }: TurnstileWidgetProps): React.JSX.Element {
@@ -124,6 +133,10 @@ export function TurnstileWidget({
         },
         theme: "light",
         size: "normal",
+        appearance,
+        // Tokens expire after ~5 min; auto re-run the (non-interactive) challenge
+        // so a visitor who submits late still has a live token.
+        "refresh-expired": "auto",
       });
     }
 
@@ -168,7 +181,7 @@ export function TurnstileWidget({
         widgetIdRef.current = null;
       }
     };
-  }, [containerId]); // containerId is stable (useId is constant per instance)
+  }, [containerId, appearance]); // containerId is stable (useId is constant per instance)
 
   // Noop/dev mode — render a visually-hidden placeholder (no real widget)
   if (IS_NOOP) {

@@ -49,6 +49,7 @@ export interface ProgramRow {
   outcomes: unknown;
   ogImageKey: string | null;
   scholarshipAvailable: boolean;
+  enrollmentEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -137,6 +138,7 @@ export class CoursesRepository {
       outcomes?: string[];
       ogImageKey?: string;
       scholarshipAvailable?: boolean;
+      enrollmentEnabled?: boolean;
     },
   ): Promise<ProgramRow> {
     return this.prisma.client.program.create({
@@ -159,6 +161,8 @@ export class CoursesRepository {
           : {}),
         ogImageKey: data.ogImageKey,
         scholarshipAvailable: data.scholarshipAvailable ?? false,
+        // Defaults TRUE — a new program is sellable unless enrollment is explicitly closed.
+        enrollmentEnabled: data.enrollmentEnabled ?? true,
       },
     });
   }
@@ -181,6 +185,7 @@ export class CoursesRepository {
       // null clears the image (UpdateProgramRequest's ogImageKey: string | null)
       ogImageKey: string | null;
       scholarshipAvailable: boolean;
+      enrollmentEnabled: boolean;
     }>,
   ): Promise<ProgramRow> {
     const { mode, emi, seo, outcomes, ...rest } = patch;

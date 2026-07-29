@@ -12,18 +12,22 @@
  * through the field.
  *
  * Submission reuses the exact same machinery as the compact form
- * (useNewsletterSignup + hidden Turnstile captcha) — only the shell differs.
+ * (useNewsletterSignup + interaction-only Turnstile captcha) — only the shell
+ * differs. The widget must NOT be wrapped in `display:none`: Turnstile cannot
+ * run its challenge in a hidden container, so no token is ever minted and the
+ * server fail-closes ("invalid-input-response"). `appearance="interaction-only"`
+ * is the supported way to keep it invisible unless interaction is required.
  *
  * a11y: section landmark, labelled input, success/error via role=status/alert,
  * ≥44px controls, white-on-black text kept ≥4.5:1.
  */
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { TurnstileWidget } from "../captcha/turnstile-widget";
 import { useCaptchaToken } from "../../hooks/use-captcha-token";
 import { useNewsletterSignup } from "../../hooks/use-newsletter-signup";
 
 const BENEFITS = [
-  "Weekly career & tech tips from our mentors.",
+  "Weekly career guidance sessions from our mentors.",
   "Early access to new programs and batches.",
   "Exclusive scholarships and student offers.",
 ];
@@ -64,14 +68,25 @@ export function NewsletterBand() {
   const errorId = "newsletter-band-error";
   const { state, fieldError, submit, reset } = useNewsletterSignup();
   const { token: captchaToken, setToken, resetToken } = useCaptchaToken();
+  // Turnstile tokens are single-use: after a failed submit the token is already
+  // consumed server-side, so remount the widget (key bump) to mint a fresh one
+  // before the visitor retries.
+  const [captchaEpoch, setCaptchaEpoch] = useState(0);
 
   const isSubmitting = state.kind === "submitting";
   const isSuccess = state.kind === "success";
   const errorMessage = fieldError ?? (state.kind === "error" ? state.message : undefined);
 
+  useEffect(() => {
+    if (state.kind === "error") {
+      resetToken();
+      setCaptchaEpoch((n) => n + 1);
+    }
+  }, [state.kind, resetToken]);
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    await submit({ email, captchaToken: captchaToken ?? "noop" });
+    await submit({ email, captchaToken });
   }
 
   return (
@@ -196,14 +211,14 @@ export function NewsletterBand() {
                   Career tips + program updates. Unsubscribe anytime.
                 </p>
               )}
-              <div aria-hidden="true" style={{ display: "none" }}>
-                <TurnstileWidget
-                  onToken={setToken}
-                  onExpire={resetToken}
-                  onError={resetToken}
-                  data-testid="newsletter-band-captcha"
-                />
-              </div>
+              <TurnstileWidget
+                key={captchaEpoch}
+                appearance="interaction-only"
+                onToken={setToken}
+                onExpire={resetToken}
+                onError={resetToken}
+                data-testid="newsletter-band-captcha"
+              />
             </form>
           )}
         </div>

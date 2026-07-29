@@ -232,6 +232,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Admin",
     icon: ShieldCheck,
     children: [
+      { label: "Users", to: "/admin/users", permission: "users.view" },
       { label: "Roles & Permissions", to: "/admin/roles", permission: "roles.view" },
       { label: "Branches", to: "/admin/branches", permission: "branches.view" },
       { label: "Audit Logs", to: "/admin/audit-logs", permission: "audit_logs.view" },

@@ -11534,16 +11534,25 @@
           "attemptsUsed": {
             "type": "integer",
             "minimum": 0,
-            "description": "Number of submitted attempts by this student."
+            "description": "Submitted attempts used in the CURRENT attempt wave (resets after a cooldown)."
           },
           "attemptsRemaining": {
             "type": "integer",
             "minimum": 0,
-            "description": "attemptsAllowed - attemptsUsed."
+            "description": "attemptsAllowed - attemptsUsed (within the current wave)."
           },
           "hasPassingAttempt": {
             "type": "boolean",
             "description": "Whether the student has any attempt with passed=true."
+          },
+          "retryAvailableAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "default": null,
+            "description": "ISO time the attempt cooldown lifts and attempts reopen. Null unless currently in cooldown."
           }
         },
         "required": [
@@ -26131,6 +26140,24 @@
               "string",
               "null"
             ]
+          },
+          "focus": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "established": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -26138,7 +26165,10 @@
           "name",
           "logoUrl",
           "url",
-          "category"
+          "category",
+          "focus",
+          "established",
+          "city"
         ]
       },
       "PublicPartnerListEnvelope": {
@@ -27186,6 +27216,10 @@
                               "type": "string",
                               "minLength": 1,
                               "maxLength": 500
+                            },
+                            "mediaAlt": {
+                              "type": "string",
+                              "maxLength": 1000
                             },
                             "mediaPosition": {
                               "type": "string",
@@ -28979,6 +29013,10 @@
                           "minLength": 1,
                           "maxLength": 500
                         },
+                        "mediaAlt": {
+                          "type": "string",
+                          "maxLength": 1000
+                        },
                         "mediaPosition": {
                           "type": "string",
                           "enum": [
@@ -30446,6 +30484,10 @@
                           "minLength": 1,
                           "maxLength": 500
                         },
+                        "mediaAlt": {
+                          "type": "string",
+                          "maxLength": 1000
+                        },
                         "mediaPosition": {
                           "type": "string",
                           "enum": [
@@ -31811,6 +31853,10 @@
                           "minLength": 1,
                           "maxLength": 500
                         },
+                        "mediaAlt": {
+                          "type": "string",
+                          "maxLength": 1000
+                        },
                         "mediaPosition": {
                           "type": "string",
                           "enum": [
@@ -33157,6 +33203,10 @@
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 500
+                        },
+                        "mediaAlt": {
+                          "type": "string",
+                          "maxLength": 1000
                         },
                         "mediaPosition": {
                           "type": "string",
@@ -34974,6 +35024,10 @@
                           "minLength": 1,
                           "maxLength": 500
                         },
+                        "mediaAlt": {
+                          "type": "string",
+                          "maxLength": 1000
+                        },
                         "mediaPosition": {
                           "type": "string",
                           "enum": [
@@ -36210,7 +36264,8 @@
               "footer.copyright_text",
               "seo.defaults",
               "contact.details",
-              "contact.whatsapp"
+              "contact.whatsapp",
+              "announcement.bar"
             ]
           },
           "group": {
@@ -36219,7 +36274,8 @@
               "nav",
               "footer",
               "seo",
-              "contact"
+              "contact",
+              "announcement"
             ]
           },
           "value": {},
@@ -36300,7 +36356,8 @@
               "footer.copyright_text",
               "seo.defaults",
               "contact.details",
-              "contact.whatsapp"
+              "contact.whatsapp",
+              "announcement.bar"
             ]
           },
           "group": {
@@ -36309,7 +36366,8 @@
               "nav",
               "footer",
               "seo",
-              "contact"
+              "contact",
+              "announcement"
             ]
           },
           "value": {},
@@ -36544,6 +36602,37 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "announcement.bar": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "static",
+                  "scroll"
+                ]
+              },
+              "href": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              }
+            },
+            "required": [
+              "enabled",
+              "message",
+              "mode"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -36553,7 +36642,8 @@
           "footer.copyright_text",
           "seo.defaults",
           "contact.details",
-          "contact.whatsapp"
+          "contact.whatsapp",
+          "announcement.bar"
         ]
       },
       "PublicSiteSettingsEnvelope": {
@@ -74840,7 +74930,7 @@
     },
     "/api/v1/crm/site-settings": {
       "get": {
-        "summary": "List site settings, optionally filtered by group (small, non-paginated: exactly the 7 seeded keys)",
+        "summary": "List site settings, optionally filtered by group (small, non-paginated: exactly the 8 seeded keys)",
         "tags": [
           "crm",
           "site-settings"
@@ -74859,7 +74949,8 @@
                 "nav",
                 "footer",
                 "seo",
-                "contact"
+                "contact",
+                "announcement"
               ]
             },
             "required": false,
@@ -74975,7 +75066,8 @@
                 "footer.copyright_text",
                 "seo.defaults",
                 "contact.details",
-                "contact.whatsapp"
+                "contact.whatsapp",
+                "announcement.bar"
               ]
             },
             "required": true,
@@ -75067,7 +75159,7 @@
         }
       },
       "put": {
-        "summary": "Upsert a site setting's value (server validates `value` against that key's closed shape from SiteSettingValueSchemaByKey; 404 for any key outside the 7 seeded literals)",
+        "summary": "Upsert a site setting's value (server validates `value` against that key's closed shape from SiteSettingValueSchemaByKey; 404 for any key outside the 8 seeded literals)",
         "tags": [
           "crm",
           "site-settings"
@@ -75090,7 +75182,8 @@
                 "footer.copyright_text",
                 "seo.defaults",
                 "contact.details",
-                "contact.whatsapp"
+                "contact.whatsapp",
+                "announcement.bar"
               ]
             },
             "required": true,
@@ -75204,7 +75297,7 @@
     },
     "/api/v1/public/site-settings": {
       "get": {
-        "summary": "Get all 7 sitewide settings values (anonymous, cacheable — nav/footer/SEO/contact)",
+        "summary": "Get all 8 sitewide settings values (anonymous, cacheable — nav/footer/SEO/contact/announcement)",
         "tags": [
           "public",
           "site-settings"

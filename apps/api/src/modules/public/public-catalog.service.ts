@@ -281,6 +281,7 @@ export class PublicCatalogService {
       // Raw ogImageKey NEVER in the response — mint CDN URL server-side
       ogImageUrl: mintCdnUrl(row.ogImageKey),
       scholarshipAvailable: row.scholarshipAvailable,
+      enrollmentEnabled: row.enrollmentEnabled,
     };
   }
 

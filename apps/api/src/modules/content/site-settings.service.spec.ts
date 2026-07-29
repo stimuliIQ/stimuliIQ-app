@@ -127,15 +127,29 @@ describe("SiteSettingsService", () => {
   });
 
   describe("getPublic() — anonymous read, missing/corrupted-row fallback (never 500)", () => {
-    it("returns all 7 seeded values keyed by their SiteSettingKey (and NEVER stats.headline — P10-2)", async () => {
+    it("returns all 8 seeded values keyed by their SiteSettingKey (and NEVER stats.headline — P10-2)", async () => {
       repo.findAll.mockResolvedValue([NAV_ROW]);
       const result = await service.getPublic();
       expect(result["nav.primary_links"]).toEqual(NAV_ROW.value);
       // Keys never seeded in this test fixture fall back to the hardcoded default —
       // never throw/500.
       expect(result["contact.whatsapp"]).toEqual(DEFAULT_PUBLIC_SITE_SETTINGS["contact.whatsapp"]);
-      expect(Object.keys(result)).toHaveLength(7);
+      // announcement.bar defaults to disabled — the web strip renders nothing.
+      expect(result["announcement.bar"]).toEqual(DEFAULT_PUBLIC_SITE_SETTINGS["announcement.bar"]);
+      expect((result["announcement.bar"] as { enabled: boolean }).enabled).toBe(false);
+      expect(Object.keys(result)).toHaveLength(8);
       expect(result).not.toHaveProperty("stats.headline");
+    });
+
+    it("derives group=announcement for announcement.bar and validates its closed shape", async () => {
+      const value = { enabled: true, message: "Admissions open — batch starts Aug 15.", mode: "scroll" };
+      repo.upsert.mockResolvedValue({ ...NAV_ROW, key: "announcement.bar", group: "announcement", value });
+      await runWithScope("all", () => service.upsert("tenant-1", "announcement.bar", { value }));
+      expect(repo.upsert).toHaveBeenCalledWith("tenant-1", "announcement.bar", "announcement", value);
+      // extra/unknown fields are rejected (strict shape)
+      await expect(
+        runWithScope("all", () => service.upsert("tenant-1", "announcement.bar", { value: { ...value, blink: true } })),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it("falls back to the hardcoded default for a key whose stored value fails re-validation (corrupted row)", async () => {

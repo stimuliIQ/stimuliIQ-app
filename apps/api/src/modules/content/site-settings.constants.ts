@@ -78,14 +78,25 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettingsResponse = {
   "seo.defaults": {
     siteName: "StimuliiQ",
     defaultDescription:
-      "StimuliiQ — India's leading internship and career training platform for B.Tech, MBA, MCA, and Diploma students. Industry-grade programs, verifiable certificates, expert mentors.",
+      "StimuliiQ — India's next generation healthcare learning platform. Structured training, real internships, and mentorship from healthcare industry experts for medical, psychology, and allied health science students.",
     defaultOgImagePath: "/og-default.png",
   },
   "contact.details": {
-    contactText: "India's leading internship & career training platform for B.Tech, MBA, MCA, and Diploma students.",
+    contactText: "India's Next Generation Healthcare Learning Platform",
   },
   "contact.whatsapp": {
-    number: "919999999999",
-    message: "Hi%2C%20I%20want%20to%20know%20more%20about%20StimuliiQ%20programs",
+    number: "919177748321",
+    // RAW text, never pre-encoded: the web shell applies encodeURIComponent() exactly
+    // once when building the wa.me href. This value used to be stored URL-encoded here
+    // (but raw in prisma/seed.ts), so whenever this fallback was served the message
+    // double-encoded into "Hi%252C%2520I%2520want...".
+    message: "Hi, I want to know more about StimuliiQ programs",
+  },
+  // Off by default — the strip renders nothing until a super_admin flips `enabled`
+  // in CRM → Marketing → Site settings → Announcement.
+  "announcement.bar": {
+    enabled: false,
+    message: "Admissions are open — book a free counselling slot today.",
+    mode: "static",
   },
 };

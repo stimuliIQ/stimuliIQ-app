@@ -23,6 +23,7 @@ import { FooterCopyrightCard } from "./footer-copyright-card";
 import { SeoDefaultsCard } from "./seo-defaults-card";
 import { ContactDetailsCard } from "./contact-details-card";
 import { ContactWhatsappCard } from "./contact-whatsapp-card";
+import { AnnouncementBarCard } from "./announcement-bar-card";
 
 export function SiteSettingsPage({ me }: { me: MeResponse | undefined }): React.JSX.Element {
   const canView = hasPermission(me?.permissions, "site_settings.view");
@@ -80,6 +81,9 @@ export function SiteSettingsPage({ me }: { me: MeResponse | undefined }): React.
           <TabsTrigger value="contact" data-testid="site-settings-tab-contact">
             Contact
           </TabsTrigger>
+          <TabsTrigger value="announcement" data-testid="site-settings-tab-announcement">
+            Announcement
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="nav" data-testid="site-settings-panel-nav">
           <NavPrimaryLinksCard canEdit={canEdit} />
@@ -95,6 +99,9 @@ export function SiteSettingsPage({ me }: { me: MeResponse | undefined }): React.
         <TabsContent value="contact" data-testid="site-settings-panel-contact" className="flex flex-col gap-4">
           <ContactDetailsCard canEdit={canEdit} />
           <ContactWhatsappCard canEdit={canEdit} />
+        </TabsContent>
+        <TabsContent value="announcement" data-testid="site-settings-panel-announcement">
+          <AnnouncementBarCard canEdit={canEdit} />
         </TabsContent>
       </Tabs>
     </div>

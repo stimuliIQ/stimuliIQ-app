@@ -5,92 +5,84 @@
  * both the CMS and fallback paths) — everything else here is unchanged from the original.
  */
 import Image from "next/image";
-import { StatBand, TestimonialCard } from "@repo/ui";
-import type { StatItem } from "@repo/ui";
+import { TestimonialCard } from "@repo/ui";
 import { BOOK_SLOT_HREF } from "../../shell/nav-config";
-
-const STATS: StatItem[] = [
-  { value: 15000, label: "Students trained", suffix: "+" },
-  { value: 30, label: "Programs", suffix: "+" },
-  { value: 89, label: "Placement rate", suffix: "%" },
-  { value: 200, label: "Hiring partners", suffix: "+" },
-];
 
 const JOURNEY = [
   {
     step: "01",
     title: "Discover the right program",
     description:
-      "Browse 30+ project-based programs across software, data, cloud, and design — or book a free counselling slot and let a mentor guide your choice. Transparent pricing, 0% EMI, no hidden fees.",
+      "Browse programs across psychology, neurology, clinical research, and allied health sciences — or book a free counselling slot and let a mentor guide your choice. Transparent pricing, easy pre-registration, no hidden fees.",
   },
   {
     step: "02",
     title: "Learn live and on-demand",
     description:
-      "Our learning portal combines scheduled live sessions with industry mentors and recorded video lessons you can rewatch anytime. Track your own progress and attendance in one place.",
+      "Our learning portal combines scheduled live sessions with clinician mentors and recorded lessons you can rewatch anytime. Your progress and attendance stay visible in one place.",
   },
   {
     step: "03",
-    title: "Build real projects",
+    title: "Build real case studies",
     description:
-      "Every program is structured around industry-grade projects — reviewed by working engineers, not graders. Your portfolio becomes the proof employers actually look at.",
+      "Every program is structured around real-world case studies and practice scenarios — reviewed by working healthcare professionals, not graders. Your portfolio becomes the proof that shows you're genuinely prepared.",
   },
   {
     step: "04",
     title: "Earn a verifiable certificate",
     description:
-      "Finish your assessment and receive a certificate with a unique ID and QR code. Any employer can verify it on our public verification page in seconds — no fake credentials, ever.",
+      "Finish your assessment and receive a certificate with a unique ID and QR code. Any employer can verify it on our public verification page in seconds.",
   },
   {
     step: "05",
-    title: "Get placed",
+    title: "Get career ready",
     description:
-      "Resume reviews, mock interviews, and direct referrals into our network of 200+ hiring partners. We stay with you until you sign your offer — that's how we get to 89%.",
+      "Portfolio reviews, counselling sessions, and direct referrals through our network.",
   },
 ];
 
 const PILLARS = [
-  { icon: "lms", title: "A structured learning portal", description: "One dashboard for lessons, live classes, assignments, progress, and attendance — built for focus, not distraction." },
-  { icon: "mentor", title: "Mentors who do the job", description: "Active engineers and data scientists from top companies — people who ship code, review yours." },
-  { icon: "project", title: "Projects, not just lectures", description: "Assignments and capstone projects modelled on real industry work, individually evaluated with feedback." },
+  { icon: "lms", title: "A structured learning portal", description: "One dashboard for lessons, live classes, assignments, progress, and attendance." },
+  { icon: "mentor", title: "Mentors who do the job", description: "Active healthcare professionals and psychologists from real practice — people who work in the field, and guide yours." },
+  { icon: "project", title: "Case studies & research, not just lectures", description: "Assignments and capstone case studies modelled on real healthcare practice, individually evaluated with feedback." },
   { icon: "certificate", title: "Certificates employers can check", description: "Every certificate carries a unique ID and QR code, instantly verifiable on our public portal." },
-  { icon: "placement", title: "A real placement engine", description: "Referrals to 200+ hiring partners, interview prep, and placement tracking — not a PDF of job links." },
-  { icon: "pricing", title: "Student-first pricing", description: "Priced for students in India, with 0% EMI plans and a 7-day no-questions-asked refund policy." },
+  { icon: "placement", title: "A growing career network", description: "Direct referrals through our network of healthcare mentors and alumni, with portfolio reviews and career guidance." },
+  { icon: "pricing", title: "Student-first pricing", description: "Priced for students in India, with simple pre-registration and transparent, upfront costs." },
 ] as const;
 
 const TESTIMONIALS = [
   {
     id: "t1",
     quote:
-      "The Full Stack program completely changed my career prospects. I went from zero to landing a frontend role at a Bangalore startup within 3 months of graduating.",
+      "The Clinical Research internship changed my career prospects completely. Within 3 months of finishing, I joined a research team at a Bangalore hospital.",
     studentName: "Aditya R.",
-    college: "NIT Warangal",
-    program: "Full Stack Web Development",
+    college: "Government Medical College, Warangal",
+    program: "Clinical Research",
     ratingStars: 5 as const,
   },
   {
     id: "t2",
     quote:
-      "The live sessions with mentors from top companies made all the difference. I could ask real-world questions and get answers that no textbook gives you.",
+      "The live sessions with practising clinicians made all the difference. I could ask questions about real cases and get answers that no textbook gives you.",
     studentName: "Priya S.",
-    college: "JNTU Hyderabad",
-    program: "Python for Data Science",
+    college: "Osmania Medical College, Hyderabad",
+    program: "Hospital Administration",
     ratingStars: 5 as const,
   },
   {
     id: "t3",
     quote:
-      "The verifiable certificate was a major trust signal when I applied for jobs. Interviewers could actually check it on the platform — that's a huge differentiator.",
+      "The verifiable certificate was a major trust signal when I applied for postings. Interviewers could actually check it on the platform, and that set my application apart.",
     studentName: "Rahul M.",
     college: "Osmania University",
-    program: "Data Science & ML",
+    program: "Public Health & Data",
     ratingStars: 5 as const,
   },
 ];
 
 const COMMITMENTS = [
-  { title: "7-day refund", description: "Not satisfied? Full refund within 7 days, no questions asked." },
-  { title: "Transparent pricing", description: "The price you see is the price you pay — 0% EMI available." },
+  { title: "Mentor-led training", description: "Every program is guided by practicing healthcare professionals." },
+  { title: "Transparent pricing", description: "The price you see is the price you pay — upfront, with no hidden fees." },
   { title: "Your data, protected", description: "DPDP-compliant privacy: consent-first analytics, no data resale." },
   { title: "Verified outcomes", description: "Ratings and reviews come from enrolled students only." },
 ];
@@ -159,15 +151,15 @@ export function AboutPageFallback() {
     <div data-testid="about-content">
       <section aria-label="About StimuliiQ" className="mx-auto max-w-screen-xl px-4 pt-10 md:px-6">
         <div className="mx-auto max-w-3xl pb-16 text-center lg:pb-24">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-fg-muted">About StimuliiQ</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-fg-muted">About Stimuli IQ</p>
           <h1 className="mt-6 font-display text-4xl font-bold leading-[1.08] tracking-tight text-fg sm:text-5xl lg:text-6xl">
             We bridge the gap between
             <br />
-            <span className="text-chart-3">college and career</span>.
+            academics <span className="text-chart-3">and real practice</span>.
           </h1>
           <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-fg-muted">
-            StimuliiQ is an internship-training platform for India&apos;s B.Tech, Degree, Diploma, MCA, and MBA students. We teach the way industry works — live mentors, real
-            projects, verifiable certificates — so your first job doesn&apos;t depend on your college tier.
+            Stimuli IQ is a healthcare education and training platform for India&apos;s medical, psychology, and allied health science students. We teach the way healthcare
+            actually works &mdash; live mentors, real clinical exposure, verifiable certificates &mdash; so your career readiness doesn&apos;t depend on your college tier.
           </p>
         </div>
       </section>
@@ -180,42 +172,39 @@ export function AboutPageFallback() {
             </h2>
             <div className="mt-6 flex flex-col gap-5 text-base leading-relaxed text-fg-muted">
               <p>
-                Every year, hundreds of thousands of Indian engineering graduates struggle to land their first job — not because they lack intelligence, but because college
-                curriculums don&apos;t match what companies actually need.
+                Every year, thousands of Indian medical and psychology graduates step into their careers without the practical exposure the field actually demands &mdash;
+                not because they lack knowledge, but because academic curriculums don&apos;t match what real clinical and healthcare practice requires.
               </p>
               <p>
-                Our founders — engineers from Hyderabad, Bangalore, and Pune — lived that gap themselves. In 2021 they built StimuliiQ to close it: a system where students learn
-                by building, are mentored by people who do the job, and graduate with proof employers can check.
+                Our mentors lived that gap themselves. We built Stimuli IQ to close it: a system where students learn through real practice, are mentored by people who
+                work in healthcare, and graduate with proof employers and institutions can trust.
               </p>
               <p className="font-medium text-fg">
-                Our mission: give every Indian student — regardless of college tier — access to the training they need to build a real tech career.
+                Our mission: give every Indian student &mdash; regardless of college tier &mdash; access to the training and mentorship they need to build a real career in
+                healthcare.
               </p>
             </div>
           </div>
           <div className="relative mx-auto w-full max-w-md">
-            <Image src="/images/hero/person.avif" alt="" aria-hidden="true" width={448} height={520} className="h-[420px] w-full rounded-2xl object-cover shadow-md lg:h-[520px]" />
-            <div className="absolute -left-4 bottom-8 flex items-center gap-3 rounded-xl border border-border bg-card p-3 pr-5 shadow-md">
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-fg">
-                <CheckIcon />
-              </span>
-              <span className="flex flex-col leading-tight">
-                <span className="text-base font-bold text-fg">Since 2021</span>
-                <span className="text-sm text-fg-muted">Built by engineers</span>
-              </span>
-            </div>
+            {/* Kept in sync with the `why_we_exist` block of prisma/fixtures/builder-pages/about.json. */}
+            <Image
+              src="/images/about/why-we-exist.webp"
+              alt='Stimuli IQ "Why We Exist" poster. Healthcare needs more skilled, confident, compassionate professionals who are ready for real-world challenges. Bridging the Gap: we bridge the gap between education and real-world healthcare. Empowering Futures: we empower learners with the skills, exposure, and mentorship they deserve. Building Better Healthcare: we exist to build a stronger, more compassionate, and future-ready healthcare community. Better training today. Better healthcare tomorrow.'
+              width={1024}
+              height={1536}
+              className="h-auto w-full rounded-2xl shadow-md"
+            />
           </div>
         </div>
       </section>
-
-      <StatBand stats={STATS} data-testid="about-stats" />
 
       <section aria-label="How StimuliiQ helps students" className="py-16 lg:py-24">
         <div className="mx-auto max-w-screen-xl px-4 md:px-6">
           <div className="mx-auto mb-12 max-w-xl text-center lg:mb-16">
             <h2 className="font-display text-3xl font-bold tracking-tight text-fg md:text-4xl">
-              How the <span className="text-chart-3">system works</span> for you
+              How the <span className="text-chart-3">journey works</span> for you
             </h2>
-            <p className="mt-4 text-lg leading-relaxed text-fg-muted">One guided journey from first click to first offer.</p>
+            <p className="mt-4 text-lg leading-relaxed text-fg-muted">One guided journey from first step to career-ready.</p>
           </div>
           <ol role="list" className="mx-auto flex max-w-3xl flex-col">
             {JOURNEY.map((item, index) => (
@@ -240,7 +229,7 @@ export function AboutPageFallback() {
             <h2 className="font-display text-3xl font-bold tracking-tight text-fg md:text-4xl">
               What&apos;s inside the <span className="text-chart-3">platform</span>
             </h2>
-            <p className="mt-4 text-lg leading-relaxed text-fg-muted">Everything a student needs — nothing they don&apos;t.</p>
+            <p className="mt-4 text-lg leading-relaxed text-fg-muted">Everything a student needs to go from classroom to clinic.</p>
           </div>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {PILLARS.map((pillar) => (
@@ -260,7 +249,7 @@ export function AboutPageFallback() {
         <div className="mx-auto max-w-screen-xl px-4 text-center md:px-6">
           <h2 className="font-display text-3xl font-bold tracking-tight text-white md:text-4xl">Don&apos;t take our word for it.</h2>
           <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-white/70">
-            Every StimuliiQ certificate is publicly verifiable. Employers — paste a certificate ID or scan its QR code and see the result instantly.
+            Every StimuliiQ certificate is publicly verifiable. Employers can paste a certificate ID or scan its QR code and see the result instantly.
           </p>
           <a
             href="/verify"
@@ -312,14 +301,14 @@ export function AboutPageFallback() {
       <section aria-label="Start your journey" className="border-t border-border bg-surface py-16 text-center lg:py-20">
         <div className="mx-auto max-w-screen-xl px-4 md:px-6">
           <h2 className="font-display text-3xl font-bold tracking-tight text-fg md:text-4xl">
-            Your <span className="text-chart-3">career</span> won&apos;t wait. Neither should you.
+            Your <span className="text-chart-3">first posting</span> is closer than you think.
           </h2>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <a
               href="/programs"
               className="inline-flex min-h-[44px] items-center justify-center rounded-full bg-brand-500 px-8 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-brand-600 active:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              Explore our courses
+              Explore our programs
             </a>
             <a
               href={BOOK_SLOT_HREF}

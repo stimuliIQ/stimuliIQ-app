@@ -26,7 +26,9 @@ import {
   readStoredConsent,
 } from "@repo/ui";
 import type { NavItem } from "@repo/ui";
+import type { AnnouncementBarValue } from "@repo/types";
 import { AnalyticsLoader } from "./analytics-loader";
+import { AnnouncementBar } from "./announcement-bar";
 import { TimedLeadPopupConnected } from "../leads/timed-lead-popup-connected";
 import { NewsletterBand } from "../leads/newsletter-band";
 import {
@@ -36,6 +38,7 @@ import {
   BOOK_SLOT_HREF,
   CERT_VERIFY_HREF,
 } from "./nav-config";
+import { ADDRESS, WHATSAPP_NUMBER } from "../../lib/contact";
 
 // ---------------------------------------------------------------------------
 // Fallback defaults (env / hardcoded) — used when the root layout's site-settings
@@ -43,7 +46,7 @@ import {
 // down must never white-screen or break the header/footer/WhatsApp FAB).
 // ---------------------------------------------------------------------------
 
-const DEFAULT_WA_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "919999999999";
+const DEFAULT_WA_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? WHATSAPP_NUMBER;
 /**
  * RAW human-readable text (NOT pre-encoded) — see the `whatsappMessage` prop doc comment
  * below (L3 security-review fix: the wa.me href is now built with a single
@@ -55,7 +58,7 @@ const DEFAULT_WA_MESSAGE =
   process.env.NEXT_PUBLIC_WHATSAPP_MESSAGE ??
   "Hi, I want to know more about StimuliiQ programs";
 const DEFAULT_CONTACT_TEXT =
-  "India's leading internship & career training platform for B.Tech, MBA, MCA, and Diploma students.";
+  "India's Next Generation Healthcare Learning Platform";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const DEFAULT_COPYRIGHT_TEXT = `© ${CURRENT_YEAR} StimuliiQ Technologies Pvt. Ltd. All rights reserved.`;
@@ -105,6 +108,12 @@ interface SiteShellProps {
    * previous version interpolated this straight into the href unencoded).
    */
   whatsappMessage?: string;
+  /**
+   * `announcement.bar` SiteSetting — the CRM-controlled message strip above the header.
+   * No hardcoded fallback ON PURPOSE (unlike the props above): an announcement is never
+   * load-bearing, so "CMS unreachable" degrades to "no bar", not to stale copy.
+   */
+  announcement?: AnnouncementBarValue;
 }
 
 export function SiteShell({
@@ -116,6 +125,7 @@ export function SiteShell({
   contactText = DEFAULT_CONTACT_TEXT,
   whatsappNumber = DEFAULT_WA_NUMBER,
   whatsappMessage = DEFAULT_WA_MESSAGE,
+  announcement,
 }: SiteShellProps): React.JSX.Element {
   // L3 (security review): both values are interpolated into a URL — encode once, here,
   // rather than trusting the caller/source to have pre-encoded them (a raw phone number
@@ -177,6 +187,9 @@ export function SiteShell({
 
   return (
     <>
+      {/* CRM-controlled announcement strip (renders nothing when disabled/unset) */}
+      <AnnouncementBar announcement={announcement} />
+
       {/* Sticky marketing header with mega-menu */}
       <MarketingHeader
         logo={<SiteLogo />}
@@ -201,6 +214,7 @@ export function SiteShell({
         certVerifyHref={CERT_VERIFY_HREF}
         copyrightText={copyrightText}
         contactText={contactText}
+        addressLines={ADDRESS.lines}
         data-testid="site-footer"
       />
 

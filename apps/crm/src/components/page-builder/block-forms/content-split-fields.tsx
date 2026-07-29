@@ -113,6 +113,14 @@ export function ContentSplitFields({ control, register, errors, watch, setValue 
         testId="content-split-media-image-key"
         onUploadedKey={(key) => setValue("mediaImageKey", key, { shouldDirty: true, shouldValidate: true })}
       />
+      <Textarea
+        label="Image description for screen readers (optional)"
+        rows={3}
+        helperText="Leave blank for a plain photo — it's decorative and the text beside it already says everything. Fill this in ONLY if the image has words in it (a poster or graphic): type out those words, so blind visitors get them too. Filling it in also stops the image being cropped, showing it in full."
+        {...register("mediaAlt")}
+        error={errors.mediaAlt?.message}
+        data-testid="content-split-media-alt"
+      />
       <Controller
         control={control}
         name="mediaPosition"

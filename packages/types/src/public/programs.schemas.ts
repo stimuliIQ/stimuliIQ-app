@@ -195,6 +195,13 @@ export const PublicProgramSummarySchema = z.object({
   ogImageUrl: z.string().url().nullable().describe("Public CDN URL for the OG/card image."),
   /** Marketing flag — render a "Scholarship available" badge on the card/detail hero. */
   scholarshipAvailable: z.boolean().describe("Show the 'Scholarship available' badge."),
+  /**
+   * Commerce flag — whether self-serve enrollment is open. False hides every "Enroll Now"
+   * CTA and leaves "Book Free Slot" as the only path. Safe to expose publicly (it only
+   * describes what the site already shows) and is NOT in `ForbiddenProgramField`; the
+   * matching server-side guard lives in `CommerceService.createOrder`.
+   */
+  enrollmentEnabled: z.boolean().describe("Whether the 'Enroll Now' CTA / checkout is open."),
 });
 export type PublicProgramSummary = z.infer<typeof PublicProgramSummarySchema>;
 

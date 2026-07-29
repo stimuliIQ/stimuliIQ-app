@@ -26,8 +26,12 @@ function ArrowRightIcon() {
 
 function CtaRow({ ctas }: { ctas: HeroBlockData["ctas"] }) {
   if (!ctas || ctas.length === 0) return null;
+  // Alignment rules (real-user defect on /scholarship): labels never wrap inside a
+  // pill (whitespace-nowrap — the row itself wraps instead via flex-wrap when the
+  // column is narrow), and both styles share the same 60px height (the primary's
+  // py-2 + 44px arrow chip) so a mixed pair reads as one aligned control group.
   return (
-    <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+    <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
       {ctas.map((cta, i) => {
         const href = safeHref(cta.href);
         if (!href) return null;
@@ -35,10 +39,10 @@ function CtaRow({ ctas }: { ctas: HeroBlockData["ctas"] }) {
           <a
             key={i}
             href={href}
-            className="group inline-flex min-h-[44px] items-center gap-4 rounded-full bg-brand-500 py-2 pl-8 pr-2 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-brand-600 active:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="group inline-flex min-h-[60px] items-center gap-4 whitespace-nowrap rounded-full bg-brand-500 py-2 pl-8 pr-2 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-brand-600 active:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             {cta.label}
-            <span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-fg transition-transform duration-fast group-hover:translate-x-0.5">
+            <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-fg transition-transform duration-fast group-hover:translate-x-0.5">
               <ArrowRightIcon />
             </span>
           </a>
@@ -46,7 +50,7 @@ function CtaRow({ ctas }: { ctas: HeroBlockData["ctas"] }) {
           <a
             key={i}
             href={href}
-            className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-border bg-card px-8 text-sm font-medium text-fg transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="inline-flex min-h-[60px] items-center justify-center whitespace-nowrap rounded-full border border-border bg-card px-8 text-sm font-medium text-fg transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             {cta.label}
           </a>

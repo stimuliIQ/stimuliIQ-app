@@ -57,6 +57,7 @@ import { useNotifications } from "../../hooks/use-notifications";
 import { useMyProjects } from "../../hooks/use-my-projects";
 import { useSidenavCollapsed } from "../../hooks/use-sidenav-collapsed";
 import { FirstLoginGate } from "./first-login-gate";
+import { SignedOutGate } from "./signed-out-gate";
 
 // ---------------------------------------------------------------------------
 // Nav model
@@ -704,8 +705,10 @@ export interface LmsShellProps {
  * - Mobile: bottom tab bar (4 primary tabs + "More" drawer)
  * - Main: scrollable content area with padding to clear the fixed bars
  *
- * The shell does NOT gate authentication — page hooks expose isSignedOut and the
- * page renders the sign-in prompt. The shell renders regardless to avoid flash.
+ * Auth gating: SignedOutGate redirects signed-out visitors to /login (with a
+ * ?next= return target); the per-page isSignedOut cards remain only as a
+ * fallback for the frame before the redirect lands. The shell itself still
+ * renders immediately to avoid flash while the session is being resolved.
  */
 export function LmsShell({ children, wide = false }: LmsShellProps): React.JSX.Element {
   const pathname = usePathname();
@@ -713,6 +716,8 @@ export function LmsShell({ children, wide = false }: LmsShellProps): React.JSX.E
 
   return (
     <div className="min-h-screen bg-bg text-fg">
+      {/* Signed-out visitors go straight to /login instead of an empty state. */}
+      <SignedOutGate />
       {/* Forced first-login password change (lifecycle-redesign P3). */}
       <FirstLoginGate />
       <TopBar effectiveCollapsed={effectiveCollapsed} onToggleSidenav={toggle} />

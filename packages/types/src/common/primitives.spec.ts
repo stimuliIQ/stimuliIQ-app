@@ -12,9 +12,9 @@ describe("ObjectKeySchema", () => {
     "blog/covers/abc123.jpg",
     "partners/logo.png",
     "cover.jpg",
-    "hero/person.avif",
+    "hero/image-1.jpg",
     // The legacy `/images/...` static-asset exception (Phase-10 fixtures).
-    "/images/hero/person.avif",
+    "/images/why-us-team-portrait.webp",
     "/images/hero/hero-background.avif",
     "/images/popup/counsellor.png",
   ])("accepts %s", (value) => {

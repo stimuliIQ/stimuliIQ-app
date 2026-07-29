@@ -26,6 +26,7 @@ function makeProgram(overrides: Partial<PublicProgramSummary> = {}): PublicProgr
     ratingCount: 10,
     ogImageUrl: null,
     scholarshipAvailable: false,
+    enrollmentEnabled: true,
     ...overrides,
   };
 }

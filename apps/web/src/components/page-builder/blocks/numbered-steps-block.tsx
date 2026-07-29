@@ -65,7 +65,15 @@ function CompactVariant({ items }: { items: NumberedStepsBlockData["items"] }) {
 
 export function NumberedStepsBlock({ data }: { data: NumberedStepsBlockData }): React.JSX.Element {
   return (
-    <section aria-label={data.heading?.title ?? "Steps"} data-testid="page-builder-numbered-steps" className="py-16 lg:py-20">
+    // id="how-it-works": the numbered-steps block is the page's process/how-it-works
+    // section, and CMS-authored hero CTAs link to it as "#how-it-works" (e.g.
+    // Scholarship's "See How It Works"). scroll-mt offsets the sticky header.
+    <section
+      id="how-it-works"
+      aria-label={data.heading?.title ?? "Steps"}
+      data-testid="page-builder-numbered-steps"
+      className="scroll-mt-20 py-16 lg:py-20"
+    >
       <div className="mx-auto max-w-screen-xl px-4 md:px-6">
         <SectionHeading heading={data.heading} />
         {data.variant === "arrows" ? <HowItWorksSteps steps={data.items} /> : null}

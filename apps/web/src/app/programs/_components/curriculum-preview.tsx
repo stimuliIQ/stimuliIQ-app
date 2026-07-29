@@ -57,6 +57,12 @@ interface CurriculumPreviewProps {
   outline: PublicModuleOutline[];
   /** Where "Enrol to unlock" sends the visitor. */
   enrollHref: string;
+  /**
+   * Label for the in-preview CTA. Defaults to "Enrol now"; the program page passes
+   * "Book a free slot" when `enrollmentEnabled` is false, in which case `enrollHref`
+   * points at the booking page instead of the checkout.
+   */
+  enrollCtaLabel?: string;
 }
 
 interface PreviewState {
@@ -76,6 +82,7 @@ export function CurriculumPreview({
   programSlug,
   outline,
   enrollHref,
+  enrollCtaLabel = "Enrol now",
 }: CurriculumPreviewProps): React.JSX.Element {
   const sortedModules = React.useMemo(
     () => [...outline].sort((a, b) => a.order - b.order),
@@ -291,7 +298,7 @@ export function CurriculumPreview({
                 className="inline-flex items-center rounded-full bg-fg px-4 py-2 text-xs font-semibold text-bg transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 data-testid="curriculum-preview-enroll"
               >
-                Enrol now
+                {enrollCtaLabel}
               </a>
             </div>
           </div>

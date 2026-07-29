@@ -81,7 +81,7 @@ const DEFAULT_HEADING: HeadingSimple = {
   title: "Meet Your Mentors",
   titleHighlight: "Mentors",
   subtitle:
-    "Connect with active engineers and specialists from top companies — guiding you with real-world perspective, honest feedback, and proven expertise.",
+    "Practising doctors, researchers, and healthcare specialists who review your work, answer your questions, and tell you honestly what to improve.",
 };
 const DEFAULT_VIEW_ALL_HREF = "/mentors";
 

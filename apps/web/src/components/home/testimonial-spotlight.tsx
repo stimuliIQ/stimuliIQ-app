@@ -5,8 +5,11 @@
  * TestimonialCard at a time (the "spotlight" look) with prev/next controls and
  * dot indicators to cycle through the rest, instead of a 3-card grid.
  *
- * Manual navigation only — no autoplay. An auto-advancing carousel a user can't
- * pause is a WCAG 2.2 (2.2.2) failure; a manual one sidesteps that entirely.
+ * Auto-advances every 6 s, with the WCAG 2.2 (2.2.2) mitigations that make an
+ * auto-carousel acceptable: it PAUSES while hovered or while any control inside
+ * has keyboard focus, STOPS for good the moment the user navigates manually
+ * (their choice of card must not be yanked away), and never starts at all for
+ * `prefers-reduced-motion` users.
  *
  * a11y: the active card sits in an `aria-live="polite"` region so screen readers
  * announce the change; prev/next buttons are labelled; dots are a `tablist` with
@@ -56,15 +59,50 @@ export function TestimonialSpotlight({
   ctaHref?: string;
 }) {
   const count = items.length;
+  const AUTOPLAY_MS = 6000;
   const [index, setIndex] = React.useState(0);
+  // Autoplay gates — see the header comment for the WCAG reasoning behind each.
+  const [hovered, setHovered] = React.useState(false);
+  const [focusWithin, setFocusWithin] = React.useState(false);
+  const [userNavigated, setUserNavigated] = React.useState(false);
+  const [reducedMotion, setReducedMotion] = React.useState(false);
+
+  React.useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReducedMotion(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  const autoplayActive = count > 1 && !hovered && !focusWithin && !userNavigated && !reducedMotion;
+
+  React.useEffect(() => {
+    if (!autoplayActive) return;
+    const timer = setInterval(() => setIndex((i) => i + 1), AUTOPLAY_MS);
+    return () => clearInterval(timer);
+  }, [autoplayActive]);
 
   if (count === 0) return null;
 
   const current = items[((index % count) + count) % count]!;
-  const goTo = (i: number) => setIndex(((i % count) + count) % count);
+  const goTo = (i: number) => {
+    // Manual navigation permanently stops autoplay — the visitor picked a card;
+    // don't advance it out from under them.
+    setUserNavigated(true);
+    setIndex(((i % count) + count) % count);
+  };
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div
+      className="mx-auto max-w-3xl"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocusCapture={() => setFocusWithin(true)}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocusWithin(false);
+      }}
+    >
       <div aria-live="polite" aria-atomic="true">
         <TestimonialCard
           key={current.id}

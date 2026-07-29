@@ -44,6 +44,13 @@ export function LoginForm(): React.JSX.Element {
     <div className="flex min-h-screen items-center justify-center bg-bg p-4" data-density="compact">
       <Card className="w-full max-w-sm" data-testid="login-card">
         <CardHeader>
+          {/* Same asset + dark-mode treatment as the sidebar logo (layout/sidebar.tsx). */}
+          <img
+            src="/stimuliiq-logo.png"
+            alt="StimuliiQ"
+            className="mb-3 h-7 w-auto self-start dark:brightness-0 dark:invert"
+            data-testid="login-logo"
+          />
           <CardTitle>Sign in to stimuliiq admin</CardTitle>
           <CardDescription>Use your staff account to access the admin dashboard.</CardDescription>
         </CardHeader>

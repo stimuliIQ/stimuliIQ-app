@@ -27,9 +27,9 @@ export const revalidate = 3600; // ISR: revalidate every hour
 // ---------------------------------------------------------------------------
 
 export const metadata: Metadata = buildMetadata({
-  title: "Blog — Career & Tech Insights for Students",
+  title: "Blog — Career & Clinical Insights for Healthcare Students",
   description:
-    "Career tips, tech tutorials, and internship guides for B.Tech, MCA, and MBA students from StimuliiQ mentors.",
+    "Career guides, clinical explainers, and program FAQs for medical, psychology, and allied health science students — from the mentors who teach our programs.",
   canonicalPath: "/blog",
 });
 
@@ -193,7 +193,7 @@ export default async function BlogListingPage() {
             Insights for your <span className="text-chart-3">career</span>.
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-fg-muted">
-            Career tips, tech tutorials, and internship guides — written by the
+            Career guides, clinical explainers, and program FAQs — written by the
             mentors who teach our programs.
           </p>
         </header>

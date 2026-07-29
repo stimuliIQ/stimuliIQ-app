@@ -37,7 +37,7 @@ const ABOUT_SLUG = "about";
 const FALLBACK_METADATA = {
   title: "About Us",
   description:
-    "StimuliiQ is India's leading internship and career training platform, helping B.Tech, MBA, MCA, and Diploma students bridge the gap between college and industry.",
+    "Stimuli IQ is a healthcare education and training platform for India's medical, psychology, and allied health science students — bridging the gap between academics and real practice.",
 };
 
 const BREADCRUMBS = [{ label: "Home", href: "/" }, { label: "About StimuliiQ" }];

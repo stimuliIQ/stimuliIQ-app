@@ -90,6 +90,14 @@ export const CreateProgramRequestSchema = z
       .boolean()
       .default(false)
       .describe("When true the website shows a 'Scholarship available' badge on the course."),
+    enrollmentEnabled: z
+      .boolean()
+      .default(true)
+      .describe(
+        "When true the website shows the 'Enroll Now' CTA and self-serve checkout is open. " +
+          "When false only 'Book Free Slot' is offered and the API rejects new orders for " +
+          "this program. Defaults true so an existing sellable program stays sellable.",
+      ),
   })
   .strict();
 export type CreateProgramRequest = z.infer<typeof CreateProgramRequestSchema>;
@@ -313,6 +321,7 @@ export const ProgramDetailSchema = ProgramSummarySchema.extend({
   /** Public CDN URL minted from og_image_key; null if no image. NEVER the raw key. */
   ogImageUrl: z.string().url().nullable(),
   scholarshipAvailable: z.boolean(),
+  enrollmentEnabled: z.boolean(),
   deletedAt: IsoDateTimeSchema.nullable(),
   updatedAt: IsoDateTimeSchema,
 });

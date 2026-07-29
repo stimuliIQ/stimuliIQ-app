@@ -12,6 +12,7 @@
  *   @next/mdx, @mdx-js/loader, @mdx-js/react, remark-frontmatter,
  *   remark-mdx-frontmatter, rehype-slug
  */
+import path from "node:path";
 import createMdx from "@next/mdx";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkMdxFrontmatter from "remark-mdx-frontmatter";
@@ -183,6 +184,25 @@ async function headers() {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+
+  // Build output directory. Defaults to Next's own ".next" — production/Vercel builds are
+  // unaffected (vercel.json's `outputDirectory` is ".next"). The override exists so a
+  // diagnostic `next build` can run against a scratch directory WITHOUT clobbering the
+  // ".next" that a concurrent `next dev` is actively serving from (which corrupts it and
+  // makes the dev server start 500ing every route).
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
+
+  // pnpm monorepo file tracing. Every server dependency this app actually uses is hoisted
+  // into the WORKSPACE-ROOT store (node_modules/.pnpm/...), two levels above this app —
+  // the `.nft.json` traces resolve them as "../../../../../../node_modules/.pnpm/...".
+  // Without an explicit root, Next infers the tracing root from the nearest lockfile; when
+  // the deploy platform builds with this app as its project root, everything outside
+  // apps/web falls OUTSIDE that inferred root and is silently dropped from the serverless
+  // bundle. Prerendered pages still work (they were rendered at build time, with the full
+  // node_modules present) but every on-demand render then throws MODULE_NOT_FOUND at
+  // import time — which surfaces as a 500 on every dynamic route while cached static pages
+  // keep serving stale. Pinning the root to the workspace root keeps the trace complete.
+  outputFileTracingRoot: path.join(import.meta.dirname, "../.."),
 
   // Include .mdx as a page extension (content pages in app/ directory)
   pageExtensions: ["ts", "tsx", "mdx"],

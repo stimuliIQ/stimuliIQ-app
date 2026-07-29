@@ -66,7 +66,12 @@ export function BrainShowcase(): React.JSX.Element {
                      dot pattern clipped to the glyphs (bg-clip-text + transparent
                      text), so each letter is built from dots instead of a solid
                      wash. */
-                  className="whitespace-nowrap bg-clip-text font-display text-[8vw] font-black uppercase leading-[1.3] tracking-tight text-transparent [background-image:radial-gradient(#C4CCD6_1.4px,transparent_1.6px)] [background-size:8px_8px]"
+                  /* Sizing: phones get a much larger relative size (12vw) so the
+                     strip stays legible; ≥md steps back to the original 8vw.
+                     Ink: slate-ish #8896A8 dots on a denser 7px grid — dark
+                     enough to read against white without competing with the
+                     hero copy above. */
+                  className="whitespace-nowrap bg-clip-text font-display text-[12vw] font-black uppercase leading-[1.3] tracking-tight text-transparent [background-image:radial-gradient(#8896A8_1.5px,transparent_1.7px)] [background-size:7px_7px] md:text-[8vw]"
                 >
                   {WORDMARK}
                   {/* Separator keeps consecutive repeats from reading as one

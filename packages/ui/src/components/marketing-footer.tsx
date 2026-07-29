@@ -56,6 +56,11 @@ export interface MarketingFooterProps {
   newsletterSlot?: React.ReactNode;
   copyrightText?: string;
   contactText?: string;
+  /**
+   * Registered-office address, one entry per display line. Rendered in a semantic
+   * `<address>` under the brand blurb. Omit to hide the block entirely.
+   */
+  addressLines?: readonly string[];
   className?: string;
   "data-testid"?: string;
 }
@@ -69,6 +74,7 @@ export function MarketingFooter({
   newsletterSlot,
   copyrightText,
   contactText,
+  addressLines,
   className,
   "data-testid": testId,
 }: MarketingFooterProps): React.JSX.Element {
@@ -92,6 +98,19 @@ export function MarketingFooter({
             </a>
             {contactText ? (
               <p className="text-sm text-fg-muted leading-relaxed">{contactText}</p>
+            ) : null}
+            {addressLines?.length ? (
+              // not-italic: browsers italicise <address> by default.
+              <address
+                data-testid="footer-address"
+                className="text-sm not-italic leading-relaxed text-fg-muted"
+              >
+                {addressLines.map((line) => (
+                  <span key={line} className="block">
+                    {line}
+                  </span>
+                ))}
+              </address>
             ) : null}
             {newsletterSlot ? (
               <div>

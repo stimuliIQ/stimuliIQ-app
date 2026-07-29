@@ -61,6 +61,28 @@ interface PipelineBoardProps {
   me: MeResponse | undefined;
 }
 
+/**
+ * Known website lead sources → human labels. The API's `source` filter is an exact
+ * match on the stored string, and these are the exact values the public site submits
+ * (grep `source=` in apps/web). Scholarship sits first: scholarship applications come
+ * in as leads with source "scholarship-page", and this dropdown is how the team views
+ * them separately from the rest of the pipeline.
+ */
+const LEAD_SOURCE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "scholarship-page", label: "Scholarship" },
+  { value: "web-book-slot", label: "Book a slot" },
+  { value: "homepage-cta-band", label: "Homepage callback" },
+  { value: "web-program-detail", label: "Program page" },
+  { value: "web-timed-popup", label: "Website popup" },
+  { value: "web-exit-intent", label: "Exit-intent popup" },
+  { value: "web-sticky-bar", label: "Sticky bar" },
+  { value: "newsletter", label: "Newsletter" },
+];
+
+const LEAD_SOURCE_LABELS: Record<string, string> = Object.fromEntries(
+  LEAD_SOURCE_OPTIONS.map((o) => [o.value, o.label]),
+);
+
 export function PipelineBoard({ me }: PipelineBoardProps): React.JSX.Element {
   const canCreate = hasPermission(me?.permissions, "leads.create");
   const canBulkEdit = hasPermission(me?.permissions, "bulk.leads");
@@ -207,7 +229,7 @@ export function PipelineBoard({ me }: PipelineBoardProps): React.JSX.Element {
       ),
     },
     { id: "stage", header: "Stage", cell: (row) => <LeadStageChip stage={row.stage} /> },
-    { id: "source", header: "Source", cell: (row) => row.source },
+    { id: "source", header: "Source", cell: (row) => LEAD_SOURCE_LABELS[row.source] ?? row.source },
     { id: "ownerName", header: "Owner", cell: (row) => row.ownerName ?? "Unassigned" },
     {
       id: "slaDueAt",
@@ -289,14 +311,21 @@ export function PipelineBoard({ me }: PipelineBoardProps): React.JSX.Element {
         onDeleteView={(id) => deleteSavedView.mutate(id)}
         data-testid="pipeline-filter-bar"
       >
-        <Input
+        <Select
           label="Source"
-          placeholder="website, referral…"
-          value={source}
-          onChange={(event) => setSource(event.target.value)}
-          wrapperClassName="w-48"
+          placeholder="All sources"
+          value={source || "__all__"}
+          onValueChange={(value) => setSource(value === "__all__" ? "" : value)}
+          wrapperClassName="w-52"
           data-testid="pipeline-source-filter"
-        />
+        >
+          <SelectItem value="__all__">All sources</SelectItem>
+          {LEAD_SOURCE_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </Select>
         {view === "table" ? (
           <Select
             label="Stage"

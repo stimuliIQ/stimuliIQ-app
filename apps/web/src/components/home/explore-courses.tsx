@@ -93,7 +93,13 @@ function ClockIcon() {
   );
 }
 
-function CourseCard({ program }: { program: PublicProgramSummary }) {
+function CourseCard({
+  program,
+  showScholarshipBadge,
+}: {
+  program: PublicProgramSummary;
+  showScholarshipBadge: boolean;
+}) {
   const rating = program.ratingAvg != null ? formatRating(program.ratingAvg) : null;
   const meta = [
     program.durationWeeks ? formatDuration(program.durationWeeks) : null,
@@ -124,7 +130,7 @@ function CourseCard({ program }: { program: PublicProgramSummary }) {
             </div>
           )}
 
-          {program.scholarshipAvailable ? (
+          {showScholarshipBadge && program.scholarshipAvailable ? (
             <span className="absolute left-2.5 top-2.5 rounded-full bg-chart-3 px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm">
               Scholarship
             </span>
@@ -190,9 +196,9 @@ function CourseCard({ program }: { program: PublicProgramSummary }) {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_HEADING: HeadingSimple = {
-  title: "Explore our internship courses",
-  titleHighlight: "internship",
-  subtitle: "Pick a track and start building job-ready skills with industry mentors.",
+  title: "Explore our medical internship programs",
+  titleHighlight: "medical internship",
+  subtitle: "Pick a track and start building the clinical and research skills hospitals actually look for.",
 };
 const DEFAULT_VIEW_ALL_HREF = "/programs";
 
@@ -202,9 +208,23 @@ export interface ExploreCoursesProps {
   heading?: HeadingSimple;
   /** CMS-editable override (`live_collection_ref.viewAllHref`) — defaults to `/programs`. */
   viewAllHref?: string;
+  /**
+   * Show the green "Scholarship" corner pill on cards whose program has
+   * `scholarshipAvailable`. Defaults to `true` so the `live_collection_ref` block and
+   * any other caller keep their existing look; the HOMEPAGE passes `false` — the badge
+   * was crowding the card art there, and /programs, /programs/city/[citySlug] and the
+   * program detail page all still surface scholarship availability with their own
+   * "Scholarship available" badge.
+   */
+  showScholarshipBadge?: boolean;
 }
 
-export function ExploreCourses({ programs, heading = DEFAULT_HEADING, viewAllHref = DEFAULT_VIEW_ALL_HREF }: ExploreCoursesProps) {
+export function ExploreCourses({
+  programs,
+  heading = DEFAULT_HEADING,
+  viewAllHref = DEFAULT_VIEW_ALL_HREF,
+  showScholarshipBadge = true,
+}: ExploreCoursesProps) {
   const resolvedViewAllHref = safeHref(viewAllHref) ?? DEFAULT_VIEW_ALL_HREF;
   const categories = React.useMemo(() => {
     const domains = Array.from(new Set(programs.map((p) => p.domain)));
@@ -284,7 +304,11 @@ export function ExploreCourses({ programs, heading = DEFAULT_HEADING, viewAllHre
         ) : (
           <ul role="list" className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((program) => (
-              <CourseCard key={program.id} program={program} />
+              <CourseCard
+                key={program.id}
+                program={program}
+                showScholarshipBadge={showScholarshipBadge}
+              />
             ))}
           </ul>
         )}

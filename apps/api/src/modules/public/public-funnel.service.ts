@@ -440,6 +440,30 @@ export class PublicFunnelService {
       });
     }
 
+    // Self-serve enrollment gate (CLAUDE.md §3.5 — the UI only HIDES what the API
+    // FORBIDS). The website drops every "Enroll Now" CTA when a program has
+    // `enrollmentEnabled = false`, but a hidden button is not a control: /enroll/:slug is
+    // a guessable URL and this endpoint is directly callable. Checked here, in the PUBLIC
+    // funnel, rather than in CommerceService.createOrder — staff must still be able to
+    // enrol a student manually from the CRM for exactly the programs whose public
+    // checkout is closed (invite-only or offline intake). `findPublicProgramById` also
+    // applies the isPublic + status=published gate, so a hidden program 404s here.
+    const publicProgram = await this.publicRepository.findPublicProgramById(tenantId, dto.programId);
+    if (!publicProgram) {
+      throw new NotFoundException({
+        code: "public.program_not_found",
+        title: "Program not found",
+      });
+    }
+    if (!publicProgram.enrollmentEnabled) {
+      throw new ConflictException({
+        code: "public.enrollment_closed",
+        title: "Enrollment is closed",
+        detail:
+          "Online enrollment for this program is currently closed. Please book a free counselling slot and our team will help you join.",
+      });
+    }
+
     // Auto-select an available batch for this program (no batchId in public funnel)
     const batch = await this.publicRepository.findAvailableBatchForProgram(tenantId, dto.programId);
     if (!batch) {

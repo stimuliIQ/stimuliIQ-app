@@ -54,11 +54,22 @@ export function escapeJsonLd(data: unknown): string {
 
 import { SITE_NAME, SITE_URL } from "./metadata";
 
+export interface PostalAddressJsonLd {
+  streetAddress: string;
+  addressLocality: string;
+  addressRegion?: string;
+  postalCode: string;
+  /** ISO 3166-1 alpha-2, e.g. "IN". */
+  addressCountry: string;
+}
+
 export interface OrganizationJsonLdOptions {
   /** Override the default logo URL. */
   logoUrl?: string;
   /** Override the default contact number. */
   contactPhone?: string;
+  /** Registered office — emitted as a schema.org `PostalAddress` node. */
+  address?: PostalAddressJsonLd;
   /** Override the sameAs social profile URLs. */
   sameAs?: string[];
 }
@@ -71,6 +82,7 @@ export function buildOrganizationJsonLd(opts: OrganizationJsonLdOptions = {}): s
   const {
     logoUrl = `${SITE_URL}/logo.png`,
     contactPhone,
+    address,
     sameAs = [
       "https://linkedin.com/company/stimuliiq",
       "https://instagram.com/stimuliiq",
@@ -91,6 +103,7 @@ export function buildOrganizationJsonLd(opts: OrganizationJsonLdOptions = {}): s
   };
 
   if (contactPhone) {
+    data.telephone = contactPhone;
     data.contactPoint = {
       "@type": "ContactPoint",
       telephone: contactPhone,
@@ -98,6 +111,10 @@ export function buildOrganizationJsonLd(opts: OrganizationJsonLdOptions = {}): s
       areaServed: "IN",
       availableLanguage: ["English", "Hindi"],
     };
+  }
+
+  if (address) {
+    data.address = { "@type": "PostalAddress", ...address };
   }
 
   return escapeJsonLd(data);

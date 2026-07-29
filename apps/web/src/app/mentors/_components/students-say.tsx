@@ -1,18 +1,13 @@
-"use client";
-
 /**
  * StudentsSay — "Happy Students Say About Our Courses" band for /mentors.
  *
- * Black & white take on the reference: two quote cards flanking a photo card
- * with a decorative play chip, and pagination dots below that page through
- * testimonial pairs. Static, verified student quotes (same set used on the
- * homepage) — no autoplay, the reader stays in control.
+ * Single view, no pagination: the branded portrait artwork sits in the middle
+ * with TWO stacked quote cards on each side (all four verified student quotes
+ * visible at once). The old dot-paging read as "there are two images" and is
+ * gone — with it, the component needs no client JS at all (server component).
  *
- * a11y: dots are real buttons with labels + aria-pressed, quotes use
- * <blockquote>/<figcaption>, the photo is decorative. Page changes are
- * announced via the region's aria-live. Reduced motion: no fade transition.
+ * a11y: quotes use <blockquote>/<figcaption>, the artwork is decorative.
  */
-import { useState } from "react";
 import Image from "next/image";
 
 interface Quote {
@@ -21,32 +16,30 @@ interface Quote {
   detail: string;
 }
 
-/** Pairs of quotes per dot page (left card, right card). */
-const PAGES: Array<[Quote, Quote]> = [
-  [
-    {
-      text: "The Full Stack program completely changed my career prospects. I went from zero to a frontend role at a Bangalore startup within 3 months of graduating.",
-      name: "Aditya R.",
-      detail: "Full Stack Web Development · NIT Warangal",
-    },
-    {
-      text: "The live sessions with mentors from top companies made all the difference. I could ask real-world questions and get answers no textbook gives you.",
-      name: "Priya S.",
-      detail: "Python for Data Science · JNTU Hyderabad",
-    },
-  ],
-  [
-    {
-      text: "The verifiable certificate was a major trust signal when I applied for jobs. Interviewers could actually check it on the platform.",
-      name: "Rahul M.",
-      detail: "Data Science & ML · Osmania University",
-    },
-    {
-      text: "My mentor reviewed every project like a real code review at work. That feedback loop is what made me interview-ready.",
-      name: "Sneha K.",
-      detail: "DevOps & CI/CD · Anna University",
-    },
-  ],
+const LEFT_QUOTES: Quote[] = [
+  {
+    text: "The Clinical Research internship changed my career prospects completely. Within 3 months of finishing, I joined a research team at a Bangalore hospital.",
+    name: "Aditya R.",
+    detail: "Clinical Research · Government Medical College, Warangal",
+  },
+  {
+    text: "The verifiable certificate was a major trust signal when I applied for postings. Interviewers could actually check it on the platform.",
+    name: "Rahul M.",
+    detail: "Public Health & Data · Osmania University",
+  },
+];
+
+const RIGHT_QUOTES: Quote[] = [
+  {
+    text: "The live sessions with practising clinicians made all the difference. I could ask questions about real cases and get answers that no textbook gives you.",
+    name: "Priya S.",
+    detail: "Hospital Administration · Osmania Medical College, Hyderabad",
+  },
+  {
+    text: "My mentor reviewed every case study like a real ward round. That feedback loop is what made me feel genuinely prepared for practice.",
+    name: "Sneha K.",
+    detail: "Clinical Psychology · Andhra University",
+  },
 ];
 
 function QuoteMark() {
@@ -63,27 +56,9 @@ function QuoteMark() {
   );
 }
 
-function PlayChip() {
-  return (
-    <span
-      aria-hidden="true"
-      className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-fg shadow-md"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        className="ml-1 h-5 w-5"
-      >
-        <path d="M7 5.5v13l11-6.5-11-6.5Z" />
-      </svg>
-    </span>
-  );
-}
-
 function QuoteCard({ quote }: { quote: Quote }) {
   return (
-    <figure className="flex h-full flex-col justify-between rounded-2xl bg-card p-8 shadow-sm">
+    <figure className="flex flex-1 flex-col justify-between rounded-2xl bg-card p-8 shadow-sm">
       <div>
         <QuoteMark />
         <blockquote className="mt-5 text-base leading-relaxed text-fg-muted">
@@ -99,9 +74,6 @@ function QuoteCard({ quote }: { quote: Quote }) {
 }
 
 export function StudentsSay() {
-  const [page, setPage] = useState(0);
-  const [left, right] = PAGES[page] ?? PAGES[0]!;
-
   return (
     <section
       aria-label="What students say about our courses"
@@ -117,49 +89,39 @@ export function StudentsSay() {
           </h2>
         </div>
 
-        <div aria-live="polite" className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
-          <QuoteCard quote={left} />
+        <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
+          <div className="flex flex-col gap-6">
+            {LEFT_QUOTES.map((quote) => (
+              <QuoteCard key={quote.name} quote={quote} />
+            ))}
+          </div>
 
-          {/* Center photo card (decorative) */}
+          {/* Center visual card (decorative) — the branded "Happy Students"
+              composition (portrait, 1024×1536). The artwork carries its own
+              headline/badge, so the old dark gradient + "15,000+ students"
+              overlay and play chip are gone (the count was an unverifiable
+              stat anyway). The box is LOCKED to the image's own 2:3 aspect at
+              every breakpoint so the logo (top) and badge (bottom) are never
+              cropped — it sets the row height, and the stacked quote cards on
+              either side stretch to fill it. */}
           <div
             aria-hidden="true"
-            className="relative order-first min-h-[320px] overflow-hidden rounded-2xl shadow-sm lg:order-none lg:min-h-0"
+            className="relative order-first aspect-[2/3] overflow-hidden rounded-2xl shadow-sm lg:order-none"
           >
             <Image
-              src="/images/hero/person.avif"
+              src="/images/happy-students.webp"
               alt=""
               fill
               sizes="(min-width: 1024px) 33vw, 100vw"
-              className="object-cover grayscale"
+              className="object-cover"
             />
-            <div className="absolute inset-0 flex items-end justify-between bg-gradient-to-t from-fg/70 via-transparent to-transparent p-6">
-              <div>
-                <p className="text-lg font-bold text-white">15,000+ students</p>
-                <p className="text-sm text-white/80">have made the jump</p>
-              </div>
-              <PlayChip />
-            </div>
           </div>
 
-          <QuoteCard quote={right} />
-        </div>
-
-        {/* Dots */}
-        <div className="mt-10 flex items-center justify-center gap-2.5" role="group" aria-label="Testimonial pages">
-          {PAGES.map((_, index) => (
-            <button
-              key={index}
-              type="button"
-              onClick={() => setPage(index)}
-              aria-label={`Show testimonials ${index + 1} of ${PAGES.length}`}
-              aria-pressed={page === index}
-              className={[
-                "h-2.5 rounded-full transition-all duration-base",
-                page === index ? "w-7 bg-fg" : "w-2.5 bg-fg/20 hover:bg-fg/40",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              ].join(" ")}
-            />
-          ))}
+          <div className="flex flex-col gap-6">
+            {RIGHT_QUOTES.map((quote) => (
+              <QuoteCard key={quote.name} quote={quote} />
+            ))}
+          </div>
         </div>
       </div>
     </section>

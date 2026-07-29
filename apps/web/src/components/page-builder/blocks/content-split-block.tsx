@@ -31,7 +31,20 @@ export function ContentSplitBlock({ data }: { data: ContentSplitBlockData }): Re
 
         {mediaSrc ? (
           <div className={`relative mx-auto w-full max-w-md ${mediaFirst ? "lg:order-1" : ""}`}>
-            <Image src={mediaSrc} alt="" aria-hidden="true" width={448} height={520} className="h-[420px] w-full rounded-2xl object-cover shadow-md lg:h-[520px]" />
+            {/*
+              Two media modes, chosen by whether the editor supplied `mediaAlt`:
+              - No alt → a decorative photo. Cropped to a fixed portrait frame
+                (`object-cover`) so the section keeps a predictable height, and hidden from
+                assistive tech since the adjacent copy already carries the meaning.
+              - Alt set → the artwork itself is meaningful (e.g. a designed poster whose
+                words are baked into the pixels). Rendered at its NATURAL aspect ratio so
+                nothing is cropped away, and exposed with its text alternative (WCAG 1.1.1).
+            */}
+            {data.mediaAlt ? (
+              <Image src={mediaSrc} alt={data.mediaAlt} width={1024} height={1536} className="h-auto w-full rounded-2xl shadow-md" />
+            ) : (
+              <Image src={mediaSrc} alt="" aria-hidden="true" width={448} height={520} className="h-[420px] w-full rounded-2xl object-cover shadow-md lg:h-[520px]" />
+            )}
             {data.badge ? (
               <div className="absolute -left-4 bottom-8 flex items-center gap-3 rounded-xl border border-border bg-card p-3 pr-5 shadow-md">
                 <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-fg">

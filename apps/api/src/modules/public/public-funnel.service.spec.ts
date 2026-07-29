@@ -77,7 +77,11 @@ function buildMocks() {
         validTo: null,
         programScope: null,
       }),
-      findPublicProgramById: jest.fn().mockResolvedValue({ id: PROGRAM_ID, pricePaise: 100000 }),
+      // enrollmentEnabled: createEnrollOrder refuses to build an order for a program
+      // whose public checkout is closed, so the happy-path fixture must be open.
+      findPublicProgramById: jest
+        .fn()
+        .mockResolvedValue({ id: PROGRAM_ID, pricePaise: 100000, enrollmentEnabled: true }),
       createUserWithStudentProfile: jest.fn().mockResolvedValue({ userId: "user-new", profileId: "profile-new" }),
       findStudentProfileByUserId: jest.fn().mockResolvedValue(MOCK_PROFILE),
       findAvailableBatchForProgram: jest.fn().mockResolvedValue(MOCK_BATCH),
@@ -476,6 +480,29 @@ describe("PublicFunnelService", () => {
       expect(result.orderId).toBe(ORDER_ID);
       expect(result.amountPaise).toBe(100000);
       expect(result.currency).toBe("INR");
+    });
+
+    it("refuses to create an order when enrollment is closed for the program", async () => {
+      // The website hides every "Enroll Now" CTA for such a program, but /enroll/:slug is
+      // a guessable URL and this endpoint is directly callable — the server must refuse
+      // rather than rely on the hidden button (CLAUDE.md §3.5).
+      mocks.publicRepository.findPublicProgramById.mockResolvedValue({
+        id: PROGRAM_ID,
+        pricePaise: 100000,
+        enrollmentEnabled: false,
+      });
+
+      await expect(
+        service.createEnrollOrder(
+          { programId: PROGRAM_ID, couponCode: undefined, emiPlan: undefined },
+          STUDENT_USER_ID,
+          TENANT_ID,
+          "idem-key-closed",
+        ),
+      ).rejects.toMatchObject({ response: { code: "public.enrollment_closed" } });
+
+      // and it must bail out BEFORE any order is created
+      expect(mocks.commerceService.createOrder).not.toHaveBeenCalled();
     });
 
     it("throws NotFoundException when student profile not found", async () => {

@@ -127,8 +127,11 @@ export function StickyBuyCard({
         </button>
       )}
 
-      {/* Secondary CTA */}
-      {secondaryCtaLabel ? (
+      {/* Secondary CTA. Requires an ACTION as well as a label: `secondaryCtaLabel`
+          carries a default, so a caller that deliberately omits both the href and the
+          click handler used to get a rendered-but-inert "Book Free Slot" button. Callers
+          hide the secondary action by passing neither href nor handler. */}
+      {secondaryCtaLabel && (secondaryCtaHref || onSecondaryCtaClick) ? (
         secondaryCtaHref ? (
           <a
             href={secondaryCtaHref}

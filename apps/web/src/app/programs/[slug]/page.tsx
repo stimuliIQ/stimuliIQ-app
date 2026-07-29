@@ -37,6 +37,7 @@ import {
 } from "@repo/ui";
 import { formatPaiseDisplay, formatRating, formatDuration, formatMode } from "../../../lib/format";
 import { BOOK_SLOT_HREF } from "../../../components/shell/nav-config";
+import { buildWhatsAppHref } from "../../../lib/contact";
 import { StickyLeadBarConnected } from "../../../components/leads/sticky-lead-bar-connected";
 import { CurriculumPreview } from "../_components/curriculum-preview";
 import type { PublicProgramDetail } from "@repo/types";
@@ -48,11 +49,9 @@ import type { PublicProgramDetail } from "@repo/types";
 // ---------------------------------------------------------------------------
 
 function buildProgramWhatsAppHref(programTitle: string): string {
-  const number = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "919999999999";
-  const text = encodeURIComponent(
+  return buildWhatsAppHref(
     `Hi, I'm interested in the ${programTitle} program at StimuliiQ. Can you share more details?`,
   );
-  return `https://wa.me/${number}?text=${text}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -244,17 +243,26 @@ function ProgramHero({ program }: { program: PublicProgramDetail }) {
           ) : null}
         </div>
 
-        {/* Hero CTAs (mobile — visible at top; desktop uses StickyBuyCard) */}
+        {/* Hero CTAs (mobile — visible at top; desktop uses StickyBuyCard).
+            When enrollment is closed (CRM toggle) the Enroll CTA is dropped and
+            "Book Free Slot" is promoted to the primary style so the section still has
+            exactly one clear action rather than a lone outlined button. */}
         <div className="flex flex-col gap-3 sm:flex-row lg:hidden">
-          <a
-            href={`/enroll/${program.slug}`}
-            className="flex min-h-[44px] items-center justify-center rounded-md bg-brand-500 px-6 text-base font-semibold text-white transition-colors hover:bg-brand-600 active:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            Enroll Now
-          </a>
+          {program.enrollmentEnabled ? (
+            <a
+              href={`/enroll/${program.slug}`}
+              className="flex min-h-[44px] items-center justify-center rounded-md bg-brand-500 px-6 text-base font-semibold text-white transition-colors hover:bg-brand-600 active:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              Enroll Now
+            </a>
+          ) : null}
           <a
             href={BOOK_SLOT_HREF}
-            className="flex min-h-[44px] items-center justify-center rounded-md border border-border px-6 text-base font-medium text-fg transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className={
+              program.enrollmentEnabled
+                ? "flex min-h-[44px] items-center justify-center rounded-md border border-border px-6 text-base font-medium text-fg transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                : "flex min-h-[44px] items-center justify-center rounded-md bg-brand-500 px-6 text-base font-semibold text-white transition-colors hover:bg-brand-600 active:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            }
           >
             Book Free Slot
           </a>
@@ -577,7 +585,8 @@ export default async function ProgramDetailPage({ params }: PageProps) {
                 <CurriculumPreview
                   programSlug={program.slug}
                   outline={program.curriculumOutline}
-                  enrollHref={enrollHref}
+                  enrollHref={program.enrollmentEnabled ? enrollHref : BOOK_SLOT_HREF}
+                  enrollCtaLabel={program.enrollmentEnabled ? "Enrol now" : "Book a free slot"}
                 />
               </div>
             ) : null}
@@ -606,10 +615,12 @@ export default async function ProgramDetailPage({ params }: PageProps) {
             <StickyBuyCard
               priceDisplay={price}
               emiDisplay={program.emiDisplay ?? undefined}
-              primaryCtaLabel="Enroll Now"
-              primaryCtaHref={enrollHref}
-              secondaryCtaLabel="Book Free Slot"
-              secondaryCtaHref={BOOK_SLOT_HREF}
+              // Enrollment closed → "Book Free Slot" becomes the card's PRIMARY action and
+              // there is no secondary, so the card never renders a dead-end.
+              primaryCtaLabel={program.enrollmentEnabled ? "Enroll Now" : "Book Free Slot"}
+              primaryCtaHref={program.enrollmentEnabled ? enrollHref : BOOK_SLOT_HREF}
+              secondaryCtaLabel={program.enrollmentEnabled ? "Book Free Slot" : undefined}
+              secondaryCtaHref={program.enrollmentEnabled ? BOOK_SLOT_HREF : undefined}
               included={[
                 program.durationWeeks
                   ? `${program.durationWeeks} weeks of training`
@@ -628,8 +639,8 @@ export default async function ProgramDetailPage({ params }: PageProps) {
       {/* MobileBuyBar — fixed bottom, mobile only (ac-14: tap targets ≥44px) */}
       <MobileBuyBar
         priceDisplay={price}
-        primaryCtaLabel="Enroll Now"
-        primaryCtaHref={enrollHref}
+        primaryCtaLabel={program.enrollmentEnabled ? "Enroll Now" : "Book Free Slot"}
+        primaryCtaHref={program.enrollmentEnabled ? enrollHref : BOOK_SLOT_HREF}
         data-testid="mobile-buy-bar"
       />
 

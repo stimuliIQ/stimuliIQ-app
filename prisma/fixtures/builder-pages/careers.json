@@ -5,15 +5,15 @@
       "variant": "centered",
       "headline": "Careers at StimuliiQ",
       "headlineHighlight": "StimuliiQ",
-      "subheadline": "Help us build the future of tech education in India. We are a remote-friendly team."
+      "subheadline": "Help us build the future of medical training in India. We are a remote-friendly team."
     }
   },
   {
     "type": "job_openings",
     "data": {
       "items": [
-        { "title": "Senior Python Instructor", "employmentType": "Full-time", "location": "Hyderabad / Remote", "description": "Lead live and recorded Python + Data Science training for cohorts of 20–30 students. 3+ years of industry experience required." },
-        { "title": "Career Counsellor", "employmentType": "Full-time", "location": "Hyderabad / Remote", "description": "Guide students through program selection and placement preparation. Strong communication skills + edtech background preferred." },
+        { "title": "Senior Clinical Research Instructor", "employmentType": "Full-time", "location": "Hyderabad / Remote", "description": "Lead live and recorded clinical research training for cohorts of 20 to 30 students. 3+ years of hospital or industry research experience required." },
+        { "title": "Career Counsellor", "employmentType": "Full-time", "location": "Hyderabad / Remote", "description": "Guide medical students through program selection and placement preparation. Strong communication skills and a healthcare or edtech background preferred." },
         { "title": "Full Stack Engineer (NestJS + Next.js)", "employmentType": "Full-time", "location": "Hyderabad", "description": "Build and maintain our LMS, CRM, and marketing platforms. 2+ years with TypeScript, Node.js, React, and PostgreSQL." }
       ],
       "emptyStateMessage": "No open roles right now"

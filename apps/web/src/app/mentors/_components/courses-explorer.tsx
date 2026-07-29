@@ -8,14 +8,20 @@
  * passed in — the same CRM-published courses that power /programs and the
  * mega-menu); filtering happens client-side on the already-loaded set.
  *
- * Card art: the CRM has no course artwork we can trust to exist, so each card
- * gets a generative monochrome panel — an oversized domain initial with the
- * domain name — which stays on-theme and never renders a broken image.
+ * Card art: uses the program's own image (`ogImageUrl`, uploaded in the CRM) when
+ * one exists. When it doesn't, the card falls back to a generative monochrome
+ * panel — an oversized domain initial with the domain name — which stays on-theme
+ * and never renders a broken image. (This card previously ALWAYS drew the initial
+ * and ignored `ogImageUrl` entirely, so an uploaded course image never appeared
+ * here even though the homepage's ExploreCourses card rendered it fine.)
  *
  * a11y: chips are buttons with aria-pressed, result count announced via a
- * polite live region, whole card clickable via a stretched link.
+ * polite live region, whole card clickable via a stretched link. The art panel is
+ * decorative — the image carries an empty alt because the adjacent <h3> already
+ * names the program.
  */
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import type { PublicProgramSummary } from "@repo/types";
 import {
   formatPaiseDisplay,
@@ -73,14 +79,25 @@ function CourseCard({ program, index }: { program: PublicProgramSummary; index: 
 
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-card shadow-sm transition-shadow motion-safe:hover:shadow-md">
-      {/* Generative monochrome art panel */}
+      {/* Art panel: the program's own image when the CRM has one, else the
+          generative monochrome initial. */}
       <div className={`relative flex h-44 items-center justify-center overflow-hidden ${tint}`}>
-        <span
-          aria-hidden="true"
-          className="select-none font-display text-[7rem] font-bold leading-none text-fg/[0.08] transition-transform duration-base ease-out motion-safe:group-hover:scale-110"
-        >
-          {domainLabel.charAt(0)}
-        </span>
+        {program.ogImageUrl ? (
+          <Image
+            src={program.ogImageUrl}
+            alt=""
+            fill
+            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            className="object-cover transition-transform duration-base ease-out motion-safe:group-hover:scale-105"
+          />
+        ) : (
+          <span
+            aria-hidden="true"
+            className="select-none font-display text-[7rem] font-bold leading-none text-fg/[0.08] transition-transform duration-base ease-out motion-safe:group-hover:scale-110"
+          >
+            {domainLabel.charAt(0)}
+          </span>
+        )}
         <span
           aria-hidden="true"
           className="absolute bottom-4 left-4 rounded-full bg-card px-3 py-1 text-xs font-semibold text-fg shadow-sm"

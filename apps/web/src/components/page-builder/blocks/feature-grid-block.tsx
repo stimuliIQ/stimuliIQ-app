@@ -33,15 +33,34 @@ const COLS_CLASS: Record<string, string> = {
 function CardsVariant({ data }: { data: FeatureGridBlockData }) {
   const cols = COLS_CLASS[data.columns ?? "3"] ?? COLS_CLASS["3"];
   return (
-    <div className={`grid grid-cols-1 gap-6 ${cols}`}>
+    <div className={`grid grid-cols-1 gap-5 ${cols}`}>
       {data.items.map((item) => (
-        <div key={item.title} className="flex h-full items-start gap-4 rounded-xl border border-border bg-card p-6 shadow-sm">
-          <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
-            <BlockIcon iconKey={item.iconKey} className="h-5 w-5" />
+        <div
+          key={item.title}
+          className={[
+            "group flex h-full items-start gap-4 rounded-2xl border border-border bg-card p-6",
+            "shadow-sm transition-all duration-[150ms] ease-out",
+            "hover:-translate-y-0.5 hover:border-brand-500/30 hover:shadow-md",
+          ].join(" ")}
+        >
+          {/* The icon tile is the card's only colour, so it does the visual work: a
+              tinted rounded square with an inset ring at rest, inverting to a solid
+              brand fill on hover. Bigger than the previous 40px chip — at that size a
+              20px glyph read as an afterthought rather than a deliberate mark. */}
+          <span
+            aria-hidden="true"
+            className={[
+              "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
+              "bg-brand-50 text-brand-600 ring-1 ring-inset ring-brand-500/10",
+              "transition-colors duration-[150ms] ease-out",
+              "group-hover:bg-brand-500 group-hover:text-white group-hover:ring-brand-500",
+            ].join(" ")}
+          >
+            <BlockIcon iconKey={item.iconKey} className="h-[22px] w-[22px]" />
           </span>
-          <div>
-            <h3 className="text-base font-semibold text-fg">{item.title}</h3>
-            <p className="mt-1 text-sm leading-relaxed text-fg-muted">{item.description}</p>
+          <div className="min-w-0">
+            <h3 className="text-[15px] font-semibold leading-snug text-fg">{item.title}</h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-fg-muted">{item.description}</p>
           </div>
         </div>
       ))}
