@@ -38,6 +38,7 @@ import { resolveCollegeLogo } from "../../../lib/college-logos";
 import { HighlightText } from "../highlight-text";
 import { ExploreCourses } from "../../home/explore-courses";
 import { MentorsTeaser } from "../../home/mentors-teaser";
+import { CollegeMarquee, type CollegeCardItem } from "../../home/college-marquee";
 
 function SectionHeading({ heading, viewAllHref }: { heading: ResolvedLiveCollectionRefBlockData["heading"]; viewAllHref?: string }) {
   const href = safeHref(viewAllHref);
@@ -83,21 +84,19 @@ function TestimonialsGrid({ data }: { data: Extract<ResolvedLiveCollectionRefBlo
   );
 }
 
-function monogram(name: string): string {
-  return name
-    .replace(/[^A-Za-z ]/g, " ")
-    .split(" ")
-    .filter((word) => word.length > 1)
-    .slice(0, 2)
-    .map((word) => word[0]!.toUpperCase())
-    .join("");
-}
-
+/**
+ * Partners. `logo-wall` keeps its reduced name+logo treatment; every other layout now
+ * renders the shared `CollegeMarquee` — two continuously-scrolling rows — instead of a
+ * plain grid. `layout` (`grid-3`/`grid-4`) therefore no longer changes the column count
+ * for partners; it is kept in the stored block data (and honoured by `logo-wall`) but the
+ * college list has one canonical presentation across the site, shared with the
+ * `partner-colleges.tsx` fallback so the two can't drift.
+ *
+ * `resolveCollegeLogo` prefers the CRM upload and falls back to the logo bundled under
+ * /public/colleges (see `lib/college-logos.ts`). Without it these cards render as
+ * initials, because no live college row carries an uploaded logo.
+ */
 function PartnersGrid({ data }: { data: Extract<ResolvedLiveCollectionRefBlockData, { collection: "partners" }> }) {
-  // `resolveCollegeLogo` prefers the CRM upload and falls back to the logo bundled under
-  // /public/colleges (see `lib/college-logos.ts`). Without it these cards render as
-  // initials, because no live college row carries an uploaded logo — the same fix the
-  // homepage grid gets in `partner-colleges.tsx`.
   if (data.layout === "logo-wall") {
     const logos = data.resolvedItems
       .map((p) => ({ name: p.name, src: resolveCollegeLogo(p.name, p.logoUrl) }))
@@ -106,34 +105,15 @@ function PartnersGrid({ data }: { data: Extract<ResolvedLiveCollectionRefBlockDa
     return <LogoWall logos={logos} />;
   }
 
-  return (
-    <ul role="list" className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${data.layout === "grid-4" ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
-      {data.resolvedItems.map((p) => {
-        const logo = resolveCollegeLogo(p.name, p.logoUrl);
-        return (
-        <li key={p.id} className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5 transition-colors duration-[150ms] hover:border-chart-3">
-          <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface">
-            {logo ? (
-              <img src={logo} alt="" loading="lazy" decoding="async" className="h-full w-full object-contain p-1" />
-            ) : (
-              <span className="text-xs font-bold tracking-tight text-fg-muted">{monogram(p.name)}</span>
-            )}
-          </span>
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold leading-snug text-fg">{p.name}</h3>
-            {p.focus ? <p className="mt-0.5 text-xs leading-snug text-chart-3">{p.focus}</p> : null}
-            {p.established != null || p.city ? (
-              <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-fg-subtle">
-                {p.established != null ? <span>Est. {p.established}</span> : null}
-                {p.city ? <span>{p.city}</span> : null}
-              </p>
-            ) : null}
-          </div>
-        </li>
-        );
-      })}
-    </ul>
-  );
+  const colleges: CollegeCardItem[] = data.resolvedItems.map((p) => ({
+    name: p.name,
+    focus: p.focus ?? undefined,
+    established: p.established != null ? String(p.established) : undefined,
+    city: p.city ?? undefined,
+    logo: resolveCollegeLogo(p.name, p.logoUrl),
+  }));
+
+  return <CollegeMarquee colleges={colleges} />;
 }
 
 export function LiveCollectionRefBlock({ data }: { data: ResolvedLiveCollectionRefBlockData }): React.JSX.Element | null {
@@ -149,13 +129,18 @@ export function LiveCollectionRefBlock({ data }: { data: ResolvedLiveCollectionR
     return <MentorsTeaser mentors={data.resolvedItems} heading={data.heading} viewAllHref={data.viewAllHref} />;
   }
 
+  // Partners (except `logo-wall`) render as a full-bleed marquee, so their body sits
+  // OUTSIDE the content column while the heading stays inside it.
+  const fullBleedBody = data.collection === "partners" && data.layout !== "logo-wall";
+
   return (
     <section aria-label={data.heading?.title ?? data.collection} data-testid={`page-builder-live-${data.collection}`} className="py-16 lg:py-20">
       <div className="mx-auto max-w-screen-xl px-4 md:px-6">
         <SectionHeading heading={data.heading} viewAllHref={data.viewAllHref} />
         {data.collection === "testimonials" ? <TestimonialsGrid data={data} /> : null}
-        {data.collection === "partners" ? <PartnersGrid data={data} /> : null}
+        {data.collection === "partners" && !fullBleedBody ? <PartnersGrid data={data} /> : null}
       </div>
+      {data.collection === "partners" && fullBleedBody ? <PartnersGrid data={data} /> : null}
     </section>
   );
 }
