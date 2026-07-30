@@ -14,7 +14,7 @@
  */
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Breadcrumbs, EmptyState } from "@repo/ui";
+import { EmptyState } from "@repo/ui";
 import { buildMetadata, SITE_URL } from "../../lib/seo/metadata";
 import { buildBreadcrumbJsonLd } from "../../lib/seo/json-ld";
 import { serverApiClient } from "../../lib/api-client";
@@ -182,12 +182,10 @@ export default async function BlogListingPage() {
       />
 
       <div className="mx-auto max-w-screen-xl px-4 pt-10 md:px-6">
-        <Breadcrumbs items={BREADCRUMBS} className="mb-10" data-testid="blog-breadcrumbs" />
-
         {/* Editorial header */}
         <header className="mx-auto max-w-2xl pb-12 text-center lg:pb-16">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-fg-muted">
-            The StimuliiQ Blog
+            The Stimuli IQ Blog
           </p>
           <h1 className="mt-6 font-display text-4xl font-bold leading-[1.08] tracking-tight text-fg sm:text-5xl">
             Insights for your <span className="text-chart-3">career</span>.
@@ -199,8 +197,8 @@ export default async function BlogListingPage() {
         </header>
       </div>
 
-      {/* Posts — light-grey band for card contrast */}
-      <div className="border-t border-border bg-surface py-14 lg:py-16">
+      {/* Posts — light-grey band for card contrast, faded in/out so the join is seamless */}
+      <div className="section-band py-14 lg:py-16">
         <div className="mx-auto max-w-screen-xl px-4 md:px-6">
           {fetchError ? (
             <EmptyState

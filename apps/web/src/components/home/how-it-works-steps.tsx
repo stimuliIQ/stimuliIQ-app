@@ -73,9 +73,16 @@ export function HowItWorksSteps({ steps }: { steps: Step[] }) {
         const even = index % 2 === 0;
         const isLast = index === steps.length - 1;
         const Icon = ICONS[index % ICONS.length]!;
-        // Alternate tints/pill colours between brand green and near-black.
-        const cardTint = even ? "bg-brand-50" : "bg-surface";
-        const pillColor = even ? "bg-brand-500" : "bg-fg";
+        // Alternate tints/pill colours between the green accent and near-black.
+        //
+        // `chart-3` (styles.css: "teal/green") is the accent the rest of the marketing
+        // site already uses for highlighted words, so the zigzag reads as brand rather
+        // than as a second, unrelated palette. It briefly used `chart-1` (blue) to keep
+        // this band from merging with the brand-tinted Why-Us section above it; the
+        // alternating near-black rows do that job on their own, and a blue stripe in a
+        // green identity was the worse trade. Staying on a token keeps dark mode working.
+        const cardTint = even ? "bg-chart-3/10" : "bg-surface";
+        const pillColor = even ? "bg-chart-3" : "bg-fg";
 
         return (
           <li key={step.title} className="relative">
@@ -89,8 +96,8 @@ export function HowItWorksSteps({ steps }: { steps: Step[] }) {
                 // (see below). Transform + shadow only — the tint stays put so the
                 // alternating green/neutral rhythm of the zigzag is preserved.
                 "ring-1 ring-transparent transition-[transform,box-shadow] duration-300 ease-out",
-                "hover:-translate-y-1.5 hover:shadow-xl hover:ring-brand-500/25",
-                "focus-within:-translate-y-1.5 focus-within:shadow-xl focus-within:ring-brand-500/25",
+                "hover:-translate-y-1.5 hover:shadow-xl hover:ring-chart-3/30",
+                "focus-within:-translate-y-1.5 focus-within:shadow-xl focus-within:ring-chart-3/30",
               ].join(" ")}
             >
               {/* Sheen that sweeps across on hover — decorative, non-interactive. */}
@@ -111,7 +118,7 @@ export function HowItWorksSteps({ steps }: { steps: Step[] }) {
               </div>
 
               <div className="relative flex items-center gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-card text-chart-3 shadow-sm transition-[transform,color] duration-300 ease-out group-hover:scale-110 group-hover:text-brand-600">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-card text-chart-3 shadow-sm transition-[transform,color] duration-300 ease-out group-hover:scale-110 group-hover:text-chart-3">
                   <Icon />
                 </span>
                 <h3 className="text-lg font-bold text-fg">

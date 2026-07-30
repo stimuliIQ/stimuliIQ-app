@@ -78,7 +78,7 @@ export function StudentsSay() {
     <section
       aria-label="What students say about our courses"
       data-testid="students-say"
-      className="border-t border-border bg-surface py-16 lg:py-24"
+      className="section-band py-16 lg:py-24"
     >
       <div className="mx-auto max-w-screen-xl px-4 md:px-6">
         <div className="mx-auto mb-12 max-w-xl text-center">
@@ -106,7 +106,10 @@ export function StudentsSay() {
               either side stretch to fill it. */}
           <div
             aria-hidden="true"
-            className="relative order-first aspect-[2/3] overflow-hidden rounded-2xl shadow-sm lg:order-none"
+            // Width cap below lg for the same reason as the Why-Us portrait: once the
+            // 3-column grid collapses, a full-width 2:3 box runs ~1150px tall on a
+            // tablet. Capping width keeps the artwork uncropped and proportionate.
+            className="relative order-first mx-auto aspect-[2/3] w-full max-w-[300px] overflow-hidden rounded-2xl shadow-sm sm:max-w-[340px] lg:order-none lg:max-w-none"
           >
             <Image
               src="/images/happy-students.webp"

@@ -51,12 +51,6 @@ const STATIC_ROUTES: MetadataRoute.Sitemap = [
     priority: 0.7,
   },
   {
-    url: `${SITE_URL}/faculty`,
-    lastModified: new Date(),
-    changeFrequency: "monthly",
-    priority: 0.6,
-  },
-  {
     url: `${SITE_URL}/testimonials`,
     lastModified: new Date(),
     changeFrequency: "monthly",

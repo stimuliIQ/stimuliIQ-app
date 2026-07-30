@@ -25,6 +25,26 @@ export function formatPaiseDisplay(paise: number): string {
 }
 
 /**
+ * Format the struck-through "was" price, or `undefined` when there shouldn't be one.
+ *
+ * Returns undefined unless `compareAtPaise` is STRICTLY above `pricePaise`, so a null,
+ * equal, or inverted value renders as a single price rather than as `₹6,999 ₹6,999` or a
+ * saving that runs backwards. The API applies the same rule before it serialises
+ * (`public-catalog.service.ts`) and the CRM rejects it at write time — this is the last
+ * of the three, and the one that protects a page rendered from cached or hand-built data.
+ *
+ * DISPLAY-ONLY, like `formatPaiseDisplay`: the charged amount is always server-derived
+ * from `pricePaise`.
+ */
+export function formatCompareAtDisplay(
+  compareAtPaise: number | null | undefined,
+  pricePaise: number,
+): string | undefined {
+  if (compareAtPaise == null || compareAtPaise <= pricePaise) return undefined;
+  return formatPaiseDisplay(compareAtPaise);
+}
+
+/**
  * Format a rating value from the ×10 integer scale to a display string.
  * API returns ratingAvg as integer 0–50 representing 0.0–5.0.
  * Example: 47 → "4.7"

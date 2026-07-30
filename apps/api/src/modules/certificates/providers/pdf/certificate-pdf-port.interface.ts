@@ -111,6 +111,38 @@ export interface CertificateDesign {
    * Custom footer lines (e.g. ["www.stimuliiq.com", "ISO 9001:2015 Certified"]).
    */
   footerLines?: string[];
+
+  // ── Private print assets ────────────────────────────────────────────────────
+  //
+  // These name a file inside the API's PRIVATE `assets/certificate/` directory —
+  // they are NOT URLs, and nothing here is ever served over HTTP. That is the point
+  // for `signatureFileName`: a scanned signature reachable by URL could be lifted and
+  // pasted onto a forgery, so the image is read from disk inside the API process and
+  // embedded straight into the PDF bytes.
+  //
+  // UNTRUSTED INPUT: `design` is a CRM-editable JSON column, so every name below is
+  // sanitised by `safeAssetName()` (basename only, strict charset, image extension)
+  // before it reaches the filesystem — see certificate-assets.ts. Omit any of them to
+  // take the default file name; a file that is absent is simply not drawn.
+
+  /** Authorised signature image. Default: `ceo-signature.png`. */
+  signatureFileName?: string;
+
+  /** Issuer wordmark printed at the head of the certificate. Default: `logo.png`. */
+  logoFileName?: string;
+
+  /** Optional accreditation marks shown beside the Certificate ID. */
+  isoBadgeFileName?: string;
+  msmeBadgeFileName?: string;
+
+  /**
+   * Authorised signatory printed under the signature line, e.g. "Chandra Shekar" /
+   * "Founder". Issuer-level, so it belongs on the template rather than being repeated on
+   * every certificate — but `CertificateRenderFields.signatoryName` still wins when a
+   * caller supplies one, which is what lets a single template cover a co-signed award.
+   */
+  signatoryName?: string;
+  signatoryDesignation?: string;
 }
 
 /**

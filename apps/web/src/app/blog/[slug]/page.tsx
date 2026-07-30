@@ -13,7 +13,7 @@
  */
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Breadcrumbs, RenderSink } from "@repo/ui";
+import { RenderSink } from "@repo/ui";
 import { buildMetadata, SITE_URL } from "../../../lib/seo/metadata";
 import { buildArticleJsonLd, buildBreadcrumbJsonLd } from "../../../lib/seo/json-ld";
 import { serverApiClient } from "../../../lib/api-client";
@@ -110,13 +110,6 @@ export default async function BlogPostPage({ params }: PageProps) {
       />
 
       <div className="mx-auto max-w-3xl px-4 py-12 sm:py-16 md:px-6">
-        {/* Breadcrumbs */}
-        <Breadcrumbs
-          items={BREADCRUMBS}
-          className="mb-8"
-          data-testid="blog-post-breadcrumbs"
-        />
-
         {/* Article header */}
         <header className="mb-10">
           {post.categoryName ? (

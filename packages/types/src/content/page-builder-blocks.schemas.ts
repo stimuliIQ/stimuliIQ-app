@@ -501,7 +501,11 @@ export const LiveCollectionSelectionTestimonialsSchema = z
 export const LiveCollectionSelectionPartnersSchema = z
   .object({
     category: z.string().min(1).max(80).optional(),
-    limit: z.number().int().min(1).max(24).default(12),
+    // max 60, raised from 24: the partner-college list is a full institutional roster
+    // (27 rows today and growing), not a curated teaser like programs or mentors, and
+    // /for-colleges is expected to show all of it. The cap exists to stop a runaway
+    // resolver query, not to curate — 60 keeps that guardrail with room to grow.
+    limit: z.number().int().min(1).max(60).default(12),
     sort: z.enum(["order", "newest"]).default("order"),
   })
   .strict();

@@ -17,7 +17,7 @@
 // PATCH .../modules/:moduleId 404s if moduleId doesn't belong to :programId, even if the
 // module exists under a different (or no) program the caller can't see.
 
-import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import type {
   CreateLessonRequest,
   CreateLessonResourceRequest,
@@ -239,6 +239,8 @@ export class CoursesService {
       });
     }
 
+    assertCompareAtAbovePrice(body.pricePaise, body.compareAtPricePaise);
+
     const row = await this.repository.create(tenantId, {
       slug: body.slug,
       title: body.title,
@@ -247,6 +249,7 @@ export class CoursesService {
       mode: body.mode,
       durationWeeks: body.durationWeeks,
       pricePaise: body.pricePaise,
+      compareAtPricePaise: body.compareAtPricePaise ?? null,
       emi: body.emi,
       summary: body.summary,
       seo: body.seo,
@@ -277,6 +280,13 @@ export class CoursesService {
         });
       }
     }
+
+    // Cross-field, so it can't live in the zod schema: a PATCH may carry either field
+    // alone, and the missing half has to come from the stored row.
+    assertCompareAtAbovePrice(
+      body.pricePaise ?? existing.pricePaise,
+      body.compareAtPricePaise === undefined ? existing.compareAtPricePaise : body.compareAtPricePaise,
+    );
 
     const row = await this.repository.update(id, body);
     return toDetail(row);
@@ -453,6 +463,27 @@ function toLessonResource(row: {
   };
 }
 
+/**
+ * A struck-through "was" price must be STRICTLY above the real price. Equal renders as
+ * `₹6,999 ₹6,999`; below advertises a saving that runs the wrong way. Either is a false
+ * price claim on a public page, so it is rejected at write time rather than papered over
+ * at render time (the public projection ALSO nulls a bad value out — defence in depth,
+ * because rows can predate this check or be written by a future code path).
+ *
+ * Null/undefined is always valid: it means "no strike, show a single price".
+ */
+function assertCompareAtAbovePrice(pricePaise: number, compareAtPricePaise: number | null | undefined): void {
+  if (compareAtPricePaise == null) return;
+  if (compareAtPricePaise > pricePaise) return;
+  throw new BadRequestException({
+    code: "courses.compare_at_price_not_above_price",
+    title: "Compare-at price must be higher than the price",
+    detail:
+      `compareAtPricePaise (${compareAtPricePaise}) must be strictly greater than pricePaise ` +
+      `(${pricePaise}). Leave it empty to show a single price.`,
+  });
+}
+
 function toSummary(row: ProgramRow): ProgramSummary {
   return {
     id: row.id,
@@ -466,6 +497,7 @@ function toSummary(row: ProgramRow): ProgramSummary {
     mode: row.mode as ProgramSummary["mode"],
     durationWeeks: row.durationWeeks ?? 0,
     pricePaise: row.pricePaise,
+    compareAtPricePaise: row.compareAtPricePaise,
     status: row.status as ProgramSummary["status"],
     isPublic: row.isPublic,
     createdAt: row.createdAt.toISOString(),

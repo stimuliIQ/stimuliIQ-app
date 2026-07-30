@@ -2341,19 +2341,34 @@ async function main(): Promise<void> {
       data: {
         tenantId: tenant.id,
         name: "Stimuliiq Standard Certificate",
+        // Directives consumed by SyncCertificatePdfAdapter (CertificateDesign). The
+        // earlier x/y coordinate map was dead weight — that renderer lays the
+        // certificate out with flexbox, so absolute positions were never read.
+        //
+        // The `*FileName` keys name images in the API's PRIVATE assets/certificate/
+        // directory; they are NOT URLs and are never served over HTTP (the authorised
+        // signature must not be liftable from the web). Each is optional — an absent
+        // file simply is not drawn. See apps/api/assets/certificate/README.md.
         design: {
-          layout: "landscape",
-          background: "#ffffff",
-          logo: { x: 50, y: 30, width: 150 },
-          title: { x: 400, y: 120, fontSize: 36, fontWeight: "bold", color: "#1a1a2e" },
-          body: { x: 400, y: 200, fontSize: 18, color: "#333333" },
-          certId: { x: 400, y: 500, fontSize: 12, color: "#666666" },
+          orientation: "landscape",
+          orgName: "STIMULIIQ",
+          accentColor: "#14563C",
+          textColor: "#1F2933",
+          borderColor: "#14563C",
+          backgroundColor: "#FFFFFF",
+          signatoryName: "Chandra Shekar",
+          signatoryDesignation: "Founder",
+          logoFileName: "logo.png",
+          signatureFileName: "ceo-signature.png",
+          isoBadgeFileName: "iso-badge.png",
+          msmeBadgeFileName: "msme-badge.png",
+          footerLines: ["Ministry of MSME, Govt. of India"],
         },
         fields: [
-          { key: "student_name", label: "Student Name", x: 400, y: 180 },
-          { key: "program_title", label: "Program Title", x: 400, y: 230 },
-          { key: "issued_at", label: "Date of Issue", x: 250, y: 450, format: "DD MMM YYYY" },
-          { key: "cert_uid", label: "Certificate ID", x: 550, y: 480 },
+          { key: "student_name", label: "Student Name" },
+          { key: "program_title", label: "Program Title" },
+          { key: "issued_at", label: "Date of Issue", format: "DD MMMM YYYY" },
+          { key: "serial", label: "Certificate ID" },
         ],
         status: "active",
       },
@@ -4247,9 +4262,7 @@ async function main(): Promise<void> {
       links: [
         { label: "About Us", href: "/about" },
         { label: "Mentors", href: "/mentors" },
-        { label: "Faculty", href: "/faculty" },
         { label: "Testimonials", href: "/testimonials" },
-        { label: "Partners", href: "/partners" },
         { label: "Gallery", href: "/gallery" },
         { label: "Careers", href: "/careers" },
       ],
@@ -4285,13 +4298,13 @@ async function main(): Promise<void> {
   // interpolates `new Date().getFullYear()` at render time (site-shell.tsx
   // CURRENT_YEAR); baking in a specific year here would go stale.
   await upsertSiteSetting("footer.copyright_text", "footer", {
-    template: "© {year} StimuliiQ Technologies Pvt. Ltd. All rights reserved.",
+    template: "© {year} Stimuli IQ Technologies Pvt. Ltd. All rights reserved.",
   });
 
   await upsertSiteSetting("seo.defaults", "seo", {
-    siteName: "StimuliiQ",
+    siteName: "Stimuli IQ",
     defaultDescription:
-      "StimuliiQ is India's internship and career training platform for MBBS, BDS, Nursing, Pharmacy, and Allied Health students. Structured programs, verifiable certificates, clinician mentors.",
+      "Stimuli IQ is India's internship and career training platform for MBBS, BDS, Nursing, Pharmacy, and Allied Health students. Structured programs, verifiable certificates, clinician mentors.",
     // Relative path — combined with NEXT_PUBLIC_SITE_URL at render time (matches
     // apps/web/src/lib/seo/metadata.ts DEFAULT_OG_IMAGE, which is env-derived).
     defaultOgImagePath: "/og-default.png",
@@ -4316,7 +4329,7 @@ async function main(): Promise<void> {
   // comment to match this raw-text convention.
   await upsertSiteSetting("contact.whatsapp", "contact", {
     number: "919177748321",
-    message: "Hi, I want to know more about StimuliiQ programs",
+    message: "Hi, I want to know more about Stimuli IQ programs",
   });
 
   // announcement.bar — the CRM-toggleable message strip above the website header
@@ -4366,42 +4379,42 @@ async function main(): Promise<void> {
   const BUILDER_PAGES: Array<{ slug: string; title: string; seoTitle: string; seoDescription: string }> = [
     {
       slug: "home",
-      title: "StimuliiQ | Healthcare Training & Internships for Students in India",
-      seoTitle: "StimuliiQ — Healthcare Training & Internships in India",
+      title: "Stimuli IQ | Healthcare Training & Internships for Students in India",
+      seoTitle: "Stimuli IQ — Healthcare Training & Internships in India",
       seoDescription:
         "Structured training and internship tracks in psychology, clinical practice, and allied healthcare. Healthcare mentors, real case work, and verifiable certificates.",
     },
     {
       slug: "about",
       title: "About Us",
-      seoTitle: "About StimuliiQ",
+      seoTitle: "About Stimuli IQ",
       seoDescription:
         "Stimuli IQ is a healthcare education and training platform for India's medical, psychology, and allied health science students — bridging the gap between academics and real practice.",
     },
     {
       slug: "scholarship",
-      title: "StimuliiQ Scholarship Programme",
-      seoTitle: "StimuliiQ Scholarship Programme — Merit & Need Based Fee Waivers",
+      title: "Stimuli IQ Scholarship Programme",
+      seoTitle: "Stimuli IQ Scholarship Programme — Merit & Need Based Fee Waivers",
       seoDescription:
-        "The StimuliiQ Scholarship grants merit-and-need-based fee waivers of up to 50% on healthcare training and internship programs for students across India.",
+        "The Stimuli IQ Scholarship grants merit-and-need-based fee waivers of up to 50% on healthcare training and internship programs for students across India.",
     },
     {
       slug: "for-colleges",
       title: "For Campus Communities",
       seoTitle: "For Campus Communities — Healthcare Training Collaborations",
-      seoDescription: "Collaborate with StimuliiQ to bring hands-on healthcare training, workshops, mentorship, and career exposure to your campus community.",
+      seoDescription: "Collaborate with Stimuli IQ to bring hands-on healthcare training, workshops, mentorship, and career exposure to your campus community.",
     },
     {
       slug: "gallery",
       title: "Gallery",
       seoTitle: "Gallery | Sessions, Certificates & Events",
-      seoDescription: "Photos and highlights from StimuliiQ training sessions, certificate ceremonies, and industry events.",
+      seoDescription: "Photos and highlights from Stimuli IQ training sessions, certificate ceremonies, and industry events.",
     },
     {
       slug: "careers",
-      title: "Careers at StimuliiQ",
-      seoTitle: "Careers at StimuliiQ",
-      seoDescription: "Join the StimuliiQ team. We are hiring instructors, counsellors, and engineers passionate about transforming medical training in India.",
+      title: "Careers at Stimuli IQ",
+      seoTitle: "Careers at Stimuli IQ",
+      seoDescription: "Join the Stimuli IQ team. We are hiring instructors, counsellors, and engineers passionate about transforming medical training in India.",
     },
   ];
 

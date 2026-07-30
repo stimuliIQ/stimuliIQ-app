@@ -11,6 +11,7 @@
 import { Injectable } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { resolveTenantIdCached } from "../../common/tenant/tenant-id-cache";
 
 export interface LeadFormRow {
   id: string;
@@ -90,7 +91,14 @@ export class LeadFormsRepository {
 
   /** Resolves the tenant id for the public (unauthenticated) surface — mirrors public.repository.ts. */
   async getTenantIdBySlug(tenantSlug: string): Promise<string | null> {
-    const row = await this.prisma.client.tenant.findUnique({ where: { slug: tenantSlug }, select: { id: true } });
-    return row?.id ?? null;
+    // Memoised per process — the slug is a compile-time constant and this is a
+    // cross-region round trip. See common/tenant/tenant-id-cache.ts.
+    return resolveTenantIdCached(tenantSlug, async () => {
+      const row = await this.prisma.client.tenant.findUnique({
+        where: { slug: tenantSlug },
+        select: { id: true },
+      });
+      return row?.id ?? null;
+    });
   }
 }

@@ -190,6 +190,8 @@ StickyBuyCard.displayName = "StickyBuyCard";
 
 export interface MobileBuyBarProps {
   priceDisplay: string;
+  /** Optional struck-through "was" price, e.g. "₹14,999". */
+  originalPriceDisplay?: string;
   primaryCtaLabel?: string;
   primaryCtaHref?: string;
   onPrimaryCtaClick?: () => void;
@@ -199,6 +201,7 @@ export interface MobileBuyBarProps {
 
 export function MobileBuyBar({
   priceDisplay,
+  originalPriceDisplay,
   primaryCtaLabel = "Enroll Now",
   primaryCtaHref,
   onPrimaryCtaClick,
@@ -216,8 +219,14 @@ export function MobileBuyBar({
       )}
     >
       {/* Price — aria-live so dynamic updates are announced */}
-      <div aria-live="polite" aria-atomic="true">
+      <div aria-live="polite" aria-atomic="true" className="flex items-baseline gap-1.5">
         <span className="text-xl font-bold text-fg">{priceDisplay}</span>
+        {originalPriceDisplay ? (
+          <>
+            <span aria-hidden="true" className="text-sm text-fg-subtle line-through">{originalPriceDisplay}</span>
+            <span className="sr-only">, reduced from {originalPriceDisplay}</span>
+          </>
+        ) : null}
       </div>
 
       {/* CTA — ≥44px */}

@@ -61,8 +61,14 @@ export interface ProgramCardProps {
   duration?: string;
   mode?: string;
   level?: string;
-  /** Formatted price string e.g. "₹12,999". */
+  /** Formatted price string e.g. "₹12,999" — the amount actually charged. */
   priceDisplay?: string;
+  /**
+   * Optional struck-through "was" price e.g. "₹14,999". Display only; the caller is
+   * responsible for only passing it when it is genuinely higher than `priceDisplay`
+   * (web callers go through `formatCompareAtDisplay`, which enforces that).
+   */
+  originalPriceDisplay?: string;
   /** Optional EMI blurb e.g. "EMI from ₹1,100/mo". */
   emiDisplay?: string;
   /** 0–5 rating average. */
@@ -91,6 +97,7 @@ export function ProgramCard({
   mode,
   level,
   priceDisplay,
+  originalPriceDisplay,
   emiDisplay,
   ratingAvg,
   ratingCount,
@@ -198,7 +205,20 @@ export function ProgramCard({
             {/* Price */}
             {priceDisplay ? (
               <div className="flex flex-col gap-0.5">
-                <span className="text-base font-bold text-fg">{priceDisplay}</span>
+                <span className="flex items-baseline gap-1.5">
+                  <span className="text-base font-bold text-fg">{priceDisplay}</span>
+                  {/* Struck-through "was" price. `line-through` alone is a purely visual
+                      cue, so the screen-reader text spells the relationship out — a
+                      listener would otherwise just hear two prices in a row. */}
+                  {originalPriceDisplay ? (
+                    <>
+                      <span aria-hidden="true" className="text-xs text-fg-subtle line-through">
+                        {originalPriceDisplay}
+                      </span>
+                      <span className="sr-only">, reduced from {originalPriceDisplay}</span>
+                    </>
+                  ) : null}
+                </span>
                 {emiDisplay ? (
                   <span className="text-xs text-fg-muted">{emiDisplay}</span>
                 ) : null}

@@ -30,10 +30,13 @@ function PulseRings() {
   // so one is always mid-expansion — a continuous pulse rather than a triple blink.
   return (
     <>
+      {/* No translate utilities — `animate-pulse-ring` carries the centring offset in
+          its own keyframe (see globals.css), and an animated transform would replace
+          any `-translate-x-1/2` set here. */}
       {[0, 1.2, 2.4].map((delay) => (
         <span
           key={delay}
-          className="animate-pulse-ring absolute left-1/2 top-1/2 h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/50"
+          className="animate-pulse-ring absolute left-1/2 top-1/2 h-32 w-32 rounded-full border border-white/50"
           style={{ animationDelay: `${delay}s` }}
         />
       ))}

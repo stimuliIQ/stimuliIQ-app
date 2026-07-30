@@ -14,7 +14,6 @@
  * hour). SEO: metadata + Breadcrumb JSON-LD.
  */
 import type { Metadata } from "next";
-import { Breadcrumbs } from "@repo/ui";
 import { buildMetadata, SITE_URL } from "../../lib/seo/metadata";
 import { buildBreadcrumbJsonLd } from "../../lib/seo/json-ld";
 import { serverApiClient } from "../../lib/api-client";
@@ -32,7 +31,7 @@ export const revalidate = 3600; // ISR: CRM changes surface within the hour
 export const metadata: Metadata = buildMetadata({
   title: "Mentors — Learn from Industry Experts",
   description:
-    "Meet StimuliiQ's mentors: active engineers and specialists from top companies like Google, Microsoft, and Amazon who review your projects and guide your career.",
+    "Meet Stimuli IQ's mentors: active engineers and specialists from top companies like Google, Microsoft, and Amazon who review your projects and guide your career.",
   canonicalPath: "/mentors",
 });
 
@@ -72,22 +71,21 @@ export default async function MentorsPage() {
   let mentorsCursor: string | null = null;
   let programs: PublicProgramSummary[] = [];
 
-  try {
-    const result = await serverApiClient.public.mentors.list({ limit: 8 });
-    mentors = Array.isArray(result.items) ? result.items : [];
-    mentorsCursor = result.meta?.nextCursor ?? null;
-  } catch {
-    mentors = [];
-  }
+  // Two independent reads — issued CONCURRENTLY so the render costs one API
+  // round trip rather than two (same rationale as app/page.tsx). `allSettled`
+  // keeps the per-section degradation the two try/catch blocks provided: an
+  // empty mentor list must not also blank the course strip.
+  const [mentorsResult, programsResult] = await Promise.allSettled([
+    serverApiClient.public.mentors.list({ limit: 8 }),
+    serverApiClient.public.programs.list({ limit: 50, sort: "popularity" }),
+  ]);
 
-  try {
-    const result = await serverApiClient.public.programs.list({
-      limit: 50,
-      sort: "popularity",
-    });
-    programs = Array.isArray(result.items) ? result.items : [];
-  } catch {
-    programs = [];
+  if (mentorsResult.status === "fulfilled" && Array.isArray(mentorsResult.value.items)) {
+    mentors = mentorsResult.value.items;
+    mentorsCursor = mentorsResult.value.meta?.nextCursor ?? null;
+  }
+  if (programsResult.status === "fulfilled" && Array.isArray(programsResult.value.items)) {
+    programs = programsResult.value.items;
   }
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd(BREADCRUMBS, SITE_URL);
@@ -102,7 +100,6 @@ export default async function MentorsPage() {
 
       {/* 1. Hero */}
       <section aria-label="Our mentors" className="mx-auto max-w-screen-xl px-4 pt-10 md:px-6">
-        <Breadcrumbs items={BREADCRUMBS} className="mb-10" data-testid="mentors-breadcrumbs" />
         <div className="flex items-end justify-between gap-8 pb-12 lg:pb-16">
           <h1 className="max-w-3xl font-display text-4xl font-bold leading-[1.08] tracking-tight text-fg sm:text-5xl lg:text-6xl">
             Meet our industry&apos;s

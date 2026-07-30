@@ -8,6 +8,7 @@
 import { Injectable } from "@nestjs/common";
 import type { ContentStatus as PrismaContentStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { resolveTenantIdCached } from "../../common/tenant/tenant-id-cache";
 
 export interface BlogCategoryRow {
   id: string;
@@ -209,7 +210,14 @@ export class BlogRepository {
 
   /** Resolves the tenant id for the public (unauthenticated) surface. */
   async getTenantIdBySlug(slug: string): Promise<string | null> {
-    const row = await this.prisma.client.tenant.findUnique({ where: { slug }, select: { id: true } });
-    return row?.id ?? null;
+    // Memoised per process — the slug is a compile-time constant and this is a
+    // cross-region round trip. See common/tenant/tenant-id-cache.ts.
+    return resolveTenantIdCached(slug, async () => {
+      const row = await this.prisma.client.tenant.findUnique({
+        where: { slug },
+        select: { id: true },
+      });
+      return row?.id ?? null;
+    });
   }
 }

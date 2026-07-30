@@ -2,14 +2,13 @@
  * /terms — Terms of Service page.
  */
 import type { Metadata } from "next";
-import { Breadcrumbs } from "@repo/ui";
 import { buildMetadata, SITE_URL } from "../../lib/seo/metadata";
 import { buildBreadcrumbJsonLd } from "../../lib/seo/json-ld";
 
 export const metadata: Metadata = buildMetadata({
   title: "Terms of Service",
   description:
-    "StimuliiQ Terms of Service — the rules and guidelines governing your use of our platform and programs.",
+    "Stimuli IQ Terms of Service — the rules and guidelines governing your use of our platform and programs.",
   canonicalPath: "/terms",
 });
 
@@ -30,7 +29,6 @@ export default function TermsPage() {
       />
 
       <div className="mx-auto max-w-3xl px-4 py-12 sm:py-16 md:px-6">
-        <Breadcrumbs items={BREADCRUMBS} className="mb-8" />
 
         <header className="mb-10">
           <h1 className="text-3xl font-bold text-fg">Terms of Service</h1>
@@ -41,15 +39,15 @@ export default function TermsPage() {
 
         <article className="prose prose-sm max-w-none text-fg-muted" data-testid="terms-content">
           <p>
-            By accessing or using StimuliiQ&apos;s website, programs, or services, you agree to these
+            By accessing or using Stimuli IQ&apos;s website, programs, or services, you agree to these
             Terms of Service. Please read them carefully.
           </p>
 
           <h2>1. Eligibility</h2>
           <p>
             You must be at least 18 years old (or have parental/guardian consent) to enroll in a program.
-            Programs are designed for students pursuing B.Tech, MCA, MBA, Diploma, or similar technical
-            qualifications.
+            Programs are designed for students pursuing MBBS, BDS, BPT, BA or BSc, and allied health
+            science qualifications.
           </p>
 
           <h2>2. Program enrolment</h2>
@@ -62,7 +60,7 @@ export default function TermsPage() {
           <h2>3. Intellectual property</h2>
           <p>
             All course content, videos, assessments, and materials are the intellectual property of
-            StimuliiQ Technologies Pvt. Ltd. and are licensed to you for personal educational use only.
+            Stimuli IQ Technologies Pvt. Ltd. and are licensed to you for personal educational use only.
             You may not reproduce, redistribute, or sell any content.
           </p>
 

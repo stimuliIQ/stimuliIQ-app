@@ -1,0 +1,18 @@
+-- Program commerce: struck-through "was" price.
+--
+-- Renders as `₹14,999 ₹6,999` on the public site — the higher figure struck through,
+-- `price_paise` charged. Marketing wanted the saving visible without naming an offer,
+-- so there is deliberately no campaign/label/expiry column here: this is two numbers,
+-- not a promotion. A promotion with a name, window and eligibility belongs in the
+-- coupons tables, which already exist.
+--
+-- NULLABLE with no default ON PURPOSE. Backfilling every existing program with a fake
+-- "was" price would invent a discount that was never offered, which is exactly the
+-- claim we must not make. Null = "show one price", which is how every row behaves
+-- until someone sets a value in the CRM.
+--
+-- DISPLAY ONLY, enforced by omission: no order/coupon/invoice path reads this column.
+-- amount_paise is still derived from price_paise minus coupon discount server-side
+-- (CLAUDE.md §3.6), so a mis-set compare-at can mislead a reader but can never
+-- overcharge or undercharge one.
+ALTER TABLE "programs" ADD COLUMN "compare_at_price_paise" INTEGER;

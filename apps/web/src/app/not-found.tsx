@@ -13,7 +13,7 @@ import { buildMetadata } from "../lib/seo/metadata";
 
 export const metadata: Metadata = buildMetadata({
   title: "Page Not Found",
-  description: "The page you are looking for does not exist. Browse StimuliiQ programs or return home.",
+  description: "The page you are looking for does not exist. Browse Stimuli IQ programs or return home.",
   noIndex: true,
 });
 

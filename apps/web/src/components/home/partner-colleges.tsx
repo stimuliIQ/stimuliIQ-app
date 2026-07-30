@@ -13,21 +13,21 @@
  * so it never renders blank — the same resilience contract as the rest of the
  * code-owned homepage.
  *
- * Logos: a live college carries a minted `logoUrl` (from the CRM upload); hardcoded
- * fallback entries may carry a `logo` path under /public. When neither is present we
- * render a monogram chip from the initials, so the grid stays visually complete.
+ * Logos: a live college carries a minted `logoUrl` (from the CRM upload); when it does
+ * not, `resolveCollegeLogo` falls back to the logo bundled under /public/colleges (see
+ * `lib/college-logos.ts` — none of the live CRM rows carry an upload today, which is why
+ * every card was rendering as initials). With neither, we render a monogram chip, so the
+ * grid stays visually complete for a college we don't have artwork for.
  *
- * Responsive: 1 col → 2 cols (sm) → 3 cols (lg) → 4 (xl). The grid sits inside a
- * height-capped, vertically-scrolling viewport so the section's footprint stays fixed
- * however many colleges the CRM holds. At 3–4 columns twelve cards fit without
- * scrolling; at 1–2 columns the box scrolls instead of stretching the page.
+ * Responsive: 1 col → 2 cols (sm) → 3 cols (lg) → 4 (xl). The grid renders every college
+ * in full — it used to sit in a height-capped scrolling viewport, which produced a
+ * nested scrollbar inside the page and hid most of the list behind it.
  *
  * a11y: section landmark + aria-label, h2/h3 hierarchy, role="list" grid,
- * decorative logo/monogram + location pin hidden from screen readers. The scroll
- * viewport is keyboard-focusable and labelled (WCAG 2.2 §2.1.1 — a scrollable region
- * must be operable without a mouse).
+ * decorative logo/monogram + location pin hidden from screen readers.
  */
 import type { PublicPartner } from "@repo/types";
+import { bundledCollegeLogo, resolveCollegeLogo } from "../../lib/college-logos";
 
 // ---------------------------------------------------------------------------
 // Content
@@ -49,84 +49,48 @@ function toCard(p: PublicPartner): PartnerCollege {
     focus: p.focus ?? undefined,
     established: p.established != null ? String(p.established) : undefined,
     city: p.city ?? undefined,
-    logo: p.logoUrl ?? undefined,
+    logo: resolveCollegeLogo(p.name, p.logoUrl),
   };
 }
 
+/**
+ * Fallback showcase, used only when the CRM list is empty or the API is down.
+ *
+ * These are the same 27 institutions the CRM holds, transcribed from
+ * `docs/colleges/College_Logo_Sheet.docx` — so the fallback and the live list agree, and
+ * every entry resolves a bundled logo. `focus` is each institution's own affiliation line
+ * from that sheet and `city` its locality; `established` is deliberately absent because
+ * the sheet doesn't carry founding years and they are not ours to invent.
+ */
 const PARTNER_COLLEGES: PartnerCollege[] = [
-  {
-    name: "St. John's Medical College",
-    focus: "Teaching Hospital & Research",
-    established: "1963",
-    city: "Bengaluru",
-  },
-  {
-    name: "Manipal College of Medical Sciences",
-    focus: "Multi-speciality & Research",
-    established: "1953",
-    city: "Bengaluru",
-  },
-  {
-    name: "MS Ramaiah Medical College",
-    focus: "Clinical Research & Education",
-    established: "1979",
-    city: "Bengaluru",
-  },
-  {
-    name: "Kempegowda Institute of Medical Sciences",
-    focus: "Healthcare & Allied Sciences",
-    established: "1980",
-    city: "Bengaluru",
-  },
-  {
-    name: "Bangalore Medical College & RI",
-    focus: "Government Teaching Hospital",
-    established: "1955",
-    city: "Bengaluru",
-  },
-  {
-    name: "RajaRajeswari Medical College",
-    focus: "Modern Medical Education",
-    established: "2004",
-    city: "Bengaluru",
-  },
-  {
-    name: "Grant Medical College & Sir JJ Hospital",
-    focus: "Premier Government Medical College",
-    established: "1845",
-    city: "Mumbai",
-  },
-  {
-    name: "KEM Hospital & Seth GS Medical College",
-    focus: "Research & Clinical Excellence",
-    established: "1926",
-    city: "Mumbai",
-  },
-  {
-    name: "Lokmanya Tilak Municipal Medical College",
-    focus: "Municipal Teaching Hospital",
-    established: "1964",
-    city: "Mumbai",
-  },
-  {
-    name: "LTMMC Sion Hospital",
-    focus: "Healthcare & Surgical Sciences",
-    established: "1964",
-    city: "Mumbai",
-  },
-  {
-    name: "D.Y. Patil Medical College",
-    focus: "Private Medical Education & Research",
-    established: "1989",
-    city: "Mumbai",
-  },
-  {
-    name: "Topiwala National Medical College",
-    focus: "Nair Hospital — Trauma & Emergency",
-    established: "1921",
-    city: "Mumbai",
-  },
-];
+  { name: "Manipal Tata Medical College", focus: "Constituent of MAHE (Deemed), Manipal", city: "Jamshedpur" },
+  { name: "Santosh Medical College & Hospital", focus: "Santosh Deemed to be University", city: "Ghaziabad" },
+  { name: "M. S. Ramaiah Medical College", focus: "Affiliated to RGUHS", city: "Bengaluru" },
+  { name: "Kasturba Medical College (KMC), Manipal", focus: "Constituent of MAHE (Deemed)", city: "Manipal" },
+  { name: "Lady Shri Ram College for Women (LSR)", focus: "Constituent college, University of Delhi", city: "New Delhi" },
+  { name: "Tata Institute of Social Sciences (TISS)", focus: "Deemed to be University", city: "Mumbai" },
+  { name: "Christ University (CHRIST)", focus: "Deemed to be University", city: "Bengaluru" },
+  { name: "GITAM Institute of Medical Sciences & Research", focus: "GITAM Deemed to be University", city: "Visakhapatnam" },
+  { name: "SRM Dental College", focus: "SRM Institute of Science & Technology", city: "Ramapuram" },
+  { name: "MGM Medical College, Navi Mumbai", focus: "MGM Institute of Health Sciences (Deemed)", city: "Kamothe" },
+  { name: "Kalinga Institute of Medical Sciences (KIMS)", focus: "KIIT Deemed to be University", city: "Bhubaneswar" },
+  { name: "Sri Venkateswara Institute of Medical Sciences (SVIMS)", focus: "State University (SVIMS, Tirupati)", city: "Tirupati" },
+  { name: "ESIC Medical College & Hospital, Chennai", focus: "ESIC, Ministry of Labour & Employment", city: "K.K. Nagar" },
+  { name: "ESIC Medical College & Hospital, Hyderabad", focus: "ESIC, Ministry of Labour & Employment", city: "Sanathnagar" },
+  { name: "Bharati Vidyapeeth Dental College & Hospital", focus: "Bharati Vidyapeeth Deemed University", city: "Pune" },
+  { name: "Adesh Medical College & Hospital", focus: "Affiliated to Kurukshetra University", city: "Shahabad" },
+  { name: "Indira Gandhi Medical College & Research Institute", focus: "Govt. of Puducherry / Pondicherry University", city: "Puducherry" },
+  { name: "Rajarajeswari Medical College & Hospital", focus: "Affiliated to RGUHS", city: "Bengaluru" },
+  { name: "Bhaskar Medical College", focus: "Affiliated to KNRUHS", city: "Moinabad" },
+  { name: "ASRAM Medical College", focus: "Affiliated to Dr. NTR University of Health Sciences", city: "Eluru" },
+  { name: "KLE's JGMM Medical College", focus: "KLE Academy of Higher Education & Research", city: "Hubballi" },
+  { name: "SSPM Medical College & Lifetime Hospital", focus: "Affiliated to MUHS, Nashik", city: "Padve" },
+  { name: "AIIMS Jammu", focus: "Institute of National Importance", city: "Vijaypur" },
+  { name: "AIIMS Hyderabad (Bibinagar)", focus: "Institute of National Importance", city: "Bibinagar" },
+  { name: "AIIMS Jodhpur", focus: "Institute of National Importance", city: "Jodhpur" },
+  { name: "AIIMS Nagpur", focus: "Institute of National Importance", city: "Mihan" },
+  { name: "Indira Gandhi Govt. Medical College (IGGMC)", focus: "Govt. of Maharashtra, affiliated to MUHS", city: "Nagpur" },
+].map((c) => ({ ...c, logo: bundledCollegeLogo(c.name) }));
 
 // ---------------------------------------------------------------------------
 // Bits
@@ -228,7 +192,7 @@ export function PartnerColleges({ colleges }: { colleges?: PublicPartner[] }) {
     <section
       aria-label="Partner colleges and institutions"
       data-testid="partner-colleges"
-      className="border-t border-border py-12 lg:py-16"
+      className="py-12 lg:py-16"
     >
       <div className="mx-auto max-w-screen-xl px-4 md:px-6">
         <div className="mx-auto mb-8 max-w-xl text-center lg:mb-10">
@@ -240,30 +204,20 @@ export function PartnerColleges({ colleges }: { colleges?: PublicPartner[] }) {
           </p>
         </div>
 
-        {/* Capped, vertically-scrolling viewport. The list is CRM-managed and open-ended,
-            so its height must not grow with the row count — past ~8 entries the section
-            was pushing the rest of the homepage below the fold.
-
-            a11y (WCAG 2.2 §2.1.1): a scrollable region must be reachable and operable by
-            keyboard, so this carries tabIndex={0} + role="group" + a label and a visible
-            focus ring. `overscroll-contain` stops a scroll that reaches the bottom of this
-            box from chaining into the page behind it. */}
-        <div
-          tabIndex={0}
-          role="group"
-          aria-label="Partner colleges and institutions, scrollable list"
-          className="max-h-[22rem] overflow-y-auto overscroll-contain rounded-xl pr-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:max-h-[24rem]"
-          data-testid="partner-colleges-scroll"
+        {/* Every college, in one grid. This was a `max-h` + `overflow-y-auto` viewport,
+            which capped the section's height at the cost of a scrollbar nested inside the
+            page — it hid two thirds of the list and hijacked the wheel over that region.
+            The cards are compact enough (one row each) that the full list is a reasonable
+            page cost. */}
+        <ul
+          role="list"
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          data-testid="partner-colleges-grid"
         >
-          <ul
-            role="list"
-            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-          >
-            {list.map((college) => (
-              <CollegeCard key={college.name} college={college} />
-            ))}
-          </ul>
-        </div>
+          {list.map((college) => (
+            <CollegeCard key={college.name} college={college} />
+          ))}
+        </ul>
       </div>
     </section>
   );

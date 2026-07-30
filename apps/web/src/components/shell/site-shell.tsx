@@ -56,12 +56,12 @@ const DEFAULT_WA_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? WHATSAPP_NU
  */
 const DEFAULT_WA_MESSAGE =
   process.env.NEXT_PUBLIC_WHATSAPP_MESSAGE ??
-  "Hi, I want to know more about StimuliiQ programs";
+  "Hi, I want to know more about Stimuli IQ programs";
 const DEFAULT_CONTACT_TEXT =
   "India's Next Generation Healthcare Learning Platform";
 
 const CURRENT_YEAR = new Date().getFullYear();
-const DEFAULT_COPYRIGHT_TEXT = `© ${CURRENT_YEAR} StimuliiQ Technologies Pvt. Ltd. All rights reserved.`;
+const DEFAULT_COPYRIGHT_TEXT = `© ${CURRENT_YEAR} All rights reserved to stimuliiq.com`;
 
 // ---------------------------------------------------------------------------
 // Logo
@@ -71,7 +71,7 @@ function SiteLogo(): React.JSX.Element {
   return (
     <Image
       src="/stimuliiq-logo.png"
-      alt="StimuliiQ"
+      alt="Stimuli IQ"
       width={1506}
       height={355}
       priority
@@ -222,7 +222,7 @@ export function SiteShell({
       {/* WhatsApp click-to-chat FAB — always visible (below ConsentBanner z-index) */}
       <WhatsAppFab
         href={waHref}
-        aria-label="Chat with a StimuliiQ counsellor on WhatsApp"
+        aria-label="Chat with a Stimuli IQ counsellor on WhatsApp"
         data-testid="whatsapp-fab"
       />
 

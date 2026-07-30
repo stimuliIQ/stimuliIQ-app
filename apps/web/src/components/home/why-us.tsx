@@ -1,5 +1,5 @@
 /**
- * WhyUsSection — homepage "Why StimuliiQ?" block (black & white redesign).
+ * WhyUsSection — homepage "Why Stimuli IQ?" block (black & white redesign).
  *
  * Matches the reference layout: centered heading + two-line subtext over a
  * light-grey band, then a 3-column composition — two stacked white cards on
@@ -16,7 +16,7 @@
  * a11y: section landmark with aria-label, h2 + h3 hierarchy, decorative
  * icons/photo hidden from screen readers.
  */
-import { WhyUsVisual } from "./why-us-visual";
+import Image from "next/image";
 
 // ---------------------------------------------------------------------------
 // Icons (inline SVG, stroke = currentColor)
@@ -155,12 +155,20 @@ function WhyUsCard({
     // `group` drives the hover treatment on the icon chip and title below.
     // focus-within mirrors :hover so the same affordance appears for keyboard
     // users if a card ever gains a focusable child (WCAG 2.2 §2.4.11).
+    //
+    // The resting card carries a real `border` and sits on a brand-tinted band. It
+    // used to be `bg-card` (#ffffff) on `bg-surface` (#f7f8fa) with a transparent
+    // ring — an 8/255 difference, so the cards were invisible as cards.
+    //
+    // Hover reads as a POP-OUT rather than a nudge: it lifts and scales, takes a
+    // deep shadow and a brand ring, and `z-10` raises it above its neighbours so
+    // the growth overlaps them instead of being clipped between them.
     <div
       className={[
-        "group relative flex flex-1 flex-col overflow-hidden rounded-2xl bg-card p-7 shadow-sm",
-        "ring-1 ring-transparent transition-[transform,box-shadow] duration-300 ease-out",
-        "hover:-translate-y-1 hover:shadow-lg hover:ring-brand-500/25",
-        "focus-within:-translate-y-1 focus-within:shadow-lg focus-within:ring-brand-500/25",
+        "group relative z-0 flex flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card p-7 shadow-sm",
+        "ring-1 ring-transparent transition-[transform,box-shadow,border-color] duration-300 ease-out",
+        "hover:z-10 hover:-translate-y-2 hover:scale-[1.03] hover:border-brand-500/40 hover:shadow-2xl hover:ring-brand-500/25",
+        "focus-within:z-10 focus-within:-translate-y-2 focus-within:scale-[1.03] focus-within:border-brand-500/40 focus-within:shadow-2xl focus-within:ring-brand-500/25",
       ].join(" ")}
     >
       {/* Brand wash that fades up behind the content on hover. Decorative and
@@ -176,7 +184,10 @@ function WhyUsCard({
       >
         {icon}
       </span>
-      <h3 className="relative mt-12 text-2xl font-bold text-fg transition-colors duration-300 ease-out group-hover:text-brand-700 group-focus-within:text-brand-700">
+      {/* mt-6 → mt-12 at lg: the tall gap is what gives the DESKTOP cards their airy
+          proportion, but those cards are only ~200px tall when stacked on a phone, so
+          the same 48px gap there just reads as a hole between the icon and the title. */}
+      <h3 className="relative mt-6 text-2xl font-bold text-fg transition-colors duration-300 ease-out group-hover:text-brand-700 group-focus-within:text-brand-700 lg:mt-12">
         {title}
       </h3>
       <p className="relative mt-3 max-w-xs text-base leading-relaxed text-fg-muted">
@@ -193,9 +204,12 @@ function WhyUsCard({
 export function WhyUsSection() {
   return (
     <section
-      aria-label="Why choose StimuliiQ"
+      aria-label="Why choose Stimuli IQ"
       data-testid="why-us"
-      className="border-t border-border bg-surface py-16 lg:py-24"
+      // Brand-tinted band, not `--surface`: the cards are white, and #f7f8fa was too
+      // close to #ffffff for them to read as separate surfaces (see WhyUsCard). The
+      // tint fades in/out (`.section-band-brand`) so the band has no visible edge.
+      className="section-band-brand py-16 lg:py-24"
     >
       <div className="mx-auto max-w-screen-xl px-4 md:px-6">
         {/* Heading */}
@@ -204,9 +218,8 @@ export function WhyUsSection() {
             Why <span className="text-chart-3">Stimuli IQ</span>?
           </h2>
           <p className="mx-auto mt-5 max-w-md text-lg leading-relaxed text-fg-muted">
-            We focus on what actually prepares you for a healthcare career
-            &mdash; hands-on training, clinical exposure, and mentorship that
-            goes beyond the classroom.
+            We focus on what actually prepares you for a real healthcare career
+            &mdash; real training, real clinical exposure, real mentorship.
           </p>
         </div>
 
@@ -221,11 +234,27 @@ export function WhyUsSection() {
             ))}
           </div>
 
-          {/* Center visual (decorative) — an animated brand composition
-              (WhyUsVisual) that replaced the static team portrait. It keeps the
-              portrait's 941×1672 aspect, so it still sets the row height and the
-              flanking cards stretch to match it, exactly as before. */}
-          <WhyUsVisual />
+          {/* Center visual (decorative) — the branded team composition (portrait,
+              941×1672). The box is LOCKED to the image's own aspect at every
+              breakpoint so the logo (top) and badge (bottom) are never cropped —
+              on lg it sets the row height and the flanking cards stretch to it.
+              (An animated `WhyUsVisual` panel briefly stood here instead; the
+              artwork is the intended treatment.)
+
+              WIDTH CAP below lg is load-bearing: once the grid collapses to one
+              column this box spans the full viewport, and at a 0.56 portrait ratio
+              a 768px-wide tablet rendered it ~1364px tall — one image taking more
+              than a full screen. Capping the WIDTH (rather than cropping the
+              height) keeps the artwork uncropped and brings it back to ~570px. */}
+          <div aria-hidden="true" className="relative mx-auto aspect-[941/1672] w-full max-w-[280px] sm:max-w-[320px] lg:max-w-none">
+            <Image
+              src="/images/why-us-team-portrait.webp"
+              alt=""
+              fill
+              sizes="(min-width: 1024px) 33vw, 100vw"
+              className="rounded-2xl object-cover"
+            />
+          </div>
 
           <div className="flex flex-col gap-6">
             {RIGHT_CARDS.map((card) => (

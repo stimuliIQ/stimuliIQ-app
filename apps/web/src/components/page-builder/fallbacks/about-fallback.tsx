@@ -7,7 +7,7 @@
 import Image from "next/image";
 import { TestimonialCard } from "@repo/ui";
 import { BOOK_SLOT_HREF } from "../../shell/nav-config";
-import { HeroMotif } from "../hero-motif";
+import { BrandMarkBand } from "../hero-motif";
 
 const JOURNEY = [
   {
@@ -150,17 +150,19 @@ function CheckIcon() {
 export function AboutPageFallback() {
   return (
     <div data-testid="about-content">
-      {/* `relative` + `overflow-hidden` scope the decorative motif to this band —
-          same treatment the CMS-driven hero gets via HeroBlock, so both render paths
-          look identical. */}
-      <section aria-label="About StimuliiQ" className="relative overflow-hidden px-4 pt-10 md:px-6">
-        <HeroMotif kind="brand-mark" />
-        <div className="relative mx-auto max-w-3xl pb-16 text-center lg:pb-24">
+      {/* Opening band: the logo alone, centred, with the halo rings animating around it.
+          The page copy starts in the section below so nothing overlaps the mark — same
+          order the CMS render path produces via `PageBlocks`. */}
+      <BrandMarkBand />
+
+      {/* No `border-t` — `BrandMarkBand` already draws the separator (see its comment). */}
+      <section aria-label="About Stimuli IQ" className="px-4 py-14 md:px-6 lg:py-20">
+        <div className="mx-auto max-w-3xl text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-fg-muted">About Stimuli IQ</p>
           <h1 className="mt-6 font-display text-4xl font-bold leading-[1.08] tracking-tight text-fg sm:text-5xl lg:text-6xl">
-            We bridge the gap between
+            We Bridge the Gap Between
             <br />
-            academics <span className="text-chart-3">and real practice</span>.
+            Academics <span className="text-chart-3">and Real Practice</span>.
           </h1>
           <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-fg-muted">
             Stimuli IQ is a healthcare education and training platform for India&apos;s medical, psychology, and allied health science students. We teach the way healthcare
@@ -169,11 +171,11 @@ export function AboutPageFallback() {
         </div>
       </section>
 
-      <section aria-label="Our story" className="border-t border-border py-16 lg:py-24">
+      <section aria-label="Our story" className="py-16 lg:py-24">
         <div className="mx-auto grid max-w-screen-xl grid-cols-1 items-center gap-12 px-4 md:px-6 lg:grid-cols-2">
           <div>
             <h2 className="font-display text-3xl font-bold tracking-tight text-fg md:text-4xl">
-              Why we <span className="text-chart-3">exist</span>
+              Why We <span className="text-chart-3">Exist</span>
             </h2>
             <div className="mt-6 flex flex-col gap-5 text-base leading-relaxed text-fg-muted">
               <p>
@@ -203,11 +205,11 @@ export function AboutPageFallback() {
         </div>
       </section>
 
-      <section aria-label="How StimuliiQ helps students" className="py-16 lg:py-24">
+      <section aria-label="How Stimuli IQ helps students" className="py-16 lg:py-24">
         <div className="mx-auto max-w-screen-xl px-4 md:px-6">
           <div className="mx-auto mb-12 max-w-xl text-center lg:mb-16">
             <h2 className="font-display text-3xl font-bold tracking-tight text-fg md:text-4xl">
-              How the <span className="text-chart-3">journey works</span> for you
+              How the <span className="text-chart-3">Journey Works</span> for You
             </h2>
             <p className="mt-4 text-lg leading-relaxed text-fg-muted">One guided journey from first step to career-ready.</p>
           </div>
@@ -228,11 +230,11 @@ export function AboutPageFallback() {
         </div>
       </section>
 
-      <section aria-label="What is inside the platform" className="border-t border-border bg-surface py-16 lg:py-24">
+      <section aria-label="What is inside the platform" className="section-band py-16 lg:py-24">
         <div className="mx-auto max-w-screen-xl px-4 md:px-6">
           <div className="mx-auto mb-12 max-w-xl text-center">
             <h2 className="font-display text-3xl font-bold tracking-tight text-fg md:text-4xl">
-              What&apos;s inside the <span className="text-chart-3">platform</span>
+              What&apos;s Inside the <span className="text-chart-3">Platform</span>
             </h2>
             <p className="mt-4 text-lg leading-relaxed text-fg-muted">Everything a student needs to go from classroom to clinic.</p>
           </div>
@@ -254,7 +256,7 @@ export function AboutPageFallback() {
         <div className="mx-auto max-w-screen-xl px-4 text-center md:px-6">
           <h2 className="font-display text-3xl font-bold tracking-tight text-white md:text-4xl">Don&apos;t take our word for it.</h2>
           <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-white/70">
-            Every StimuliiQ certificate is publicly verifiable. Employers can paste a certificate ID or scan its QR code and see the result instantly.
+            Every Stimuli IQ certificate is publicly verifiable. Employers can paste a certificate ID or scan its QR code and see the result instantly.
           </p>
           <a
             href="/verify"
@@ -269,7 +271,7 @@ export function AboutPageFallback() {
         <div className="mx-auto max-w-screen-xl px-4 md:px-6">
           <div className="mx-auto mb-12 max-w-xl text-center">
             <h2 className="font-display text-3xl font-bold tracking-tight text-fg md:text-4xl">
-              Students who made the <span className="text-chart-3">jump</span>
+              Students Who Made the <span className="text-chart-3">Jump</span>
             </h2>
           </div>
           <ul role="list" className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -287,7 +289,7 @@ export function AboutPageFallback() {
         </div>
       </section>
 
-      <section aria-label="Our commitments" className="border-t border-border py-14">
+      <section aria-label="Our commitments" className="py-14">
         <div className="mx-auto grid max-w-screen-xl grid-cols-1 gap-8 px-4 sm:grid-cols-2 md:px-6 lg:grid-cols-4">
           {COMMITMENTS.map((item) => (
             <div key={item.title} className="flex items-start gap-3">
@@ -303,10 +305,10 @@ export function AboutPageFallback() {
         </div>
       </section>
 
-      <section aria-label="Start your journey" className="border-t border-border bg-surface py-16 text-center lg:py-20">
+      <section aria-label="Start your journey" className="section-band py-16 text-center lg:py-20">
         <div className="mx-auto max-w-screen-xl px-4 md:px-6">
           <h2 className="font-display text-3xl font-bold tracking-tight text-fg md:text-4xl">
-            Your <span className="text-chart-3">first posting</span> is closer than you think.
+            Your <span className="text-chart-3">First Posting</span> is Closer Than You Think.
           </h2>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <a

@@ -20,6 +20,7 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { resolveTenantIdCached } from "../../common/tenant/tenant-id-cache";
 
 // ─── Public program row shapes ────────────────────────────────────────────────
 // Only the allowed columns from the public-projection allowlist.
@@ -34,6 +35,7 @@ export interface PublicProgramListRow {
   durationWeeks: number | null;
   cardSummary: string | null;
   pricePaise: number;
+  compareAtPricePaise: number | null;
   emi: unknown;
   ratingAvg: number | null;
   ratingCount: number | null;
@@ -111,6 +113,7 @@ const PUBLIC_PROGRAM_LIST_SELECT = {
   durationWeeks: true,
   cardSummary: true,
   pricePaise: true,
+  compareAtPricePaise: true,
   emi: true,
   ratingAvg: true,
   ratingCount: true,
@@ -398,6 +401,7 @@ export class PublicRepository {
       title: string;
       cardSummary: string | null;
       pricePaise: number;
+      compareAtPricePaise: number | null;
     }>
   > {
     const rows = await this.prisma.client.program.findMany({
@@ -415,6 +419,7 @@ export class PublicRepository {
         title: true,
         cardSummary: true,
         pricePaise: true,
+        compareAtPricePaise: true,
         // FORBIDDEN: no status, isPublic, tenantId, etc.
       },
       take: limit,
@@ -688,11 +693,15 @@ export class PublicRepository {
   // ─── Tenant resolution ─────────────────────────────────────────────────────
 
   async getTenantIdBySlug(slug: string): Promise<string | null> {
-    const row = await this.prisma.client.tenant.findUnique({
-      where: { slug },
-      select: { id: true },
+    // Memoised per process — the slug is a compile-time constant and this is a
+    // cross-region round trip. See common/tenant/tenant-id-cache.ts.
+    return resolveTenantIdCached(slug, async () => {
+      const row = await this.prisma.client.tenant.findUnique({
+        where: { slug },
+        select: { id: true },
+      });
+      return row?.id ?? null;
     });
-    return row?.id ?? null;
   }
 
   /**

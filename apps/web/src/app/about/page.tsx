@@ -20,13 +20,13 @@
  * this pass's authority).
  */
 import type { Metadata } from "next";
-import { Breadcrumbs } from "@repo/ui";
 import { buildMetadata, SITE_URL } from "../../lib/seo/metadata";
 import { buildOrganizationJsonLd, buildBreadcrumbJsonLd } from "../../lib/seo/json-ld";
 import { resolveAssetUrl } from "../../lib/media";
 import { serverApiClient } from "../../lib/api-client";
 import { PageBlocks } from "../../components/page-builder/page-blocks";
 import { AboutPageFallback } from "../../components/page-builder/fallbacks/about-fallback";
+import { CertificatePreview } from "../../components/verify/certificate-preview";
 import type { ResolvedPageBuilderBlock } from "@repo/types";
 
 // 5 min ISR — builder-editable surface; matches the homepage so CRM edits surface consistently
@@ -40,7 +40,12 @@ const FALLBACK_METADATA = {
     "Stimuli IQ is a healthcare education and training platform for India's medical, psychology, and allied health science students — bridging the gap between academics and real practice.",
 };
 
-const BREADCRUMBS = [{ label: "Home", href: "/" }, { label: "About StimuliiQ" }];
+/**
+ * Kept for `BreadcrumbList` JSON-LD only. The visible breadcrumb trail was removed from
+ * every marketing page — search engines still get the hierarchy, readers don't get the
+ * duplicated "Home > …" line under the header.
+ */
+const BREADCRUMBS = [{ label: "Home", href: "/" }, { label: "About Stimuli IQ" }];
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
@@ -83,10 +88,11 @@ export default async function AboutPage() {
         dangerouslySetInnerHTML={{ __html: orgJsonLd }}
       />
 
-      <section aria-label="Breadcrumb" className="mx-auto max-w-screen-xl px-4 pt-10 md:px-6">
-        <Breadcrumbs items={BREADCRUMBS} className="mb-0 text-sm" data-testid="about-breadcrumbs" />
-      </section>
-
+      {/* Certificate specimen sits OUTSIDE the block tree on purpose: the About page is a
+          P11 locked template, so its section list is fixed and a new band cannot be added
+          through the builder. Rendering it here from the route means it appears on both
+          the CMS path and the fallback, and staff can still edit every templated section
+          in the CRM without this one being editable (or deletable) by accident. */}
       {blocks ? (
         <div data-testid="about-content">
           <PageBlocks blocks={blocks} pageSlug={ABOUT_SLUG} />
@@ -94,6 +100,11 @@ export default async function AboutPage() {
       ) : (
         <AboutPageFallback />
       )}
+
+      <CertificatePreview
+        heading="The certificate you finish with"
+        subheading="Every programme ends in a certificate carrying a unique ID. Anyone — an employer, a college, a hospital — can check it against our register in seconds."
+      />
     </>
   );
 }

@@ -8,7 +8,7 @@ import { HeroMotif } from "../hero-motif";
 const ITEMS = [
   { title: "Campus Training Programs", desc: "Tailored 8 to 16 week internship programs delivered on campus or hybrid. We handle curriculum, mentors, and assessments." },
   { title: "Career Roadmaps & Guidance", desc: "Give your students access to structured career roadmaps for health sciences — built with mentor insights, real time opportunities, and guidance from our growing healthcare community." },
-  { title: "Internship Certification", desc: "Students earn verifiable StimuliiQ certificates recognised by hospitals and healthcare employers across India." },
+  { title: "Internship Certification", desc: "Students earn verifiable Stimuli IQ certificates recognised by hospitals and healthcare employers across India." },
   { title: "Collaborate & Get Sponsored", desc: "Collaborate with us and get sponsorship support for your campus fests and events — helping your committee bring bigger, more impactful events." },
 ];
 

@@ -40,6 +40,7 @@ export interface ProgramRow {
   mode: string;
   durationWeeks: number | null;
   pricePaise: number;
+  compareAtPricePaise: number | null;
   emi: unknown;
   summary: string | null;
   seo: unknown;
@@ -130,6 +131,7 @@ export class CoursesRepository {
       mode: string;
       durationWeeks: number;
       pricePaise: number;
+      compareAtPricePaise?: number | null;
       emi: unknown;
       summary?: string;
       seo?: unknown;
@@ -151,6 +153,7 @@ export class CoursesRepository {
         mode: data.mode as Prisma.ProgramCreateInput["mode"],
         durationWeeks: data.durationWeeks,
         pricePaise: data.pricePaise,
+        compareAtPricePaise: data.compareAtPricePaise ?? null,
         emi: data.emi as Prisma.InputJsonValue,
         summary: data.summary,
         seo: data.seo as Prisma.InputJsonValue,
@@ -177,6 +180,7 @@ export class CoursesRepository {
       mode: string;
       durationWeeks: number;
       pricePaise: number;
+      compareAtPricePaise: number | null;
       emi: unknown;
       summary: string;
       seo: unknown;

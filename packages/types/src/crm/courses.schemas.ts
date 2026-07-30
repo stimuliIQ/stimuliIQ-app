@@ -62,6 +62,19 @@ export const CreateProgramRequestSchema = z
     mode: ProgramModeSchema,
     durationWeeks: z.number().int().min(1).max(104),
     pricePaise: z.number().int().min(0),
+    /**
+     * Struck-through "was" price, display only (see the Prisma column comment). Must be
+     * STRICTLY GREATER than `pricePaise` — a compare-at at or below the real price would
+     * render as `₹6,999 ₹6,999` or, worse, advertise a saving that doesn't exist. The
+     * cross-field check lives in the superRefine on the create/update inputs below,
+     * because it needs both values.
+     */
+    compareAtPricePaise: z
+      .number()
+      .int()
+      .min(0)
+      .nullish()
+      .describe("Struck-through 'was' price in paise. Null/omitted = show a single price."),
     emi: z.array(EmiPlanSchema).max(12).default([]),
     summary: z.string().max(4000).optional(),
     seo: ProgramSeoSchema.optional(),
@@ -306,6 +319,7 @@ export const ProgramSummarySchema = z.object({
   mode: ProgramModeSchema,
   durationWeeks: z.number().int(),
   pricePaise: z.number().int(),
+  compareAtPricePaise: z.number().int().nullable(),
   status: ProgramStatusSchema,
   isPublic: z.boolean().describe("Marketing visibility flag. Program appears on the public site only when status='published' AND isPublic=true."),
   createdAt: IsoDateTimeSchema,

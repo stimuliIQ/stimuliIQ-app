@@ -2,14 +2,13 @@
  * /privacy — Privacy Policy page.
  */
 import type { Metadata } from "next";
-import { Breadcrumbs } from "@repo/ui";
 import { buildMetadata, SITE_URL } from "../../lib/seo/metadata";
 import { buildBreadcrumbJsonLd } from "../../lib/seo/json-ld";
 
 export const metadata: Metadata = buildMetadata({
   title: "Privacy Policy",
   description:
-    "StimuliiQ Privacy Policy — how we collect, use, and protect your personal data under DPDP and applicable Indian law.",
+    "Stimuli IQ Privacy Policy — how we collect, use, and protect your personal data under DPDP and applicable Indian law.",
   canonicalPath: "/privacy",
 });
 
@@ -30,7 +29,6 @@ export default function PrivacyPage() {
       />
 
       <div className="mx-auto max-w-3xl px-4 py-12 sm:py-16 md:px-6">
-        <Breadcrumbs items={BREADCRUMBS} className="mb-8" />
 
         <header className="mb-10">
           <h1 className="text-3xl font-bold text-fg">Privacy Policy</h1>
@@ -39,7 +37,7 @@ export default function PrivacyPage() {
 
         <article className="prose prose-sm max-w-none text-fg-muted" data-testid="privacy-content">
           <p>
-            StimuliiQ Technologies Pvt. Ltd. (&ldquo;StimuliiQ&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;)
+            Stimuli IQ Technologies Pvt. Ltd. (&ldquo;Stimuli IQ&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;)
             is committed to protecting your personal data. This Privacy Policy describes how we collect,
             use, and protect information when you use our website and services, in accordance with India&apos;s
             Digital Personal Data Protection (DPDP) Act 2023 and applicable law.

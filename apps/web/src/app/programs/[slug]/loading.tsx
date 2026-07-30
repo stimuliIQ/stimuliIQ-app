@@ -14,15 +14,6 @@ export default function ProgramDetailLoading() {
       aria-live="polite"
       aria-busy="true"
     >
-      {/* Breadcrumb */}
-      <div className="mb-6 flex items-center gap-2">
-        <Skeleton className="h-4 w-12 rounded" />
-        <Skeleton className="h-4 w-4 rounded" />
-        <Skeleton className="h-4 w-20 rounded" />
-        <Skeleton className="h-4 w-4 rounded" />
-        <Skeleton className="h-4 w-48 rounded" />
-      </div>
-
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">
         {/* Left content */}
         <div className="flex flex-col gap-8">

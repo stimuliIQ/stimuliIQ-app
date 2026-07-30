@@ -3,9 +3,9 @@
     "type": "hero",
     "data": {
       "variant": "centered-with-flanking-photos",
-      "headline": "Your medical career starts with real experience.",
-      "headlineHighlight": "real experience",
-      "subheadline": "StimuliiQ gives medical students structured internships, clinician mentors, and hands-on case work, so you walk into your first posting prepared.",
+      "headline": "Your Medical Career Starts With Real Experience.",
+      "headlineHighlight": "Real Experience",
+      "subheadline": "Stimuli IQ gives medical students structured internships, clinician mentors, and hands-on case work, so you walk into your first posting prepared.",
       "backgroundImageKey": "/images/hero/hero-background.avif",
       "trustBadge": { "ratingStars": 5, "caption": "Trusted by 15,000+ medical students" },
       "flankingPhotos": [
@@ -22,8 +22,8 @@
       "variant": "bento",
       "heading": {
         "eyebrow": "By the numbers",
-        "title": "A hands-on medical internship program, trusted across India",
-        "titleHighlight": "medical internship program"
+        "title": "A Hands-On Medical Internship Program, Trusted Across India",
+        "titleHighlight": "Medical Internship Program"
       },
       "items": [
         { "label": "Students trained", "value": "15,000+", "description": "Medical students trained through structured, hands-on internship programs across India.", "iconKey": "graduation-cap" },
@@ -36,7 +36,7 @@
     "type": "live_collection_ref",
     "data": {
       "collection": "programs",
-      "heading": { "title": "Explore our medical internship programs", "titleHighlight": "medical internship", "subtitle": "Pick a track and start building the clinical and research skills hospitals actually look for." },
+      "heading": { "title": "Explore Our Medical Internship Programs", "titleHighlight": "Medical Internship", "subtitle": "Pick a track and start building the clinical and research skills hospitals actually look for." },
       "viewAllHref": "/programs",
       "layout": "grid-3",
       "selection": { "limit": 8, "sort": "popularity" }
@@ -46,7 +46,7 @@
     "type": "feature_grid",
     "data": {
       "variant": "split-media",
-      "heading": { "title": "Why StimuliiQ?", "titleHighlight": "StimuliiQ", "subtitle": "Your internship here is built around real clinical work, guided by people who practise medicine every day." },
+      "heading": { "title": "Why Stimuli IQ?", "titleHighlight": "Stimuli IQ", "subtitle": "Your internship here is built around real clinical work, guided by people who practise medicine every day." },
       "columns": "2",
       "centerImageKey": "/images/why-us-team-portrait.webp",
       "items": [
@@ -60,7 +60,7 @@
   {
     "type": "numbered_steps",
     "data": {
-      "heading": { "title": "How It Works", "titleHighlight": "Works", "subtitle": "From enrolment to placement in four clear steps." },
+      "heading": { "title": "How It Works", "titleHighlight": "Works", "subtitle": "From enrolment to certification in four clear steps." },
       "variant": "arrows",
       "items": [
         { "title": "Enroll", "description": "Choose an internship program, complete payment, and get instant access to the learning portal. The whole process takes under 5 minutes." },
@@ -94,9 +94,9 @@
     "type": "live_collection_ref",
     "data": {
       "collection": "partners",
-      "heading": { "title": "In Collaboration with Leading Medical Institutions", "titleHighlight": "Leading Medical Institutions", "subtitle": "Our programs are developed in partnership with top medical colleges across Bengaluru and Mumbai." },
-      "layout": "grid-3",
-      "selection": { "category": "college_partner", "limit": 12, "sort": "order" }
+      "heading": { "title": "Institutional Network", "titleHighlight": "Network", "subtitle": "Endorsed by students from Leading Educational Institutions" },
+      "layout": "grid-4",
+      "selection": { "category": "college_partner", "limit": 60, "sort": "order" }
     }
   },
   {
@@ -107,7 +107,7 @@
       "items": [
         { "question": "What qualifications do I need to enroll?", "answer": "Our programs are designed for MBBS, BDS, BPT, BA & BSc, BAMS, BHMS and other health sciences students. No prior industry experience is required — just a willingness to learn and build real projects." },
         { "question": "Are the classes live or recorded?", "answer": "Most programs combine scheduled live sessions with clinician mentors and recorded lectures you can rewatch anytime. Some programs are fully self-paced. Check the program detail page for the exact format." },
-        { "question": "Is the certificate recognised by employers?", "answer": "Yes. Every StimuliiQ certificate is digitally verifiable. An employer can scan its QR code or enter the certificate ID on our verification page to confirm it instantly." },
+        { "question": "Is the certificate recognised by employers?", "answer": "Yes. Every Stimuli IQ certificate is digitally verifiable. An employer can scan its QR code or enter the certificate ID on our verification page to confirm it instantly." },
         { "question": "What are the payment options?", "answer": "We accept all major payment methods via Razorpay: UPI, credit/debit cards, net banking, and wallets. Coupon codes can be applied at checkout for additional discounts." },
         { "question": "What is the refund policy?", "answer": "Our courses are crafted with care and commitment, and as such, we do not offer refunds. We believe in the value and quality of our educational services!" }
       ]

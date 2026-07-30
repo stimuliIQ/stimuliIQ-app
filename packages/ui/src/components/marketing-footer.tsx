@@ -82,7 +82,11 @@ export function MarketingFooter({
     <footer
       data-testid={testId ?? "marketing-footer"}
       aria-label="Site footer"
-      className={cn("border-t border-border bg-surface text-fg", className)}
+      // `.section-band-bottom` (styles.css), not `border-t border-border bg-surface`:
+      // the last content section now flows into the footer tint instead of meeting it
+      // at a hairline + hard colour step. The tint stays solid below the fade, so the
+      // footer still reads as its own zone.
+      className={cn("section-band-bottom text-fg", className)}
     >
       <div className="mx-auto max-w-screen-xl px-4 py-12 md:px-6 md:py-16">
         {/* Top section: logo + newsletter + columns */}

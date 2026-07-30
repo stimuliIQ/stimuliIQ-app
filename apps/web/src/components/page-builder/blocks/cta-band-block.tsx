@@ -8,9 +8,12 @@ import { LeadFormConnected } from "../../leads/lead-form-connected";
 import { safeHref } from "../../../lib/safe-href";
 import { HighlightText } from "../highlight-text";
 
+// No hairline dividers: `brand` is a deliberate saturated full-colour band and needs
+// no help reading as its own zone, while `surface` uses `.section-band` (globals.css)
+// so its tint fades in and out of the page background instead of stepping.
 const BACKGROUND_CLASSES: Record<CtaBandBlockData["background"], string> = {
-  brand: "border-t border-border bg-brand-500 text-white",
-  surface: "border-t border-border bg-surface text-fg",
+  brand: "bg-brand-500 text-white",
+  surface: "section-band text-fg",
   default: "bg-bg text-fg",
 };
 

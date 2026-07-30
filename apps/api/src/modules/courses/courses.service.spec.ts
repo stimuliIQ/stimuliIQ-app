@@ -6,7 +6,7 @@
 // this scope cannot be resolved without widening access, which is exactly what must not
 // happen per the task brief's fail-closed mandate.
 
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { CoursesService } from "./courses.service";
 import { CoursesRepository, type ProgramRow } from "./courses.repository";
 import { scopeContextStorage, type ScopeContext } from "../auth/lib/scope-context";
@@ -43,6 +43,7 @@ const ROW: ProgramRow = {
   mode: "recorded",
   durationWeeks: 12,
   pricePaise: 4999900,
+  compareAtPricePaise: null,
   emi: [],
   summary: null,
   seo: null,
@@ -237,6 +238,97 @@ describe("CoursesService", () => {
         expect.objectContaining({ enrollmentEnabled: true }),
       );
       expect(detail.enrollmentEnabled).toBe(true);
+    });
+  });
+
+  // A compare-at price is a public claim about a saving. If it is not strictly above the
+  // charged price the claim is false (equal → "₹X ₹X"; below → a saving that runs
+  // backwards), so it is rejected at write time rather than filtered at render time.
+  describe("compareAtPricePaise validation", () => {
+    const baseCreate = {
+      slug: "new-program",
+      title: "New Program",
+      domain: "web-development",
+      level: "beginner" as const,
+      mode: "recorded" as const,
+      durationWeeks: 4,
+      pricePaise: 699900,
+      emi: [],
+      status: "draft" as const,
+      scholarshipAvailable: false,
+      enrollmentEnabled: true,
+    };
+
+    it("accepts a compare-at price strictly above the price", async () => {
+      repo.findBySlug.mockResolvedValue(null);
+      repo.create.mockResolvedValue(ROW);
+
+      await runWithScope("all", () =>
+        service.create("tenant-1", { ...baseCreate, compareAtPricePaise: 1499900 }),
+      );
+
+      expect(repo.create).toHaveBeenCalledWith(
+        "tenant-1",
+        expect.objectContaining({ compareAtPricePaise: 1499900 }),
+      );
+    });
+
+    it("rejects a compare-at price equal to the price", async () => {
+      repo.findBySlug.mockResolvedValue(null);
+
+      await expect(
+        runWithScope("all", () =>
+          service.create("tenant-1", { ...baseCreate, compareAtPricePaise: 699900 }),
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repo.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects a compare-at price below the price", async () => {
+      repo.findBySlug.mockResolvedValue(null);
+
+      await expect(
+        runWithScope("all", () =>
+          service.create("tenant-1", { ...baseCreate, compareAtPricePaise: 100000 }),
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repo.create).not.toHaveBeenCalled();
+    });
+
+    it("treats a null compare-at as valid (single price, no strike)", async () => {
+      repo.findBySlug.mockResolvedValue(null);
+      repo.create.mockResolvedValue(ROW);
+
+      await runWithScope("all", () =>
+        service.create("tenant-1", { ...baseCreate, compareAtPricePaise: null }),
+      );
+
+      expect(repo.create).toHaveBeenCalledWith(
+        "tenant-1",
+        expect.objectContaining({ compareAtPricePaise: null }),
+      );
+    });
+
+    // The cross-field check can't live in zod: a PATCH may carry only one of the two, so
+    // the missing half has to be read back off the stored row.
+    it("on update, compares a new compare-at against the STORED price", async () => {
+      repo.findById.mockResolvedValue({ ...ROW, pricePaise: 699900, compareAtPricePaise: null });
+
+      await expect(
+        runWithScope("all", () =>
+          service.update("tenant-1", "program-1", { compareAtPricePaise: 500000 }),
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    it("on update, compares a new price against the STORED compare-at", async () => {
+      repo.findById.mockResolvedValue({ ...ROW, pricePaise: 699900, compareAtPricePaise: 1499900 });
+
+      await expect(
+        runWithScope("all", () => service.update("tenant-1", "program-1", { pricePaise: 1600000 })),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repo.update).not.toHaveBeenCalled();
     });
   });
 });

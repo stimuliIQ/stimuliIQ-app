@@ -9,11 +9,11 @@
  */
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Breadcrumbs, ProgramCard } from "@repo/ui";
+import { ProgramCard } from "@repo/ui";
 import { buildMetadata, SITE_URL } from "../../../../lib/seo/metadata";
 import { buildBreadcrumbJsonLd, buildCourseJsonLd } from "../../../../lib/seo/json-ld";
 import { serverApiClient } from "../../../../lib/api-client";
-import { formatPaiseDisplay, formatDuration, formatMode } from "../../../../lib/format";
+import { formatPaiseDisplay, formatCompareAtDisplay, formatDuration, formatMode } from "../../../../lib/format";
 
 export const revalidate = 86_400; // 24h — city program counts change infrequently
 
@@ -65,7 +65,7 @@ export default async function CitySeoPage({ params }: PageProps) {
   const courseJsonLds = detail.programs.slice(0, 12).map((program) =>
     buildCourseJsonLd({
       name: program.title,
-      description: program.cardSummary ?? `${program.title} — training program by StimuliiQ in ${detail.city}`,
+      description: program.cardSummary ?? `${program.title} — training program by Stimuli IQ in ${detail.city}`,
       url: `${SITE_URL}/programs/${program.slug}`,
       imageUrl: program.ogImageUrl ?? undefined,
       pricePaise: program.pricePaise,
@@ -97,8 +97,6 @@ export default async function CitySeoPage({ params }: PageProps) {
         className="mx-auto max-w-screen-xl px-4 py-10 md:px-6"
         data-testid="city-seo-page"
       >
-        <Breadcrumbs items={BREADCRUMBS} className="mb-6" data-testid="city-seo-breadcrumbs" />
-
         <header className="mb-10">
           <h1 className="text-3xl font-bold text-fg sm:text-4xl">
             Best Tech Training Programs in <span className="text-chart-3">{detail.city}</span>
@@ -137,6 +135,7 @@ export default async function CitySeoPage({ params }: PageProps) {
                   mode={program.mode ? formatMode(program.mode) : undefined}
                   level={program.level ?? undefined}
                   priceDisplay={formatPaiseDisplay(program.pricePaise)}
+                  originalPriceDisplay={formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
                   emiDisplay={program.emiDisplay ?? undefined}
                   ratingAvg={program.ratingAvg != null ? program.ratingAvg / 10 : undefined}
                   ratingCount={program.ratingCount ?? undefined}

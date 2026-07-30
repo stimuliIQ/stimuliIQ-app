@@ -16,7 +16,7 @@
       "items": [
         { "iconKey": "lms", "title": "Campus Training Programs", "description": "Tailored 8 to 16 week internship programs delivered on campus or hybrid. We handle curriculum, mentors, and assessments." },
         { "iconKey": "placement", "title": "Career Roadmaps & Guidance", "description": "Give your students access to structured career roadmaps for health sciences — built with mentor insights, real time opportunities, and guidance from our growing healthcare community." },
-        { "iconKey": "certificate", "title": "Internship Certification", "description": "Students earn verifiable StimuliiQ certificates recognised by hospitals and healthcare employers across India." },
+        { "iconKey": "certificate", "title": "Internship Certification", "description": "Students earn verifiable Stimuli IQ certificates recognised by hospitals and healthcare employers across India." },
         { "iconKey": "mentor", "title": "Collaborate & Get Sponsored", "description": "Collaborate with us and get sponsorship support for your campus fests and events — helping your committee bring bigger, more impactful events." }
       ]
     }
@@ -25,9 +25,9 @@
     "type": "live_collection_ref",
     "data": {
       "collection": "partners",
-      "heading": { "title": "Our Partner Colleges", "titleHighlight": "Partner Colleges", "subtitle": "Trusted by leading medical, dental, nursing, and pharmacy colleges across India." },
-      "layout": "grid-3",
-      "selection": { "category": "college_partner", "limit": 12, "sort": "order" }
+      "heading": { "title": "Institutional Network", "titleHighlight": "Network", "subtitle": "Endorsed by students from Leading Educational Institutions" },
+      "layout": "grid-4",
+      "selection": { "category": "college_partner", "limit": 60, "sort": "order" }
     }
   },
   {

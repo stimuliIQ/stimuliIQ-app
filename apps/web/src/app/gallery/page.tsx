@@ -12,7 +12,6 @@
  * non-builder-managed row.
  */
 import type { Metadata } from "next";
-import { Breadcrumbs } from "@repo/ui";
 import { buildMetadata, SITE_URL } from "../../lib/seo/metadata";
 import { buildBreadcrumbJsonLd } from "../../lib/seo/json-ld";
 import { resolveAssetUrl } from "../../lib/media";
@@ -28,7 +27,7 @@ const GALLERY_SLUG = "gallery";
 
 const FALLBACK_METADATA = {
   title: "Gallery — Sessions, Certificates & Events",
-  description: "Photos and highlights from StimuliiQ training sessions, certificate ceremonies, and industry events.",
+  description: "Photos and highlights from Stimuli IQ training sessions, certificate ceremonies, and industry events.",
 };
 
 const BREADCRUMBS = [{ label: "Home", href: "/" }, { label: "Gallery" }];
@@ -67,14 +66,6 @@ export default async function GalleryPage() {
         // biome-ignore lint/security/noDangerouslySetInnerHtml: escaped JSON-LD
         dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }}
       />
-
-      {/* Site-standard container for the breadcrumb; blocks render full-bleed below
-          because every registry block owns its own `max-w-screen-xl px-4 md:px-6`
-          container (same pattern as /about — a narrower outer wrapper here would
-          double-constrain and double-pad every section). */}
-      <section aria-label="Breadcrumb" className="mx-auto max-w-screen-xl px-4 pt-10 md:px-6">
-        <Breadcrumbs items={BREADCRUMBS} className="mb-0 text-sm" data-testid="gallery-breadcrumbs" />
-      </section>
 
       {blocks ? (
         <PageBlocks blocks={blocks} />

@@ -28,14 +28,13 @@ import { buildMetadata, SITE_URL } from "../../../lib/seo/metadata";
 import { buildCourseJsonLd, buildFaqJsonLd, buildBreadcrumbJsonLd } from "../../../lib/seo/json-ld";
 import { serverApiClient } from "../../../lib/api-client";
 import {
-  Breadcrumbs,
   StickyBuyCard,
   MobileBuyBar,
   FaqAccordion,
   ProgramCard,
   TestimonialCard,
 } from "@repo/ui";
-import { formatPaiseDisplay, formatRating, formatDuration, formatMode } from "../../../lib/format";
+import { formatPaiseDisplay, formatCompareAtDisplay, formatRating, formatDuration, formatMode } from "../../../lib/format";
 import { BOOK_SLOT_HREF } from "../../../components/shell/nav-config";
 import { buildWhatsAppHref } from "../../../lib/contact";
 import { StickyLeadBarConnected } from "../../../components/leads/sticky-lead-bar-connected";
@@ -50,7 +49,7 @@ import type { PublicProgramDetail } from "@repo/types";
 
 function buildProgramWhatsAppHref(programTitle: string): string {
   return buildWhatsAppHref(
-    `Hi, I'm interested in the ${programTitle} program at StimuliiQ. Can you share more details?`,
+    `Hi, I'm interested in the ${programTitle} program at Stimuli IQ. Can you share more details?`,
   );
 }
 
@@ -95,7 +94,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         `Learn ${program.title} — project-based program with verifiable certificate.`,
       canonicalPath: `/programs/${slug}`,
       ogImage: program.ogImageUrl ?? undefined,
-      ogImageAlt: `${program.title} — StimuliiQ`,
+      ogImageAlt: `${program.title} — Stimuli IQ`,
     });
   } catch {
     // If program not found, metadata falls back to defaults; notFound() in the page component
@@ -116,7 +115,7 @@ function buildCourseStructuredData(program: PublicProgramDetail): string {
     description:
       program.seoDescription ??
       program.cardSummary ??
-      `${program.title} — online training program by StimuliiQ`,
+      `${program.title} — online training program by Stimuli IQ`,
     url: `${SITE_URL}/programs/${program.slug}`,
     imageUrl: program.ogImageUrl ?? undefined,
     pricePaise: program.pricePaise,
@@ -152,6 +151,7 @@ import * as React from "react";
 
 function ProgramHero({ program }: { program: PublicProgramDetail }) {
   const price = formatPaiseDisplay(program.pricePaise);
+  const wasPrice = formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise);
   const ratingDisplay = program.ratingAvg != null ? formatRating(program.ratingAvg) : null;
 
   return (
@@ -238,6 +238,12 @@ function ProgramHero({ program }: { program: PublicProgramDetail }) {
         {/* Price + EMI */}
         <div className="flex items-baseline gap-3">
           <span className="text-2xl font-bold text-fg">{price}</span>
+          {wasPrice ? (
+            <>
+              <span aria-hidden="true" className="text-lg text-fg-subtle line-through">{wasPrice}</span>
+              <span className="sr-only">, reduced from {wasPrice}</span>
+            </>
+          ) : null}
           {program.emiDisplay ? (
             <span className="text-sm text-fg-muted">{program.emiDisplay}</span>
           ) : null}
@@ -431,6 +437,7 @@ function RelatedProgramsSection({
             <ProgramCard
               title={p.title}
               priceDisplay={formatPaiseDisplay(p.pricePaise)}
+              originalPriceDisplay={formatCompareAtDisplay(p.compareAtPricePaise, p.pricePaise)}
               ctaLabel="View Program"
               ctaHref={`/programs/${p.slug}`}
             />
@@ -499,6 +506,7 @@ export default async function ProgramDetailPage({ params }: PageProps) {
   if (!program) notFound();
 
   const price = formatPaiseDisplay(program.pricePaise);
+  const wasPrice = formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise);
   const enrollHref = `/enroll/${program.slug}`;
   const faqItems = buildProgramFaqItems(program);
 
@@ -513,12 +521,6 @@ export default async function ProgramDetailPage({ params }: PageProps) {
     ],
     SITE_URL,
   );
-
-  const breadcrumbItems = [
-    { label: "Home", href: "/" },
-    { label: "Programs", href: "/programs" },
-    { label: program.title },
-  ];
 
   return (
     <>
@@ -546,9 +548,6 @@ export default async function ProgramDetailPage({ params }: PageProps) {
         className="mx-auto max-w-screen-xl px-4 pb-24 pt-6 md:px-6 lg:pb-10"
         data-testid="program-detail"
       >
-        {/* Breadcrumbs */}
-        <Breadcrumbs items={breadcrumbItems} className="mb-6" data-testid="program-breadcrumbs" />
-
         {/* 2-column layout: content + sticky buy card */}
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1fr_360px] lg:items-start">
           {/* Left: Main content */}
@@ -614,6 +613,7 @@ export default async function ProgramDetailPage({ params }: PageProps) {
           <div className="hidden lg:block lg:sticky lg:top-24" aria-label="Program enrollment">
             <StickyBuyCard
               priceDisplay={price}
+              originalPriceDisplay={wasPrice}
               emiDisplay={program.emiDisplay ?? undefined}
               // Enrollment closed → "Book Free Slot" becomes the card's PRIMARY action and
               // there is no secondary, so the card never renders a dead-end.
@@ -639,6 +639,7 @@ export default async function ProgramDetailPage({ params }: PageProps) {
       {/* MobileBuyBar — fixed bottom, mobile only (ac-14: tap targets ≥44px) */}
       <MobileBuyBar
         priceDisplay={price}
+        originalPriceDisplay={wasPrice}
         primaryCtaLabel={program.enrollmentEnabled ? "Enroll Now" : "Book Free Slot"}
         primaryCtaHref={program.enrollmentEnabled ? enrollHref : BOOK_SLOT_HREF}
         data-testid="mobile-buy-bar"

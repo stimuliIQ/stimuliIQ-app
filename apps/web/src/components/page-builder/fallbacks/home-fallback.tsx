@@ -99,9 +99,9 @@ const FAQ_ITEMS = [
     id: "faq-3",
     question: "Is the certificate recognised by employers?",
     answer:
-      "Yes. Every StimuliiQ certificate is digitally verifiable. An employer can scan its QR code or enter the certificate ID on our verification page to confirm it instantly.",
+      "Yes. Every Stimuli IQ certificate is digitally verifiable. An employer can scan its QR code or enter the certificate ID on our verification page to confirm it instantly.",
     answerText:
-      "Yes. Every StimuliiQ certificate is digitally verifiable. An employer can scan its QR code or enter the certificate ID on our verification page to confirm it instantly.",
+      "Yes. Every Stimuli IQ certificate is digitally verifiable. An employer can scan its QR code or enter the certificate ID on our verification page to confirm it instantly.",
   },
   {
     id: "faq-4",
@@ -194,13 +194,13 @@ export function HomePageFallback({
       {/* The mentors teaser used to sit here. Removed from the homepage on request —
           mentors remain reachable via the "Mentors" nav link and /mentors. */}
 
-      <section aria-label="Student testimonials" data-testid="testimonials" className="bg-surface py-16 lg:py-20">
+      <section aria-label="Student testimonials" data-testid="testimonials" className="section-band py-16 lg:py-20">
         <div className="mx-auto max-w-screen-xl px-4 md:px-6">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold text-fg md:text-4xl">
               What Our <span className="text-chart-3">Students</span> Say
             </h2>
-            <p className="mt-3 text-lg text-fg-muted">Real stories from medical students who started their careers with StimuliiQ.</p>
+            <p className="mt-3 text-lg text-fg-muted">Real stories from medical students who started their careers with Stimuli IQ.</p>
           </div>
           <TestimonialSpotlight items={testimonialItems} />
         </div>
@@ -208,7 +208,7 @@ export function HomePageFallback({
 
       <PartnerColleges colleges={colleges} />
 
-      <section aria-label="Frequently asked questions" data-testid="homepage-faq" className="border-t border-border py-16">
+      <section aria-label="Frequently asked questions" data-testid="homepage-faq" className="py-16">
         <div className="mx-auto max-w-screen-xl px-4 md:px-6">
           <div className="mb-10 text-center">
             <h2 className="text-3xl font-bold text-fg md:text-4xl">
@@ -226,7 +226,7 @@ export function HomePageFallback({
         </div>
       </section>
 
-      <section aria-label="Talk to a counsellor" data-testid="cta-band" className="border-t border-border bg-brand-500 py-20 lg:py-24">
+      <section aria-label="Talk to a counsellor" data-testid="cta-band" className="bg-brand-500 py-20 lg:py-24">
         <div className="mx-auto max-w-screen-xl px-4 text-center md:px-6">
           <h2 className="text-3xl font-bold text-white md:text-4xl">Not sure which internship is right for you?</h2>
           <p className="mt-4 text-lg text-brand-100">

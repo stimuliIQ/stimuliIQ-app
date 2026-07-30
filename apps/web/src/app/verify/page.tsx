@@ -10,6 +10,7 @@
 
 import type { Metadata } from "next";
 import { VerifyEntryForm } from "../../components/verify/verify-entry-form";
+import { CertificatePreview } from "../../components/verify/certificate-preview";
 
 const SITE_NAME = "stimuliiq";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://stimuliiq.com";
@@ -30,17 +31,24 @@ export const metadata: Metadata = {
 
 export default function VerifyEntryPage() {
   return (
-    <main id="main-content" className="mx-auto flex min-h-[60vh] max-w-xl flex-col justify-center px-4 py-16">
-      <div className="space-y-3 text-center">
-        <h1 className="text-3xl font-semibold tracking-tight">Verify a <span className="text-chart-3">certificate</span></h1>
-        <p className="text-muted-foreground">
-          Enter the certificate ID printed on a stimuliiq certificate to confirm it is
-          genuine and see the holder, program and issue date.
-        </p>
+    <main id="main-content">
+      <div className="mx-auto flex max-w-xl flex-col justify-center px-4 py-16">
+        <div className="space-y-3 text-center">
+          <h1 className="text-3xl font-semibold tracking-tight">Verify a <span className="text-chart-3">certificate</span></h1>
+          <p className="text-muted-foreground">
+            Enter the certificate ID printed on a stimuliiq certificate to confirm it is
+            genuine and see the holder, program and issue date.
+          </p>
+        </div>
+        <div className="mt-8">
+          <VerifyEntryForm />
+        </div>
       </div>
-      <div className="mt-8">
-        <VerifyEntryForm />
-      </div>
+
+      {/* Specimen certificate — shows a first-time visitor where the ID they are being
+          asked for is actually printed, which is the single most common reason someone
+          bounces off this form. */}
+      <CertificatePreview />
     </main>
   );
 }

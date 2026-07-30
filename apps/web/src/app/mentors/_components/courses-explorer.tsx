@@ -24,6 +24,7 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import type { PublicProgramSummary } from "@repo/types";
 import {
+  formatCompareAtDisplay,
   formatPaiseDisplay,
   formatDuration,
   formatMode,
@@ -112,8 +113,18 @@ function CourseCard({ program, index }: { program: PublicProgramSummary; index: 
           <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
             {program.level ? program.level : "All levels"}
           </span>
-          <span className="text-lg font-bold text-fg">
+          <span className="flex items-baseline gap-1.5 text-lg font-bold text-fg">
             {formatPaiseDisplay(program.pricePaise)}
+            {formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise) ? (
+              <>
+                <span aria-hidden="true" className="text-xs font-normal text-fg-subtle line-through">
+                  {formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
+                </span>
+                <span className="sr-only">
+                  , reduced from {formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
+                </span>
+              </>
+            ) : null}
           </span>
         </div>
 
@@ -167,7 +178,7 @@ export function CoursesExplorer({ programs }: CoursesExplorerProps) {
     <section
       aria-label="Explore our courses"
       data-testid="mentors-courses"
-      className="border-t border-border py-16 lg:py-24"
+      className="py-16 lg:py-24"
     >
       <div className="mx-auto max-w-screen-xl px-4 md:px-6">
         <div className="mx-auto mb-10 max-w-xl text-center">

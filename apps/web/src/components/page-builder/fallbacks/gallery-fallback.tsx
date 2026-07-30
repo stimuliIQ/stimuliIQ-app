@@ -9,7 +9,7 @@ const GALLERY_ITEMS = [
   { id: "g3", alt: "Mentor-led case review session with nursing students", caption: "Case Review with Nursing Interns" },
   { id: "g4", alt: "Guest lecture by a senior hospital administrator", caption: "Hospital Administration Masterclass" },
   { id: "g5", alt: "Students presenting their final capstone projects", caption: "Capstone Project Demo Day" },
-  { id: "g6", alt: "Panel discussion with hospital hiring partners at a StimuliiQ event", caption: "Hospital Partner Connect 2026" },
+  { id: "g6", alt: "Panel discussion with hospital hiring partners at a Stimuli IQ event", caption: "Hospital Partner Connect 2026" },
 ];
 
 export function GalleryPageFallback() {
@@ -17,7 +17,7 @@ export function GalleryPageFallback() {
     <>
       <header className="mb-12">
         <h1 className="text-3xl font-bold text-fg sm:text-4xl">Gallery</h1>
-        <p className="mt-3 text-lg text-fg-muted">A glimpse into StimuliiQ training sessions, events, and student milestones.</p>
+        <p className="mt-3 text-lg text-fg-muted">A glimpse into Stimuli IQ training sessions, events, and student milestones.</p>
       </header>
 
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" role="list" data-testid="gallery-list">

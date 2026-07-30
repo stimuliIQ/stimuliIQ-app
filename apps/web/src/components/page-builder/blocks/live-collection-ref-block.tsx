@@ -34,6 +34,7 @@
 import { LogoWall, TestimonialCard } from "@repo/ui";
 import type { ResolvedLiveCollectionRefBlockData } from "@repo/types";
 import { safeHref } from "../../../lib/safe-href";
+import { resolveCollegeLogo } from "../../../lib/college-logos";
 import { HighlightText } from "../highlight-text";
 import { ExploreCourses } from "../../home/explore-courses";
 import { MentorsTeaser } from "../../home/mentors-teaser";
@@ -93,19 +94,27 @@ function monogram(name: string): string {
 }
 
 function PartnersGrid({ data }: { data: Extract<ResolvedLiveCollectionRefBlockData, { collection: "partners" }> }) {
+  // `resolveCollegeLogo` prefers the CRM upload and falls back to the logo bundled under
+  // /public/colleges (see `lib/college-logos.ts`). Without it these cards render as
+  // initials, because no live college row carries an uploaded logo — the same fix the
+  // homepage grid gets in `partner-colleges.tsx`.
   if (data.layout === "logo-wall") {
-    const logos = data.resolvedItems.filter((p) => p.logoUrl).map((p) => ({ name: p.name, src: p.logoUrl! }));
+    const logos = data.resolvedItems
+      .map((p) => ({ name: p.name, src: resolveCollegeLogo(p.name, p.logoUrl) }))
+      .filter((l): l is { name: string; src: string } => Boolean(l.src));
     if (logos.length === 0) return null;
     return <LogoWall logos={logos} />;
   }
 
   return (
     <ul role="list" className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${data.layout === "grid-4" ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
-      {data.resolvedItems.map((p) => (
+      {data.resolvedItems.map((p) => {
+        const logo = resolveCollegeLogo(p.name, p.logoUrl);
+        return (
         <li key={p.id} className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5 transition-colors duration-[150ms] hover:border-chart-3">
           <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface">
-            {p.logoUrl ? (
-              <img src={p.logoUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-contain p-1" />
+            {logo ? (
+              <img src={logo} alt="" loading="lazy" decoding="async" className="h-full w-full object-contain p-1" />
             ) : (
               <span className="text-xs font-bold tracking-tight text-fg-muted">{monogram(p.name)}</span>
             )}
@@ -121,7 +130,8 @@ function PartnersGrid({ data }: { data: Extract<ResolvedLiveCollectionRefBlockDa
             ) : null}
           </div>
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }

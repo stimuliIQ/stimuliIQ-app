@@ -14,6 +14,7 @@ import { ApiError } from "@repo/api-client";
 import { PasswordSchema } from "@repo/types";
 
 import { useConfirmPasswordReset } from "../../hooks/use-confirm-password-reset";
+import { AuthLayout } from "./auth-layout";
 
 // ConfirmPasswordResetRequestSchema (@repo/types) is `.strict()` and has no
 // `confirmPassword` field (the token comes from the URL, not the form; the
@@ -60,9 +61,9 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps): React.JSX.
   // ForgotPasswordForm's settled-state idiom.
   if (confirmReset.isSuccess) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg p-4" data-density="compact">
-        <Card className="w-full max-w-sm" data-testid="reset-password-success">
-          <CardHeader>
+      <AuthLayout>
+        <Card className="auth-card w-full" data-testid="reset-password-success">
+          <CardHeader className="items-center text-center">
             <CardTitle>Password reset</CardTitle>
             <CardDescription>Your password has been reset. Sign in with your new password.</CardDescription>
           </CardHeader>
@@ -72,7 +73,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps): React.JSX.
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </AuthLayout>
     );
   }
 
@@ -80,9 +81,9 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps): React.JSX.
   // API at all, just point the staff member at requesting a fresh one.
   if (!token) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg p-4" data-density="compact">
-        <Card className="w-full max-w-sm" data-testid="reset-password-missing-token">
-          <CardHeader>
+      <AuthLayout>
+        <Card className="auth-card w-full" data-testid="reset-password-missing-token">
+          <CardHeader className="items-center text-center">
             <CardTitle>Reset link is invalid</CardTitle>
             <CardDescription>
               This link is missing its reset token. Request a new password reset link.
@@ -94,7 +95,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps): React.JSX.
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </AuthLayout>
     );
   }
 
@@ -111,11 +112,11 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps): React.JSX.
   const busy = isSubmitting || confirmReset.isPending;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg p-4" data-density="compact">
-      <Card className="w-full max-w-sm" data-testid="reset-password-card">
-        <CardHeader>
+    <AuthLayout>
+      <Card className="auth-card w-full" data-testid="reset-password-card">
+        <CardHeader className="items-center text-center">
           <CardTitle>Set a new password</CardTitle>
-          <CardDescription>Choose a new password for your stimuliiq admin account.</CardDescription>
+          <CardDescription>Choose a new password for your Stimuli IQ admin account.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} noValidate className="space-y-4">
@@ -177,6 +178,6 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps): React.JSX.
           </form>
         </CardContent>
       </Card>
-    </div>
+    </AuthLayout>
   );
 }

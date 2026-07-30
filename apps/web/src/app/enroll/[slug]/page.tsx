@@ -20,10 +20,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { serverApiClient } from "../../../lib/api-client";
 import { buildMetadata } from "../../../lib/seo/metadata";
-import { formatPaiseDisplay } from "../../../lib/format";
+import { formatPaiseDisplay, formatCompareAtDisplay } from "../../../lib/format";
 import { buildWhatsAppHref } from "../../../lib/contact";
 import { EnrollFunnelClient } from "./_components/enroll-funnel-client";
-import { Breadcrumbs } from "@repo/ui";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -34,13 +33,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   try {
     const program = await serverApiClient.public.programs.getBySlug(slug);
     return buildMetadata({
-      title: `Enroll in ${program.title} — StimuliiQ`,
-      description: `Enroll in ${program.title} and start your tech career journey with StimuliiQ.`,
+      title: `Enroll in ${program.title} — Stimuli IQ`,
+      description: `Enroll in ${program.title} and start your tech career journey with Stimuli IQ.`,
       canonicalPath: `/enroll/${slug}`,
       noIndex: true, // Enroll pages should not be indexed (funnel pages)
     });
   } catch {
-    return buildMetadata({ title: "Enroll — StimuliiQ", noIndex: true });
+    return buildMetadata({ title: "Enroll — Stimuli IQ", noIndex: true });
   }
 }
 
@@ -57,21 +56,12 @@ export default async function EnrollPage({ params }: PageProps) {
 
   if (!program) notFound();
 
-  const breadcrumbItems = [
-    { label: "Home", href: "/" },
-    { label: "Programs", href: "/programs" },
-    { label: program.title, href: `/programs/${slug}` },
-    { label: "Enroll" },
-  ];
-
   return (
     <main
       id="main-content"
       className="mx-auto max-w-lg px-4 pb-16 pt-8 md:pt-12"
       data-testid="enroll-page"
     >
-      <Breadcrumbs items={breadcrumbItems} className="mb-6" />
-
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-fg">
           Enroll in {program.title}
@@ -83,6 +73,16 @@ export default async function EnrollPage({ params }: PageProps) {
           <span className="text-xl font-bold text-fg">
             {formatPaiseDisplay(program.pricePaise)}
           </span>
+          {formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise) ? (
+            <>
+              <span aria-hidden="true" className="text-base text-fg-subtle line-through">
+                {formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
+              </span>
+              <span className="sr-only">
+                , reduced from {formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
+              </span>
+            </>
+          ) : null}
           {program.emiDisplay ? (
             <span className="text-sm text-fg-muted">{program.emiDisplay}</span>
           ) : null}

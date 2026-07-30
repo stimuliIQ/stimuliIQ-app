@@ -171,6 +171,70 @@ body {
   line-height: var(--leading-body);
 }
 
+/* ---- Seamless section bands ------------------------------------------------ */
+/*                                                                              */
+/* Long marketing pages used to separate sections with a `border-t border-border` */
+/* hairline plus a hard background step (--bg -> --surface / --brand-50). Both   */
+/* artefacts read as visible "section joins" and cheapen the scroll.            */
+/*                                                                              */
+/* These classes keep the tint — it still gives a page its depth rhythm — but    */
+/* ramp it in and out of the page background instead of stepping, so no edge is  */
+/* ever detectable. Plain CSS, not a Tailwind `@layer`, so the rules ship        */
+/* verbatim to every app that imports this file (no content-scan dependency).   */
+/*                                                                              */
+/* The fade length is fixed, not a percentage: bands range from py-12 to py-24,  */
+/* and a percentage would wash out a short band while leaving a near-hard edge   */
+/* on a tall one. 8rem sits just inside the smallest band's own padding.         */
+
+:root {
+  --band-fade: 8rem;
+}
+
+/* Mid-page band — fades in at the top, back out at the bottom. */
+.section-band {
+  background-image: linear-gradient(
+    to bottom,
+    rgb(var(--bg)) 0,
+    rgb(var(--surface)) var(--band-fade),
+    rgb(var(--surface)) calc(100% - var(--band-fade)),
+    rgb(var(--bg)) 100%
+  );
+}
+
+/* Same, in the soft brand tint — for bands whose cards are white and need more
+   separation than --surface (#f7f8fa) can give against #ffffff. */
+.section-band-brand {
+  background-image: linear-gradient(
+    to bottom,
+    rgb(var(--bg)) 0,
+    rgb(var(--brand-50)) var(--band-fade),
+    rgb(var(--brand-50)) calc(100% - var(--band-fade)),
+    rgb(var(--bg)) 100%
+  );
+}
+
+/* Top-of-page band (heroes): nothing above it but the sticky header, so it starts
+   at full tint and only fades out into the first content section below. */
+.section-band-top {
+  background-image: linear-gradient(
+    to bottom,
+    rgb(var(--surface)) 0,
+    rgb(var(--surface)) calc(100% - var(--band-fade)),
+    rgb(var(--bg)) 100%
+  );
+}
+
+/* End-of-page band (the footer): fades in from the last content section and then
+   stays solid — there is nothing below it to fade back out into. */
+.section-band-bottom {
+  background-image: linear-gradient(
+    to bottom,
+    rgb(var(--bg)) 0,
+    rgb(var(--surface)) var(--band-fade),
+    rgb(var(--surface)) 100%
+  );
+}
+
 /* ---- Accordion animations (used by CurriculumAccordion / Radix Accordion). ---- */
 /* Tailwind utility classes .animate-accordion-down / .animate-accordion-up are   */
 /* registered in the config/tailwind/preset. These keyframes are the CSS backing. */

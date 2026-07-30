@@ -150,6 +150,12 @@ export const PublicRelatedProgramSchema = z.object({
   title: z.string().min(1),
   cardSummary: z.string().nullable(),
   pricePaise: z.number().int().min(0).describe("Program price in integer paise."),
+  compareAtPricePaise: z
+    .number()
+    .int()
+    .min(0)
+    .nullable()
+    .describe("Struck-through 'was' price in paise. Null = single price."),
 });
 export type PublicRelatedProgram = z.infer<typeof PublicRelatedProgramSchema>;
 
@@ -177,6 +183,18 @@ export const PublicProgramSummarySchema = z.object({
   durationWeeks: z.number().int().positive().nullable(),
   cardSummary: z.string().max(200).nullable().describe("Short marketing hook for list cards."),
   pricePaise: z.number().int().min(0).describe("Program price in integer paise."),
+  /**
+   * Struck-through "was" price. DISPLAY ONLY — the charged amount is always derived from
+   * `pricePaise` server-side, never from this. Null when the program shows a single price.
+   * Renderers must additionally require `compareAtPricePaise > pricePaise` before striking,
+   * so a bad value degrades to "one price" instead of advertising a saving that isn't real.
+   */
+  compareAtPricePaise: z
+    .number()
+    .int()
+    .min(0)
+    .nullable()
+    .describe("Struck-through 'was' price in paise. Null = single price."),
   /**
    * Human-readable EMI display string only, e.g. "₹1,500/month × 6".
    * NEVER the full emi JSON (may contain internal plan identifiers).

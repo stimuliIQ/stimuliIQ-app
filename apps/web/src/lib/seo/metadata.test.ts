@@ -2,7 +2,7 @@
  * metadata helper tests.
  *
  * Verifies:
- *   - Title templating ("Page | StimuliiQ")
+ *   - Title templating ("Page | Stimuli IQ")
  *   - Default description
  *   - Canonical URL construction
  *   - OG/Twitter metadata
@@ -12,14 +12,14 @@ import { describe, expect, it } from "vitest";
 import { buildMetadata, SITE_NAME } from "./metadata";
 
 describe("buildMetadata", () => {
-  it("applies title template 'Page | StimuliiQ'", () => {
+  it("applies title template 'Page | Stimuli IQ'", () => {
     const meta = buildMetadata({ title: "About Us" });
     expect(meta.title).toBe(`About Us | ${SITE_NAME}`);
   });
 
   it("does not double-append site name when title already contains it", () => {
-    const meta = buildMetadata({ title: "StimuliiQ — Programs" });
-    expect(meta.title).toBe("StimuliiQ — Programs");
+    const meta = buildMetadata({ title: "Stimuli IQ — Programs" });
+    expect(meta.title).toBe("Stimuli IQ — Programs");
   });
 
   it("uses the site name as title when no title given", () => {

@@ -9,7 +9,6 @@
  * page) on any API failure / unpublished / non-builder-managed row.
  */
 import type { Metadata } from "next";
-import { Breadcrumbs } from "@repo/ui";
 import { buildMetadata, SITE_URL } from "../../lib/seo/metadata";
 import { buildBreadcrumbJsonLd } from "../../lib/seo/json-ld";
 import { resolveAssetUrl } from "../../lib/media";
@@ -25,7 +24,7 @@ const FOR_COLLEGES_SLUG = "for-colleges";
 
 const FALLBACK_METADATA = {
   title: "For Colleges — Campus Training Partnerships",
-  description: "Partner with StimuliiQ to provide industry-grade tech training to your students. We work with 80+ colleges across India.",
+  description: "Partner with Stimuli IQ to provide industry-grade tech training to your students. We work with 80+ colleges across India.",
 };
 
 const BREADCRUMBS = [{ label: "Home", href: "/" }, { label: "For Colleges" }];
@@ -64,14 +63,6 @@ export default async function ForCollegesPage() {
         // biome-ignore lint/security/noDangerouslySetInnerHtml: escaped JSON-LD
         dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }}
       />
-
-      {/* Site-standard container for the breadcrumb; blocks render full-bleed below
-          because every registry block owns its own `max-w-screen-xl px-4 md:px-6`
-          container (same pattern as /about — a narrower outer wrapper here would
-          double-constrain and double-pad every section). */}
-      <section aria-label="Breadcrumb" className="mx-auto max-w-screen-xl px-4 pt-10 md:px-6">
-        <Breadcrumbs items={BREADCRUMBS} className="mb-0 text-sm" data-testid="colleges-breadcrumbs" />
-      </section>
 
       {blocks ? (
         <PageBlocks blocks={blocks} pageSlug={FOR_COLLEGES_SLUG} />

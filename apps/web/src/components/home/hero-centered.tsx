@@ -190,9 +190,9 @@ export function HeroCentered() {
 
           {/* Headline */}
           <h1 className="mt-8 font-display text-5xl font-bold leading-[1.05] tracking-tight text-fg sm:text-6xl lg:text-7xl">
-            Build the skills real
+            Build the Skills Real
             <br />
-            <span className="text-chart-3">healthcare careers</span> demand.
+            <span className="text-chart-3">Healthcare Careers</span> Demand.
           </h1>
 
           {/* Subheading */}

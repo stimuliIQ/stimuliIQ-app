@@ -4,7 +4,7 @@
     "data": {
       "variant": "centered",
       "headline": "Gallery",
-      "subheadline": "A glimpse into StimuliiQ training sessions, events, and student milestones."
+      "subheadline": "A glimpse into Stimuli IQ training sessions, events, and student milestones."
     }
   },
   {
@@ -17,7 +17,7 @@
         { "imageKey": "/images/hero/image-2.jpg", "alt": "Mentor-led case review session with nursing students", "caption": "Case Review with Nursing Interns" },
         { "imageKey": "/images/scholarship/scholarship.png", "alt": "Guest lecture by a senior hospital administrator", "caption": "Hospital Administration Masterclass" },
         { "imageKey": "/images/scholarship/contact-person.png", "alt": "Students presenting their final capstone projects", "caption": "Capstone Project Demo Day" },
-        { "imageKey": "/images/popup/counsellor.png", "alt": "Panel discussion with hospital hiring partners at a StimuliiQ event", "caption": "Hospital Partner Connect 2026" }
+        { "imageKey": "/images/popup/counsellor.png", "alt": "Panel discussion with hospital hiring partners at a Stimuli IQ event", "caption": "Hospital Partner Connect 2026" }
       ]
     }
   }

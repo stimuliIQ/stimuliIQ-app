@@ -30,7 +30,7 @@ import { MediaGalleryBlock } from "./blocks/media-gallery-block";
 import { JobOpeningsBlock } from "./blocks/job-openings-block";
 import { LiveCollectionRefBlock } from "./blocks/live-collection-ref-block";
 import { BrainShowcaseBlock } from "./blocks/brain-showcase-block";
-import { heroMotifForSlug, type HeroMotifKind } from "./hero-motif";
+import { BrandMarkBand, heroMotifForSlug, showsBrandMarkBand, type HeroMotifKind } from "./hero-motif";
 
 function renderBlock(
   block: ResolvedPageBuilderBlock,
@@ -95,6 +95,10 @@ export function PageBlocks({ blocks, pageSlug }: PageBlocksProps): React.JSX.Ele
       {blocks.map((block, index) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: blocks have no stable id on the wire (same envelope as the legacy ContentBlockRenderer)
         <BlockErrorBoundary key={index} blockType={block.type} blockIndex={index}>
+          {/* On /about the logo gets a band of its own ABOVE the hero copy, rather than
+              sitting behind it as a watermark (see `hero-motif.tsx`). Decorative, so the
+              renderer injects it — it is not an editable block. */}
+          {block.type === "hero" && showsBrandMarkBand(pageSlug) ? <BrandMarkBand /> : null}
           {renderBlock(block, heroMotif)}
         </BlockErrorBoundary>
       ))}

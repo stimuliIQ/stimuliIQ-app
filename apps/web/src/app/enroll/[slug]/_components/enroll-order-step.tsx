@@ -144,7 +144,7 @@ export function EnrollOrderStep({
       ) : null}
 
       <p className="text-xs text-fg-subtle">
-        Payment is processed securely by Razorpay. StimuliiQ does not store your
+        Payment is processed securely by Razorpay. Stimuli IQ does not store your
         card details.
       </p>
     </div>

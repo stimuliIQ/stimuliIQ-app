@@ -275,6 +275,13 @@ export class PublicCatalogService {
       durationWeeks: row.durationWeeks,
       cardSummary: row.cardSummary,
       pricePaise: row.pricePaise,
+      // Display-only "was" price. Normalised to null unless it is STRICTLY greater than
+      // the real price, so a stale or mis-entered value can never reach a renderer as a
+      // saving that doesn't exist (`₹6,999 ₹6,999`, or a "was" below the price).
+      compareAtPricePaise:
+        row.compareAtPricePaise != null && row.compareAtPricePaise > row.pricePaise
+          ? row.compareAtPricePaise
+          : null,
       emiDisplay: deriveEmiDisplay(row.emi),
       ratingAvg: row.ratingAvg,
       ratingCount: row.ratingCount,
@@ -333,6 +340,11 @@ export class PublicCatalogService {
       title: r.title,
       cardSummary: r.cardSummary,
       pricePaise: r.pricePaise,
+      // Same strictly-greater normalisation as `toSummary` above.
+      compareAtPricePaise:
+        r.compareAtPricePaise != null && r.compareAtPricePaise > r.pricePaise
+          ? r.compareAtPricePaise
+          : null,
     }));
 
     return {

@@ -486,11 +486,14 @@ describe("PublicFunnelService", () => {
       // The website hides every "Enroll Now" CTA for such a program, but /enroll/:slug is
       // a guessable URL and this endpoint is directly callable — the server must refuse
       // rather than rely on the hidden button (CLAUDE.md §3.5).
+      // Partial row: the guard under test reads only these three fields, and the cast
+      // follows this file's existing convention for narrow repository mocks (see the
+      // `as unknown as jest.Mocked<...>` stubs at the top).
       mocks.publicRepository.findPublicProgramById.mockResolvedValue({
         id: PROGRAM_ID,
         pricePaise: 100000,
         enrollmentEnabled: false,
-      });
+      } as unknown as Awaited<ReturnType<PublicRepository["findPublicProgramById"]>>);
 
       await expect(
         service.createEnrollOrder(

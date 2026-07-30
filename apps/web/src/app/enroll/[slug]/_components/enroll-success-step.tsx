@@ -64,7 +64,7 @@ export function EnrollSuccessStep({ result }: EnrollSuccessStepProps) {
 
       <p className="text-xs text-fg-subtle">
         A receipt will be emailed to you shortly (notification coming in P6).
-        Welcome to StimuliiQ!
+        Welcome to Stimuli IQ!
       </p>
     </div>
   );

@@ -12,7 +12,7 @@
  * Rules:
  *   - All fields have sane sitewide defaults (site name, description, OG image, Twitter card).
  *   - `canonicalPath` is resolved against NEXT_PUBLIC_SITE_URL — always absolute.
- *   - Title template: "{title} | StimuliiQ" (omitted when title IS the site name).
+ *   - Title template: "{title} | Stimuli IQ" (omitted when title IS the site name).
  *   - OG/Twitter images are absolute URLs (required by spec).
  *   - robots.noindex/nofollow can be set per-page.
  *
@@ -24,11 +24,11 @@ import type { Metadata } from "next";
 // Constants (public env — safe for NEXT_PUBLIC_*)
 // ---------------------------------------------------------------------------
 
-export const SITE_NAME = "StimuliiQ" as const;
+export const SITE_NAME = "Stimuli IQ" as const;
 export const SITE_URL =
   (process.env.NEXT_PUBLIC_SITE_URL ?? "https://stimuliiq.com").replace(/\/$/, "");
 export const DEFAULT_DESCRIPTION =
-  "StimuliiQ — India's next generation healthcare learning platform. Structured training, real internships, and mentorship from healthcare industry experts for medical, psychology, and allied health science students.";
+  "Stimuli IQ — India's next generation healthcare learning platform. Structured training, real internships, and mentorship from healthcare industry experts for medical, psychology, and allied health science students.";
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
 
 // ---------------------------------------------------------------------------
@@ -36,7 +36,7 @@ export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
 // ---------------------------------------------------------------------------
 
 export interface BuildMetadataOptions {
-  /** Page-specific title. Appended with " | StimuliiQ" unless it already contains the site name. */
+  /** Page-specific title. Appended with " | Stimuli IQ" unless it already contains the site name. */
   title?: string;
   /** Page-specific meta description (≤160 chars recommended). */
   description?: string;
@@ -98,7 +98,7 @@ export function buildMetadata(opts: BuildMetadataOptions = {}): Metadata {
   const ogImage = opts.ogImage ?? (siteDefaults?.defaultOgImagePath ? `${SITE_URL}${siteDefaults.defaultOgImagePath}` : DEFAULT_OG_IMAGE);
   const resolvedOgImageAlt = ogImageAlt ?? `${siteName} — internship & career training platform`;
 
-  // Title template: "Page Title | StimuliiQ"
+  // Title template: "Page Title | Stimuli IQ"
   // When no title given, fall back to the bare site name.
   const resolvedTitle = title
     ? title.includes(siteName)

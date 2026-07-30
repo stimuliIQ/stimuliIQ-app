@@ -31,6 +31,7 @@ const FORM_FIELDS = new Set([
   "mode",
   "durationWeeks",
   "priceRupees",
+  "compareAtRupees",
   "summary",
   "cardSummary",
 ]);
@@ -59,9 +60,17 @@ interface ProgramFormDrawerProps {
 // one per line) and `ogImageKey` (upload component) live outside RHF.
 type ProgramFormValues = Omit<
   CreateProgramRequest,
-  "pricePaise" | "emi" | "status" | "outcomes" | "ogImageKey" | "scholarshipAvailable"
+  | "pricePaise"
+  | "compareAtPricePaise"
+  | "emi"
+  | "status"
+  | "outcomes"
+  | "ogImageKey"
+  | "scholarshipAvailable"
 > & {
   priceRupees: number;
+  /** Blank / 0 = no strike-through price. Converted to `compareAtPricePaise` at submit. */
+  compareAtRupees?: number;
 };
 
 /** Textarea (one outcome per line) → wire array; empty → undefined. */
@@ -100,6 +109,7 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
         mode: program.mode,
         durationWeeks: program.durationWeeks,
         priceRupees: paiseToRupeeInput(program.pricePaise) ?? 0,
+        compareAtRupees: paiseToRupeeInput(program.compareAtPricePaise ?? 0) ?? undefined,
         summary: program.summary ?? undefined,
         cardSummary: program.cardSummary ?? undefined,
       });
@@ -118,8 +128,14 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
   const isPending = createProgram.isPending || updateProgram.isPending;
 
   const onSubmit = handleSubmit(async (values) => {
-    const { priceRupees, ...rest } = values;
+    const { priceRupees, compareAtRupees, ...rest } = values;
     const pricePaise = rupeeInputToPaise(priceRupees);
+    // Blank or 0 means "no strike-through" — send null so the column is cleared, not 0
+    // (0 would fail the API's must-be-above-price check and block the save).
+    const compareAtPricePaise =
+      compareAtRupees == null || Number.isNaN(compareAtRupees) || compareAtRupees <= 0
+        ? null
+        : rupeeInputToPaise(compareAtRupees);
 
     // Map zod validation issues to INLINE field errors (never a raw JSON toast).
     // `pricePaise` lives in the form as `priceRupees`; wire-only keys (emi/status)
@@ -127,7 +143,8 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
     const applyIssues = (issues: { path: (string | number)[]; message: string }[]) => {
       for (const issue of issues) {
         const key = String(issue.path[0] ?? "");
-        const field = key === "pricePaise" ? "priceRupees" : key;
+        const field =
+          key === "pricePaise" ? "priceRupees" : key === "compareAtPricePaise" ? "compareAtRupees" : key;
         if (FORM_FIELDS.has(field)) {
           setError(field as keyof ProgramFormValues, { message: issue.message });
         }
@@ -153,6 +170,7 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
           ...rest,
           ...marketing,
           pricePaise,
+          compareAtPricePaise,
           ...(ogImageKey !== undefined ? { ogImageKey } : {}),
         });
         if (!parsed.success) return applyIssues(parsed.error.issues);
@@ -163,6 +181,7 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
           ...rest,
           ...marketing,
           pricePaise,
+          compareAtPricePaise,
           emi: [],
           status: "draft",
           // Create's ogImageKey is optional-not-nullable: null (removed) → absent.
@@ -247,10 +266,21 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
               step="0.01"
               required
               placeholder="e.g. 49999"
-              helperText="Stored as integer paise on the wire — entered here in rupees."
+              helperText="Stored as integer paise on the wire — entered here in rupees. This is what the student is charged."
               {...register("priceRupees", { valueAsNumber: true })}
               error={errors.priceRupees?.message}
               data-testid="program-form-price"
+            />
+            <Input
+              label="Compare-at price (INR, optional)"
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="e.g. 14999"
+              helperText="Shown struck through beside the price. Must be higher than the price. Leave blank for a single price."
+              {...register("compareAtRupees", { valueAsNumber: true })}
+              error={errors.compareAtRupees?.message}
+              data-testid="program-form-compare-at-price"
             />
             <Input label="Summary" placeholder="Short summary shown on the program page…" {...register("summary")} data-testid="program-form-summary" />
 

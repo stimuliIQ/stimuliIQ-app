@@ -15,10 +15,9 @@ const HERO_STATS = [
 const BENEFITS = [
   { title: "Completely merit and need based", description: "Awards are decided on academic merit and financial need — nothing else." },
   { title: "Up to 50% fee waiver", description: "No repayment, no service obligation. The waiver applies directly to your program fee." },
-  { title: "Covers every StimuliiQ program", description: "Psychology, Clinical & Counselling Psychology, Neurology, Healthcare Training, and Internship tracks are all eligible." },
+  { title: "Covers every Stimuli IQ program", description: "Psychology, Clinical & Counselling Psychology, Neurology, Healthcare Training, and Internship tracks are all eligible." },
   { title: "Open to students across India", description: "MBBS, BDS, BSc Nursing, Psychology, Life Sciences, Allied Health, and related degree students from any college or university can apply." },
   { title: "Extended mentor access", description: "Scholars get additional 1:1 sessions with clinician mentors and personalised career guidance throughout the program." },
-  { title: "Placement assistance included", description: "Resume reviews, mock interviews and referrals to our hiring partners continue until you are placed." },
 ];
 
 const IMPACT_STATS = [
@@ -40,7 +39,7 @@ const PROCESS_STEPS = [
   { title: "Submit your details", description: "Tell us your qualification, the program you want to join and your financial background." },
   { title: "Receive your scholarship award", description: "Applications are reviewed competitively and successful applicants are notified within days." },
   { title: "Enrol and prepare", description: "Join your program with the fee waiver applied, plus extended mentor sessions." },
-  { title: "Complete your internship and get placed", description: "Finish the program, earn your certificate and access placement assistance." },
+  { title: "Complete your internship and get certified", description: "Finish the program and earn your verifiable certificate." },
 ];
 
 export function ScholarshipPageFallback() {
@@ -48,7 +47,7 @@ export function ScholarshipPageFallback() {
 
   return (
     <main id="main-content" className="flex flex-col" data-testid="scholarship-page">
-      <section aria-label="StimuliiQ Scholarship Programme" data-testid="scholarship-hero" className="relative overflow-hidden border-b border-border bg-surface">
+      <section aria-label="Stimuli IQ Scholarship Programme" data-testid="scholarship-hero" className="relative overflow-hidden section-band-top">
         <div aria-hidden="true" className="absolute inset-0 opacity-50">
           <Image src="/images/hero/hero-background.avif" alt="" fill priority sizes="100vw" className="object-cover" />
         </div>
@@ -61,25 +60,9 @@ export function ScholarshipPageFallback() {
         </span>
 
         <div className="relative mx-auto max-w-screen-xl px-4 pt-8 md:px-6">
-          <nav aria-label="Breadcrumb" className="text-sm">
-            <ol className="flex items-center gap-2">
-              <li>
-                <a href="/" className="font-medium text-brand-500 hover:text-brand-600 focus-visible:outline-none focus-visible:underline">
-                  Home
-                </a>
-              </li>
-              <li aria-hidden="true" className="text-fg-subtle">
-                /
-              </li>
-              <li aria-current="page" className="text-fg-muted">
-                Scholarship
-              </li>
-            </ol>
-          </nav>
-
           <div className="mx-auto mt-8 flex max-w-4xl flex-col items-center text-center">
             <h1 className="font-display text-5xl font-bold leading-[1.05] tracking-tight text-fg sm:text-6xl lg:text-7xl">
-              StimuliiQ <span className="text-chart-3">Scholarship</span>
+              Stimuli IQ <span className="text-chart-3">Scholarship</span>
               <br />
               Programme
             </h1>
@@ -128,7 +111,7 @@ export function ScholarshipPageFallback() {
                 <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
               </div>
               <p className="mt-4 text-sm leading-relaxed text-fg-muted">
-                The StimuliiQ Scholarship grants merit-and-need-based fee waivers of up to 50% on internship-training programs — with extended mentor access and job assistance
+                The Stimuli IQ Scholarship grants merit-and-need-based fee waivers of up to 50% on internship-training programs — with extended mentor access and job assistance
                 included.
               </p>
             </div>
@@ -176,7 +159,7 @@ export function ScholarshipPageFallback() {
         </div>
       </section>
 
-      <section id="apply" aria-label="Scholarship application form" data-testid="scholarship-apply" className="border-y border-border bg-surface py-16 scroll-mt-20">
+      <section id="apply" aria-label="Scholarship application form" data-testid="scholarship-apply" className="section-band py-16 scroll-mt-20">
         <div className="mx-auto max-w-screen-xl px-4 md:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold text-fg md:text-4xl">Application form</h2>
@@ -241,13 +224,13 @@ export function ScholarshipPageFallback() {
         </div>
       </section>
 
-      <section id="how-it-works" aria-label="Scholarship application process" data-testid="scholarship-process" className="border-t border-border bg-bg py-16 lg:py-20 scroll-mt-20">
+      <section id="how-it-works" aria-label="Scholarship application process" data-testid="scholarship-process" className="bg-bg py-16 lg:py-20 scroll-mt-20">
         <div className="mx-auto max-w-screen-xl px-4 md:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold text-fg md:text-4xl">
-              Scholarship <span className="text-chart-3">application process</span>
+              Scholarship <span className="text-chart-3">Application Process</span>
             </h2>
-            <p className="mt-4 text-lg text-fg-muted">Five steps from application to placed professional.</p>
+            <p className="mt-4 text-lg text-fg-muted">Five steps from application to certified professional.</p>
           </div>
           <ol role="list" className="mx-auto mt-12 grid max-w-6xl grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-5">
             {PROCESS_STEPS.map((step, index) => (

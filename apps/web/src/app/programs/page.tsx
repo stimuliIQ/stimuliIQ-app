@@ -26,7 +26,7 @@ import { buildMetadata } from "../../lib/seo/metadata";
 import { serverApiClient } from "../../lib/api-client";
 import { getCourseDomains } from "../../lib/course-facets";
 import { ProgramCard, EmptyState, Skeleton } from "@repo/ui";
-import { formatPaiseDisplay, formatRating, formatDuration, formatMode } from "../../lib/format";
+import { formatPaiseDisplay, formatCompareAtDisplay, formatRating, formatDuration, formatMode } from "../../lib/format";
 import { CoursesSidebar } from "./_components/courses-sidebar";
 import { ProgramsPagination } from "./_components/programs-pagination";
 import type { ListPublicProgramsQuery, PublicProgramSort } from "@repo/types";
@@ -38,7 +38,7 @@ import type { ListPublicProgramsQuery, PublicProgramSort } from "@repo/types";
 export const metadata: Metadata = buildMetadata({
   title: "Courses & Programs — Internship & Career Training",
   description:
-    "Browse all StimuliiQ courses: Full Stack, Python, Data Science, AI/ML, Cloud, DevOps, and more. Search by name and filter by specialisation.",
+    "Browse all Stimuli IQ courses: Full Stack, Python, Data Science, AI/ML, Cloud, DevOps, and more. Search by name and filter by specialisation.",
   canonicalPath: "/programs",
 });
 
@@ -95,17 +95,31 @@ export default async function CoursesListingPage({ searchParams }: PageProps) {
   let hasMore = false;
   let fetchError = false;
 
-  try {
-    const result = await serverApiClient.public.programs.list(query);
-    if (!Array.isArray(result.items)) {
-      // Defensive: an envelope-contract violation must degrade to the error
-      // state, not crash the page with a 500 (items.map is not a function).
-      throw new Error("Malformed programs list response");
-    }
-    programs = result.items;
-    nextCursor = result.meta?.nextCursor ?? null;
-    hasMore = result.meta?.hasMore ?? false;
-  } catch {
+  // The catalog page and the sidebar facets are independent reads, so they are
+  // started together rather than one-after-the-other. This page is the only fully
+  // dynamic route on the site (it renders `searchParams`), so it pays the full API
+  // latency on EVERY request — on a cold facets cache the sequential version cost
+  // two round trips to the API where one is enough.
+  const [listResult, domains] = await Promise.all([
+    serverApiClient.public.programs
+      .list(query)
+      .then((result) => {
+        if (!Array.isArray(result.items)) {
+          // Defensive: an envelope-contract violation must degrade to the error
+          // state, not crash the page with a 500 (items.map is not a function).
+          throw new Error("Malformed programs list response");
+        }
+        return result;
+      })
+      .catch(() => null),
+    getCourseDomains(),
+  ]);
+
+  if (listResult) {
+    programs = listResult.items;
+    nextCursor = listResult.meta?.nextCursor ?? null;
+    hasMore = listResult.meta?.hasMore ?? false;
+  } else {
     fetchError = true;
   }
 
@@ -116,7 +130,6 @@ export default async function CoursesListingPage({ searchParams }: PageProps) {
     hasMore = false;
   }
 
-  const domains = await getCourseDomains();
   const filterState = { q, domain, sort };
   const hasActiveFilters = Boolean(q || domain);
 
@@ -126,26 +139,6 @@ export default async function CoursesListingPage({ searchParams }: PageProps) {
       className="mx-auto max-w-screen-xl px-4 py-10 md:px-6"
       data-testid="programs-listing"
     >
-      {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="mb-4 text-sm">
-        <ol className="flex items-center gap-2">
-          <li>
-            <a
-              href="/"
-              className="font-medium text-brand-500 hover:text-brand-600 focus-visible:outline-none focus-visible:underline"
-            >
-              Home
-            </a>
-          </li>
-          <li aria-hidden="true" className="text-fg-subtle">
-            &gt;
-          </li>
-          <li aria-current="page" className="text-fg-muted">
-            Courses
-          </li>
-        </ol>
-      </nav>
-
       {/* Page header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-fg md:text-4xl">Our <span className="text-chart-3">Courses &amp; Programs</span></h1>
@@ -235,6 +228,7 @@ export default async function CoursesListingPage({ searchParams }: PageProps) {
                       mode={formatMode(program.mode)}
                       level={program.level ?? undefined}
                       priceDisplay={formatPaiseDisplay(program.pricePaise)}
+                      originalPriceDisplay={formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
                       emiDisplay={program.emiDisplay ?? undefined}
                       ratingAvg={
                         program.ratingAvg != null

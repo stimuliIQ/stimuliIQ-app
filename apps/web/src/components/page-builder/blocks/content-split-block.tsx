@@ -14,7 +14,7 @@ export function ContentSplitBlock({ data }: { data: ContentSplitBlockData }): Re
   const mediaFirst = data.mediaPosition === "left";
 
   return (
-    <section aria-label={data.heading} data-testid="page-builder-content-split" className="border-t border-border py-16 lg:py-24">
+    <section aria-label={data.heading} data-testid="page-builder-content-split" className="py-16 lg:py-24">
       <div className="mx-auto grid max-w-screen-xl grid-cols-1 items-center gap-12 px-4 md:px-6 lg:grid-cols-2">
         <div className={mediaFirst ? "lg:order-2" : undefined}>
           {data.eyebrow ? <p className="text-sm font-semibold uppercase tracking-[0.2em] text-fg-muted">{data.eyebrow}</p> : null}

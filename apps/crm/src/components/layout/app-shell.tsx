@@ -12,6 +12,7 @@ import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } fro
 import { useMe } from "../../hooks/use-me";
 import { useLogout } from "../../hooks/use-logout";
 import { BranchScopeProvider } from "../../app/branch-scope";
+import { AuthLayout } from "../auth/auth-layout";
 import { LoginForm } from "../auth/login-form";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
@@ -33,14 +34,14 @@ export function AppShell({ children }: { children: React.ReactNode }): React.JSX
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg" data-density="compact">
-        <Card data-testid="app-shell-loading" aria-busy="true" aria-live="polite" className="w-full max-w-sm">
-          <CardHeader>
-            <CardTitle>Loading stimuliiq admin…</CardTitle>
+      <AuthLayout>
+        <Card data-testid="app-shell-loading" aria-busy="true" aria-live="polite" className="auth-card w-full">
+          <CardHeader className="items-center text-center">
+            <CardTitle>Loading Stimuli IQ admin…</CardTitle>
             <CardDescription>Checking your session.</CardDescription>
           </CardHeader>
         </Card>
-      </div>
+      </AuthLayout>
     );
   }
 
@@ -50,9 +51,9 @@ export function AppShell({ children }: { children: React.ReactNode }): React.JSX
 
   if (isError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg" data-density="compact">
-        <Card data-testid="app-shell-error" className="w-full max-w-sm">
-          <CardHeader>
+      <AuthLayout>
+        <Card data-testid="app-shell-error" className="auth-card w-full">
+          <CardHeader className="items-center text-center">
             <CardTitle>Something went wrong</CardTitle>
             <CardDescription>
               {error?.problem?.detail ?? error?.problem?.title ?? "We couldn't load your session right now."}
@@ -64,7 +65,7 @@ export function AppShell({ children }: { children: React.ReactNode }): React.JSX
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </AuthLayout>
     );
   }
 

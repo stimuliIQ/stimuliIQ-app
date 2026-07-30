@@ -6,7 +6,7 @@
  * SSG + structured data + loading/empty/error states.
  */
 import type { Metadata } from "next";
-import { Breadcrumbs, EmptyState } from "@repo/ui";
+import { EmptyState } from "@repo/ui";
 import { buildMetadata, SITE_URL } from "../../lib/seo/metadata";
 import { buildBreadcrumbJsonLd } from "../../lib/seo/json-ld";
 import { serverApiClient } from "../../lib/api-client";
@@ -17,7 +17,7 @@ export const revalidate = 3600;
 export const metadata: Metadata = buildMetadata({
   title: "Student Testimonials & Success Stories",
   description:
-    "Hear from StimuliiQ alumni who landed their first tech jobs. Real stories, real outcomes from students across India.",
+    "Hear from Stimuli IQ alumni who landed their first tech jobs. Real stories, real outcomes from students across India.",
   canonicalPath: "/testimonials",
 });
 
@@ -53,8 +53,6 @@ export default async function TestimonialsPage() {
       />
 
       <div className="mx-auto max-w-5xl px-4 py-12 sm:py-16 md:px-6">
-        <Breadcrumbs items={BREADCRUMBS} className="mb-8" data-testid="testimonials-breadcrumbs" />
-
         <header className="mb-12">
           <h1 className="text-3xl font-bold text-fg sm:text-4xl">Student <span className="text-chart-3">Success Stories</span></h1>
           <p className="mt-3 text-lg text-fg-muted">

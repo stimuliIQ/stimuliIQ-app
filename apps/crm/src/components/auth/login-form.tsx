@@ -12,6 +12,7 @@ import { ApiError } from "@repo/api-client";
 import { LoginRequestSchema, type LoginRequest } from "@repo/types";
 
 import { useLogin } from "../../hooks/use-login";
+import { AuthLayout } from "./auth-layout";
 
 export function LoginForm(): React.JSX.Element {
   const login = useLogin();
@@ -41,17 +42,10 @@ export function LoginForm(): React.JSX.Element {
   const busy = isSubmitting || login.isPending;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg p-4" data-density="compact">
-      <Card className="w-full max-w-sm" data-testid="login-card">
-        <CardHeader>
-          {/* Same asset + dark-mode treatment as the sidebar logo (layout/sidebar.tsx). */}
-          <img
-            src="/stimuliiq-logo.png"
-            alt="StimuliiQ"
-            className="mb-3 h-7 w-auto self-start dark:brightness-0 dark:invert"
-            data-testid="login-logo"
-          />
-          <CardTitle>Sign in to stimuliiq admin</CardTitle>
+    <AuthLayout>
+      <Card className="auth-card w-full" data-testid="login-card">
+        <CardHeader className="items-center text-center">
+          <CardTitle>Sign in to Stimuli IQ admin</CardTitle>
           <CardDescription>Use your staff account to access the admin dashboard.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -114,6 +108,6 @@ export function LoginForm(): React.JSX.Element {
           </form>
         </CardContent>
       </Card>
-    </div>
+    </AuthLayout>
   );
 }

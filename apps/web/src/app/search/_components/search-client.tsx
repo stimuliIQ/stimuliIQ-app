@@ -147,7 +147,7 @@ export function SearchPageClient() {
       <div aria-live="polite" data-testid="search-results-region">
         {!hasQuery ? (
           <EmptyState
-            title="Search StimuliiQ"
+            title="Search Stimuli IQ"
             description="Find programs, blog articles, and more. Try 'Python', 'full stack', or 'internship'."
             data-testid="search-idle"
           />

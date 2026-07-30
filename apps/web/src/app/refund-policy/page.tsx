@@ -1,6 +1,13 @@
 /**
  * Refund Policy — /refund-policy
- * Static page, SSG, referenced from pricing and footer.
+ * Static page, SSG, referenced from pricing, terms and the footer.
+ *
+ * CONTENT SOURCE OF TRUTH: this page must agree with the refund answer the rest of the
+ * site already gives — `apps/web/content/faq/refund.mdx` and the `faq` block of
+ * `prisma/fixtures/builder-pages/home.json`, both of which state that programs are
+ * non-refundable. It previously advertised a "7-day no-questions-asked refund" plus a
+ * pro-rata window, which was the pre-repositioning policy and directly contradicted
+ * those two. Change all three together or the site contradicts itself again.
  */
 import type { Metadata } from "next";
 import { buildMetadata } from "../../lib/seo/metadata";
@@ -9,68 +16,162 @@ import { SUPPORT_EMAIL, WHATSAPP_DISPLAY, buildWhatsAppHref } from "../../lib/co
 export const metadata: Metadata = buildMetadata({
   title: "Refund Policy",
   description:
-    "StimuliiQ's refund policy — 7-day no-questions-asked refund on all programs. Understand the terms and how to request a refund.",
+    "Stimuli IQ's refund policy — programs are non-refundable once enrolled. What that covers, the limited exceptions we do honour, and how to reach us.",
   canonicalPath: "/refund-policy",
 });
+
+const LAST_UPDATED = "July 2026";
+
+/** The limited cases where money does come back — all failures on our side, not change of mind. */
+const EXCEPTIONS = [
+  {
+    title: "Duplicate payment",
+    body: "If the same enrolment is charged more than once, the extra charge is returned in full.",
+  },
+  {
+    title: "Failed or cancelled enrolment",
+    body: "If a payment succeeds but your enrolment is not created, or we cancel your seat, the amount is returned in full.",
+  },
+  {
+    title: "Program cancelled by us",
+    body: "If we cancel a program before it begins and cannot offer you a place on the next batch, the fee is returned in full.",
+  },
+];
+
+function CheckIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+    >
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+function ContactLink({ href, children, external }: { href: string; children: React.ReactNode; external?: boolean }) {
+  return (
+    <a
+      href={href}
+      {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      className="font-medium text-brand-600 underline underline-offset-2 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    >
+      {children}
+    </a>
+  );
+}
 
 export default function RefundPolicyPage() {
   return (
     <main
       id="main-content"
-      className="mx-auto max-w-3xl px-4 py-10 md:px-6"
+      className="mx-auto max-w-3xl px-4 py-12 md:px-6 lg:py-16"
       data-testid="refund-policy"
     >
-      <h1 className="mb-6 text-3xl font-bold text-fg">Refund Policy</h1>
-      <p className="mb-4 text-sm text-fg-muted">Last updated: June 2026</p>
-
-      <div className="prose prose-neutral max-w-none text-fg-muted leading-relaxed">
-        <h2 className="text-xl font-semibold text-fg mt-8 mb-3">7-Day Refund Window</h2>
-        <p>
-          We offer a full refund within 7 days of purchase, no questions asked. If you enroll
-          in a program and are not satisfied after accessing it, contact our support team at{" "}
-          <a
-            href={`mailto:${SUPPORT_EMAIL}`}
-            className="text-brand-500 hover:underline focus-visible:outline-none focus-visible:underline"
-          >
-            {SUPPORT_EMAIL}
-          </a>{" "}
-          within 7 days of your enrollment date.
+      <header className="border-b border-border pb-8">
+        <h1 className="font-display text-4xl font-bold tracking-tight text-fg sm:text-5xl">
+          Refund Policy
+        </h1>
+        <p className="mt-3 text-sm text-fg-subtle">Last updated: {LAST_UPDATED}</p>
+        <p className="mt-6 text-lg leading-relaxed text-fg-muted">
+          Our programs are non-refundable once you enrol. This page explains exactly what
+          that means, the limited cases where we do return a payment, and how to reach us.
         </p>
+      </header>
 
-        <h2 className="text-xl font-semibold text-fg mt-8 mb-3">After 7 Days</h2>
-        <p>
-          After the 7-day window, a pro-rated refund is calculated based on the percentage
-          of the program you have not yet accessed or completed. This is assessed on a
-          case-by-case basis.
+      {/* The policy itself, stated once and unmissably — a reader who only takes in one
+          block should take in this one. */}
+      <section
+        aria-labelledby="policy-heading"
+        className="mt-10 rounded-2xl border border-border bg-surface p-6 md:p-8"
+      >
+        <h2 id="policy-heading" className="text-xl font-bold text-fg">
+          Programs are non-refundable
+        </h2>
+        <div className="mt-4 flex flex-col gap-4 text-base leading-relaxed text-fg-muted">
+          <p>
+            Every program is built and delivered by practising healthcare professionals, and
+            your seat is reserved and mentor time allocated the moment you enrol. For that
+            reason we do not offer refunds, including where a program has been started but
+            not completed.
+          </p>
+          <p>
+            Please use the free counselling slot before you pay. It exists so you can ask a
+            mentor anything about the curriculum, the schedule and the outcome before any
+            money changes hands.
+          </p>
+        </div>
+      </section>
+
+      <section aria-labelledby="exceptions-heading" className="mt-12">
+        <h2 id="exceptions-heading" className="text-xl font-bold text-fg">
+          When we do return a payment
+        </h2>
+        <p className="mt-3 text-base leading-relaxed text-fg-muted">
+          These are billing and delivery failures on our side, not a change of mind:
         </p>
+        <ul role="list" className="mt-6 flex flex-col gap-4">
+          {EXCEPTIONS.map((item) => (
+            <li
+              key={item.title}
+              className="flex gap-4 rounded-xl border border-border bg-card p-5"
+            >
+              <span
+                aria-hidden="true"
+                className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600"
+              >
+                <CheckIcon />
+              </span>
+              <div>
+                <h3 className="text-base font-semibold text-fg">{item.title}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-fg-muted">{item.body}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
 
-        <h2 className="text-xl font-semibold text-fg mt-8 mb-3">Refund Process</h2>
-        <p>
-          Approved refunds are processed within 7-10 business days to the original payment
-          method. EMI plans: the remaining EMI installments are cancelled; any already-charged
-          installments are refunded where eligible.
-        </p>
+      <section aria-labelledby="process-heading" className="mt-12">
+        <h2 id="process-heading" className="text-xl font-bold text-fg">
+          How an approved return is processed
+        </h2>
+        <div className="mt-4 flex flex-col gap-4 text-base leading-relaxed text-fg-muted">
+          <p>
+            Where one of the cases above applies, write to us with your payment reference.
+            Approved amounts go back to the original payment method within 7&ndash;10
+            business days. We cannot return a payment to a different account or method.
+          </p>
+          <p>
+            Bank or payment-gateway processing times are outside our control and may add a
+            few days after we have released the amount.
+          </p>
+        </div>
+      </section>
 
-        <h2 className="text-xl font-semibold text-fg mt-8 mb-3">Contact Us</h2>
-        <p>
-          To request a refund or for any queries, contact us at{" "}
-          <a
-            href={`mailto:${SUPPORT_EMAIL}`}
-            className="text-brand-500 hover:underline focus-visible:outline-none focus-visible:underline"
-          >
-            {SUPPORT_EMAIL}
-          </a>{" "}
-          or via WhatsApp at{" "}
-          <a
-            href={buildWhatsAppHref()}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-brand-500 hover:underline focus-visible:outline-none focus-visible:underline"
-          >
+      <section
+        aria-labelledby="contact-heading"
+        className="mt-12 rounded-2xl border border-brand-100 bg-brand-50 p-6 md:p-8"
+      >
+        <h2 id="contact-heading" className="text-xl font-bold text-fg">
+          Questions about a payment
+        </h2>
+        <p className="mt-3 text-base leading-relaxed text-fg-muted">
+          Email{" "}
+          <ContactLink href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</ContactLink> or
+          message us on WhatsApp at{" "}
+          <ContactLink href={buildWhatsAppHref()} external>
             {WHATSAPP_DISPLAY}
-          </a>.
+          </ContactLink>
+          . Include your registered phone number and the payment reference so we can find
+          the transaction quickly.
         </p>
-      </div>
+      </section>
     </main>
   );
 }

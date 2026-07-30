@@ -22,9 +22,9 @@ export const revalidate = 300;
 const SCHOLARSHIP_SLUG = "scholarship";
 
 const FALLBACK_METADATA = {
-  title: "StimuliiQ Scholarship Programme — Merit & Need Based Fee Waivers",
+  title: "Stimuli IQ Scholarship Programme — Merit & Need Based Fee Waivers",
   description:
-    "The StimuliiQ Scholarship grants merit-and-need-based fee waivers of up to 50% on internship-training programs for B.Tech, Degree, Diploma, MCA and MBA students across India.",
+    "The Stimuli IQ Scholarship grants merit-and-need-based fee waivers of up to 50% on internship-training programs for B.Tech, Degree, Diploma, MCA and MBA students across India.",
 };
 
 export async function generateMetadata(): Promise<Metadata> {

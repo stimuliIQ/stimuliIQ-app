@@ -27,6 +27,13 @@
 }
 
 /*
+ * Seamless section bands (`.section-band`, `-brand`, `-top`, `-bottom`) live in
+ * @repo/ui's styles.css, next to the --bg/--surface tokens they read — see the
+ * comment there. They replace the old `border-t border-border` + hard tint step
+ * that made every section join visible on a long scroll.
+ */
+
+/*
  * Gentle bob for the brain render in the "method" band
  * (components/home/brain-showcase.tsx). The global prefers-reduced-motion rule
  * in @repo/ui/styles.css already neutralises this for users who opt out.
@@ -168,20 +175,52 @@
 }
 
 /* Concentric "vitals" rings expanding out of a centre point. Starts at full
-   opacity and scale 1 so the resting frame is a visible ring, not nothing. */
+   opacity and scale 1 so the resting frame is a visible ring, not nothing.
+ *
+ * The `translate(-50%, -50%)` is baked into the keyframe ON PURPOSE. Every ring is
+ * positioned with `left-1/2 top-1/2` and needs that offset to sit on its centre —
+ * but an animated `transform` REPLACES any `-translate-x-1/2` utility on the same
+ * element, so expressing the centring in Tailwind put every ring half its own width
+ * down and to the right. Callers must therefore NOT add translate utilities. */
 @keyframes pulse-ring {
   0% {
-    transform: scale(1);
+    transform: translate(-50%, -50%) scale(1);
     opacity: 0.55;
   }
   100% {
-    transform: scale(2.4);
+    transform: translate(-50%, -50%) scale(2.4);
     opacity: 0;
   }
 }
 
 .animate-pulse-ring {
   animation: pulse-ring 3.6s cubic-bezier(0.25, 0.6, 0.35, 1) infinite;
+  will-change: transform, opacity;
+}
+
+/* Concentric halo rings around the About brand mark. Same centring contract as
+ * `pulse-ring` above (translate baked in, callers add no translate utilities), but a
+ * completely different motion: the rings stay put and BREATHE — a slow, symmetric
+ * scale-up/scale-down with a matching brightness swell — instead of expanding outward
+ * and dying. The 0.96 ↔ 1.06 range is deliberately shallow: the outermost ring is
+ * ~102vmin wide, so anything wider drifts past the band's `overflow-hidden` edge and
+ * clips into arcs mid-cycle. `opacity` here is a MULTIPLIER on each ring's own border
+ * alpha (set inline per ring), which is how one keyframe serves four rings of
+ * different strengths. */
+@keyframes ring-breathe {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(0.96);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.06);
+    opacity: 1;
+  }
+}
+
+.animate-ring-breathe {
+  animation: ring-breathe 9s ease-in-out infinite;
   will-change: transform, opacity;
 }
 
@@ -220,16 +259,19 @@
   will-change: transform;
 }
 
-/* Brand mark "breathing" — a slow scale + glow cycle for the About hero motif. */
+/* Brand mark "breathing" — a slow scale cycle for the About hero motif.
+ *
+ * Scale ONLY: an `opacity` track here would override any `opacity-*` utility on the
+ * same element (same override rule as the transform note above), and the About
+ * watermark needs to sit at ~6% — set by a utility, not by this keyframe. Callers
+ * that also need to translate must do it on a WRAPPER element. */
 @keyframes logo-breathe {
   0%,
   100% {
     transform: scale(1);
-    opacity: 0.9;
   }
   50% {
     transform: scale(1.045);
-    opacity: 1;
   }
 }
 

@@ -11,7 +11,6 @@
  * a11y: one h1, labelled sections, ≥44px targets, decorative icons hidden.
  */
 import type { Metadata } from "next";
-import { Breadcrumbs } from "@repo/ui";
 import { buildMetadata, SITE_URL } from "../../lib/seo/metadata";
 import { buildBreadcrumbJsonLd } from "../../lib/seo/json-ld";
 import { ContactForm } from "../../components/contact/contact-form";
@@ -21,7 +20,7 @@ import { ADDRESS, CONTACT_EMAIL, WHATSAPP_DISPLAY, buildWhatsAppHref } from "../
 export const metadata: Metadata = buildMetadata({
   title: "Contact Us",
   description:
-    "Get in touch with the StimuliiQ team. We are here to help you choose the right program and answer any questions.",
+    "Get in touch with the Stimuli IQ team. We are here to help you choose the right program and answer any questions.",
   canonicalPath: "/contact",
 });
 
@@ -176,8 +175,6 @@ export default function ContactPage() {
       />
 
       <div className="mx-auto max-w-screen-xl px-4 pt-10 md:px-6">
-        <Breadcrumbs items={BREADCRUMBS} className="mb-10" data-testid="contact-breadcrumbs" />
-
         {/* Header */}
         <header className="mx-auto max-w-2xl pb-12 text-center lg:pb-16">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-fg-muted">
@@ -194,7 +191,7 @@ export default function ContactPage() {
       </div>
 
       {/* Channels + form */}
-      <div className="border-t border-border bg-surface py-14 lg:py-16">
+      <div className="section-band py-14 lg:py-16">
         <div className="mx-auto grid max-w-screen-xl grid-cols-1 gap-10 px-4 md:px-6 lg:grid-cols-[1fr_1.2fr] lg:gap-14">
           {/* Left: channels + trust */}
           <div className="flex flex-col gap-5">

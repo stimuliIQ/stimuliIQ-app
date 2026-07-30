@@ -33,7 +33,7 @@ const RING_COLOR_TWO = "#10B981";
  * Marquee wordmark. Each half of the track repeats this enough times to overrun
  * the widest viewport, so the strip never runs out of text mid-scroll.
  */
-const WORDMARK = "StimuliiQ — Where Minds Meet Science";
+const WORDMARK = "Stimuli IQ — Where Minds Meet Science";
 const MARQUEE_REPEAT = 3;
 
 export function BrainShowcase(): React.JSX.Element {
@@ -75,7 +75,7 @@ export function BrainShowcase(): React.JSX.Element {
                 >
                   {WORDMARK}
                   {/* Separator keeps consecutive repeats from reading as one
-                      run-on string ("...program everStimuliiQ — the best..."). */}
+                      run-on string ("...program everStimuli IQ — the best..."). */}
                   <span className="px-[0.45em]">•</span>
                 </span>
               ))}

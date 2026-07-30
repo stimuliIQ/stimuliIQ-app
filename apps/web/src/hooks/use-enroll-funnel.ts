@@ -402,7 +402,7 @@ export function useEnrollFunnel(programId: string): UseEnrollFunnelReturn {
           amount: checkout.amountPaise, // Server-derived (AC-21, never from client)
           currency: checkout.currency,
           order_id: checkout.razorpayOrderId,
-          name: "StimuliiQ",
+          name: "Stimuli IQ",
           description: "Program enrollment",
           theme: { color: "#047857" },
           handler: async (response: RazorpayHandlerResponse) => {

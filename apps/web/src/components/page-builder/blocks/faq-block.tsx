@@ -19,7 +19,7 @@ export function FaqBlock({ data }: { data: FaqBlockData }): React.JSX.Element {
   }));
 
   return (
-    <section aria-label={data.heading?.title ?? "Frequently asked questions"} data-testid="page-builder-faq" className="border-t border-border py-16">
+    <section aria-label={data.heading?.title ?? "Frequently asked questions"} data-testid="page-builder-faq" className="py-16">
       <div className="mx-auto max-w-screen-xl px-4 md:px-6">
         {data.heading ? (
           <div className="mb-10 text-center">

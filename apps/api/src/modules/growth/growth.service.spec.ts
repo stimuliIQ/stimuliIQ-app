@@ -20,6 +20,7 @@ function makeProgram(overrides: Partial<PublicProgramSummary> = {}): PublicProgr
     mode: "recorded",
     durationWeeks: 12,
     cardSummary: "Learn full stack dev",
+    compareAtPricePaise: null,
     pricePaise: 500000,
     emiDisplay: null,
     ratingAvg: 45,

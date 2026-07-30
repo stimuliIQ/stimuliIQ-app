@@ -120,10 +120,17 @@ export class AuthService {
     const { roleKeys } = await this.authRepository.getRbacProfile(user.id);
     this.assertAudienceAllowed(roleKeys, audience);
 
-    await this.loginRateLimiter.reset(email);
-    await this.authRepository.updateLastLoginAt(user.id);
-
-    const tenant = await this.authRepository.getTenantBySlug(TENANT_SLUG);
+    // These three are mutually independent — the rate-limit reset, the last-login
+    // bump and the tenant lookup neither read nor write each other's state — so they
+    // run concurrently instead of as three sequential network round trips. Ordering
+    // was never load-bearing: on the previous sequential path a tenant miss below
+    // already threw *after* the reset and the bump had been applied, and that is
+    // still exactly what happens here.
+    const [, , tenant] = await Promise.all([
+      this.loginRateLimiter.reset(email),
+      this.authRepository.updateLastLoginAt(user.id),
+      this.authRepository.getTenantBySlug(TENANT_SLUG),
+    ]);
     if (!tenant) {
       throw new UnauthorizedException({ code: "auth.tenant_not_found", title: "Tenant not found" });
     }

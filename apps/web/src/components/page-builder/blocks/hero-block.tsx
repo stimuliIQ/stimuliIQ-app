@@ -191,7 +191,7 @@ export function HeroBlock({
 
   if (data.variant === "split-with-cards") {
     return (
-      <section aria-label={data.headline} data-testid="page-builder-hero" className="relative overflow-hidden border-b border-border bg-surface">
+      <section aria-label={data.headline} data-testid="page-builder-hero" className="relative overflow-hidden section-band-top">
         {backgroundSrc ? (
           <div aria-hidden="true" className="absolute inset-0 opacity-50">
             <Image src={backgroundSrc} alt="" fill priority sizes="100vw" className="object-cover" />

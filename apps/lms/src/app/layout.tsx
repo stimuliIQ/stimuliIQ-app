@@ -34,10 +34,10 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "stimuliiq",
   },
-  icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
-  },
+  // NOTE: no explicit `icons` here on purpose. The brand favicon/apple-touch icons come
+  // from the App Router file convention (app/favicon.ico, app/icon.png, app/apple-icon.png),
+  // which Next.js emits the <link> tags for automatically. An explicit `icons` block would
+  // shadow those files — that is how this app ended up pointing at a stale /icon.svg.
 };
 
 export const viewport: Viewport = {

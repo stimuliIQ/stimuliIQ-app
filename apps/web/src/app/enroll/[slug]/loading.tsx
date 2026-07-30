@@ -9,17 +9,6 @@ export default function EnrollLoading() {
       aria-busy="true"
       aria-label="Loading enrollment page"
     >
-      {/* Breadcrumb skeleton */}
-      <div className="mb-6 flex gap-2">
-        {[60, 80, 120, 60].map((w, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholders
-          <div key={i} className="flex items-center gap-2">
-            <div className={`h-4 w-${w/4} animate-pulse rounded bg-surface`} />
-            {i < 3 ? <span className="text-fg-subtle">/</span> : null}
-          </div>
-        ))}
-      </div>
-
       {/* Heading skeleton */}
       <div className="mb-8 flex flex-col gap-3">
         <div className="h-7 w-3/4 animate-pulse rounded bg-surface" />

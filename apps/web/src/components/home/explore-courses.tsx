@@ -37,7 +37,7 @@ import * as React from "react";
 import Image from "next/image";
 import type { PublicProgramSummary, HeadingSimple } from "@repo/types";
 
-import { formatDuration, formatMode, formatPaiseDisplay, formatRating } from "../../lib/format";
+import { formatCompareAtDisplay, formatDuration, formatMode, formatPaiseDisplay, formatRating } from "../../lib/format";
 import { HighlightText } from "../page-builder/highlight-text";
 import { safeHref } from "../../lib/safe-href";
 
@@ -169,6 +169,16 @@ function CourseCard({
           <div className="mt-auto flex items-center justify-between gap-3 border-t border-border/60 pt-2.5">
             <div className="flex items-baseline gap-1.5">
               <span className="text-[15px] font-bold text-fg">{formatPaiseDisplay(program.pricePaise)}</span>
+              {formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise) ? (
+                <>
+                  <span aria-hidden="true" className="text-[11px] text-fg-subtle line-through">
+                    {formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
+                  </span>
+                  <span className="sr-only">
+                    , reduced from {formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
+                  </span>
+                </>
+              ) : null}
               {rating ? (
                 <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-fg-muted">
                   <span aria-hidden="true" className="text-warning">

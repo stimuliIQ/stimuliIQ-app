@@ -3,14 +3,16 @@
  * `backgroundImageKey`, which is why /about and /for-colleges read as empty white
  * bands today.
  *
- * Two motifs, chosen by page:
- *   - `brand-mark`     (/about)        — the StimuliiQ logo breathing inside expanding
- *                                        rings over a drifting brand colour field.
  *   - `campus-network` (/for-colleges) — a constellation of campus nodes joined by
  *                                        animated links, standing for student groups
  *                                        collaborating across institutions.
  *
- * Pure CSS + inline SVG, plus the existing 18 KB logo PNG for `brand-mark`. No video
+ * /about does NOT use a hero motif. It gets `BrandMarkBand` (also exported here): the
+ * logo centred in a band of its own ABOVE the copy, with halo rings pulsing out around
+ * it. Every attempt to keep the logo inside the hero put letterforms under the h1, where
+ * they read as a rendering fault rather than as a brand mark.
+ *
+ * Pure CSS + inline SVG, plus the existing 18 KB logo PNG for the band. No video
  * or GIF: the site's CSP admits only same-origin and *.stimuliiq.com media, the CDN
  * base is currently unset, and a full-bleed decorative video would dominate the page
  * weight of a mostly-text hero.
@@ -25,16 +27,24 @@
  */
 import Image from "next/image";
 
-export type HeroMotifKind = "brand-mark" | "campus-network";
+export type HeroMotifKind = "campus-network";
 
-/** Slug → motif. Pages absent from this map keep the plain background they have today. */
-const MOTIF_BY_SLUG: Record<string, HeroMotifKind> = {
-  about: "brand-mark",
-  "for-colleges": "campus-network",
-};
+/** Slug → motif. Pages absent from this map keep the plain background they have today.
+ *
+ * EMPTY on purpose (user decision, 2026-07-29): the `campus-network` constellation on
+ * /for-colleges read as visual noise over the hero copy, so no page currently opts in.
+ * The motif implementation below is kept so a page can be re-mapped with one line. */
+const MOTIF_BY_SLUG: Record<string, HeroMotifKind> = {};
 
 export function heroMotifForSlug(slug: string | undefined): HeroMotifKind | undefined {
   return slug ? MOTIF_BY_SLUG[slug] : undefined;
+}
+
+/** Slugs whose hero is preceded by the standalone `BrandMarkBand`. */
+const BRAND_MARK_BAND_SLUGS = new Set(["about"]);
+
+export function showsBrandMarkBand(slug: string | undefined): boolean {
+  return slug != null && BRAND_MARK_BAND_SLUGS.has(slug);
 }
 
 // ---------------------------------------------------------------------------
@@ -59,35 +69,85 @@ function AuroraField() {
 }
 
 // ---------------------------------------------------------------------------
-// brand-mark (/about)
+// Brand-mark band (/about)
 // ---------------------------------------------------------------------------
 
-function BrandMarkMotif() {
+/**
+ * Concentric halo rings, inside → outside. `size` is a CSS length (vmin keeps the set
+ * proportional on any viewport); alpha and border weight taper outward so the set reads
+ * as a glow fading into the page, not a target. Delays put the rings out of phase — the
+ * whole set is never at max or min scale on the same frame, which is what makes the
+ * breathing look organic instead of mechanical.
+ */
+const HALO_RINGS = [
+  { size: "42vmin", alpha: 0.35, border: "1.5px", delay: 0 },
+  { size: "60vmin", alpha: 0.22, border: "1.25px", delay: -2.7 },
+  { size: "80vmin", alpha: 0.14, border: "1px", delay: -5.4 },
+  { size: "102vmin", alpha: 0.08, border: "1px", delay: -8.1 },
+];
+
+/**
+ * BrandMarkBand — the About page's opening band: a near-full-viewport (80–90vh) stage
+ * with the logo centred on its own and concentric rings breathing around it — a slow
+ * scale-up/scale-down, not the expand-and-fade radar pulse of `pulse-ring`. The page
+ * copy starts in the section BELOW this, so nothing ever sits on the mark.
+ *
+ * Earlier revisions ran the logo as a watermark inside the hero (opacity .07, then .035,
+ * then bottom-anchored and half-cropped). At every setting the letterforms stayed legible
+ * straight through the h1 and read as a rendering fault. Giving it a band of its own is
+ * what fixes it, and it means the mark no longer has to hide at 6%.
+ *
+ * Negative animation delays on the rings are load-bearing: a positive delay would hold
+ * every ring frozen at scale(1) for its first N seconds on page load — negative ones
+ * start each ring mid-cycle, already out of phase.
+ *
+ * Rendered on the About page by both paths — `PageBlocks` injects it ahead of the hero
+ * block (see `showsBrandMarkBand`), and `AboutPageFallback` places it inline.
+ *
+ * Decorative, hence `aria-hidden`: "Stimuli IQ" is already the h1's subject and the site
+ * header's logo carries the accessible name.
+ */
+export function BrandMarkBand(): React.JSX.Element {
   return (
-    <>
+    <div
+      aria-hidden="true"
+      // `svh` not `vh`: on mobile, 100vh includes the browser chrome, so an 80vh band
+      // plus the sticky header would overflow the first screen and push the halo off
+      // centre. No `border-b`: the band flows straight into the hero below it — the
+      // aurora/halo already fades out at the bottom, so a hairline only added a seam.
+      className="pointer-events-none relative flex min-h-[80svh] select-none items-center justify-center overflow-hidden bg-bg px-4 md:min-h-[86svh]"
+    >
       <AuroraField />
-      {/* Rings + logo, parked behind the centred headline column. Sized in vmin-ish
-          terms via percentage so it scales with the hero rather than the viewport. */}
-      <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center">
-        {[0, 1.3, 2.6].map((delay) => (
-          <span
-            key={delay}
-            className="animate-pulse-ring absolute h-56 w-56 rounded-full border border-brand-500/25"
-            style={{ animationDelay: `${delay}s` }}
-          />
-        ))}
-        <Image
-          src="/stimuliiq-logo.png"
-          alt=""
-          width={1506}
-          height={355}
-          // opacity-[0.07]: the logo is a watermark behind body copy, so it has to
-          // stay well under the text it sits beneath. Any higher and the wordmark
-          // competes with the h1 directly on top of it.
-          className="animate-logo-breathe h-auto w-[min(60vw,520px)] opacity-[0.07]"
+
+      {/* Soft radial glow directly behind the mark, so the logo sits in a pool of light
+          rather than flat on the page. */}
+      <span className="absolute left-1/2 top-1/2 h-[52vmin] w-[52vmin] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-100/50 blur-3xl" />
+
+      {/* No translate utilities on the rings — `animate-ring-breathe` carries the
+          centring offset in its own keyframe, and an animated `transform` replaces any
+          it finds on the same element (see globals.css). */}
+      {HALO_RINGS.map((ring) => (
+        <span
+          key={ring.size}
+          className="animate-ring-breathe absolute left-1/2 top-1/2 rounded-full"
+          style={{
+            width: ring.size,
+            height: ring.size,
+            border: `${ring.border} solid rgb(var(--brand-500) / ${ring.alpha})`,
+            animationDelay: `${ring.delay}s`,
+          }}
         />
-      </div>
-    </>
+      ))}
+
+      <Image
+        src="/stimuliiq-logo.png"
+        alt=""
+        width={1506}
+        height={355}
+        priority
+        className="animate-logo-breathe relative h-auto w-[min(60vw,360px)]"
+      />
+    </div>
   );
 }
 
@@ -101,14 +161,14 @@ function BrandMarkMotif() {
  * the copy instead of running underneath it.
  */
 const NODES = [
-  { x: 12, y: 26, r: 5 },
-  { x: 24, y: 62, r: 3.5 },
-  { x: 8, y: 76, r: 4 },
-  { x: 30, y: 16, r: 3 },
-  { x: 88, y: 30, r: 5 },
-  { x: 76, y: 66, r: 3.5 },
-  { x: 92, y: 74, r: 4 },
-  { x: 70, y: 18, r: 3 },
+  { x: 12, y: 26, size: 18 },
+  { x: 24, y: 62, size: 12 },
+  { x: 8, y: 76, size: 14 },
+  { x: 30, y: 16, size: 10 },
+  { x: 88, y: 30, size: 18 },
+  { x: 76, y: 66, size: 12 },
+  { x: 92, y: 74, size: 14 },
+  { x: 70, y: 18, size: 10 },
 ];
 
 /** Which nodes are joined. Indices into NODES; kept sparse so it reads as a network. */
@@ -126,6 +186,10 @@ function CampusNetworkMotif() {
   return (
     <>
       <AuroraField />
+      {/* Links only. `preserveAspectRatio="none"` stretches the 100×100 viewBox across
+          the hero's real (very wide) box — harmless for straight lines, which is exactly
+          why the NODES are NOT drawn here: circles in this viewBox come out as ellipses.
+          They're rendered below as round, px-sized divs at the same percentages. */}
       <svg
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
@@ -143,6 +207,7 @@ function CampusNetworkMotif() {
               y2={to.y}
               stroke="rgb(var(--brand-500) / 0.28)"
               strokeWidth="0.35"
+              vectorEffect="non-scaling-stroke"
               className="animate-link-flow"
               // Staggered so signals travel the network out of phase rather than
               // all pulsing on the same beat.
@@ -150,20 +215,24 @@ function CampusNetworkMotif() {
             />
           );
         })}
-        {NODES.map((n, i) => (
-          <g key={`${n.x}-${n.y}`}>
-            <circle
-              cx={n.x}
-              cy={n.y}
-              r={n.r}
-              fill="rgb(var(--brand-500) / 0.10)"
-              className="animate-pulse-ring"
-              style={{ animationDelay: `${i * 0.45}s`, transformOrigin: `${n.x}% ${n.y}%` }}
-            />
-            <circle cx={n.x} cy={n.y} r={n.r * 0.42} fill="rgb(var(--brand-500) / 0.45)" />
-          </g>
-        ))}
       </svg>
+
+      {NODES.map((n, i) => (
+        <span
+          key={`${n.x}-${n.y}`}
+          className="absolute -translate-x-1/2 -translate-y-1/2"
+          style={{ left: `${n.x}%`, top: `${n.y}%` }}
+        >
+          <span
+            className="animate-pulse-ring absolute left-1/2 top-1/2 rounded-full bg-brand-500/15"
+            style={{ width: n.size, height: n.size, animationDelay: `${i * 0.45}s` }}
+          />
+          <span
+            className="block rounded-full bg-brand-500/45"
+            style={{ width: n.size * 0.42, height: n.size * 0.42 }}
+          />
+        </span>
+      ))}
     </>
   );
 }
@@ -175,7 +244,7 @@ function CampusNetworkMotif() {
 export function HeroMotif({ kind }: { kind: HeroMotifKind }): React.JSX.Element {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-      {kind === "brand-mark" ? <BrandMarkMotif /> : <CampusNetworkMotif />}
+      {kind === "campus-network" ? <CampusNetworkMotif /> : null}
     </div>
   );
 }

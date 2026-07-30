@@ -17,6 +17,7 @@ import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Inpu
 import { RequestPasswordResetRequestSchema, type RequestPasswordResetRequest } from "@repo/types";
 
 import { useRequestPasswordReset } from "../../hooks/use-request-password-reset";
+import { AuthLayout } from "./auth-layout";
 
 const GENERIC_CONFIRMATION = "If that email exists, we've sent a reset link. Check your inbox (and spam folder).";
 
@@ -42,9 +43,9 @@ export function ForgotPasswordForm(): React.JSX.Element {
   const submitted = resetRequest.isSuccess || resetRequest.isError;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg p-4" data-density="compact">
-      <Card className="w-full max-w-sm" data-testid="forgot-password-card">
-        <CardHeader>
+    <AuthLayout>
+      <Card className="auth-card w-full" data-testid="forgot-password-card">
+        <CardHeader className="items-center text-center">
           <CardTitle>Reset your password</CardTitle>
           <CardDescription>Enter your staff email and we&apos;ll send you a reset link.</CardDescription>
         </CardHeader>
@@ -93,6 +94,6 @@ export function ForgotPasswordForm(): React.JSX.Element {
           </p>
         </CardContent>
       </Card>
-    </div>
+    </AuthLayout>
   );
 }

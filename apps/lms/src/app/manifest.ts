@@ -21,17 +21,27 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     background_color: "#ffffff",
     theme_color: "#047857",
+    // Brand "IQ." mark (PNG — the previous placeholder SVGs were a generic black
+    // shield, not the brand). `maskable` is a separate, full-bleed green asset with
+    // the mark inset to the 80% safe zone: Android crops maskable icons to a circle/
+    // squircle, so the transparent-cornered "any" variant would get its corners eaten.
     icons: [
       {
-        src: "/icon.svg",
-        type: "image/svg+xml",
-        sizes: "any",
+        src: "/icon-192.png",
+        type: "image/png",
+        sizes: "192x192",
         purpose: "any",
       },
       {
-        src: "/icon-maskable.svg",
-        type: "image/svg+xml",
-        sizes: "any",
+        src: "/icon-512.png",
+        type: "image/png",
+        sizes: "512x512",
+        purpose: "any",
+      },
+      {
+        src: "/icon-maskable-512.png",
+        type: "image/png",
+        sizes: "512x512",
         purpose: "maskable",
       },
     ],

@@ -3,10 +3,10 @@
  *
  * SSG: reads FAQ entries from content/faq/*.mdx.
  * JSON-LD: FAQPage schema + Breadcrumb.
- * a11y: Breadcrumbs, FaqAccordion (keyboard-operable via Radix).
+ * a11y: FaqAccordion (keyboard-operable via Radix).
  */
 import type { Metadata } from "next";
-import { Breadcrumbs, FaqAccordion } from "@repo/ui";
+import { FaqAccordion } from "@repo/ui";
 import { buildMetadata, SITE_URL } from "../../lib/seo/metadata";
 import { buildBreadcrumbJsonLd, buildFaqJsonLd } from "../../lib/seo/json-ld";
 import { getAllFaqEntries } from "../../lib/content/loader";
@@ -18,7 +18,7 @@ import { getAllFaqEntries } from "../../lib/content/loader";
 export const metadata: Metadata = buildMetadata({
   title: "Frequently Asked Questions",
   description:
-    "Answers to common questions about StimuliiQ programs, payment options, certificates, and more.",
+    "Answers to common questions about Stimuli IQ programs, payment options, certificates, and more.",
   canonicalPath: "/faq",
 });
 
@@ -63,9 +63,6 @@ export default async function FaqPage() {
       ) : null}
 
       <div className="mx-auto max-w-3xl px-4 py-12 sm:py-16 md:px-6">
-        {/* Breadcrumbs */}
-        <Breadcrumbs items={BREADCRUMBS} className="mb-8" data-testid="faq-breadcrumbs" />
-
         {/* Heading */}
         <header className="mb-10">
           <h1 className="text-3xl font-bold text-fg sm:text-4xl">

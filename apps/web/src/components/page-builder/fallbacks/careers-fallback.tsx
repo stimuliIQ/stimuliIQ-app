@@ -34,7 +34,7 @@ export function CareersPageFallback() {
     <>
       <header className="mb-12">
         <h1 className="text-3xl font-bold text-fg sm:text-4xl">
-          Careers at <span className="text-chart-3">StimuliiQ</span>
+          Careers at <span className="text-chart-3">Stimuli IQ</span>
         </h1>
         <p className="mt-3 text-lg text-fg-muted">Help us build the future of medical training in India. We are a remote-friendly team.</p>
       </header>

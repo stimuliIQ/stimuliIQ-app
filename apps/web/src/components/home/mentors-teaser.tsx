@@ -98,7 +98,7 @@ export function MentorsTeaser({ mentors, heading = DEFAULT_HEADING, viewAllHref 
   const resolvedViewAllHref = safeHref(viewAllHref) ?? DEFAULT_VIEW_ALL_HREF;
 
   return (
-    <section aria-label="Our mentors" data-testid="mentors-teaser" className="border-t border-border bg-surface py-16 lg:py-20">
+    <section aria-label="Our mentors" data-testid="mentors-teaser" className="section-band py-16 lg:py-20">
       <div className="mx-auto max-w-screen-xl px-4 md:px-6">
         <div className="mx-auto mb-12 max-w-2xl text-center">
           <h2 className="font-display text-3xl font-bold tracking-tight text-fg md:text-4xl">

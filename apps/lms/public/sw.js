@@ -32,13 +32,16 @@
  *   used to live at this path — no separate file to remember to restore.)
  */
 
-const SW_VERSION = "v2";
+// v3: brand icon rollout — the precached/immutable icon paths changed from the old
+// placeholder SVGs to the PNG "IQ." mark. Bumping the version drops the v2 caches
+// (which still hold the stale icon) on activate.
+const SW_VERSION = "v3";
 const RUNTIME_CACHE = `stimuliiq-lms-runtime-${SW_VERSION}`;
 const STATIC_CACHE = `stimuliiq-lms-static-${SW_VERSION}`;
 const OFFLINE_URL = "/offline";
 
 // Minimal precache: the offline fallback + the app icon.
-const PRECACHE_URLS = [OFFLINE_URL, "/icon.svg"];
+const PRECACHE_URLS = [OFFLINE_URL, "/icon-192.png"];
 
 // True when this SW is running on a local development origin. On such origins the
 // SW must never cache/intercept (see "DEV SAFETY VALVE" above).
@@ -100,8 +103,9 @@ self.addEventListener("activate", (event) => {
 function isImmutableStatic(url) {
   return (
     url.pathname.startsWith("/_next/static/") ||
-    url.pathname === "/icon.svg" ||
-    url.pathname === "/icon-maskable.svg"
+    url.pathname === "/icon-192.png" ||
+    url.pathname === "/icon-512.png" ||
+    url.pathname === "/icon-maskable-512.png"
   );
 }
 

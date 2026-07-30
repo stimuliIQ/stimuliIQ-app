@@ -9,6 +9,7 @@
 import { Injectable } from "@nestjs/common";
 import type { Prisma, RolePermissionScope, User } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { resolveTenantIdCached } from "../../common/tenant/tenant-id-cache";
 
 export interface FlattenedPermission {
   key: string;
@@ -167,8 +168,15 @@ export class AuthRepository {
     });
   }
 
-  getTenantBySlug(slug: string): Promise<{ id: string; slug: string } | null> {
-    return this.prisma.client.tenant.findUnique({ where: { slug }, select: { id: true, slug: true } });
+  async getTenantBySlug(slug: string): Promise<{ id: string; slug: string } | null> {
+    // Memoised per process — the slug is a compile-time constant (TENANT_SLUG) and
+    // this is a cross-region round trip sitting in the middle of the login path.
+    // See common/tenant/tenant-id-cache.ts.
+    const id = await resolveTenantIdCached(slug, async () => {
+      const row = await this.prisma.client.tenant.findUnique({ where: { slug }, select: { id: true } });
+      return row?.id ?? null;
+    });
+    return id ? { id, slug } : null;
   }
 
   /**

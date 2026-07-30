@@ -4,16 +4,16 @@
     "data": {
       "variant": "centered",
       "eyebrow": "About Stimuli IQ",
-      "headline": "We bridge the gap between academics and real practice.",
-      "headlineHighlight": "academics and real practice",
+      "headline": "We Bridge the Gap Between Academics and Real Practice.",
+      "headlineHighlight": "Academics and Real Practice",
       "subheadline": "Stimuli IQ is a healthcare education and training platform for India's medical, psychology, and allied health science students. We teach the way healthcare actually works — live mentors, real clinical exposure, verifiable certificates — so your career readiness doesn't depend on your college tier."
     }
   },
   {
     "type": "content_split",
     "data": {
-      "heading": "Why we exist",
-      "headingHighlight": "exist",
+      "heading": "Why We Exist",
+      "headingHighlight": "Exist",
       "body": [
         "Every year, thousands of Indian medical and psychology graduates step into their careers without the practical exposure the field actually demands — not because they lack knowledge, but because academic curriculums don't match what real clinical and healthcare practice requires.",
         "Our mentors lived that gap themselves. We built Stimuli IQ to close it: a system where students learn through real practice, are mentored by people who work in healthcare, and graduate with proof employers and institutions can trust.",
@@ -39,7 +39,7 @@
   {
     "type": "numbered_steps",
     "data": {
-      "heading": { "title": "How the journey works for you", "titleHighlight": "journey works", "subtitle": "One guided journey from first step to career-ready." },
+      "heading": { "title": "How the Journey Works for You", "titleHighlight": "Journey Works", "subtitle": "One guided journey from first step to career-ready." },
       "variant": "timeline",
       "items": [
         { "title": "Discover the right program", "description": "Browse programs across psychology, neurology, clinical research, and allied health sciences — or book a free counselling slot and let a mentor guide your choice. Transparent pricing, easy pre-registration, no hidden fees." },
@@ -54,7 +54,7 @@
     "type": "feature_grid",
     "data": {
       "variant": "cards",
-      "heading": { "title": "What's inside the platform", "titleHighlight": "platform", "subtitle": "Everything a student needs to go from classroom to clinic." },
+      "heading": { "title": "What's Inside the Platform", "titleHighlight": "Platform", "subtitle": "Everything a student needs to go from classroom to clinic." },
       "columns": "3",
       "items": [
         { "iconKey": "lms", "title": "A structured learning portal", "description": "One dashboard for lessons, live classes, assignments, progress, and attendance." },
@@ -70,7 +70,7 @@
     "type": "cta_band",
     "data": {
       "heading": "Don't take our word for it.",
-      "subheading": "Every StimuliiQ certificate is publicly verifiable. Employers can paste a certificate ID or scan its QR code and see the result instantly.",
+      "subheading": "Every Stimuli IQ certificate is publicly verifiable. Employers can paste a certificate ID or scan its QR code and see the result instantly.",
       "background": "brand",
       "buttons": [{ "label": "Verify a certificate", "href": "/verify", "style": "primary" }]
     }
@@ -79,7 +79,7 @@
     "type": "live_collection_ref",
     "data": {
       "collection": "testimonials",
-      "heading": { "title": "Students who made the jump", "titleHighlight": "jump" },
+      "heading": { "title": "Students Who Made the Jump", "titleHighlight": "Jump" },
       "layout": "grid-3",
       "selection": { "mode": "filter", "limit": 3, "sort": "order" }
     }

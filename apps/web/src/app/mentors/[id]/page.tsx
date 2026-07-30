@@ -18,7 +18,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { Breadcrumbs } from "@repo/ui";
 import type { PublicMentorCard } from "@repo/types";
 import { buildMetadata, SITE_URL } from "../../../lib/seo/metadata";
 import { buildBreadcrumbJsonLd } from "../../../lib/seo/json-ld";
@@ -81,7 +80,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title: `${mentor.fullName} — ${role}`,
       description:
         mentor.bio ??
-        `${mentor.fullName} is a mentor at StimuliiQ, hired from ${mentor.externalInstitute}. Learn from active industry experts on project-based internship programs.`,
+        `${mentor.fullName} is a mentor at Stimuli IQ, hired from ${mentor.externalInstitute}. Learn from active industry experts on project-based internship programs.`,
       canonicalPath: `/mentors/${id}`,
     });
   } catch {
@@ -136,8 +135,6 @@ export default async function MentorDetailPage({ params }: PageProps) {
       />
 
       <div className="mx-auto max-w-screen-xl px-4 pt-10 md:px-6">
-        <Breadcrumbs items={breadcrumbs} className="mb-10" data-testid="mentor-detail-breadcrumbs" />
-
         <div className="grid grid-cols-1 gap-10 pb-16 lg:grid-cols-[minmax(0,20rem)_1fr] lg:gap-16 lg:pb-24">
           {/* ── Left: photo + socials ── */}
           <div className="lg:sticky lg:top-24 lg:self-start">
@@ -202,7 +199,7 @@ export default async function MentorDetailPage({ params }: PageProps) {
               <p className="mt-3 whitespace-pre-line text-base leading-relaxed text-fg-muted">
                 {mentor.bio
                   ? mentor.bio
-                  : `${mentor.fullName} is an industry mentor hired from ${mentor.externalInstitute}, guiding StimuliiQ students through hands-on, project-based internship training.`}
+                  : `${mentor.fullName} is an industry mentor hired from ${mentor.externalInstitute}, guiding Stimuli IQ students through hands-on, project-based internship training.`}
               </p>
             </section>
 

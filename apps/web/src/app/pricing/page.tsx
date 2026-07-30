@@ -41,7 +41,7 @@ export const revalidate = 3600;
 export const metadata: Metadata = buildMetadata({
   title: "Pricing — Transparent Program Fees & EMI Options",
   description:
-    "Clear, transparent pricing for all StimuliiQ programs. EMI options available. No hidden fees. Apply a coupon to save on your enrollment.",
+    "Clear, transparent pricing for all Stimuli IQ programs. EMI options available. No hidden fees. Apply a coupon to save on your enrollment.",
   canonicalPath: "/pricing",
 });
 
@@ -341,9 +341,13 @@ export default async function PricingPage() {
         data-testid="refund-policy-link"
         className="mt-12 rounded-xl border border-border bg-card p-6 text-center"
       >
-        <h2 className="mb-3 text-lg font-semibold text-fg">Not satisfied? Get a refund.</h2>
+        {/* Must agree with /refund-policy and the refund FAQ — programs are
+            non-refundable. This block previously promised a "7-day no-questions-asked
+            refund", which the policy page itself contradicted. */}
+        <h2 className="mb-3 text-lg font-semibold text-fg">Before you pay, talk to a mentor.</h2>
         <p className="text-sm text-fg-muted">
-          We offer a 7-day no-questions-asked refund on all programs. Your satisfaction matter.
+          Programs are non-refundable once you enrol, so the free counselling slot is there
+          to answer everything first.
         </p>
         <a
           href="/refund-policy"

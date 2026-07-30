@@ -139,11 +139,11 @@ export const DEFAULT_FOOTER_COLUMNS = [
   {
     heading: "Company",
     links: [
+      // Faculty (/faculty) and Partners (/partners) were removed from the site — the
+      // routes are gone, so linking them here would 404.
       { label: "About Us", href: "/about" },
       { label: "Mentors", href: "/mentors" },
-      { label: "Faculty", href: "/faculty" },
       { label: "Testimonials", href: "/testimonials" },
-      { label: "Partners", href: "/partners" },
       { label: "Gallery", href: "/gallery" },
       { label: "Careers", href: "/careers" },
     ],

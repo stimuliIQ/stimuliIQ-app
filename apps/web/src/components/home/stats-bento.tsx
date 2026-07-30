@@ -114,7 +114,7 @@ const STATS: Stat[] = [
 export function StatsBento() {
   return (
     <section
-      aria-label="StimuliiQ at a glance"
+      aria-label="Stimuli IQ at a glance"
       data-testid="homepage-stats"
       className="relative overflow-hidden bg-bg py-20 lg:py-28"
     >
@@ -133,7 +133,7 @@ export function StatsBento() {
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-fg-muted">At a glance</p>
           <h2 className="mt-3 font-display text-3xl font-bold tracking-tight text-fg md:text-4xl">
-            A hands-on <span className="text-chart-3">healthcare training program</span>, trusted across India
+            A Hands-On <span className="text-chart-3">Healthcare Training Program</span>, Trusted Across India
           </h2>
         </div>
 

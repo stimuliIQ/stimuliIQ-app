@@ -123,7 +123,7 @@ export function EnrollPaymentStep({
 
       <p className="text-xs text-center text-fg-subtle">
         Secured by Razorpay · UPI, Cards, Net Banking accepted ·
-        Your card details are never stored by StimuliiQ.
+        Your card details are never stored by Stimuli IQ.
       </p>
     </div>
   );

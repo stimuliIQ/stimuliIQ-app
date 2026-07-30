@@ -835,6 +835,11 @@ model Program {
   mode          ProgramMode   @default(recorded)
   durationWeeks Int?          @map("duration_weeks")
   pricePaise    Int           @map("price_paise")
+  // Struck-through "was" price shown beside pricePaise on the public site. NULLABLE —
+  // null means "no strike, show one price". NEVER used in any money calculation: orders,
+  // coupons and invoices all derive from pricePaise alone (CLAUDE.md §3.6), so this is a
+  // display-only column and cannot change what a student is charged.
+  compareAtPricePaise Int?     @map("compare_at_price_paise")
   currency      String        @default("INR")
   emi           Json?
   summary       String?

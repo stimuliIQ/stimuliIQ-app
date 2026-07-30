@@ -39,7 +39,7 @@ export const revalidate = 300; // 5 min
 const HOME_SLUG = "home";
 
 const FALLBACK_METADATA = {
-  title: "StimuliiQ — Healthcare Training & Internships for Students in India",
+  title: "Stimuli IQ — Healthcare Training & Internships for Students in India",
   description:
     "Structured training and internship tracks in psychology, clinical practice, and allied healthcare. Healthcare mentors, real case work, and verifiable certificates.",
 };
@@ -75,25 +75,31 @@ export default async function HomePage() {
   let colleges: PublicPartner[] = [];
   let testimonials: PublicTestimonial[] = [];
 
-  try {
-    const result = await serverApiClient.public.programs.list({ limit: 12, sort: "popularity" });
-    exploreCourses = Array.isArray(result.items) ? result.items : [];
-  } catch {
-    exploreCourses = [];
-  }
+  // Three independent reads — fetched CONCURRENTLY, not one after the other.
+  // This page is ISR (revalidate = 300) and its regeneration runs inside a
+  // function with a wall-clock timeout, so the render must not serialise API
+  // latency: measured 2026-07-30 each of these takes ~2.4 s against the
+  // production API, i.e. ~7 s sequentially versus ~2.4 s in parallel. A render
+  // that overruns the timeout never commits, which leaves the whole page
+  // serving its previous copy indefinitely.
+  //
+  // `allSettled`, not `all`: each section degrades to the hardcoded showcase on
+  // its own, exactly as the three separate try/catch blocks did — one failing
+  // read must never take the other two down with it.
+  const [programsResult, collegesResult, testimonialsResult] = await Promise.allSettled([
+    serverApiClient.public.programs.list({ limit: 12, sort: "popularity" }),
+    serverApiClient.public.content.partners.list({ category: COLLEGE_PARTNER_CATEGORY }),
+    serverApiClient.public.content.testimonials.list(),
+  ]);
 
-  try {
-    const result = await serverApiClient.public.content.partners.list({ category: COLLEGE_PARTNER_CATEGORY });
-    colleges = Array.isArray(result) ? result : [];
-  } catch {
-    colleges = [];
+  if (programsResult.status === "fulfilled" && Array.isArray(programsResult.value.items)) {
+    exploreCourses = programsResult.value.items;
   }
-
-  try {
-    const result = await serverApiClient.public.content.testimonials.list();
-    testimonials = Array.isArray(result) ? result : [];
-  } catch {
-    testimonials = [];
+  if (collegesResult.status === "fulfilled" && Array.isArray(collegesResult.value)) {
+    colleges = collegesResult.value;
+  }
+  if (testimonialsResult.status === "fulfilled" && Array.isArray(testimonialsResult.value)) {
+    testimonials = testimonialsResult.value;
   }
 
   return (

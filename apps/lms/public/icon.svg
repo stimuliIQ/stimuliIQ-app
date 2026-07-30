@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="stimuliiq">
-  <rect width="512" height="512" rx="96" fill="#000000"/>
-  <path d="M256 112 96 184v72c0 88 68 156 160 200 92-44 160-112 160-200v-72L256 112Zm0 56 104 47v41c0 60-44 108-104 141-60-33-104-81-104-141v-41l104-47Z" fill="#ffffff"/>
-  <circle cx="256" cy="248" r="34" fill="#ffffff"/>
-</svg>

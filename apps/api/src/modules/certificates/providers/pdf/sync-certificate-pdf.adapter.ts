@@ -2,23 +2,41 @@
 //
 // Real CertificatePdfPort adapter (docs/plans/phase-4.md task #4).
 //
-// Renders a certificate to a real PDF INLINE, using @react-pdf/renderer's
-// server-side renderToBuffer(). This is the "Sync" adapter in the ADR-0020 seam
-// sense: PDF generation happens in the request cycle. The BullMQ `certificate-gen`
-// worker implements the SAME CertificatePdfPort and is bound in its place with zero
-// changes to CertificatesService.
+// Renders a certificate to a real PDF INLINE, using @react-pdf/renderer's server-side
+// renderToBuffer(). This is the "Sync" adapter in the ADR-0020 seam sense: PDF
+// generation happens in the request cycle. The BullMQ `certificate-gen` worker
+// implements the SAME CertificatePdfPort and is bound in its place with zero changes to
+// CertificatesService.
 //
-// LAYOUT (reworked): a two-column "course certificate" composition — the issuer
-// wordmark, date, holder, programme and signature run down the LEFT; a vertical
-// ribbon carrying the certificate seal runs down the RIGHT; the public verify URL
-// sits under the ribbon. This replaces the earlier centred, stacked layout.
+// LAYOUT — reproduces the approved artwork in `docs/sample certificate/`: a deep-green
+// "Certificate of Completion" on white, double-ruled frame with corner brackets, issuer
+// wordmark at the head, the holder's name in large italic display type over a ruled
+// line, a body paragraph naming the programme and date, and a footer band carrying the
+// signature block, the human-typeable Certificate ID, accreditation marks, the verify
+// URL and the issue date. A green ribbon runs down the right edge with the seal on it.
 //
-// NO JSX: the document tree is built with React.createElement so the backend
-// tsconfig needs no `jsx` compiler option. @react-pdf/renderer requires `react`
-// as a peer dependency (installed for this adapter).
+// FOUR DYNAMIC VALUES fill the artwork's placeholders:
+//   "Your Name"          → fields.holderName
+//   "DOMAIN NAME"        → fields.programName
+//   "STIQ-2026-000001"   → fields.serial          (the unique, typeable Certificate ID)
+//   "25 JULY 2026"       → fields.issuedAt        (both the body "from <date>" and the
+//                                                  footer "Date of Issue")
 //
-// SECURITY (port contract): never logs `certUid` or any secret; embeds the public
-// `verifyUrl` only; reads nothing from process.env — all data comes via input.
+// SIGNATURE — see `certificate-assets.ts`. The authorised signature is read from a
+// PRIVATE server-side directory and embedded as a data URI; it is never exposed over
+// HTTP. When no signature file is present the block degrades to the ruled line plus the
+// printed signatory name, so issuance never depends on the asset being installed.
+//
+// FONTS: only the PDF base-14 faces (Times / Helvetica). @react-pdf/renderer would
+// happily register a Google-hosted display font, but that turns every render into a
+// network fetch that can fail or hang mid-issuance — a certificate must render offline.
+// Times-Italic at display size stands in for the artwork's script face.
+//
+// NO JSX: the document tree is built with React.createElement so the backend tsconfig
+// needs no `jsx` compiler option.
+//
+// SECURITY (port contract): never logs `certUid` or any secret; embeds only public
+// values; reads nothing from process.env — all data comes via input.
 
 import { Injectable, Logger } from "@nestjs/common";
 import { createElement as h, type ReactElement } from "react";
@@ -27,9 +45,13 @@ import {
   Page,
   View,
   Text,
+  Image,
   Svg,
   Polygon,
   Circle,
+  Line,
+  Path,
+  Font,
   StyleSheet,
   renderToBuffer,
   type DocumentProps,
@@ -41,37 +63,54 @@ import type {
   CertificateDesign,
   CertificateRenderFields,
 } from "./certificate-pdf-port.interface";
+import { DEFAULT_ASSETS, loadCertificateAsset } from "./certificate-assets";
 
-// Design defaults (applied when a template omits a directive).
-//
-// Clean, minimal, professional — a monochrome treatment matching the apps'
-// black & white identity. Templates can still override any of these via the
-// CertificateDesign directives.
+// Palette — the artwork's deep forest green on white, with a gold hairline on the
+// ribbon. Templates may override the greens via CertificateDesign directives.
 const DEFAULTS = {
   orientation: "landscape" as const,
-  borderColor: "#d9dde3", // hairline grey frame
-  borderWidth: 1,
-  accentColor: "#16181d", // near-black ink — headings, name, rules
-  textColor: "#5b6472", // muted grey — secondary text
-  backgroundColor: "#ffffff",
-  orgName: "stimuliiq",
+  borderColor: "#14563C",
+  borderWidth: 2.5,
+  accentColor: "#14563C", // headings, holder name, seal
+  textColor: "#1F2933", // body copy
+  backgroundColor: "#FFFFFF",
+  orgName: "STIMULIIQ",
 };
 
-/** Very-subtle tertiary tone (labels, footer meta). Derived locally, not a template directive. */
-const SUBTLE_COLOR = "#8b94a3";
-/** Ribbon panel fill — a light neutral so the seal reads against it in mono printing. */
-const RIBBON_FILL = "#eef1f5";
+const SUBTLE_COLOR = "#6B7280";
+const GOLD = "#C9A227";
+/** Ribbon fill. Kept as a flat colour: react-pdf gradients are unreliable across viewers. */
+const RIBBON_FILL = "#14563C";
 
+// Disable hyphenation globally for this renderer. @react-pdf/renderer's default callback
+// breaks long words across lines, which turned the body copy's "INNOVATION" into
+// "INNOVA-TION" — acceptable in a paragraph of prose, wrong on a certificate. Returning
+// the word whole makes the line-breaker wrap on spaces only.
+Font.registerHyphenationCallback((word) => [word]);
+
+/** "25 JULY 2026" — upper-case day/month/year, matching the artwork's footer. */
 function formatIssuedAt(value: string | Date): string {
   const d = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(d.getTime())) {
-    return String(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric" })
+    .format(d)
+    .toUpperCase();
+}
+
+/**
+ * The host shown beside "Verify this certificate at" — e.g. "stimuliiq.com/verify".
+ * Derived from the full per-certificate `verifyUrl` so the printed instruction always
+ * matches the deployment that issued the document, with no separate config to drift.
+ * The certificate-specific id is NOT shown here; a reader types the Certificate ID
+ * printed alongside it, which is the whole reason that short serial exists.
+ */
+function verifyHostLabel(verifyUrl: string): string {
+  try {
+    const url = new URL(verifyUrl);
+    return `${url.host.replace(/^www\./, "")}/verify`;
+  } catch {
+    return "stimuliiq.com/verify";
   }
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(d);
 }
 
 function buildStyles(design: CertificateDesign) {
@@ -82,253 +121,365 @@ function buildStyles(design: CertificateDesign) {
   const background = design.backgroundColor ?? DEFAULTS.backgroundColor;
 
   return StyleSheet.create({
-    page: {
-      backgroundColor: background,
-      padding: 24,
-      fontFamily: "Helvetica",
-    },
-    frame: {
-      flex: 1,
-      borderWidth,
-      borderColor: border,
-      borderStyle: "solid",
-      flexDirection: "row",
-    },
+    page: { backgroundColor: background, padding: 12, fontFamily: "Helvetica" },
 
-    // ── Left column: the certificate's substance ──
+    // Double rule: a heavy outer frame with a hairline set just inside it.
+    outerFrame: { flex: 1, borderWidth, borderColor: border, borderStyle: "solid", padding: 4 },
+    innerFrame: { flex: 1, borderWidth: 0.8, borderColor: border, borderStyle: "solid", flexDirection: "row" },
+
+    // ── Left column ──
+    // `space-between` distributes the three groups (head / body / footer) down the full
+    // height of the frame. Without it the composition bunches at the top and leaves a
+    // third of the page blank under the signature block.
     main: {
       flex: 1,
-      paddingVertical: 40,
-      paddingLeft: 48,
-      paddingRight: 34,
+      paddingTop: 22,
+      paddingBottom: 18,
+      paddingLeft: 34,
+      paddingRight: 18,
       justifyContent: "space-between",
     },
+
+    logoImage: { height: 34, objectFit: "contain", alignSelf: "center" },
     wordmark: {
+      fontSize: 30,
+      color: DEFAULTS.textColor,
+      fontFamily: "Helvetica-Bold",
+      letterSpacing: -0.5,
+      textAlign: "center",
+    },
+
+    title: {
       fontSize: 40,
       color: accent,
-      fontFamily: "Helvetica-Bold",
-      letterSpacing: -1,
+      fontFamily: "Times-Bold",
+      letterSpacing: 5,
+      textAlign: "center",
+      marginTop: 18,
     },
-    tagline: { fontSize: 8, color: SUBTLE_COLOR, marginTop: 4, letterSpacing: 1.5 },
-    date: { fontSize: 9, color: text, marginTop: 26 },
-
-    holder: {
-      fontSize: 22,
-      color: accent,
-      fontFamily: "Helvetica-Bold",
-      letterSpacing: 1,
-      textTransform: "uppercase",
-      marginTop: 14,
-    },
-    completed: { fontSize: 9, color: text, marginTop: 12 },
-    program: {
+    subtitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 6 },
+    subtitle: {
       fontSize: 15,
-      color: accent,
+      color: DEFAULTS.textColor,
       fontFamily: "Helvetica-Bold",
-      marginTop: 10,
-      maxWidth: 380,
+      letterSpacing: 4,
+      textAlign: "center",
     },
-    authorised: { fontSize: 8, color: SUBTLE_COLOR, marginTop: 10, maxWidth: 380, lineHeight: 1.5 },
+    subtitleRule: { width: 46, height: 0.8, backgroundColor: accent },
 
-    // ── Signature block ──
-    signature: {
-      fontSize: 19,
-      color: accent,
-      fontFamily: "Helvetica-BoldOblique",
-      marginBottom: 4,
-    },
-    signatureLine: { width: 170, height: 0.8, backgroundColor: border, marginBottom: 5 },
-    signatoryName: { fontSize: 8, color: text },
-    signatoryDesignation: { fontSize: 8, color: SUBTLE_COLOR, marginTop: 1 },
-    footerLine: { fontSize: 7, color: SUBTLE_COLOR, marginTop: 1 },
-
-    // ── Right column: ribbon + seal + verify ──
-    aside: {
-      width: 178,
-      alignItems: "center",
-      paddingTop: 0,
-      paddingBottom: 26,
-      paddingHorizontal: 12,
-      justifyContent: "space-between",
-    },
-    ribbonWrap: { alignItems: "center", width: "100%" },
-    ribbonHeading: {
-      fontSize: 11,
-      color: accent,
-      fontFamily: "Helvetica-Bold",
+    certifyThat: {
+      fontSize: 9,
+      color: text,
       letterSpacing: 2,
       textAlign: "center",
-      textTransform: "uppercase",
+      marginTop: 14,
     },
-    sealCaption: {
-      fontSize: 6,
+    holder: {
+      fontSize: 40,
       color: accent,
-      fontFamily: "Helvetica-Bold",
-      letterSpacing: 1,
-      textTransform: "uppercase",
+      fontFamily: "Times-Italic",
+      textAlign: "center",
       marginTop: 6,
     },
-    verifyBlock: { alignItems: "center", width: "100%" },
-    verifyLabel: {
-      fontSize: 7,
-      color: SUBTLE_COLOR,
-      letterSpacing: 1,
-      textTransform: "uppercase",
+    holderRule: { height: 0.9, backgroundColor: accent, marginTop: 4, marginHorizontal: 40 },
+
+    body: {
+      fontSize: 9.5,
+      color: text,
+      letterSpacing: 0.6,
+      lineHeight: 1.75,
+      textAlign: "center",
+      marginTop: 14,
+      paddingHorizontal: 22,
     },
-    serialLabel: {
-      fontSize: 7,
-      color: SUBTLE_COLOR,
-      letterSpacing: 1,
-      textTransform: "uppercase",
-    },
-    serialValue: {
-      fontSize: 9,
+    bodyStrong: { fontFamily: "Helvetica-Bold", color: accent },
+
+    // ── Footer band: signature | certificate id | accreditation ──
+    footerRow: { flexDirection: "row", alignItems: "flex-end", marginTop: 20 },
+    footerDivider: { width: 0.8, backgroundColor: "#D8DEE4", alignSelf: "stretch", marginHorizontal: 14 },
+
+    signatureCol: { width: 168, alignItems: "center" },
+    signatureImage: { height: 34, objectFit: "contain", marginBottom: 2 },
+    /** Reserves the signature's height when no image is installed, so the block never jumps. */
+    signatureSpacer: { height: 34 },
+    signatureLine: { width: 150, height: 0.9, backgroundColor: DEFAULTS.textColor },
+    signatoryName: { fontSize: 10, color: DEFAULTS.textColor, fontFamily: "Helvetica-Bold", marginTop: 5 },
+    signatoryDesignation: { fontSize: 8.5, color: text, marginTop: 1 },
+
+    certIdCol: { flex: 1, alignItems: "center" },
+    certIdLabel: { fontSize: 9, color: DEFAULTS.textColor, fontFamily: "Helvetica-Bold", letterSpacing: 1.6 },
+    certIdValue: {
+      fontSize: 13,
       color: accent,
       fontFamily: "Helvetica-Bold",
       letterSpacing: 1,
-      marginTop: 2,
-      marginBottom: 6,
+      marginTop: 4,
       textAlign: "center",
     },
-    verifyUrl: { fontSize: 7, color: text, marginTop: 3, textAlign: "center" },
-    verifyNote: { fontSize: 6, color: SUBTLE_COLOR, marginTop: 6, textAlign: "center", lineHeight: 1.4 },
+    certIdRule: { width: 128, height: 0.8, backgroundColor: "#D8DEE4", marginTop: 5 },
+
+    badgeCol: { width: 150, alignItems: "center", justifyContent: "flex-end" },
+    badgeRow: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
+    badgeImage: { height: 40, objectFit: "contain", marginHorizontal: 4 },
+    badgeCaption: { fontSize: 6.5, color: SUBTLE_COLOR, marginTop: 3, textAlign: "center" },
+
+    // ── Bottom strip: verify + issue date ──
+    bottomRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginTop: 16,
+      paddingTop: 8,
+      borderTopWidth: 0.8,
+      borderTopColor: "#E3E8EC",
+      borderTopStyle: "solid",
+    },
+    bottomText: { fontSize: 8.5, color: DEFAULTS.textColor },
+    bottomStrong: { fontFamily: "Helvetica-Bold" },
+    bottomValue: { fontFamily: "Helvetica-Bold", color: accent },
+
+    // ── Right ribbon ──
+    aside: { width: 128, alignItems: "center" },
+    ribbonHeading: {
+      fontSize: 10,
+      color: "#FFFFFF",
+      fontFamily: "Helvetica-Bold",
+      letterSpacing: 2.2,
+      textAlign: "center",
+      lineHeight: 1.5,
+    },
   });
 }
 
-/**
- * The vertical ribbon behind the seal: a rectangle ending in a downward chevron,
- * echoing a physical certificate's hanging ribbon. Drawn as one SVG polygon so it
- * scales cleanly and needs no image asset.
- */
-function buildRibbon(children: ReactElement[]): ReactElement {
+/** Decorative corner brackets, echoing the artwork's engraved frame. */
+function buildCornerBrackets(accent: string): ReactElement {
+  const arm = 34;
+  const inset = 3;
+  const corners = [
+    { key: "tl", d: `M${inset},${arm} L${inset},${inset} L${arm},${inset}` },
+    { key: "tr", d: `M${100 - arm},${inset} L${100 - inset},${inset} L${100 - inset},${arm}` },
+    { key: "bl", d: `M${inset},${100 - arm} L${inset},${100 - inset} L${arm},${100 - inset}` },
+    { key: "br", d: `M${100 - arm},${100 - inset} L${100 - inset},${100 - inset} L${100 - inset},${100 - arm}` },
+  ];
   return h(
     View,
-    { key: "ribbon", style: { width: 154, alignItems: "center" } },
+    { key: "corners", style: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } },
     h(
-      View,
-      { key: "shape", style: { position: "relative", width: 154, height: 300 } },
-      h(
-        Svg,
-        { key: "svg", viewBox: "0 0 154 300", style: { position: "absolute", width: 154, height: 300 } },
-        h(Polygon, {
-          key: "poly",
-          // Rectangle down to y=262, then a chevron notch to the point at y=300.
-          points: "0,0 154,0 154,262 77,300 0,262",
-          fill: RIBBON_FILL,
-        }),
-      ),
-      h(
-        View,
-        {
-          key: "content",
-          style: { position: "absolute", width: 154, height: 300, alignItems: "center", paddingTop: 26 },
-        },
-        children,
+      Svg,
+      { viewBox: "0 0 100 100", preserveAspectRatio: "none", style: { width: "100%", height: "100%" } },
+      corners.map((c) =>
+        h(Path, { key: c.key, d: c.d, stroke: accent, strokeWidth: 0.5, fill: "none" }),
       ),
     ),
   );
 }
 
-/** The circular seal — concentric rings around the issuer's initial. */
-function buildSeal(orgName: string, accent: string): ReactElement {
+/**
+ * The circular seal carried on the ribbon: concentric rings around the issuer initial,
+ * ringed by the "LEARN · UNDERSTAND · TRANSFORM" motto of the artwork's badge.
+ */
+function buildSeal(orgName: string): ReactElement {
   const initial = (orgName.trim()[0] ?? "S").toUpperCase();
   return h(
     View,
-    { key: "seal", style: { width: 96, height: 96, marginTop: 24, alignItems: "center", justifyContent: "center" } },
+    {
+      key: "seal",
+      style: { width: 92, height: 92, marginTop: 22, alignItems: "center", justifyContent: "center" },
+    },
     h(
       Svg,
-      { key: "svg", viewBox: "0 0 96 96", style: { position: "absolute", width: 96, height: 96 } },
-      h(Circle, { key: "c1", cx: "48", cy: "48", r: "46", fill: "#ffffff", stroke: accent, strokeWidth: "1.2" }),
-      h(Circle, { key: "c2", cx: "48", cy: "48", r: "39", fill: "none", stroke: accent, strokeWidth: "0.6" }),
-      h(Circle, { key: "c3", cx: "48", cy: "48", r: "31", fill: "none", stroke: accent, strokeWidth: "0.4" }),
+      { key: "svg", viewBox: "0 0 92 92", style: { position: "absolute", width: 92, height: 92 } },
+      h(Circle, { key: "c0", cx: "46", cy: "46", r: "45", fill: RIBBON_FILL, stroke: "#FFFFFF", strokeWidth: "1.6" }),
+      h(Circle, { key: "c1", cx: "46", cy: "46", r: "38", fill: "none", stroke: GOLD, strokeWidth: "0.8" }),
+      h(Circle, { key: "c2", cx: "46", cy: "46", r: "30", fill: "none", stroke: "#FFFFFF", strokeWidth: "0.6" }),
     ),
     h(
       View,
       { key: "inner", style: { alignItems: "center" } },
-      h(
-        Text,
-        { key: "initial", style: { fontSize: 30, fontFamily: "Helvetica-Bold", color: accent } },
-        initial,
-      ),
+      h(Text, { key: "initial", style: { fontSize: 26, fontFamily: "Times-Bold", color: "#FFFFFF" } }, initial),
       h(
         Text,
         {
-          key: "verified",
-          style: { fontSize: 5, fontFamily: "Helvetica-Bold", color: accent, letterSpacing: 1, marginTop: 2 },
+          key: "certified",
+          style: { fontSize: 5, fontFamily: "Helvetica-Bold", color: GOLD, letterSpacing: 1.2, marginTop: 3 },
         },
-        "VERIFIED",
+        "CERTIFIED",
       ),
     ),
   );
 }
 
-function buildDocument(input: CertificatePdfInput): ReactElement<DocumentProps> {
+/**
+ * The right-hand ribbon: a full-height green band ending in a chevron notch, with a
+ * gold hairline inset. Drawn as one SVG polygon so it needs no image asset and scales
+ * with the page.
+ */
+function buildRibbon(children: ReactElement[]): ReactElement {
+  // H is tuned to the A4-landscape frame's inner height (~552 pt): the band runs from
+  // the top edge down to ~90% so the chevron point sits clear of the bottom rule,
+  // matching the artwork. Changing the page size means retuning this.
+  const W = 104;
+  const H = 500;
+  const notch = 44;
+  return h(
+    View,
+    { key: "ribbon", style: { width: W, height: H, position: "relative", alignItems: "center" } },
+    h(
+      Svg,
+      { key: "svg", viewBox: `0 0 ${W} ${H}`, style: { position: "absolute", width: W, height: H } },
+      h(Polygon, {
+        key: "band",
+        points: `0,0 ${W},0 ${W},${H - notch} ${W / 2},${H} 0,${H - notch}`,
+        fill: RIBBON_FILL,
+      }),
+      h(Line, { key: "gl", x1: "8", y1: "0", x2: "8", y2: `${H - notch - 4}`, stroke: GOLD, strokeWidth: "0.7" }),
+      h(Line, {
+        key: "gr",
+        x1: `${W - 8}`,
+        y1: "0",
+        x2: `${W - 8}`,
+        y2: `${H - notch - 4}`,
+        stroke: GOLD,
+        strokeWidth: "0.7",
+      }),
+    ),
+    h(
+      View,
+      { key: "content", style: { position: "absolute", width: W, height: H, alignItems: "center", paddingTop: 26 } },
+      children,
+    ),
+  );
+}
+
+interface ResolvedAssets {
+  logo?: string;
+  signature?: string;
+  isoBadge?: string;
+  msmeBadge?: string;
+}
+
+function buildDocument(input: CertificatePdfInput, assets: ResolvedAssets): ReactElement<DocumentProps> {
   const design = input.design ?? {};
   const f: CertificateRenderFields = input.fields;
   const styles = buildStyles(design);
   const orientation = design.orientation ?? DEFAULTS.orientation;
   const orgName = design.orgName ?? DEFAULTS.orgName;
   const accent = design.accentColor ?? DEFAULTS.accentColor;
-  const signatory = f.signatoryName ?? "Authorised Signatory";
+  const issued = formatIssuedAt(f.issuedAt);
+  // Per-certificate signatory wins; otherwise the template's issuer-level default.
+  const signatoryName = f.signatoryName ?? design.signatoryName ?? "Authorised Signatory";
+  const signatoryDesignation = f.signatoryDesignation ?? design.signatoryDesignation;
 
-  // ── Left column ──
+  // ── Head: issuer wordmark (image when installed, typeset otherwise) ──
+  const head = assets.logo
+    ? h(Image, { key: "logo", src: assets.logo, style: styles.logoImage })
+    : h(Text, { key: "wm", style: styles.wordmark }, orgName);
+
+  // ── Signature block: image over the rule, name and designation beneath ──
+  const signatureCol = h(View, { key: "sig", style: styles.signatureCol }, [
+    assets.signature
+      ? h(Image, { key: "sigimg", src: assets.signature, style: styles.signatureImage })
+      : h(View, { key: "sigspace", style: styles.signatureSpacer }),
+    h(View, { key: "sline", style: styles.signatureLine }),
+    h(Text, { key: "sname", style: styles.signatoryName }, signatoryName),
+    signatoryDesignation
+      ? h(Text, { key: "sdes", style: styles.signatoryDesignation }, signatoryDesignation)
+      : null,
+  ]);
+
+  // ── Certificate ID: the short, human-typeable serial a reader enters at /verify ──
+  const certIdCol = h(View, { key: "cid", style: styles.certIdCol }, [
+    h(Text, { key: "cl", style: styles.certIdLabel }, "CERTIFICATE ID"),
+    h(Text, { key: "cv", style: styles.certIdValue }, f.serial),
+    h(View, { key: "cr", style: styles.certIdRule }),
+  ]);
+
+  // ── Accreditation marks: optional, omitted entirely when not installed ──
+  const badges: ReactElement[] = [];
+  if (assets.isoBadge) badges.push(h(Image, { key: "iso", src: assets.isoBadge, style: styles.badgeImage }));
+  if (assets.msmeBadge) badges.push(h(Image, { key: "msme", src: assets.msmeBadge, style: styles.badgeImage }));
+  const badgeCol =
+    badges.length > 0
+      ? h(View, { key: "badges", style: styles.badgeCol }, [
+          h(View, { key: "brow", style: styles.badgeRow }, badges),
+          ...(design.footerLines ?? []).map((line, i) =>
+            h(Text, { key: `fl-${i}`, style: styles.badgeCaption }, line),
+          ),
+        ])
+      : null;
+
+  // Three groups, spread down the frame by `main`'s space-between: the issuer head, the
+  // award itself, and the footer band. Grouping is what makes the vertical rhythm hold
+  // for both a one-line and a three-line body paragraph.
   const main = h(View, { key: "main", style: styles.main }, [
-    h(View, { key: "head" }, [
-      h(Text, { key: "wm", style: styles.wordmark }, orgName),
-      design.tagline ? h(Text, { key: "tag", style: styles.tagline }, design.tagline) : null,
-    ]),
+    h(View, { key: "g-head" }, [head]),
 
-    h(View, { key: "body" }, [
-      h(Text, { key: "date", style: styles.date }, formatIssuedAt(f.issuedAt)),
+    h(View, { key: "g-award" }, [
+      h(Text, { key: "title", style: styles.title }, "CERTIFICATE"),
+      h(View, { key: "subrow", style: styles.subtitleRow }, [
+        h(View, { key: "l", style: styles.subtitleRule }),
+        h(Text, { key: "sub", style: [styles.subtitle, { marginHorizontal: 10 }] }, "OF COMPLETION"),
+        h(View, { key: "r", style: styles.subtitleRule }),
+      ]),
+
+      h(Text, { key: "certify", style: styles.certifyThat }, "THIS IS TO CERTIFY THAT"),
       h(Text, { key: "holder", style: styles.holder }, f.holderName),
-      h(Text, { key: "done", style: styles.completed }, "has successfully completed"),
-      h(Text, { key: "program", style: styles.program }, f.programName),
-      h(
-        Text,
-        { key: "auth", style: styles.authorised },
-        `an internship-training programme authorised and offered by ${orgName}. ` +
-          "The certificate confirms this learner's identity and their completion of the programme.",
-      ),
+      h(View, { key: "hrule", style: styles.holderRule }),
+
+      // Programme name and date are emphasised inline, exactly as in the artwork.
+      h(Text, { key: "body", style: styles.body }, [
+        "HAS SUCCESSFULLY COMPLETED HIS/HER PROGRAM IN ",
+        h(Text, { key: "prog", style: styles.bodyStrong }, f.programName.toUpperCase()),
+        " ON ",
+        h(Text, { key: "date", style: styles.bodyStrong }, issued),
+        ". DURING THIS PROGRAM HE/SHE SHOWED DILIGENCE, CONSISTENCY, DETERMINATION, ACTIVE PARTICIPATION, AND INNOVATION THROUGHOUT THE PROGRAM PERIOD.",
+      ]),
     ]),
 
-    h(View, { key: "sign" }, [
-      // A handwritten-feel signature: the signatory's name set in an oblique face,
-      // above the ruled line — no image asset required.
-      h(Text, { key: "sig", style: styles.signature }, signatory),
-      h(View, { key: "sline", style: styles.signatureLine }),
-      h(Text, { key: "sname", style: styles.signatoryName }, signatory),
-      f.signatoryDesignation
-        ? h(Text, { key: "sdes", style: styles.signatoryDesignation }, f.signatoryDesignation)
-        : null,
-      ...(design.footerLines ?? []).map((line, i) => h(Text, { key: `fl-${i}`, style: styles.footerLine }, line)),
+    h(View, { key: "g-foot" }, [
+      h(
+        View,
+        { key: "frow", style: styles.footerRow },
+        [
+          signatureCol,
+          h(View, { key: "d1", style: styles.footerDivider }),
+          certIdCol,
+          badgeCol ? h(View, { key: "d2", style: styles.footerDivider }) : null,
+          badgeCol,
+        ].filter(Boolean) as ReactElement[],
+      ),
+
+      h(View, { key: "brow", style: styles.bottomRow }, [
+        h(Text, { key: "verify", style: styles.bottomText }, [
+          h(Text, { key: "vl", style: styles.bottomStrong }, "Verify this certificate at:  "),
+          h(Text, { key: "vv", style: styles.bottomValue }, verifyHostLabel(f.verifyUrl)),
+        ]),
+        h(Text, { key: "issued", style: styles.bottomText }, [
+          h(Text, { key: "il", style: styles.bottomStrong }, "Date of Issue:  "),
+          h(Text, { key: "iv", style: styles.bottomValue }, issued),
+        ]),
+      ]),
     ]),
   ]);
 
-  // ── Right column: ribbon (heading + seal) over the verify block ──
   const aside = h(View, { key: "aside", style: styles.aside }, [
     buildRibbon([
-      h(Text, { key: "rh", style: styles.ribbonHeading }, "Course\nCertificate"),
-      buildSeal(orgName, accent),
-      h(Text, { key: "cap", style: styles.sealCaption }, "Certificate of Completion"),
-    ]),
-    h(View, { key: "verify", style: styles.verifyBlock }, [
-      // Short, human-typeable ID first — this is what a reader types into /verify.
-      h(Text, { key: "sl", style: styles.serialLabel }, "Certificate ID"),
-      h(Text, { key: "sv", style: styles.serialValue }, f.serial),
-      h(Text, { key: "vl", style: styles.verifyLabel }, "Verify at"),
-      h(Text, { key: "vu", style: styles.verifyUrl }, f.verifyUrl),
-      h(
-        Text,
-        { key: "vn", style: styles.verifyNote },
-        `${orgName} has confirmed the identity of this individual and their participation in the programme.`,
-      ),
+      h(Text, { key: "rh", style: styles.ribbonHeading }, "COURSE\nCERTIFICATE"),
+      buildSeal(orgName),
     ]),
   ]);
 
   return h(
     Document,
-    { title: "Certificate", author: orgName },
-    h(Page, { size: "A4", orientation, style: styles.page }, h(View, { style: styles.frame }, [main, aside])),
+    { title: "Certificate of Completion", author: orgName },
+    h(
+      Page,
+      { size: "A4", orientation, style: styles.page },
+      h(View, { style: styles.outerFrame }, [
+        buildCornerBrackets(accent),
+        h(View, { key: "inner", style: styles.innerFrame }, [main, aside]),
+      ]),
+    ),
   );
 }
 
@@ -342,7 +493,18 @@ export class SyncCertificatePdfAdapter implements CertificatePdfPort {
       `render() holderName="${input.fields.holderName}" program="${input.fields.programName}"`,
     );
 
-    const bytes = await renderToBuffer(buildDocument(input));
+    const design = input.design ?? {};
+    // Every asset is optional; a missing file resolves to undefined and the layout
+    // falls back (see certificate-assets.ts). Loaded in parallel — they are memoised
+    // after the first render, so this is a no-op on subsequent certificates.
+    const [logo, signature, isoBadge, msmeBadge] = await Promise.all([
+      loadCertificateAsset(design.logoFileName ?? DEFAULT_ASSETS.logo),
+      loadCertificateAsset(design.signatureFileName ?? DEFAULT_ASSETS.signature),
+      loadCertificateAsset(design.isoBadgeFileName ?? DEFAULT_ASSETS.isoBadge),
+      loadCertificateAsset(design.msmeBadgeFileName ?? DEFAULT_ASSETS.msmeBadge),
+    ]);
+
+    const bytes = await renderToBuffer(buildDocument(input, { logo, signature, isoBadge, msmeBadge }));
 
     return { bytes, contentType: "application/pdf" };
   }
