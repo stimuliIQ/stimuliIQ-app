@@ -1,9 +1,11 @@
 /**
- * PartnerColleges — homepage "In Collaboration with…" block: a card grid of
- * partner colleges. Centered-column cards: logo chip on top, then name, focus
- * line, and an Est./city meta row pinned to a shared bottom baseline.
+ * PartnerColleges — homepage "Institutional Network" block: two rows of college
+ * cards scrolling continuously in opposite directions (a seamless CSS marquee).
+ * Each card is a horizontal chip — logo on the left, name / affiliation / city
+ * stacked on the right.
  *
- * Server Component — purely presentational, no client JS.
+ * Server Component — purely presentational, no client JS (the marquee is pure
+ * CSS; see the `college-marquee` rules in `app/globals.css`).
  *
  * DATA (CRM-managed): the live list comes from the CRM Colleges screen
  * (`/crm/colleges` → `Partner` rows, category `college_partner`), fetched on the
@@ -19,28 +21,20 @@
  * every card was rendering as initials). With neither, we render a monogram chip, so the
  * grid stays visually complete for a college we don't have artwork for.
  *
- * Responsive: 1 col → 2 cols (sm) → 3 cols (lg) → 4 (xl). The grid renders every college
- * in full — it used to sit in a height-capped scrolling viewport, which produced a
- * nested scrollbar inside the page and hid most of the list behind it.
- *
- * a11y: section landmark + aria-label, h2/h3 hierarchy, role="list" grid,
- * decorative logo/monogram + location pin hidden from screen readers.
+ * Layout/a11y: owned by `CollegeMarquee` (see `home/college-marquee.tsx`), which the
+ * live CRM-driven renderer (`page-builder/blocks/live-collection-ref-block.tsx`, the
+ * `partners` collection) shares — so this fallback and the real thing look identical.
+ * This file keeps only the section chrome, the heading copy, and the fallback data.
  */
 import type { PublicPartner } from "@repo/types";
 import { bundledCollegeLogo, resolveCollegeLogo } from "../../lib/college-logos";
+import { CollegeMarquee, type CollegeCardItem } from "./college-marquee";
 
 // ---------------------------------------------------------------------------
 // Content
 // ---------------------------------------------------------------------------
 
-interface PartnerCollege {
-  name: string;
-  focus?: string;
-  established?: string;
-  city?: string;
-  /** Optional logo — a minted CDN URL (live) or a /public path (fallback). */
-  logo?: string;
-}
+type PartnerCollege = CollegeCardItem;
 
 /** Normalise a live CRM college (`PublicPartner`) into the card's shape. */
 function toCard(p: PublicPartner): PartnerCollege {
@@ -93,92 +87,6 @@ const PARTNER_COLLEGES: PartnerCollege[] = [
 ].map((c) => ({ ...c, logo: bundledCollegeLogo(c.name) }));
 
 // ---------------------------------------------------------------------------
-// Bits
-// ---------------------------------------------------------------------------
-
-/** First letter of up to two significant words, e.g. "St. John's Medical College" → "SJ". */
-function monogram(name: string): string {
-  return name
-    .replace(/[^A-Za-z ]/g, " ")
-    .split(" ")
-    .filter((word) => word.length > 1)
-    .slice(0, 2)
-    .map((word) => word[0]!.toUpperCase())
-    .join("");
-}
-
-function PinIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-3.5 w-3.5 text-chart-1"
-    >
-      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
-      <circle cx="12" cy="10" r="3" />
-    </svg>
-  );
-}
-
-function CollegeCard({ college }: { college: PartnerCollege }) {
-  return (
-    // Horizontal card: logo chip on the LEFT, text stacked on the right. This was a
-    // centered column (logo above the name, meta row pinned to a shared baseline),
-    // which read well but cost ~180px of height per card — twelve of those pushed the
-    // section past a full screen. Laying it out on one axis roughly halves the height
-    // and lets the meta row sit inline instead of on its own bordered line.
-    <li className="group flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm transition-all duration-[150ms] hover:border-chart-3/50 hover:shadow-md">
-      <span
-        aria-hidden="true"
-        className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-chart-3/10 ring-1 ring-inset ring-chart-3/15"
-      >
-        {college.logo ? (
-          <img
-            src={college.logo}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="h-full w-full object-contain p-1"
-          />
-        ) : (
-          <span className="text-xs font-bold tracking-tight text-chart-3">
-            {monogram(college.name)}
-          </span>
-        )}
-      </span>
-
-      <div className="min-w-0 flex-1">
-        <h3 className="truncate text-[13px] font-semibold leading-snug text-fg" title={college.name}>
-          {college.name}
-        </h3>
-        {college.focus ? (
-          <p className="truncate text-[11px] leading-snug text-chart-3" title={college.focus}>
-            {college.focus}
-          </p>
-        ) : null}
-        {college.established || college.city ? (
-          <p className="mt-0.5 flex items-center gap-2 text-[10px] text-fg-subtle">
-            {college.established ? <span>Est. {college.established}</span> : null}
-            {college.city ? (
-              <span className="inline-flex min-w-0 items-center gap-0.5">
-                <PinIcon />
-                <span className="truncate">{college.city}</span>
-              </span>
-            ) : null}
-          </p>
-        ) : null}
-      </div>
-    </li>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Section
 // ---------------------------------------------------------------------------
 
@@ -203,22 +111,11 @@ export function PartnerColleges({ colleges }: { colleges?: PublicPartner[] }) {
             Endorsed by students from Leading Educational Institutions
           </p>
         </div>
-
-        {/* Every college, in one grid. This was a `max-h` + `overflow-y-auto` viewport,
-            which capped the section's height at the cost of a scrollbar nested inside the
-            page — it hid two thirds of the list and hijacked the wheel over that region.
-            The cards are compact enough (one row each) that the full list is a reasonable
-            page cost. */}
-        <ul
-          role="list"
-          className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-          data-testid="partner-colleges-grid"
-        >
-          {list.map((college) => (
-            <CollegeCard key={college.name} college={college} />
-          ))}
-        </ul>
       </div>
+
+      {/* Deliberately OUTSIDE the content column: the rows are full-bleed, so they run
+          edge to edge and fade out at the viewport margins. */}
+      <CollegeMarquee colleges={list} />
     </section>
   );
 }

@@ -295,6 +295,71 @@
   animation: link-flow 2.4s linear infinite;
 }
 
+/* ---------------------------------------------------------------------------
+ * Partner-college marquee (components/home/partner-colleges.tsx). Two rows of
+ * college cards scrolling continuously in opposite directions.
+ *
+ * Each track holds N identical copies of its row and shifts by exactly ONE copy
+ * width — `--marquee-shift`, set inline to `calc(-100% / N)` — so copy 2 lands
+ * where copy 1 started and the loop has no seam or reset jump. N is computed per
+ * row so the track always out-measures the viewport (a short list would
+ * otherwise show a gap at the tail). `--marquee-duration` is likewise set per
+ * row from its copy width, so both rows travel at the same pixels-per-second no
+ * matter how many colleges each carries.
+ * ------------------------------------------------------------------------- */
+@keyframes college-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(var(--marquee-shift, -50%), 0, 0);
+  }
+}
+
+.college-marquee-track {
+  animation: college-marquee var(--marquee-duration, 60s) linear infinite;
+  will-change: transform;
+}
+
+/* Second row runs right-to-left-reversed, so the two rows drift apart. */
+.college-marquee-track[data-direction="reverse"] {
+  animation-direction: reverse;
+}
+
+/* Park the row on hover / keyboard focus so a card can actually be read. */
+.college-marquee:hover .college-marquee-track,
+.college-marquee:focus-within .college-marquee-track {
+  animation-play-state: paused;
+}
+
+/*
+ * Fade both ends instead of chopping cards off at the viewport edge. The fade is narrow
+ * on phones — 4rem of a 390px viewport would eat a third of the one visible card.
+ */
+.college-marquee {
+  --marquee-fade: 1.5rem;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--marquee-fade),
+    #000 calc(100% - var(--marquee-fade)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--marquee-fade),
+    #000 calc(100% - var(--marquee-fade)),
+    transparent
+  );
+}
+
+@media (min-width: 768px) {
+  .college-marquee {
+    --marquee-fade: 5rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .announcement-marquee {
     animation: none;
@@ -305,5 +370,24 @@
     text-align: center;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /*
+   * No motion: the row becomes a plain horizontal scroller holding a single
+   * copy of the list (the duplicated copies exist only to feed the loop, and
+   * are already hidden from assistive tech).
+   */
+  .college-marquee {
+    overflow-x: auto;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .college-marquee-track {
+    animation: none;
+  }
+
+  .college-marquee-track > [aria-hidden="true"] {
+    display: none;
   }
 }
