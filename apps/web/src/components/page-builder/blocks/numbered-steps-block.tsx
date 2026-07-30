@@ -49,7 +49,7 @@ function TimelineVariant({ items }: { items: NumberedStepsBlockData["items"] }) 
 
 function CompactVariant({ items }: { items: NumberedStepsBlockData["items"] }) {
   return (
-    <ol role="list" className="mx-auto grid max-w-6xl grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-5">
+    <ol role="list" className="mx-auto grid max-w-6xl grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
       {items.map((step, index) => (
         <li key={step.title} className="flex flex-col gap-3">
           <span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-brand-500 text-base font-bold text-brand-600">

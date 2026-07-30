@@ -198,7 +198,7 @@ export function MentorsGrid({ initialItems, initialCursor }: MentorsGridProps) {
 
   return (
     <div data-testid="mentors-grid">
-      <ul role="list" className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <ul role="list" className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {mentors.map((mentor, index) => (
           <li key={mentor.id}>
             <MentorCard mentor={mentor} index={index} />

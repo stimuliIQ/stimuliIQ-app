@@ -24,10 +24,15 @@ function SectionHeading({ heading }: { heading: FeatureGridBlockData["heading"] 
   );
 }
 
+/*
+ * Column steps. These cards are compact (icon tile + title + one line), so they take a
+ * `md` step — without it a tablet sat on the `sm` 2-column rendering all the way to
+ * 1024px and each card ran ~370px wide for two lines of text.
+ */
 const COLS_CLASS: Record<string, string> = {
   "2": "sm:grid-cols-2",
-  "3": "sm:grid-cols-2 lg:grid-cols-3",
-  "4": "sm:grid-cols-2 lg:grid-cols-4",
+  "3": "sm:grid-cols-2 md:grid-cols-3",
+  "4": "sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4",
 };
 
 function CardsVariant({ data }: { data: FeatureGridBlockData }) {
@@ -72,7 +77,9 @@ function SplitMediaVariant({ data }: { data: FeatureGridBlockData }) {
   const src = resolveAssetUrl(data.centerImageKey);
   const [left, right] = [data.items.slice(0, 2), data.items.slice(2, 4)];
   return (
-    <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-[1fr_1.15fr_1fr]">
+    // md: the photo spans the row and the two card stacks pair up beside each other —
+    // the same tablet fix as `why-us.tsx`, whose layout this variant mirrors.
+    <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 lg:grid-cols-[1fr_1.15fr_1fr]">
       <div className="flex flex-col gap-6">
         {left.map((item) => (
           <div key={item.title} className="flex flex-1 flex-col rounded-2xl bg-card p-7 shadow-sm">
@@ -86,7 +93,7 @@ function SplitMediaVariant({ data }: { data: FeatureGridBlockData }) {
       </div>
 
       {src ? (
-        <div aria-hidden="true" className="relative min-h-[380px] lg:min-h-0">
+        <div aria-hidden="true" className="relative min-h-[380px] md:order-first md:col-span-2 md:min-h-[420px] lg:order-none lg:col-span-1 lg:min-h-0">
           <Image src={src} alt="" fill sizes="(min-width: 1024px) 40vw, 100vw" className="rounded-2xl object-cover" />
         </div>
       ) : null}

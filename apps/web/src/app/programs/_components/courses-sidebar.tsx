@@ -74,11 +74,14 @@ export function CoursesSidebar({ domains, current, totalCount, hasMore }: Course
     <div
       role="search"
       aria-label="Filter and sort courses"
-      className="flex flex-col gap-6"
+      // Below lg the listing page stacks this rail above the results, where it is the full
+      // page width — as a vertical stack that cost ~470px of tablet screen before the first
+      // course card. At md the three controls lay out as one row; at lg it is a rail again.
+      className="flex flex-col gap-6 md:grid md:grid-cols-3 md:items-start md:gap-x-8 lg:flex lg:flex-col"
       data-testid="courses-sidebar"
     >
       {/* Header + count */}
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex items-baseline justify-between gap-2 md:col-span-3 lg:col-span-1">
         <h2 className="text-lg font-bold text-fg">Apply Filters</h2>
         {totalCount != null ? (
           <span className="text-sm text-fg-muted" data-testid="courses-count">

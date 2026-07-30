@@ -148,7 +148,11 @@ function SplitWithCardsHero({ data }: { data: HeroBlockData }) {
         {data.subheadline ? <p className="mx-auto mt-4 max-w-2xl text-lg text-fg-muted">{data.subheadline}</p> : null}
       </div>
 
-      <div className="mt-10 grid grid-cols-1 items-center gap-8 lg:grid-cols-[1fr_auto_1fr] lg:gap-4">
+      {/* md: poster on its own full-width row, the two supporting cards paired beneath it.
+          Stacked, this was three full-width blocks and the CTAs fell below the fold. */}
+      {/* md:items-start — in the 2-up tablet row the left cell carries a card AND the CTA
+          row, so centring floated the lone right-hand card to the middle of the taller cell. */}
+      <div className="mt-10 grid grid-cols-1 items-center gap-8 md:grid-cols-2 md:items-start lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:gap-4">
         <div className="order-2 flex flex-col items-start gap-6 lg:order-1">
           {leftCard ? (
             <div className="w-full rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -159,7 +163,7 @@ function SplitWithCardsHero({ data }: { data: HeroBlockData }) {
         </div>
 
         {centerSrc ? (
-          <div className="order-1 flex justify-center lg:order-2 lg:-mb-16">
+          <div className="order-1 flex justify-center md:col-span-2 lg:order-2 lg:col-span-1 lg:-mb-16">
             <Image src={centerSrc} alt="" width={740} height={1056} priority className="h-auto w-[280px] drop-shadow-xl sm:w-[340px] lg:w-[400px]" />
           </div>
         ) : null}

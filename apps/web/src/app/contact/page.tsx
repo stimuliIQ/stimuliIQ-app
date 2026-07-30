@@ -193,8 +193,11 @@ export default function ContactPage() {
       {/* Channels + form */}
       <div className="section-band py-14 lg:py-16">
         <div className="mx-auto grid max-w-screen-xl grid-cols-1 gap-10 px-4 md:px-6 lg:grid-cols-[1fr_1.2fr] lg:gap-14">
-          {/* Left: channels + trust */}
-          <div className="flex flex-col gap-5">
+          {/* Left: channels + trust.
+              Below lg this column IS the full page width, so a vertical stack gave every
+              channel card ~780px for two lines of text. It pairs up at md and returns to a
+              single column at lg, where it is the narrow pane beside the form. */}
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-1">
             <ChannelCard
               icon={<MailIcon />}
               title="Email us"
@@ -259,8 +262,9 @@ export default function ContactPage() {
               </div>
             </div>
 
-            {/* Hours + expectations */}
-            <div className="flex items-start gap-4 rounded-2xl border border-border p-6">
+            {/* Hours + expectations. Spans the pair at md so the 5-card column ends flush
+                instead of leaving a hole next to the longest block. */}
+            <div className="flex items-start gap-4 rounded-2xl border border-border p-6 md:col-span-2 lg:col-span-1">
               <span
                 aria-hidden="true"
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface text-fg"

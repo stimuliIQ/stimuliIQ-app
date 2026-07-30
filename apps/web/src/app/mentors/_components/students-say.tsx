@@ -89,7 +89,10 @@ export function StudentsSay() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
+        {/* md: artwork spans the row, the two quote stacks sit side by side. Without
+            that step the grid went 1 → 3 columns at lg, so every tablet stacked four
+            ~780px-wide quote cards and the section ran nearly 1900px tall. */}
+        <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 lg:grid-cols-3">
           <div className="flex flex-col gap-6">
             {LEFT_QUOTES.map((quote) => (
               <QuoteCard key={quote.name} quote={quote} />
@@ -109,7 +112,7 @@ export function StudentsSay() {
             // Width cap below lg for the same reason as the Why-Us portrait: once the
             // 3-column grid collapses, a full-width 2:3 box runs ~1150px tall on a
             // tablet. Capping width keeps the artwork uncropped and proportionate.
-            className="relative order-first mx-auto aspect-[2/3] w-full max-w-[300px] overflow-hidden rounded-2xl shadow-sm sm:max-w-[340px] lg:order-none lg:max-w-none"
+            className="relative order-first mx-auto aspect-[2/3] w-full max-w-[300px] overflow-hidden rounded-2xl shadow-sm sm:max-w-[340px] md:col-span-2 lg:order-none lg:col-span-1 lg:max-w-none"
           >
             <Image
               src="/images/happy-students.webp"

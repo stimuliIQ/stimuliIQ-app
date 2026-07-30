@@ -135,9 +135,11 @@ export default async function MentorDetailPage({ params }: PageProps) {
       />
 
       <div className="mx-auto max-w-screen-xl px-4 pt-10 md:px-6">
-        <div className="grid grid-cols-1 gap-10 pb-16 lg:grid-cols-[minmax(0,20rem)_1fr] lg:gap-16 lg:pb-24">
+        {/* Splits at md with a 16rem photo rail (20rem from lg). Stacked, the square photo
+            ran the full tablet width — ~780px of portrait before the name even appeared. */}
+        <div className="grid grid-cols-1 gap-10 pb-16 md:grid-cols-[minmax(0,16rem)_1fr] md:gap-10 lg:grid-cols-[minmax(0,20rem)_1fr] lg:gap-16 lg:pb-24">
           {/* ── Left: photo + socials ── */}
-          <div className="lg:sticky lg:top-24 lg:self-start">
+          <div className="md:sticky md:top-24 md:self-start">
             <div className="aspect-square w-full overflow-hidden rounded-2xl bg-surface">
               {mentor.photoUrl ? (
                 // plain <img>: remote CDN host, avoids next/image remotePatterns config.

@@ -15,8 +15,10 @@ export function ContentSplitBlock({ data }: { data: ContentSplitBlockData }): Re
 
   return (
     <section aria-label={data.heading} data-testid="page-builder-content-split" className="py-16 lg:py-24">
-      <div className="mx-auto grid max-w-screen-xl grid-cols-1 items-center gap-12 px-4 md:px-6 lg:grid-cols-2">
-        <div className={mediaFirst ? "lg:order-2" : undefined}>
+      {/* Splits at md, not lg: a tablet used to stack the copy above a full-width poster,
+          which put the two halves of one idea a screen apart. */}
+      <div className="mx-auto grid max-w-screen-xl grid-cols-1 items-center gap-12 px-4 md:grid-cols-2 md:px-6">
+        <div className={mediaFirst ? "md:order-2" : undefined}>
           {data.eyebrow ? <p className="text-sm font-semibold uppercase tracking-[0.2em] text-fg-muted">{data.eyebrow}</p> : null}
           <h2 className="mt-3 font-display text-3xl font-bold tracking-tight text-fg md:text-4xl">
             <HighlightText text={data.heading} highlight={data.headingHighlight} />
@@ -30,7 +32,7 @@ export function ContentSplitBlock({ data }: { data: ContentSplitBlockData }): Re
         </div>
 
         {mediaSrc ? (
-          <div className={`relative mx-auto w-full max-w-md ${mediaFirst ? "lg:order-1" : ""}`}>
+          <div className={`relative mx-auto w-full max-w-md ${mediaFirst ? "md:order-1" : ""}`}>
             {/*
               Two media modes, chosen by whether the editor supplied `mediaAlt`:
               - No alt → a decorative photo. Cropped to a fixed portrait frame
@@ -43,7 +45,7 @@ export function ContentSplitBlock({ data }: { data: ContentSplitBlockData }): Re
             {data.mediaAlt ? (
               <Image src={mediaSrc} alt={data.mediaAlt} width={1024} height={1536} className="h-auto w-full rounded-2xl shadow-md" />
             ) : (
-              <Image src={mediaSrc} alt="" aria-hidden="true" width={448} height={520} className="h-[420px] w-full rounded-2xl object-cover shadow-md lg:h-[520px]" />
+              <Image src={mediaSrc} alt="" aria-hidden="true" width={448} height={520} className="h-[420px] w-full rounded-2xl object-cover shadow-md md:h-[460px] lg:h-[520px]" />
             )}
             {data.badge ? (
               <div className="absolute -left-4 bottom-8 flex items-center gap-3 rounded-xl border border-border bg-card p-3 pr-5 shadow-md">

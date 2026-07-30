@@ -172,7 +172,9 @@ export function AboutPageFallback() {
       </section>
 
       <section aria-label="Our story" className="py-16 lg:py-24">
-        <div className="mx-auto grid max-w-screen-xl grid-cols-1 items-center gap-12 px-4 md:px-6 lg:grid-cols-2">
+        {/* Splits at md — kept in step with `content-split-block.tsx`, which renders the
+            CMS version of this same section. */}
+        <div className="mx-auto grid max-w-screen-xl grid-cols-1 items-center gap-12 px-4 md:grid-cols-2 md:px-6">
           <div>
             <h2 className="font-display text-3xl font-bold tracking-tight text-fg md:text-4xl">
               Why We <span className="text-chart-3">Exist</span>
@@ -238,7 +240,7 @@ export function AboutPageFallback() {
             </h2>
             <p className="mt-4 text-lg leading-relaxed text-fg-muted">Everything a student needs to go from classroom to clinic.</p>
           </div>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
             {PILLARS.map((pillar) => (
               <div key={pillar.title} className="flex flex-col rounded-2xl bg-card p-7 shadow-sm">
                 <span aria-hidden="true" className="flex h-12 w-12 items-center justify-center rounded-full bg-surface text-fg">
@@ -290,7 +292,7 @@ export function AboutPageFallback() {
       </section>
 
       <section aria-label="Our commitments" className="py-14">
-        <div className="mx-auto grid max-w-screen-xl grid-cols-1 gap-8 px-4 sm:grid-cols-2 md:px-6 lg:grid-cols-4">
+        <div className="mx-auto grid max-w-screen-xl grid-cols-1 gap-8 px-4 sm:grid-cols-2 md:grid-cols-4 md:px-6">
           {COMMITMENTS.map((item) => (
             <div key={item.title} className="flex items-start gap-3">
               <span aria-hidden="true" className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface text-fg">

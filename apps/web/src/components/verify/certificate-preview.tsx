@@ -51,10 +51,14 @@ export function CertificatePreview({
           <p className="mt-3 text-base leading-relaxed text-fg-muted">{subheading}</p>
         </div>
 
-        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.4fr_1fr]">
+        {/* At md the certificate KEEPS the full width — it is a wide document, and squeezing
+            it into a ~350px pane makes the specimen unreadable, which defeats the section.
+            Instead the three callouts (which used to stack as three full-width slabs all the
+            way to 1024px) become a 3-up row beneath it. */}
+        <div className="grid grid-cols-1 items-center gap-10 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr]">
           {/* 3:2 artwork. `object-contain` on a locked aspect box: the certificate's own
               border must never be cropped, or the specimen stops looking like a document. */}
-          <div className="relative aspect-[3/2] overflow-hidden rounded-2xl border border-border bg-card shadow-md">
+          <div className="relative aspect-[3/2] overflow-hidden rounded-2xl border border-border bg-card shadow-md md:col-span-2 lg:col-span-1">
             <Image
               src="/images/sample-certificate.webp"
               alt="Specimen Stimuli IQ certificate of completion, showing where the holder name, programme, Certificate ID and date of issue appear."
@@ -64,7 +68,7 @@ export function CertificatePreview({
             />
           </div>
 
-          <ul role="list" className="flex flex-col gap-5">
+          <ul role="list" className="flex flex-col gap-5 md:col-span-2 md:grid md:grid-cols-3 lg:col-span-1 lg:flex lg:flex-col">
             {CALLOUTS.map((item) => (
               <li key={item.title} className="rounded-xl border border-border bg-card p-5 shadow-sm">
                 <h3 className="text-base font-bold text-fg">{item.title}</h3>

@@ -20,7 +20,7 @@ export function GalleryPageFallback() {
         <p className="mt-3 text-lg text-fg-muted">A glimpse into Stimuli IQ training sessions, events, and student milestones.</p>
       </header>
 
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" role="list" data-testid="gallery-list">
+      <ul className="grid gap-4 sm:grid-cols-2 md:grid-cols-3" role="list" data-testid="gallery-list">
         {GALLERY_ITEMS.map((item) => (
           <li key={item.id}>
             <figure className="overflow-hidden rounded-xl border border-border bg-card">

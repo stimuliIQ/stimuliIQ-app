@@ -226,8 +226,14 @@ export function WhyUsSection() {
         {/* 2 cards | artwork | 2 cards. The centre column is the NARROW one
             (1fr vs 1.15fr sides): the portrait artwork's aspect ratio sets the
             row height, so a narrower centre keeps the whole band from growing
-            too tall while the flanking cards stretch to match. */}
-        <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-[1.15fr_1fr_1.15fr]">
+            too tall while the flanking cards stretch to match.
+
+            The md step is load-bearing: this used to go straight from 1 column to
+            the 3-column desktop layout, so every tablet (768–1023px) rendered four
+            ~780px-wide cards in a single stack — one line of text across a slab of
+            whitespace, and a 2000px-tall section. At md the artwork spans the full
+            width on its own row and the two card stacks sit side by side. */}
+        <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 lg:grid-cols-[1.15fr_1fr_1.15fr]">
           <div className="flex flex-col gap-6">
             {LEFT_CARDS.map((card) => (
               <WhyUsCard key={card.title} {...card} />
@@ -246,7 +252,10 @@ export function WhyUsSection() {
               a 768px-wide tablet rendered it ~1364px tall — one image taking more
               than a full screen. Capping the WIDTH (rather than cropping the
               height) keeps the artwork uncropped and brings it back to ~570px. */}
-          <div aria-hidden="true" className="relative mx-auto aspect-[941/1672] w-full max-w-[280px] sm:max-w-[320px] lg:max-w-none">
+          <div
+            aria-hidden="true"
+            className="relative mx-auto aspect-[941/1672] w-full max-w-[280px] sm:max-w-[320px] md:order-first md:col-span-2 lg:order-none lg:col-span-1 lg:max-w-none"
+          >
             <Image
               src="/images/why-us-team-portrait.webp"
               alt=""

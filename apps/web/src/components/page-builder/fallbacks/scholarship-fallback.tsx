@@ -68,7 +68,8 @@ export function ScholarshipPageFallback() {
             </h1>
           </div>
 
-          <div className="mt-10 grid grid-cols-1 items-center gap-8 lg:grid-cols-[1fr_auto_1fr] lg:gap-4">
+          {/* md step kept in sync with `hero-block.tsx`, which renders the CMS version. */}
+          <div className="mt-10 grid grid-cols-1 items-center gap-8 md:grid-cols-2 md:items-start lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:gap-4">
             <div className="order-2 flex flex-col items-start gap-6 lg:order-1">
               <div className="w-full rounded-xl border border-border bg-card p-6 shadow-sm">
                 <p className="text-base leading-relaxed text-fg">
@@ -93,7 +94,7 @@ export function ScholarshipPageFallback() {
               </div>
             </div>
 
-            <div className="order-1 flex justify-center lg:order-2 lg:-mb-16">
+            <div className="order-1 flex justify-center md:col-span-2 lg:order-2 lg:col-span-1 lg:-mb-16">
               <Image
                 src="/images/scholarship/scholarship.png"
                 alt=""
@@ -183,7 +184,7 @@ export function ScholarshipPageFallback() {
           <h2 className="text-center text-3xl font-bold text-fg md:text-4xl">
             The <span className="text-chart-3">₹1 Crore</span> impact
           </h2>
-          <div className="mx-auto mt-12 grid max-w-5xl grid-cols-1 items-center gap-10 lg:grid-cols-2">
+          <div className="mx-auto mt-12 grid max-w-5xl grid-cols-1 items-center gap-10 md:grid-cols-2">
             <div>
               <h3 className="text-xl font-semibold leading-snug text-fg">
                 Financial constraints should never stop a capable student from building a career in healthcare.
@@ -232,7 +233,7 @@ export function ScholarshipPageFallback() {
             </h2>
             <p className="mt-4 text-lg text-fg-muted">Five steps from application to certified professional.</p>
           </div>
-          <ol role="list" className="mx-auto mt-12 grid max-w-6xl grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-5">
+          <ol role="list" className="mx-auto mt-12 grid max-w-6xl grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
             {PROCESS_STEPS.map((step, index) => (
               <li key={step.title} className="flex flex-col gap-3">
                 <span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-brand-500 text-base font-bold text-brand-600">

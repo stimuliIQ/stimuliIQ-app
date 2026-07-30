@@ -34,7 +34,7 @@ import {
   ProgramCard,
   TestimonialCard,
 } from "@repo/ui";
-import { formatPaiseDisplay, formatCompareAtDisplay, formatRating, formatDuration, formatMode } from "../../../lib/format";
+import { formatPaiseDisplay, formatCompareAtDisplay, formatRating, formatMode } from "../../../lib/format";
 import { BOOK_SLOT_HREF } from "../../../components/shell/nav-config";
 import { buildWhatsAppHref } from "../../../lib/contact";
 import { StickyLeadBarConnected } from "../../../components/leads/sticky-lead-bar-connected";
@@ -195,30 +195,6 @@ function ProgramHero({ program }: { program: PublicProgramDetail }) {
             Scholarship available — check eligibility
           </a>
         ) : null}
-
-        {/* Meta row: mode · level · duration */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-fg-muted">
-          {program.mode ? (
-            <span className="rounded-full border border-border bg-surface px-3 py-0.5">
-              {formatMode(program.mode)}
-            </span>
-          ) : null}
-          {program.level ? (
-            <span className="rounded-full border border-border bg-surface px-3 py-0.5">
-              {program.level}
-            </span>
-          ) : null}
-          {program.durationWeeks ? (
-            <span className="rounded-full border border-border bg-surface px-3 py-0.5">
-              {formatDuration(program.durationWeeks)}
-            </span>
-          ) : null}
-          {program.domain ? (
-            <span className="rounded-full border border-border bg-surface px-3 py-0.5">
-              {program.domain}
-            </span>
-          ) : null}
-        </div>
 
         {/* Rating row */}
         {ratingDisplay != null && program.ratingCount ? (
@@ -431,7 +407,7 @@ function RelatedProgramsSection({
   return (
     <section aria-label="Related programs" data-testid="program-related">
       <h2 className="mb-6 text-xl font-semibold text-fg">You May Also Like</h2>
-      <ul role="list" className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <ul role="list" className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {programs.map((p) => (
           <li key={p.id}>
             <ProgramCard
