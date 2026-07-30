@@ -149,7 +149,8 @@ export function ProgramCard({
 
       {/* Card body */}
       <div className="flex flex-1 flex-col gap-4 p-5">
-        {/* Icon + domain row */}
+        {/* Icon + domain row — omitted entirely when there is nothing to show */}
+        {icon || domain || (badgeLabel && !imageUrl) ? (
         <div className="flex items-start gap-3">
           {icon ? (
             <div
@@ -171,6 +172,7 @@ export function ProgramCard({
             </span>
           ) : null}
         </div>
+        ) : null}
 
         {/* Title */}
         <h3 className="line-clamp-2 text-base font-semibold leading-heading text-fg">

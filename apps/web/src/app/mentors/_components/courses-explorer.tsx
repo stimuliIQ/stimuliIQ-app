@@ -26,50 +26,10 @@ import type { PublicProgramSummary } from "@repo/types";
 import {
   formatCompareAtDisplay,
   formatPaiseDisplay,
-  formatDuration,
-  formatMode,
   humanizeDomain,
 } from "../../../lib/format";
 
 const MAX_VISIBLE = 6;
-
-function ClockIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 3" />
-    </svg>
-  );
-}
-
-function ScreenIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4"
-    >
-      <rect x="3" y="4" width="18" height="13" rx="2" />
-      <path d="M8 21h8M12 17v4" />
-    </svg>
-  );
-}
 
 /** Rotating grey tints for the art panels. */
 const PANEL_TINTS = ["bg-surface", "bg-fg/[0.07]", "bg-brand-50"] as const;
@@ -99,20 +59,11 @@ function CourseCard({ program, index }: { program: PublicProgramSummary; index: 
             {domainLabel.charAt(0)}
           </span>
         )}
-        <span
-          aria-hidden="true"
-          className="absolute bottom-4 left-4 rounded-full bg-card px-3 py-1 text-xs font-semibold text-fg shadow-sm"
-        >
-          {domainLabel}
-        </span>
       </div>
 
       {/* Body */}
       <div className="flex flex-1 flex-col p-6">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
-            {program.level ? program.level : "All levels"}
-          </span>
+        <div className="flex items-center justify-end gap-3">
           <span className="flex items-baseline gap-1.5 text-lg font-bold text-fg">
             {formatPaiseDisplay(program.pricePaise)}
             {formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise) ? (
@@ -137,16 +88,6 @@ function CourseCard({ program, index }: { program: PublicProgramSummary; index: 
           </a>
         </h3>
 
-        <div className="mt-5 flex items-center gap-5 border-t border-border pt-4 text-sm text-fg-muted">
-          <span className="flex items-center gap-1.5">
-            <ClockIcon />
-            {formatDuration(program.durationWeeks) ?? "Self-paced"}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <ScreenIcon />
-            {formatMode(program.mode)}
-          </span>
-        </div>
       </div>
     </article>
   );

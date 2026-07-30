@@ -37,7 +37,7 @@ import * as React from "react";
 import Image from "next/image";
 import type { PublicProgramSummary, HeadingSimple } from "@repo/types";
 
-import { formatCompareAtDisplay, formatDuration, formatMode, formatPaiseDisplay, formatRating } from "../../lib/format";
+import { formatCompareAtDisplay, formatPaiseDisplay, formatRating } from "../../lib/format";
 import { HighlightText } from "../page-builder/highlight-text";
 import { safeHref } from "../../lib/safe-href";
 
@@ -74,25 +74,6 @@ function BookIcon() {
   );
 }
 
-function ClockIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-3.5 w-3.5"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 3" />
-    </svg>
-  );
-}
-
 function CourseCard({
   program,
   showScholarshipBadge,
@@ -101,11 +82,6 @@ function CourseCard({
   showScholarshipBadge: boolean;
 }) {
   const rating = program.ratingAvg != null ? formatRating(program.ratingAvg) : null;
-  const meta = [
-    program.durationWeeks ? formatDuration(program.durationWeeks) : null,
-    formatMode(program.mode),
-    program.level ?? "All levels",
-  ].filter(Boolean);
 
   return (
     <li className="h-full">
@@ -136,9 +112,6 @@ function CourseCard({
             </span>
           ) : null}
 
-          <span className="absolute bottom-2.5 left-2.5 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-medium text-fg backdrop-blur-sm">
-            {prettifyDomain(program.domain)}
-          </span>
         </div>
 
         {/* Body — tight, compact copy */}
@@ -156,12 +129,6 @@ function CourseCard({
           {program.cardSummary ? (
             <p className="line-clamp-2 text-[13px] leading-relaxed text-fg-muted">{program.cardSummary}</p>
           ) : null}
-
-          {/* Meta — one compact line */}
-          <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-fg-subtle">
-            <ClockIcon />
-            <span className="truncate">{meta.join(" · ")}</span>
-          </div>
 
           {/* Footer: price + rating, then a compact secondary CTA. The pill is a
               styled span — the card's stretched link is the real (and only)

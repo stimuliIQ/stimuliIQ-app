@@ -26,7 +26,8 @@ import { buildMetadata } from "../../lib/seo/metadata";
 import { serverApiClient } from "../../lib/api-client";
 import { getCourseDomains } from "../../lib/course-facets";
 import { ProgramCard, EmptyState, Skeleton } from "@repo/ui";
-import { formatPaiseDisplay, formatCompareAtDisplay, formatRating, formatDuration, formatMode } from "../../lib/format";
+import { formatPaiseDisplay, formatCompareAtDisplay, formatRating } from "../../lib/format";
+import { UpcomingWorkshopStrip } from "../../components/home/upcoming-workshop";
 import { CoursesSidebar } from "./_components/courses-sidebar";
 import { ProgramsPagination } from "./_components/programs-pagination";
 import type { ListPublicProgramsQuery, PublicProgramSort } from "@repo/types";
@@ -145,6 +146,11 @@ export default async function CoursesListingPage({ searchParams }: PageProps) {
         <p className="mt-2 text-lg text-fg-muted">
           Industry-grade internship training across software, data, cloud, and design.
         </p>
+
+        {/* Workshop promo — the strip variant, not the band: this page already has its
+            own header and a filter sidebar, so the promo sits inside the layout rather
+            than taking it over. Renders nothing when disabled (lib/workshop.ts). */}
+        <UpcomingWorkshopStrip className="mt-6" />
       </div>
 
       {/* Sidebar + grid */}
@@ -223,10 +229,6 @@ export default async function CoursesListingPage({ searchParams }: PageProps) {
                       imageUrl={program.ogImageUrl ?? undefined}
                       badgeLabel={program.scholarshipAvailable ? "Scholarship available" : undefined}
                       summary={program.cardSummary ?? undefined}
-                      domain={program.domain}
-                      duration={formatDuration(program.durationWeeks)}
-                      mode={formatMode(program.mode)}
-                      level={program.level ?? undefined}
                       priceDisplay={formatPaiseDisplay(program.pricePaise)}
                       originalPriceDisplay={formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
                       emiDisplay={program.emiDisplay ?? undefined}

@@ -13,7 +13,8 @@ import { ProgramCard } from "@repo/ui";
 import { buildMetadata, SITE_URL } from "../../../../lib/seo/metadata";
 import { buildBreadcrumbJsonLd, buildCourseJsonLd } from "../../../../lib/seo/json-ld";
 import { serverApiClient } from "../../../../lib/api-client";
-import { formatPaiseDisplay, formatCompareAtDisplay, formatDuration, formatMode } from "../../../../lib/format";
+import { formatPaiseDisplay, formatCompareAtDisplay } from "../../../../lib/format";
+import { UpcomingWorkshopStrip } from "../../../../components/home/upcoming-workshop";
 
 export const revalidate = 86_400; // 24h — city program counts change infrequently
 
@@ -105,6 +106,7 @@ export default async function CitySeoPage({ params }: PageProps) {
             {detail.programs.length} program{detail.programs.length === 1 ? "" : "s"} available for
             students in {detail.city}, with live and recorded training tracks.
           </p>
+          <UpcomingWorkshopStrip className="mt-6" />
         </header>
 
         {detail.programs.length === 0 ? (
@@ -129,11 +131,7 @@ export default async function CitySeoPage({ params }: PageProps) {
                   imageUrl={program.ogImageUrl ?? undefined}
                   badgeLabel={program.scholarshipAvailable ? "Scholarship available" : undefined}
                   summary={program.cardSummary ?? undefined}
-                  domain={program.domain}
                   title={program.title}
-                  duration={formatDuration(program.durationWeeks)}
-                  mode={program.mode ? formatMode(program.mode) : undefined}
-                  level={program.level ?? undefined}
                   priceDisplay={formatPaiseDisplay(program.pricePaise)}
                   originalPriceDisplay={formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
                   emiDisplay={program.emiDisplay ?? undefined}

@@ -15,6 +15,7 @@ import { ExploreCourses } from "../../home/explore-courses";
 import { TestimonialSpotlight } from "../../home/testimonial-spotlight";
 import { BrainShowcase } from "../../home/brain-showcase";
 import { HowItWorksSteps } from "../../home/how-it-works-steps";
+import { UpcomingWorkshopBand } from "../../home/upcoming-workshop";
 import { PartnerColleges } from "../../home/partner-colleges";
 import { BOOK_SLOT_HREF } from "../../shell/nav-config";
 import { LeadFormConnected } from "../../leads/lead-form-connected";
@@ -173,6 +174,11 @@ export function HomePageFallback({
     <main id="main-content" className="flex flex-col" data-testid="homepage">
       <HeroCentered />
       <BrainShowcase />
+      {/* Placed directly under the hero pairing — the first section a visitor reaches
+          after the headline. Its `.section-band` tint separates it from the plain-`bg`
+          hero above and StatsBento below without repeating the brand tint WhyUs uses
+          further down. Renders nothing when disabled (lib/workshop.ts). */}
+      <UpcomingWorkshopBand />
       <StatsBento />
       {/* showScholarshipBadge={false}: homepage only. Scholarship availability is still
           surfaced on /programs, /programs/city/[citySlug] and the program detail page. */}
