@@ -341,6 +341,22 @@ const envSchema = z.object({
   //   credentials, no CDN. Uploads and public images work end-to-end on localhost.
   STORAGE_PROVIDER: z.enum(["noop", "local", "s3", "r2"]).default("noop"),
   STORAGE_BUCKET: z.string().optional(),
+  // OPTIONAL second bucket holding ONLY the publicly-served image namespaces
+  // (program_images/, marketing_images/, mentor_photos/, college_logos/ — see
+  // PUBLIC_ASSET_PREFIXES in s3-storage.provider.ts). Everything else — student
+  // submissions, CSV exports, invoices, receipts, certificates, lesson resources,
+  // career resumes — stays in STORAGE_BUCKET and is only ever reachable through a
+  // short-lived signed URL.
+  //
+  // WHY: a CDN needs the image bucket to be publicly readable, and R2 grants public
+  // access per BUCKET, not per prefix. With one shared bucket the only way to serve
+  // course thumbnails over a CDN is to make assignment submissions and PII exports
+  // world-readable too. Splitting the buckets keeps "public" and "private" from
+  // sharing a blast radius.
+  //
+  // Unset (the default) = single-bucket behaviour, unchanged: every key goes to
+  // STORAGE_BUCKET.
+  STORAGE_PUBLIC_BUCKET: z.string().optional(),
   STORAGE_REGION: z.string().optional(),
   STORAGE_ENDPOINT: z.string().url().optional(),
   STORAGE_ACCESS_KEY_ID: z.string().optional(),

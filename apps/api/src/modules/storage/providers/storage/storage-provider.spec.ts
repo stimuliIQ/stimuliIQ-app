@@ -36,6 +36,7 @@ import {
   sanitiseFilename,
   validateStorageKey,
   buildStorageKey,
+  isPublicAssetKey,
   type StorageKeyNamespace,
 } from "./s3-storage.provider";
 import {
@@ -145,6 +146,7 @@ function clearTestEnv(): void {
     ...Object.keys(REQUIRED_ENV),
     ...Object.keys(STORAGE_ENV),
     "STORAGE_ENDPOINT",
+    "STORAGE_PUBLIC_BUCKET",
   ];
   for (const k of keys) delete process.env[k];
 }
@@ -216,6 +218,50 @@ describe("validateStorageKey", () => {
     expect(() => validateStorageKey("program_images/t1/uuid-cover.png")).not.toThrow();
     expect(() => validateStorageKey("marketing_images/t1/uuid-hero.webp")).not.toThrow();
     expect(() => validateStorageKey("college_logos/t1/uuid-logo.webp")).not.toThrow();
+    expect(() => validateStorageKey("program_brochures/t1/uuid-syllabus.pdf")).not.toThrow();
+  });
+
+  // REGRESSION: `program_brochures/` was a valid `buildStorageKey()` namespace but was
+  // missing from ALLOWED_KEY_PREFIXES, so every brochure upload threw inside
+  // `getSignedUploadUrl()`'s `validateStorageKey()` call. Any namespace reachable from
+  // buildStorageKey must round-trip through validateStorageKey.
+  it("accepts every namespace buildStorageKey can emit", () => {
+    const namespaces: StorageKeyNamespace[] = [
+      "mentor_photos",
+      "program_images",
+      "program_brochures",
+      "marketing_images",
+      "college_logos",
+    ];
+    for (const namespace of namespaces) {
+      const key = buildStorageKey({
+        namespace,
+        tenantId: "t1",
+        uniqueId: "uuid",
+        filename: "file.pdf",
+      });
+      expect(() => validateStorageKey(key)).not.toThrow();
+    }
+  });
+
+  // Bucket routing: everything mintCdnUrl() turns into a public URL must resolve to the
+  // public bucket, or the object is written to the private bucket while the URL points at
+  // the public one — a guaranteed 404 once STORAGE_PUBLIC_BUCKET is configured.
+  it("routes exactly the CDN-served namespaces to the public bucket", () => {
+    expect(isPublicAssetKey("program_images/t1/uuid-cover.png")).toBe(true);
+    expect(isPublicAssetKey("marketing_images/t1/uuid-hero.webp")).toBe(true);
+    expect(isPublicAssetKey("mentor_photos/t1/uuid-photo.jpg")).toBe(true);
+    expect(isPublicAssetKey("college_logos/t1/uuid-logo.webp")).toBe(true);
+    expect(isPublicAssetKey("program_brochures/t1/uuid-syllabus.pdf")).toBe(true);
+
+    // PII / private-by-default namespaces must NEVER land in a world-readable bucket.
+    expect(isPublicAssetKey("submissions/t1/e1/abc.pdf")).toBe(false);
+    expect(isPublicAssetKey("exports/t1/job-1.csv")).toBe(false);
+    expect(isPublicAssetKey("invoices/t1/inv123.pdf")).toBe(false);
+    expect(isPublicAssetKey("receipts/t1/pay-1.pdf")).toBe(false);
+    expect(isPublicAssetKey("careers/t1/uuid-resume.pdf")).toBe(false);
+    expect(isPublicAssetKey("certificates/t1/cert123.pdf")).toBe(false);
+    expect(isPublicAssetKey("resources/t1/l1/abc.pdf")).toBe(false);
   });
 
   it("rejects keys without an allowed prefix", () => {
@@ -1000,6 +1046,104 @@ describe("S3StorageProvider — with mocked SDK", () => {
 
       const provider = new S3StorageProvider();
       await expect(provider.head({ key: TEST_KEY })).rejects.toThrow("Internal Server Error");
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Suite: public/private bucket split (STORAGE_PUBLIC_BUCKET)
+//
+// R2 grants public read access per BUCKET, not per prefix. To put course images
+// behind a CDN without also exposing `submissions/`, `exports/`, `invoices/`,
+// `receipts/` and `careers/`, the four publicly-rendered image namespaces are
+// routed to a separate bucket. These tests pin WHICH namespaces cross that line —
+// a regression here is a data-exposure bug, not a cosmetic one.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("S3StorageProvider — public/private bucket split", () => {
+  const PRIVATE_BUCKET = "test-bucket"; // STORAGE_ENV.STORAGE_BUCKET
+  const PUBLIC_BUCKET = "test-public-bucket";
+
+  const PUBLIC_KEYS = [
+    "program_images/tenant-1/uuid-a-card.jpg",
+    "marketing_images/tenant-1/uuid-b-hero.png",
+    "mentor_photos/tenant-1/uuid-c-photo.jpg",
+    "college_logos/tenant-1/uuid-d-logo.png",
+  ];
+
+  // Everything a public bucket must NEVER hold. `receipts/` and `careers/` are the
+  // subtle ones: both are marketing-adjacent but carry payment and applicant PII,
+  // and receipts have deterministic keys, so they are not even guess-resistant.
+  const PRIVATE_KEYS = [
+    "submissions/tenant-1/enroll-1/uuid-e.pdf",
+    "exports/tenant-1/job-1.csv",
+    "invoices/tenant-1/inv-1.pdf",
+    "receipts/tenant-1/pay-1.pdf",
+    "careers/tenant-1/uuid-f-resume.pdf",
+    "certificates/tenant-1/cert-1.pdf",
+    "resources/tenant-1/lesson-1/uuid-g.pdf",
+  ];
+
+  /** Bucket the presigner was handed for `key`. */
+  async function bucketForUpload(key: string): Promise<unknown> {
+    const provider = new S3StorageProvider();
+    await provider.getSignedUploadUrl({ key, contentType: "application/octet-stream", maxBytes: 1024 });
+    const mockedGetSignedUrl = getSignedUrl as unknown as jest.Mock;
+    const command = mockedGetSignedUrl.mock.calls.at(-1)?.[1] as { input: { Bucket: string } };
+    return command.input.Bucket;
+  }
+
+  afterEach(() => {
+    clearTestEnv();
+    __resetEnvCacheForTests();
+    jest.clearAllMocks();
+  });
+
+  describe("with STORAGE_PUBLIC_BUCKET configured", () => {
+    beforeEach(() => {
+      __resetEnvCacheForTests();
+      setTestEnvStorage({ STORAGE_PUBLIC_BUCKET: PUBLIC_BUCKET });
+      jest.clearAllMocks();
+    });
+
+    it.each(PUBLIC_KEYS)("routes %s to the PUBLIC bucket", async (key) => {
+      await expect(bucketForUpload(key)).resolves.toBe(PUBLIC_BUCKET);
+    });
+
+    it.each(PRIVATE_KEYS)("keeps %s in the PRIVATE bucket", async (key) => {
+      await expect(bucketForUpload(key)).resolves.toBe(PRIVATE_BUCKET);
+    });
+
+    it("signs downloads against the same bucket it uploads to", async () => {
+      const provider = new S3StorageProvider();
+      const mockedGetSignedUrl = getSignedUrl as unknown as jest.Mock;
+
+      await provider.getSignedDownloadUrl({ key: PUBLIC_KEYS[0]! });
+      const publicDownload = mockedGetSignedUrl.mock.calls.at(-1)?.[1] as { input: { Bucket: string } };
+      expect(publicDownload.input.Bucket).toBe(PUBLIC_BUCKET);
+
+      await provider.getSignedDownloadUrl({ key: PRIVATE_KEYS[0]! });
+      const privateDownload = mockedGetSignedUrl.mock.calls.at(-1)?.[1] as { input: { Bucket: string } };
+      expect(privateDownload.input.Bucket).toBe(PRIVATE_BUCKET);
+    });
+
+    it("does not treat a private namespace that merely CONTAINS a public one as public", async () => {
+      // Guards against a substring match replacing the prefix match.
+      await expect(bucketForUpload("submissions/tenant-1/program_images/uuid-h.pdf")).resolves.toBe(
+        PRIVATE_BUCKET,
+      );
+    });
+  });
+
+  describe("without STORAGE_PUBLIC_BUCKET (default, unchanged behaviour)", () => {
+    beforeEach(() => {
+      __resetEnvCacheForTests();
+      setTestEnvStorage();
+      jest.clearAllMocks();
+    });
+
+    it.each([...PUBLIC_KEYS, ...PRIVATE_KEYS])("routes %s to the single bucket", async (key) => {
+      await expect(bucketForUpload(key)).resolves.toBe(PRIVATE_BUCKET);
     });
   });
 });

@@ -142,7 +142,46 @@ const ALLOWED_KEY_PREFIXES = [
   // getLogoUploadUrl). Key shape: college_logos/{tenantId}/{uuid}-{sanitisedFilename}. Same
   // public-CDN convention as marketing_images/mentor_photos above.
   "college_logos/",
+  // Downloadable course brochure PDFs (courses.service.ts#getBrochureUploadUrl). Key shape:
+  // program_brochures/{tenantId}/{uuid}-{sanitisedFilename}. Public marketing collateral —
+  // served straight from the CDN URL minted by `mintCdnUrl(row.brochureKey)`, exactly like
+  // the image namespaces above, so it belongs in PUBLIC_ASSET_PREFIXES too.
+  "program_brochures/",
 ] as const;
+
+/**
+ * The namespaces whose objects a browser fetches directly from the public marketing site —
+ * `<img>` for the image namespaces, a `<a download>` link for `program_brochures/` — i.e.
+ * the ONLY ones minted into a public CDN URL by `mintCdnUrl` (courses.service.ts,
+ * mentors.service.ts, content.util.ts, public-catalog.service.ts).
+ *
+ * When STORAGE_PUBLIC_BUCKET is configured these live in that separate, publicly-readable
+ * bucket; everything else stays in the private one. The split matters because R2 grants
+ * public access per BUCKET: without it, serving course thumbnails over a CDN would also
+ * expose `submissions/` (student work), `exports/` (PII CSVs), `invoices/`, `receipts/`
+ * (deterministic keys — not even guess-resistant) and `careers/` (applicant resumes).
+ *
+ * DELIBERATELY EXCLUDES `receipts/` and `careers/`: both appear in ALLOWED_KEY_PREFIXES
+ * above but neither is ever minted as a CDN URL — they are delivered through short-lived
+ * signed URLs, and both carry personal data.
+ */
+const PUBLIC_ASSET_PREFIXES = [
+  "program_images/",
+  "marketing_images/",
+  "mentor_photos/",
+  "college_logos/",
+  "program_brochures/",
+] as const;
+
+/**
+ * True when `key` belongs to a publicly-served image namespace. Prefix match against
+ * PUBLIC_ASSET_PREFIXES only — a key is private unless it is explicitly public, so a new
+ * namespace added to ALLOWED_KEY_PREFIXES defaults to the private bucket rather than
+ * silently becoming world-readable.
+ */
+export function isPublicAssetKey(key: string): boolean {
+  return PUBLIC_ASSET_PREFIXES.some((prefix) => key.startsWith(prefix));
+}
 
 /** Maximum length of the sanitised filename component. */
 const MAX_FILENAME_LENGTH = 200;
@@ -231,6 +270,7 @@ export type StorageKeyNamespace =
   | "careers"
   | "mentor_photos"
   | "program_images"
+  | "program_brochures"
   | "marketing_images"
   | "college_logos";
 
@@ -313,14 +353,15 @@ export function buildStorageKey(opts: BuildKeyOptions): string {
 
     case "mentor_photos":
     case "program_images":
+    case "program_brochures":
     case "marketing_images":
     case "college_logos": {
-      // Public marketing images (served via CDN) — mentor photos, course card/OG images,
-      // page-builder marketing images (super_admin-only `content.builder`), and college
-      // logos (Phase-11 locked templates, colleges.service.ts#getLogoUploadUrl). No
-      // scopeId — the owning row may not exist yet when the image is uploaded (create
-      // flow uploads first, then submits the returned key); uniqueness comes from the
-      // per-request uniqueId.
+      // Public marketing assets (served via CDN) — mentor photos, course card/OG images,
+      // course brochure PDFs, page-builder marketing images (super_admin-only
+      // `content.builder`), and college logos (Phase-11 locked templates,
+      // colleges.service.ts#getLogoUploadUrl). No scopeId — the owning row may not exist
+      // yet when the file is uploaded (create flow uploads first, then submits the
+      // returned key); uniqueness comes from the per-request uniqueId.
       const safeFilename = filename ? sanitiseFilename(filename) : "photo";
       return `${namespace}/${safeTenantId}/${safeUniqueId}-${safeFilename}`;
     }
@@ -413,9 +454,23 @@ export class S3StorageProvider implements StorageProvider {
     return this.client;
   }
 
-  /** Resolves the bucket name from env; throws if absent (should not happen post-check). */
-  private getBucket(): string {
+  /**
+   * Resolves the bucket a given key lives in; throws if unconfigured (should not happen
+   * post-check).
+   *
+   * Public image namespaces go to STORAGE_PUBLIC_BUCKET when it is set, everything else
+   * to STORAGE_BUCKET. With STORAGE_PUBLIC_BUCKET unset this is exactly the previous
+   * single-bucket behaviour, so existing deployments are unaffected until they opt in.
+   *
+   * Every S3 call in this provider routes through here, so a key is read from, written
+   * to, HEADed and deleted in the SAME bucket — there is no path where an upload lands
+   * in one bucket and the download URL is signed against the other.
+   */
+  private getBucket(key: string): string {
     const env = validateEnv();
+    if (env.STORAGE_PUBLIC_BUCKET && isPublicAssetKey(key)) {
+      return env.STORAGE_PUBLIC_BUCKET;
+    }
     if (!env.STORAGE_BUCKET) {
       throw new Error("StorageProvider: STORAGE_BUCKET not configured.");
     }
@@ -432,7 +487,7 @@ export class S3StorageProvider implements StorageProvider {
     validateStorageKey(key);
 
     const client = this.getClient();
-    const bucket = this.getBucket();
+    const bucket = this.getBucket(key);
 
     const command = new PutObjectCommand({
       Bucket: bucket,
@@ -473,7 +528,7 @@ export class S3StorageProvider implements StorageProvider {
     validateStorageKey(key);
 
     const client = this.getClient();
-    const bucket = this.getBucket();
+    const bucket = this.getBucket(key);
 
     const command = new GetObjectCommand({
       Bucket: bucket,
@@ -508,7 +563,7 @@ export class S3StorageProvider implements StorageProvider {
     validateStorageKey(input.key);
 
     const client = this.getClient();
-    const bucket = this.getBucket();
+    const bucket = this.getBucket(input.key);
 
     await client.send(
       new PutObjectCommand({
@@ -528,7 +583,7 @@ export class S3StorageProvider implements StorageProvider {
     validateStorageKey(input.key);
 
     const client = this.getClient();
-    const bucket = this.getBucket();
+    const bucket = this.getBucket(input.key);
 
     try {
       await client.send(
@@ -555,7 +610,7 @@ export class S3StorageProvider implements StorageProvider {
     validateStorageKey(input.key);
 
     const client = this.getClient();
-    const bucket = this.getBucket();
+    const bucket = this.getBucket(input.key);
 
     try {
       const response = await client.send(
