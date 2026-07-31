@@ -90,17 +90,37 @@ function BentoVariant({ data }: { data: StatGroupBlockData }) {
   );
 }
 
+// The band's `lg` column count adapts to the item count so a row is never left
+// half-empty (e.g. 6 items in a 4-col grid would strand 2 cells on their own row).
+// Falls back to 4 for counts that don't divide evenly into 2/3/4 (no current data
+// hits this — every band today ships 4 or 6 items).
+function lgColsClass(count: number): string {
+  if (count <= 2) return "lg:grid-cols-2";
+  if (count % 4 === 0) return "lg:grid-cols-4";
+  if (count % 3 === 0) return "lg:grid-cols-3";
+  return "lg:grid-cols-4";
+}
+
 function BandVariant({ data }: { data: StatGroupBlockData }) {
   return (
+    // Hairline grid (bg-border shell + gap-px + bg-card cells) instead of the `divide-x`
+    // utility: `divide-*` borders every child but the first regardless of row position,
+    // which draws a stray vertical rule at the start of wrapped rows once a band spans
+    // more than one row.
     <dl
       data-testid="page-builder-stat-band"
-      className="relative z-10 grid grid-cols-1 divide-y divide-border rounded-2xl border border-border bg-card shadow-lg sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4"
+      className={`relative z-10 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border bg-border shadow-lg sm:grid-cols-2 ${lgColsClass(data.items.length)}`}
     >
-      {data.items.map((stat) => (
+      {data.items.map((stat, i) => (
         // items-center + justify-center: a long value ("Up to ₹1 Crore") wraps to two
         // lines, so cells must center-align vertically or the shorter cells' content
         // floats at the top and the band reads misaligned.
-        <div key={stat.label} className="flex h-full flex-col items-center justify-center gap-1 p-8 text-center">
+        //
+        // Keyed by index + value, not just `label`: qualitative bands (e.g. "fund
+        // distribution by track") reuse the same label across multiple items ("Leading
+        // area of support" for both Psychology and Neurology), which collided on
+        // `label`-only keys.
+        <div key={`${i}-${stat.value}`} className="flex h-full flex-col items-center justify-center gap-1 bg-card p-8 text-center">
           <dt className="order-2 text-sm text-fg-muted">{stat.label}</dt>
           <dd className="order-1 text-3xl font-bold leading-tight text-brand-600 lg:text-4xl">{stat.value}</dd>
         </div>
