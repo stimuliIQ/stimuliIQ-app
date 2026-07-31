@@ -5,15 +5,42 @@
  * Certificate ID they are being asked for is printed) and on `/about` (as the proof
  * behind the "certificates employers can check" claim).
  *
- * The image is the approved artwork with its placeholder values still in place
- * ("Your Name", "DOMAIN NAME") — deliberately, so it reads as a specimen rather than
- * as somebody's real certificate. A live certificate carries the holder's name, the
- * programme, its own unique Certificate ID and the issue date, all filled in by the
- * server-side renderer.
+ * TWO SPECIMENS, because there are two awards. A programme can end in an internship
+ * certificate, a training certificate, or both, and they are separate documents with
+ * separate IDs — showing only one left visitors assuming the other did not exist.
  *
- * Server component — the image and copy are static.
+ * WHY THE ARTWORK IS WATERMARKED
+ * ------------------------------
+ * These are the only images of a Stimuli IQ certificate anyone can fetch over HTTP.
+ * Every other part of the document is protected — the authorised signature is read from a
+ * private server directory and never gets a URL, the serial is registered, the cert_uid is
+ * signed — so a clean picture of the blank certificate is the one thing a forger could get
+ * from us. The word SAMPLE is composited INTO the pixels by
+ * `scripts/build-sample-certificates.cjs`, not laid over the image in CSS: an overlay
+ * disappears the moment the file is right-click-saved, which is precisely when it would
+ * have mattered. The badge below is a label for sighted visitors, not the protection.
+ *
+ * The artwork also keeps its placeholder values ("Your Name", "DOMAIN",
+ * `STIQ-2026-000001`) so it reads as a specimen rather than as somebody's real award. A
+ * live certificate carries the holder's name, the programme, its own unique Certificate
+ * ID and the issue date, all filled in by the server-side renderer.
+ *
+ * Server component — the images and copy are static.
  */
 import Image from "next/image";
+
+const SPECIMENS = [
+  {
+    label: "Internship certificate",
+    src: "/images/sample-certificate-internship.webp",
+    alt: "Specimen Stimuli IQ internship certificate of completion, watermarked SAMPLE, showing where the holder name, programme, Certificate ID and date of issue appear.",
+  },
+  {
+    label: "Training certificate",
+    src: "/images/sample-certificate-training.webp",
+    alt: "Specimen Stimuli IQ training certificate of completion, watermarked SAMPLE, showing where the holder name, programme, Certificate ID and date of issue appear.",
+  },
+];
 
 const CALLOUTS = [
   {
@@ -32,7 +59,7 @@ const CALLOUTS = [
 
 export function CertificatePreview({
   heading = "What a Stimuli IQ certificate looks like",
-  subheading = "Every programme finishes with a certificate like this one. The Certificate ID printed on it is what you enter above to confirm the document is genuine.",
+  subheading = "Programmes finish with an internship certificate, a training certificate, or both. Each is a separate document with its own Certificate ID — the code you enter above to confirm it is genuine.",
   className,
 }: {
   heading?: string;
@@ -41,7 +68,7 @@ export function CertificatePreview({
 }) {
   return (
     <section
-      aria-label="Sample certificate"
+      aria-label="Sample certificates"
       data-testid="certificate-preview"
       className={["section-band py-16 lg:py-20", className].filter(Boolean).join(" ")}
     >
@@ -51,32 +78,40 @@ export function CertificatePreview({
           <p className="mt-3 text-base leading-relaxed text-fg-muted">{subheading}</p>
         </div>
 
-        {/* At md the certificate KEEPS the full width — it is a wide document, and squeezing
-            it into a ~350px pane makes the specimen unreadable, which defeats the section.
-            Instead the three callouts (which used to stack as three full-width slabs all the
-            way to 1024px) become a 3-up row beneath it. */}
-        <div className="grid grid-cols-1 items-center gap-10 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr]">
-          {/* 3:2 artwork. `object-contain` on a locked aspect box: the certificate's own
-              border must never be cropped, or the specimen stops looking like a document. */}
-          <div className="relative aspect-[3/2] overflow-hidden rounded-2xl border border-border bg-card shadow-md md:col-span-2 lg:col-span-1">
-            <Image
-              src="/images/sample-certificate.webp"
-              alt="Specimen Stimuli IQ certificate of completion, showing where the holder name, programme, Certificate ID and date of issue appear."
-              fill
-              sizes="(min-width: 1024px) 55vw, 100vw"
-              className="object-contain"
-            />
-          </div>
-
-          <ul role="list" className="flex flex-col gap-5 md:col-span-2 md:grid md:grid-cols-3 lg:col-span-1 lg:flex lg:flex-col">
-            {CALLOUTS.map((item) => (
-              <li key={item.title} className="rounded-xl border border-border bg-card p-5 shadow-sm">
-                <h3 className="text-base font-bold text-fg">{item.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-fg-muted">{item.body}</p>
-              </li>
-            ))}
-          </ul>
+        {/* The two specimens stay side by side from md up. They are wide documents, and a
+            single column of full-width certificates pushes the callouts off the fold. */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {SPECIMENS.map((specimen) => (
+            <figure key={specimen.src} className="m-0">
+              {/* 3:2 artwork. `object-contain` on a locked aspect box: the certificate's own
+                  border must never be cropped, or the specimen stops looking like a document. */}
+              <div className="relative aspect-[3/2] overflow-hidden rounded-2xl border border-border bg-card shadow-md">
+                <Image
+                  src={specimen.src}
+                  alt={specimen.alt}
+                  fill
+                  sizes="(min-width: 768px) 46vw, 100vw"
+                  className="object-contain"
+                />
+                <span className="absolute left-3 top-3 rounded-full bg-fg/85 px-3 py-1 text-xs font-bold uppercase tracking-widest text-bg">
+                  Sample
+                </span>
+              </div>
+              <figcaption className="mt-3 text-center text-sm font-semibold text-fg">
+                {specimen.label}
+              </figcaption>
+            </figure>
+          ))}
         </div>
+
+        <ul role="list" className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
+          {CALLOUTS.map((item) => (
+            <li key={item.title} className="rounded-xl border border-border bg-card p-5 shadow-sm">
+              <h3 className="text-base font-bold text-fg">{item.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-fg-muted">{item.body}</p>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );

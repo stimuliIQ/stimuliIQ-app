@@ -55,3 +55,7 @@ scripts/.dev-*.log
 
 # Local dev file storage (LocalStorageProvider)
 .local-storage/
+
+# Authorised signature scans must never sit in a browsable docs folder — the only
+# place a signature belongs is apps/api/assets/certificate/ (private, never served).
+docs/**/*signature*

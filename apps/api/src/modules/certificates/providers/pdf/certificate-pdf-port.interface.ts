@@ -57,6 +57,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * The award a template issues. See `CertificateDesign.certificateKind`.
+ *
+ * Kept as a string union rather than a Prisma enum: it is a RENDERING directive read out
+ * of the template's `design` JSON, not a queryable column, so adding a third kind must
+ * not require a migration.
+ */
+export type CertificateKind = "internship" | "training" | "course";
+
+/**
  * The visual layout configuration stored in `certificate_templates.design`.
  *
  * Consumed by the adapter to control layout (orientation, colours, fonts,
@@ -69,6 +78,22 @@
 export interface CertificateDesign {
   /** Page orientation. Default: "landscape". */
   orientation?: "landscape" | "portrait";
+
+  /**
+   * WHICH of the two awards this template issues — the only difference between the two
+   * approved artworks in `docs/sample certificate/`.
+   *
+   *   "internship" → ribbon reads INTERNSHIP CERTIFICATE; body says "...COMPLETED
+   *                  HIS/HER INTERNSHIP IN <programme>... THROUGHOUT THE INTERNSHIP PERIOD."
+   *   "training"   → the same sentence with TRAINING throughout.
+   *   "course"     → the neutral PROGRAM wording (the pre-existing default, kept so
+   *                  templates seeded before this field existed render unchanged).
+   *
+   * A student can be awarded both; each award is a separate certificate issued against
+   * the matching template, so the kind rides on the template rather than on the
+   * certificate row. Unknown/absent values fall back to "course".
+   */
+  certificateKind?: CertificateKind;
 
   /** Border colour as a CSS hex string (e.g. "#b8860b"). Default: "#b8860b" (gold). */
   borderColor?: string;

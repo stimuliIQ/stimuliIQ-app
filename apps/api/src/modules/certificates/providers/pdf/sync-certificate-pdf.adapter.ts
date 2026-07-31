@@ -15,9 +15,16 @@
 // signature block, the human-typeable Certificate ID, accreditation marks, the verify
 // URL and the issue date. A green ribbon runs down the right edge with the seal on it.
 //
+// TWO AWARDS, ONE LAYOUT. The approved set is two artworks — `internship-certificate.png`
+// and `training-certificate.png` — which differ ONLY in the ribbon heading and the noun
+// used twice in the body sentence. They are therefore ONE renderer driven by
+// `design.certificateKind`, not two: duplicating the layout would guarantee the two
+// drift apart the first time the footer changes. A student may be awarded both; each is
+// a separate certificate issued against the matching template.
+//
 // FOUR DYNAMIC VALUES fill the artwork's placeholders:
 //   "Your Name"          → fields.holderName
-//   "DOMAIN NAME"        → fields.programName
+//   "DOMAIN"             → fields.programName
 //   "STIQ-2026-000001"   → fields.serial          (the unique, typeable Certificate ID)
 //   "25 JULY 2026"       → fields.issuedAt        (both the body "from <date>" and the
 //                                                  footer "Date of Issue")
@@ -61,6 +68,7 @@ import type {
   CertificatePdfInput,
   CertificatePdfResult,
   CertificateDesign,
+  CertificateKind,
   CertificateRenderFields,
 } from "./certificate-pdf-port.interface";
 import { DEFAULT_ASSETS, loadCertificateAsset } from "./certificate-assets";
@@ -74,13 +82,40 @@ const DEFAULTS = {
   accentColor: "#14563C", // headings, holder name, seal
   textColor: "#1F2933", // body copy
   backgroundColor: "#FFFFFF",
-  orgName: "STIMULIIQ",
+  // Display spelling is two words — the artwork's wordmark reads "STIMULI IQ".
+  orgName: "STIMULI IQ",
 };
+
+/**
+ * Per-award copy. The two approved artworks differ ONLY in these three strings, so this
+ * table IS the difference between an internship certificate and a training one.
+ *
+ * `ribbon` is split across two lines by hand rather than left to the line-breaker: the
+ * ribbon is a fixed RIBBON_W wide and "INTERNSHIP CERTIFICATE" wraps differently from
+ * "TRAINING CERTIFICATE" if you let it choose.
+ *
+ * `noun` appears TWICE in the body sentence ("...COMPLETED HIS/HER <noun> IN ..." and
+ * "...THROUGHOUT THE <noun> PERIOD"), which is exactly how the artwork reads.
+ */
+const KIND_COPY: Record<CertificateKind, { ribbon: string; noun: string }> = {
+  internship: { ribbon: "INTERNSHIP\nCERTIFICATE", noun: "INTERNSHIP" },
+  training: { ribbon: "TRAINING\nCERTIFICATE", noun: "TRAINING" },
+  // Pre-existing default. Templates seeded before `certificateKind` existed have no such
+  // key, and must keep rendering the neutral wording they were approved with.
+  course: { ribbon: "COURSE\nCERTIFICATE", noun: "PROGRAM" },
+};
+
+/** Narrow the CRM-editable `design.certificateKind` to a kind we have copy for. */
+function resolveKind(candidate: unknown): CertificateKind {
+  return candidate === "internship" || candidate === "training" ? candidate : "course";
+}
 
 const SUBTLE_COLOR = "#6B7280";
 const GOLD = "#C9A227";
 /** Ribbon fill. Kept as a flat colour: react-pdf gradients are unreliable across viewers. */
 const RIBBON_FILL = "#14563C";
+/** Ribbon band width in pt. Wide enough to carry the 100 pt seal with a margin either side. */
+const RIBBON_W = 118;
 
 // Disable hyphenation globally for this renderer. @react-pdf/renderer's default callback
 // breaks long words across lines, which turned the body copy's "INNOVATION" into
@@ -149,17 +184,21 @@ function buildStyles(design: CertificateDesign) {
       textAlign: "center",
     },
 
+    // Type sizes are set as a fraction of the artwork's own proportions, not picked by
+    // eye: on the approved specimen "CERTIFICATE" spans ~51% of the page width and the
+    // body copy sets at ~2.1% of page height. Undersizing them is what leaves a band of
+    // dead white between the paragraph and the footer, so these are load-bearing.
     title: {
-      fontSize: 40,
+      fontSize: 48,
       color: accent,
       fontFamily: "Times-Bold",
-      letterSpacing: 5,
+      letterSpacing: 6,
       textAlign: "center",
-      marginTop: 18,
+      marginTop: 16,
     },
-    subtitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 6 },
+    subtitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 7 },
     subtitle: {
-      fontSize: 15,
+      fontSize: 16,
       color: DEFAULTS.textColor,
       fontFamily: "Helvetica-Bold",
       letterSpacing: 4,
@@ -168,29 +207,29 @@ function buildStyles(design: CertificateDesign) {
     subtitleRule: { width: 46, height: 0.8, backgroundColor: accent },
 
     certifyThat: {
-      fontSize: 9,
+      fontSize: 10,
       color: text,
       letterSpacing: 2,
       textAlign: "center",
-      marginTop: 14,
+      marginTop: 16,
     },
     holder: {
-      fontSize: 40,
+      fontSize: 42,
       color: accent,
       fontFamily: "Times-Italic",
       textAlign: "center",
-      marginTop: 6,
+      marginTop: 8,
     },
-    holderRule: { height: 0.9, backgroundColor: accent, marginTop: 4, marginHorizontal: 40 },
+    holderRule: { height: 0.9, backgroundColor: accent, marginTop: 6, marginHorizontal: 40 },
 
     body: {
-      fontSize: 9.5,
+      fontSize: 11.5,
       color: text,
-      letterSpacing: 0.6,
-      lineHeight: 1.75,
+      letterSpacing: 0.5,
+      lineHeight: 1.9,
       textAlign: "center",
-      marginTop: 14,
-      paddingHorizontal: 22,
+      marginTop: 16,
+      paddingHorizontal: 18,
     },
     bodyStrong: { fontFamily: "Helvetica-Bold", color: accent },
 
@@ -199,9 +238,9 @@ function buildStyles(design: CertificateDesign) {
     footerDivider: { width: 0.8, backgroundColor: "#D8DEE4", alignSelf: "stretch", marginHorizontal: 14 },
 
     signatureCol: { width: 168, alignItems: "center" },
-    signatureImage: { height: 34, objectFit: "contain", marginBottom: 2 },
+    signatureImage: { height: 40, objectFit: "contain", marginBottom: 2 },
     /** Reserves the signature's height when no image is installed, so the block never jumps. */
-    signatureSpacer: { height: 34 },
+    signatureSpacer: { height: 40 },
     signatureLine: { width: 150, height: 0.9, backgroundColor: DEFAULTS.textColor },
     signatoryName: { fontSize: 10, color: DEFAULTS.textColor, fontFamily: "Helvetica-Bold", marginTop: 5 },
     signatoryDesignation: { fontSize: 8.5, color: text, marginTop: 1 },
@@ -218,10 +257,14 @@ function buildStyles(design: CertificateDesign) {
     },
     certIdRule: { width: 128, height: 0.8, backgroundColor: "#D8DEE4", marginTop: 5 },
 
-    badgeCol: { width: 150, alignItems: "center", justifyContent: "flex-end" },
+    badgeCol: { width: 176, alignItems: "center", justifyContent: "flex-end" },
     badgeRow: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
-    badgeImage: { height: 40, objectFit: "contain", marginHorizontal: 4 },
-    badgeCaption: { fontSize: 6.5, color: SUBTLE_COLOR, marginTop: 3, textAlign: "center" },
+    // The two marks need DIFFERENT heights, not one shared `badgeImage`: the ISO seal is
+    // square and the MSME lockup is ~2.5:1, so matching their heights would run the MSME
+    // block off the end of the column. Matching their optical weight means shrinking it.
+    isoBadgeImage: { height: 42, width: 42, objectFit: "contain", marginHorizontal: 5 },
+    msmeBadgeImage: { height: 34, width: 86, objectFit: "contain", marginHorizontal: 5 },
+    badgeCaption: { fontSize: 6.5, color: SUBTLE_COLOR, marginTop: 4, textAlign: "center" },
 
     // ── Bottom strip: verify + issue date ──
     bottomRow: {
@@ -239,27 +282,41 @@ function buildStyles(design: CertificateDesign) {
     bottomValue: { fontFamily: "Helvetica-Bold", color: accent },
 
     // ── Right ribbon ──
-    aside: { width: 128, alignItems: "center" },
+    // Width tracks RIBBON_W below plus a hairline of white, so the band sits against the
+    // frame's right rule the way it does on the artwork rather than floating inside it.
+    aside: { width: RIBBON_W + 6, alignItems: "center" },
     ribbonHeading: {
-      fontSize: 10,
+      fontSize: 9.5,
       color: "#FFFFFF",
       fontFamily: "Helvetica-Bold",
-      letterSpacing: 2.2,
+      letterSpacing: 1.6,
       textAlign: "center",
       lineHeight: 1.5,
     },
   });
 }
 
-/** Decorative corner brackets, echoing the artwork's engraved frame. */
+/**
+ * Decorative corner brackets, echoing the artwork's engraved frame.
+ *
+ * The SVG is stretched over the frame with `preserveAspectRatio="none"`, so one arm
+ * length in the 0–100 viewBox does NOT give one arm length on the page — a single `arm`
+ * value drew a horizontal arm ~1.8× the length of the vertical one on A4 landscape, and
+ * at 34 the brackets ran a third of the way down the certificate. ARM_X / ARM_Y are the
+ * viewBox percentages that come out roughly square at the page's aspect ratio.
+ */
 function buildCornerBrackets(accent: string): ReactElement {
-  const arm = 34;
-  const inset = 3;
+  const ARM_X = 7;
+  const ARM_Y = 10;
+  const inset = 2.5;
   const corners = [
-    { key: "tl", d: `M${inset},${arm} L${inset},${inset} L${arm},${inset}` },
-    { key: "tr", d: `M${100 - arm},${inset} L${100 - inset},${inset} L${100 - inset},${arm}` },
-    { key: "bl", d: `M${inset},${100 - arm} L${inset},${100 - inset} L${arm},${100 - inset}` },
-    { key: "br", d: `M${100 - arm},${100 - inset} L${100 - inset},${100 - inset} L${100 - inset},${100 - arm}` },
+    { key: "tl", d: `M${inset},${ARM_Y} L${inset},${inset} L${ARM_X},${inset}` },
+    { key: "tr", d: `M${100 - ARM_X},${inset} L${100 - inset},${inset} L${100 - inset},${ARM_Y}` },
+    { key: "bl", d: `M${inset},${100 - ARM_Y} L${inset},${100 - inset} L${ARM_X},${100 - inset}` },
+    {
+      key: "br",
+      d: `M${100 - ARM_X},${100 - inset} L${100 - inset},${100 - inset} L${100 - inset},${100 - ARM_Y}`,
+    },
   ];
   return h(
     View,
@@ -275,33 +332,54 @@ function buildCornerBrackets(accent: string): ReactElement {
 }
 
 /**
- * The circular seal carried on the ribbon: concentric rings around the issuer initial,
- * ringed by the "LEARN · UNDERSTAND · TRANSFORM" motto of the artwork's badge.
+ * The circular seal carried on the ribbon: a gold-ringed disc bearing the issuer name
+ * over "CERTIFIED", matching the badge on the approved artwork.
+ *
+ * TYPESET FLAT, NOT ON AN ARC. The artwork sets the issuer name around the top of the
+ * ring and the motto around the bottom. react-pdf's SVG subset has no <textPath>, and
+ * hand-rotating one <Text> per glyph to fake an arc is a lot of machinery to maintain for
+ * a 100 pt disc — so the name is set straight across the seal instead. The badge reads
+ * the same at print size; it is the ring, the gold and the wordmark that carry it.
  */
 function buildSeal(orgName: string): ReactElement {
-  const initial = (orgName.trim()[0] ?? "S").toUpperCase();
+  const D = 100;
+  const r = D / 2;
   return h(
     View,
     {
       key: "seal",
-      style: { width: 92, height: 92, marginTop: 22, alignItems: "center", justifyContent: "center" },
+      style: { width: D, height: D, marginTop: 20, alignItems: "center", justifyContent: "center" },
     },
     h(
       Svg,
-      { key: "svg", viewBox: "0 0 92 92", style: { position: "absolute", width: 92, height: 92 } },
-      h(Circle, { key: "c0", cx: "46", cy: "46", r: "45", fill: RIBBON_FILL, stroke: "#FFFFFF", strokeWidth: "1.6" }),
-      h(Circle, { key: "c1", cx: "46", cy: "46", r: "38", fill: "none", stroke: GOLD, strokeWidth: "0.8" }),
-      h(Circle, { key: "c2", cx: "46", cy: "46", r: "30", fill: "none", stroke: "#FFFFFF", strokeWidth: "0.6" }),
+      { key: "svg", viewBox: `0 0 ${D} ${D}`, style: { position: "absolute", width: D, height: D } },
+      h(Circle, { key: "c0", cx: r, cy: r, r: r - 1, fill: RIBBON_FILL, stroke: GOLD, strokeWidth: "2.4" }),
+      h(Circle, { key: "c1", cx: r, cy: r, r: r - 6, fill: "none", stroke: "#FFFFFF", strokeWidth: "1" }),
+      h(Circle, { key: "c2", cx: r, cy: r, r: r - 13, fill: "none", stroke: GOLD, strokeWidth: "0.7" }),
     ),
     h(
       View,
-      { key: "inner", style: { alignItems: "center" } },
-      h(Text, { key: "initial", style: { fontSize: 26, fontFamily: "Times-Bold", color: "#FFFFFF" } }, initial),
+      { key: "inner", style: { alignItems: "center", paddingHorizontal: 14 } },
+      h(
+        Text,
+        {
+          key: "org",
+          style: {
+            fontSize: 9,
+            fontFamily: "Helvetica-Bold",
+            color: "#FFFFFF",
+            letterSpacing: 0.6,
+            textAlign: "center",
+          },
+        },
+        orgName.toUpperCase(),
+      ),
+      h(View, { key: "rule", style: { width: 40, height: 0.8, backgroundColor: GOLD, marginVertical: 4 } }),
       h(
         Text,
         {
           key: "certified",
-          style: { fontSize: 5, fontFamily: "Helvetica-Bold", color: GOLD, letterSpacing: 1.2, marginTop: 3 },
+          style: { fontSize: 6.5, fontFamily: "Helvetica-Bold", color: GOLD, letterSpacing: 1.4 },
         },
         "CERTIFIED",
       ),
@@ -318,7 +396,7 @@ function buildRibbon(children: ReactElement[]): ReactElement {
   // H is tuned to the A4-landscape frame's inner height (~552 pt): the band runs from
   // the top edge down to ~90% so the chevron point sits clear of the bottom rule,
   // matching the artwork. Changing the page size means retuning this.
-  const W = 104;
+  const W = RIBBON_W;
   const H = 500;
   const notch = 44;
   return h(
@@ -366,6 +444,7 @@ function buildDocument(input: CertificatePdfInput, assets: ResolvedAssets): Reac
   const orgName = design.orgName ?? DEFAULTS.orgName;
   const accent = design.accentColor ?? DEFAULTS.accentColor;
   const issued = formatIssuedAt(f.issuedAt);
+  const kind = KIND_COPY[resolveKind(design.certificateKind)];
   // Per-certificate signatory wins; otherwise the template's issuer-level default.
   const signatoryName = f.signatoryName ?? design.signatoryName ?? "Authorised Signatory";
   const signatoryDesignation = f.signatoryDesignation ?? design.signatoryDesignation;
@@ -396,8 +475,9 @@ function buildDocument(input: CertificatePdfInput, assets: ResolvedAssets): Reac
 
   // ── Accreditation marks: optional, omitted entirely when not installed ──
   const badges: ReactElement[] = [];
-  if (assets.isoBadge) badges.push(h(Image, { key: "iso", src: assets.isoBadge, style: styles.badgeImage }));
-  if (assets.msmeBadge) badges.push(h(Image, { key: "msme", src: assets.msmeBadge, style: styles.badgeImage }));
+  if (assets.isoBadge) badges.push(h(Image, { key: "iso", src: assets.isoBadge, style: styles.isoBadgeImage }));
+  if (assets.msmeBadge)
+    badges.push(h(Image, { key: "msme", src: assets.msmeBadge, style: styles.msmeBadgeImage }));
   const badgeCol =
     badges.length > 0
       ? h(View, { key: "badges", style: styles.badgeCol }, [
@@ -414,7 +494,11 @@ function buildDocument(input: CertificatePdfInput, assets: ResolvedAssets): Reac
   const main = h(View, { key: "main", style: styles.main }, [
     h(View, { key: "g-head" }, [head]),
 
-    h(View, { key: "g-award" }, [
+    // flexGrow + centre: the award is SHORTER than the band left between the wordmark and
+    // the footer, and `space-between` alone dumps every point of that slack in one place —
+    // which showed up as a hand's width of dead white directly above the signature block.
+    // Centring splits the slack above and below, as the approved artwork does.
+    h(View, { key: "g-award", style: { flexGrow: 1, justifyContent: "center" } }, [
       h(Text, { key: "title", style: styles.title }, "CERTIFICATE"),
       h(View, { key: "subrow", style: styles.subtitleRow }, [
         h(View, { key: "l", style: styles.subtitleRule }),
@@ -427,12 +511,18 @@ function buildDocument(input: CertificatePdfInput, assets: ResolvedAssets): Reac
       h(View, { key: "hrule", style: styles.holderRule }),
 
       // Programme name and date are emphasised inline, exactly as in the artwork.
+      // The full stop after the date is INSIDE the emphasised run, and the run that
+      // follows begins with a space. Leaving a bare "." to start the next run made the
+      // layout engine treat "2026" + "." as one word split across a run boundary and
+      // break it with a hyphen — the body read "...31 JULY 2026-" / ". DURING THIS...".
+      // Every run boundary here now falls on whitespace, which cannot be hyphenated.
       h(Text, { key: "body", style: styles.body }, [
-        "HAS SUCCESSFULLY COMPLETED HIS/HER PROGRAM IN ",
+        `HAS SUCCESSFULLY COMPLETED HIS/HER ${kind.noun} IN `,
         h(Text, { key: "prog", style: styles.bodyStrong }, f.programName.toUpperCase()),
         " ON ",
-        h(Text, { key: "date", style: styles.bodyStrong }, issued),
-        ". DURING THIS PROGRAM HE/SHE SHOWED DILIGENCE, CONSISTENCY, DETERMINATION, ACTIVE PARTICIPATION, AND INNOVATION THROUGHOUT THE PROGRAM PERIOD.",
+        h(Text, { key: "date", style: styles.bodyStrong }, `${issued}.`),
+        " DURING THIS PROGRAM HE/SHE SHOWED DILIGENCE, CONSISTENCY, DETERMINATION, " +
+          `ACTIVE PARTICIPATION, AND INNOVATION THROUGHOUT THE ${kind.noun} PERIOD.`,
       ]),
     ]),
 
@@ -464,14 +554,17 @@ function buildDocument(input: CertificatePdfInput, assets: ResolvedAssets): Reac
 
   const aside = h(View, { key: "aside", style: styles.aside }, [
     buildRibbon([
-      h(Text, { key: "rh", style: styles.ribbonHeading }, "COURSE\nCERTIFICATE"),
+      h(Text, { key: "rh", style: styles.ribbonHeading }, kind.ribbon),
       buildSeal(orgName),
     ]),
   ]);
 
   return h(
     Document,
-    { title: "Certificate of Completion", author: orgName },
+    // Title shows in the PDF viewer's tab/title bar, so it names the award. Author is the
+    // issuer; no other metadata is set (see the port's SECURITY contract — certUid must
+    // not leak into document properties).
+    { title: `${kind.ribbon.replace("\n", " ")} — Certificate of Completion`, author: orgName },
     h(
       Page,
       { size: "A4", orientation, style: styles.page },

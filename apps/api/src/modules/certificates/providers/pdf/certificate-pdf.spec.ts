@@ -62,4 +62,53 @@ describe("SyncCertificatePdfAdapter", () => {
     // (PDF text may be compressed, so this is a best-effort smoke check.)
     expect(text.includes("SECRET-UID-should-not-appear-raw\n")).toBe(false);
   }, 30000);
+
+  // ── certificateKind ────────────────────────────────────────────────────────
+  //
+  // The internship and training certificates are ONE renderer driven by
+  // `design.certificateKind`; the document title is the cheapest place to observe which
+  // award was rendered, because it is the only kind-dependent string that reaches the
+  // PDF as plain, uncompressed metadata. The ribbon heading and body copy go through the
+  // content stream, which @react-pdf/renderer compresses — asserting on those would be
+  // asserting on Flate output.
+
+  /**
+   * Does the rendered document's title contain `phrase`?
+   *
+   * The title is written as a UTF-16BE PDF string, so the ASCII phrase does NOT appear
+   * verbatim in the bytes — "COURSE" is stored as `\0C\0O\0U\0R\0S\0E`. Encoding the
+   * needle the same way is what makes this a real assertion rather than one that passes
+   * by never matching anything.
+   */
+  async function titleContains(
+    design: CertificatePdfInput["design"],
+    phrase: string,
+  ): Promise<boolean> {
+    const { bytes } = await new SyncCertificatePdfAdapter().render({ ...INPUT, design });
+    const needle = Buffer.from(phrase, "utf16le").swap16(); // → UTF-16BE
+    return Buffer.from(bytes).includes(needle);
+  }
+
+  it("names the award in the document title for each certificateKind", async () => {
+    await expect(
+      titleContains({ ...INPUT.design, certificateKind: "internship" }, "INTERNSHIP CERTIFICATE"),
+    ).resolves.toBe(true);
+    await expect(
+      titleContains({ ...INPUT.design, certificateKind: "training" }, "TRAINING CERTIFICATE"),
+    ).resolves.toBe(true);
+    // ...and each kind excludes the other, so a title that simply contains every label
+    // would not pass.
+    await expect(
+      titleContains({ ...INPUT.design, certificateKind: "internship" }, "TRAINING CERTIFICATE"),
+    ).resolves.toBe(false);
+  }, 60000);
+
+  it("falls back to the neutral COURSE wording when certificateKind is absent or unknown", async () => {
+    // Templates seeded before `certificateKind` existed carry no such key, and `design` is
+    // a CRM-editable JSON column — so an unrecognised value must degrade, never throw.
+    await expect(titleContains(INPUT.design, "COURSE CERTIFICATE")).resolves.toBe(true);
+    await expect(
+      titleContains({ ...INPUT.design, certificateKind: "diploma" as never }, "COURSE CERTIFICATE"),
+    ).resolves.toBe(true);
+  }, 60000);
 });
