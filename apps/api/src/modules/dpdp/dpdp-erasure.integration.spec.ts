@@ -16,8 +16,12 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { DpdpService } from "./dpdp.service";
 import { DpdpRepository } from "./dpdp.repository";
 
-const hasDatabase = !!process.env.DATABASE_URL;
-const describeIfDb = hasDatabase ? describe : describe.skip;
+import { describeIfLocalDb } from "../../prisma/local-db-guard";
+
+// Fail closed: this spec writes real rows, so it runs ONLY against a disposable local
+// database. The previous `!!process.env.DATABASE_URL` gate passed against PRODUCTION,
+// because importing @prisma/client auto-loads the repo-root .env. See local-db-guard.ts.
+const describeIfDb = describeIfLocalDb;
 
 describeIfDb("DpdpService.eraseSubjectPii (integration, AC-64)", () => {
   const raw = new PrismaClient();

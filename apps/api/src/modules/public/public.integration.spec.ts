@@ -30,8 +30,12 @@ import { PrismaService } from "../../prisma/prisma.service";
 
 // ─── DB skip guard ────────────────────────────────────────────────────────────
 
-const hasDatabase = !!process.env.DATABASE_URL;
-const describeIfDb = hasDatabase ? describe : describe.skip;
+import { describeIfLocalDb } from "../../prisma/local-db-guard";
+
+// Fail closed: this spec writes real rows, so it runs ONLY against a disposable local
+// database. The previous `!!process.env.DATABASE_URL` gate passed against PRODUCTION,
+// because importing @prisma/client auto-loads the repo-root .env. See local-db-guard.ts.
+const describeIfDb = describeIfLocalDb;
 
 // ─── Mock helpers for non-DB dependencies ────────────────────────────────────
 
