@@ -122,26 +122,34 @@
   {
     "type": "stat_group",
     "data": {
-      "variant": "bars",
+      "variant": "band",
       "heading": {
-        "title": "Fund distribution by track (in lakhs)"
+        "title": "Fund distribution by track"
       },
       "items": [
         {
-          "label": "Clinical Research",
-          "value": "₹17.3L"
+          "label": "Leading area of support",
+          "value": "Psychology"
         },
         {
-          "label": "Medical Coding & Billing",
-          "value": "₹13.8L"
+          "label": "Leading area of support",
+          "value": "Neurology"
         },
         {
-          "label": "Hospital Administration",
-          "value": "₹11.4L"
+          "label": "Strong support",
+          "value": "Clinical Research"
         },
         {
-          "label": "Public Health & Data",
-          "value": "₹9.4L"
+          "label": "Strong support",
+          "value": "Medical Coding & Billing"
+        },
+        {
+          "label": "Steady support",
+          "value": "Hospital Administration"
+        },
+        {
+          "label": "Emerging area of support",
+          "value": "Public Health & Data"
         }
       ]
     }
