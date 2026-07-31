@@ -32,11 +32,12 @@ the PDF bytes, so it never gets a URL. See `apps/api/assets/certificate/README.m
 
 ## The public specimen on the marketing site
 
-`apps/web/public/images/` carries WebP copies of these two specimens with a large
-**SAMPLE** watermark burned in, shown on `/verify` and `/about`. Regenerate them with:
+`apps/web/public/images/` carries WebP copies of these two specimens with a small
+**SAMPLE** watermark tiled across the whole document and burned into the pixels. They are
+shown on `/verify`, `/about` and on every `/programs/[slug]` page. Regenerate them with:
 
 ```bash
-node scripts/build-sample-certificates.js
+node scripts/build-sample-certificates.cjs
 ```
 
 Never publish an un-watermarked specimen: the public copy is the one an impostor would

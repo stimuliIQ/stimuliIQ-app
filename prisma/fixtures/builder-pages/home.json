@@ -28,7 +28,7 @@
       "items": [
         { "label": "Students trained", "value": "15,000+", "description": "Medical students trained through structured, hands-on internship programs across India.", "iconKey": "graduation-cap" },
         { "label": "Programs", "value": "30+", "description": "Internship tracks spanning clinical research, hospital administration, medical coding, and public health.", "iconKey": "stack" },
-        { "label": "Cities", "value": "50+", "description": "Students join us from medical, dental, nursing, and pharmacy campuses across the country.", "iconKey": "map-pin" }
+        { "label": "Cities", "value": "50+", "description": "Students join us from medical, dental, allied health sciences campuses across the country.", "iconKey": "map-pin" }
       ]
     }
   },

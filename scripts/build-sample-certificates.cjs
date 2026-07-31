@@ -1,7 +1,7 @@
 /**
  * Build the PUBLIC certificate specimens shown on the marketing site.
  *
- * Reads the approved artwork in `docs/sample certificate/`, burns a large diagonal
+ * Reads the approved artwork in `docs/sample certificate/`, burns a tiled diagonal
  * **SAMPLE** watermark across each one, and writes WebP copies into
  * `apps/web/public/images/`.
  *
@@ -15,8 +15,8 @@
  *
  * The watermark is composited into the pixels, not laid over the image with CSS: an
  * overlay a visitor can delete in devtools, or that simply does not come along when the
- * image is right-click-saved, protects nothing. It is deliberately large enough to be
- * destructive to reuse and drawn at partial opacity so the specimen still reads.
+ * image is right-click-saved, protects nothing. It repeats across the whole document so
+ * no single edit removes it, and is drawn at partial opacity so the specimen still reads.
  *
  * The artwork itself already carries placeholder values ("Your Name", "DOMAIN",
  * `STIQ-2026-000001`) and no signature, so nothing here depicts a real award.
@@ -56,28 +56,57 @@ const SPECIMENS = [
 /**
  * The watermark, as an SVG the same size as the artwork.
  *
- * Two bands rather than one: a single central "SAMPLE" can be cropped out by taking the
- * top or bottom half of the image, which is exactly what someone reusing it would do.
- * The stroke outline keeps the word legible over both the white body and the dark green
- * ribbon — a flat fill disappears into one or the other.
+ * A TILED GRID of small marks, not one or two large ones. A big word is easy to attack:
+ * it is a single object, so cloning a clean patch of background over it, cropping to the
+ * half of the document it misses, or content-aware-filling one shape all remove it in a
+ * couple of minutes. Repeating a small mark every few centimetres means the word sits on
+ * top of the name, the programme line, the ID, the seal and the signature block at once —
+ * removing it is removing the parts of the document a forger actually wants to keep.
+ * Small also keeps the specimen readable, which the large version was starting to cost us.
+ *
+ * The grid is laid out in a rotated frame and drawn past every edge, so the marks run off
+ * the sides at -24° with no bare corners for someone to crop back to. The stroke outline
+ * keeps each word legible over both the white body and the dark green ribbon — a flat fill
+ * disappears into one or the other.
  */
 function watermarkSvg(width, height) {
-  const size = Math.round(width * 0.155);
-  const bands = [height * 0.34, height * 0.72];
-  const words = bands
-    .map(
-      (y) => `
-    <text x="${width / 2}" y="${y}" font-family="Helvetica, Arial, sans-serif"
-          font-size="${size}" font-weight="700" letter-spacing="${size * 0.14}"
-          text-anchor="middle" dominant-baseline="middle"
-          fill="#14563C" fill-opacity="0.17"
-          stroke="#FFFFFF" stroke-opacity="0.30" stroke-width="${Math.max(2, size * 0.02)}"
-          transform="rotate(-24 ${width / 2} ${y})">SAMPLE</text>`,
-    )
-    .join("");
+  const size = Math.round(width * 0.042);
+  const tracking = size * 0.14;
+  // "SAMPLE" in bold Helvetica runs ~4.2em, plus the tracking added after each of 6 glyphs.
+  const wordWidth = size * 4.2 + tracking * 6;
+  const stepX = wordWidth * 1.4;
+  const stepY = size * 3.1;
+
+  // Cover the full diagonal in both axes: after rotating the grid by -24°, anything laid
+  // out only over width × height would leave two empty corners.
+  const span = Math.sqrt(width * width + height * height);
+  const cols = Math.ceil(span / stepX) + 1;
+  const rows = Math.ceil(span / stepY) + 1;
+  const cx = width / 2;
+  const cy = height / 2;
+
+  const words = [];
+  for (let row = -Math.ceil(rows / 2); row <= Math.ceil(rows / 2); row += 1) {
+    // Offset every other row by half a step so the marks interlock instead of forming
+    // clean vertical lanes that could be masked out column by column.
+    const rowOffset = (Math.abs(row) % 2) * (stepX / 2);
+    for (let col = -Math.ceil(cols / 2); col <= Math.ceil(cols / 2); col += 1) {
+      const x = cx + col * stepX + rowOffset;
+      const y = cy + row * stepY;
+      words.push(`
+    <text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-family="Helvetica, Arial, sans-serif"
+          font-size="${size}" font-weight="700" letter-spacing="${tracking.toFixed(2)}"
+          text-anchor="middle" dominant-baseline="middle">SAMPLE</text>`);
+    }
+  }
 
   return Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">${words}</svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+      <g fill="#14563C" fill-opacity="0.16"
+         stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="${Math.max(1, size * 0.03).toFixed(2)}"
+         transform="rotate(-24 ${cx} ${cy})">${words.join("")}
+      </g>
+    </svg>`,
   );
 }
 

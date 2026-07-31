@@ -12,6 +12,7 @@
 import type { Metadata } from "next";
 import { buildMetadata } from "../../lib/seo/metadata";
 import { SUPPORT_EMAIL, WHATSAPP_DISPLAY, buildWhatsAppHref } from "../../lib/contact";
+import { ContactLink, LegalContactCard, LegalHeader, LegalItemList } from "../../components/legal/legal-ui";
 
 export const metadata: Metadata = buildMetadata({
   title: "Refund Policy",
@@ -38,35 +39,6 @@ const EXCEPTIONS = [
   },
 ];
 
-function CheckIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4"
-    >
-      <path d="M20 6 9 17l-5-5" />
-    </svg>
-  );
-}
-
-function ContactLink({ href, children, external }: { href: string; children: React.ReactNode; external?: boolean }) {
-  return (
-    <a
-      href={href}
-      {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      className="font-medium text-brand-600 underline underline-offset-2 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-    >
-      {children}
-    </a>
-  );
-}
-
 export default function RefundPolicyPage() {
   return (
     <main
@@ -74,16 +46,12 @@ export default function RefundPolicyPage() {
       className="mx-auto max-w-3xl px-4 py-12 md:px-6 lg:py-16"
       data-testid="refund-policy"
     >
-      <header className="border-b border-border pb-8">
-        <h1 className="font-display text-4xl font-bold tracking-tight text-fg sm:text-5xl">
-          Refund Policy
-        </h1>
-        <p className="mt-3 text-sm text-fg-subtle">Last updated: {LAST_UPDATED}</p>
-        <p className="mt-6 text-lg leading-relaxed text-fg-muted">
-          Our programs are non-refundable once you enrol. This page explains exactly what
-          that means, the limited cases where we do return a payment, and how to reach us.
-        </p>
-      </header>
+      <LegalHeader
+        title="Refund Policy"
+        lastUpdated={LAST_UPDATED}
+        intro="Our programs are non-refundable once you enrol. This page explains exactly what
+          that means, the limited cases where we do return a payment, and how to reach us."
+      />
 
       {/* The policy itself, stated once and unmissably — a reader who only takes in one
           block should take in this one. */}
@@ -116,25 +84,7 @@ export default function RefundPolicyPage() {
         <p className="mt-3 text-base leading-relaxed text-fg-muted">
           These are billing and delivery failures on our side, not a change of mind:
         </p>
-        <ul role="list" className="mt-6 flex flex-col gap-4">
-          {EXCEPTIONS.map((item) => (
-            <li
-              key={item.title}
-              className="flex gap-4 rounded-xl border border-border bg-card p-5"
-            >
-              <span
-                aria-hidden="true"
-                className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600"
-              >
-                <CheckIcon />
-              </span>
-              <div>
-                <h3 className="text-base font-semibold text-fg">{item.title}</h3>
-                <p className="mt-1 text-sm leading-relaxed text-fg-muted">{item.body}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <LegalItemList items={EXCEPTIONS} />
       </section>
 
       <section aria-labelledby="process-heading" className="mt-12">
@@ -154,24 +104,15 @@ export default function RefundPolicyPage() {
         </div>
       </section>
 
-      <section
-        aria-labelledby="contact-heading"
-        className="mt-12 rounded-2xl border border-brand-100 bg-brand-50 p-6 md:p-8"
-      >
-        <h2 id="contact-heading" className="text-xl font-bold text-fg">
-          Questions about a payment
-        </h2>
-        <p className="mt-3 text-base leading-relaxed text-fg-muted">
-          Email{" "}
-          <ContactLink href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</ContactLink> or
-          message us on WhatsApp at{" "}
-          <ContactLink href={buildWhatsAppHref()} external>
-            {WHATSAPP_DISPLAY}
-          </ContactLink>
-          . Include your registered phone number and the payment reference so we can find
-          the transaction quickly.
-        </p>
-      </section>
+      <LegalContactCard id="contact-heading" title="Questions about a payment">
+        Email <ContactLink href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</ContactLink> or
+        message us on WhatsApp at{" "}
+        <ContactLink href={buildWhatsAppHref()} external>
+          {WHATSAPP_DISPLAY}
+        </ContactLink>
+        . Include your registered phone number and the payment reference so we can find
+        the transaction quickly.
+      </LegalContactCard>
     </main>
   );
 }

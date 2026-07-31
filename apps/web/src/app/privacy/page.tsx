@@ -4,6 +4,8 @@
 import type { Metadata } from "next";
 import { buildMetadata, SITE_URL } from "../../lib/seo/metadata";
 import { buildBreadcrumbJsonLd } from "../../lib/seo/json-ld";
+import { SUPPORT_EMAIL } from "../../lib/contact";
+import { ContactLink, LegalContactCard, LegalHeader, LegalItemList, LegalSection } from "../../components/legal/legal-ui";
 
 export const metadata: Metadata = buildMetadata({
   title: "Privacy Policy",
@@ -12,9 +14,49 @@ export const metadata: Metadata = buildMetadata({
   canonicalPath: "/privacy",
 });
 
+const LAST_UPDATED = "July 2026";
+
 const BREADCRUMBS = [
   { label: "Home", href: "/" },
   { label: "Privacy Policy" },
+];
+
+const DATA_COLLECTED = [
+  {
+    title: "Contact information",
+    body: "Name, email, and phone number when you submit a form or enrol.",
+  },
+  {
+    title: "Usage data",
+    body: "Pages visited and time on site, via analytics — only after your consent.",
+  },
+  {
+    title: "Payment information",
+    body: "Processed by Razorpay; we do not store your card details.",
+  },
+  {
+    title: "IP address",
+    body: "Hashed (SHA-256) for consent records; the raw IP address is never stored.",
+  },
+];
+
+const DATA_USE = [
+  {
+    title: "Program delivery",
+    body: "To fulfil your training program enrolment and issue certificates.",
+  },
+  {
+    title: "Support and updates",
+    body: "To contact you about your program, counselling bookings, and support queries.",
+  },
+  {
+    title: "Marketing (opt-in only)",
+    body: "With your explicit consent, to send marketing communications via WhatsApp, email, or SMS.",
+  },
+  {
+    title: "Product improvement",
+    body: "To improve our platform and content through consent-gated analytics.",
+  },
 ];
 
 export default function PrivacyPage() {
@@ -28,50 +70,53 @@ export default function PrivacyPage() {
         dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }}
       />
 
-      <div className="mx-auto max-w-3xl px-4 py-12 sm:py-16 md:px-6">
+      <main
+        id="main-content"
+        className="mx-auto max-w-3xl px-4 py-12 md:px-6 lg:py-16"
+        data-testid="privacy-content"
+      >
+        <LegalHeader
+          title="Privacy Policy"
+          lastUpdated={LAST_UPDATED}
+          intro={
+            <>
+              Stimuli IQ Technologies Pvt. Ltd. (&ldquo;Stimuli IQ&rdquo;, &ldquo;we&rdquo;,
+              &ldquo;us&rdquo;, or &ldquo;our&rdquo;) is committed to protecting your personal
+              data. This policy describes how we collect, use, and protect information when you
+              use our website and services, in accordance with India&apos;s Digital Personal Data
+              Protection (DPDP) Act 2023 and applicable law.
+            </>
+          }
+        />
 
-        <header className="mb-10">
-          <h1 className="text-3xl font-bold text-fg">Privacy Policy</h1>
-          <p className="mt-2 text-sm text-fg-muted">Last updated: July 2026 (v1.0)</p>
-        </header>
+        <section aria-labelledby="data-collected-heading" className="mt-12">
+          <h2 id="data-collected-heading" className="text-xl font-bold text-fg">
+            1. What data we collect
+          </h2>
+          <LegalItemList items={DATA_COLLECTED} />
+        </section>
 
-        <article className="prose prose-sm max-w-none text-fg-muted" data-testid="privacy-content">
+        <section aria-labelledby="data-use-heading" className="mt-12">
+          <h2 id="data-use-heading" className="text-xl font-bold text-fg">
+            2. How we use your data
+          </h2>
+          <LegalItemList items={DATA_USE} />
+        </section>
+
+        <LegalSection id="consent-heading" title="3. Consent">
           <p>
-            Stimuli IQ Technologies Pvt. Ltd. (&ldquo;Stimuli IQ&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;)
-            is committed to protecting your personal data. This Privacy Policy describes how we collect,
-            use, and protect information when you use our website and services, in accordance with India&apos;s
-            Digital Personal Data Protection (DPDP) Act 2023 and applicable law.
+            We ask for your explicit consent before sending marketing communications. You may
+            withdraw consent at any time by contacting us at{" "}
+            <ContactLink href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</ContactLink>. Analytics
+            cookies are only activated after you accept the consent banner on our website.
           </p>
+        </LegalSection>
 
-          <h2>1. What data we collect</h2>
-          <ul>
-            <li>Contact information (name, email, phone) when you submit a form or enroll.</li>
-            <li>Usage data (pages visited, time on site) via analytics — only after your consent.</li>
-            <li>Payment information is processed by Razorpay; we do not store card details.</li>
-            <li>IP address is hashed (SHA-256) for consent records; the raw IP is never stored.</li>
-          </ul>
-
-          <h2>2. How we use your data</h2>
-          <ul>
-            <li>To fulfil your training program enrollment and issue certificates.</li>
-            <li>To contact you about your program, counselling bookings, and support queries.</li>
-            <li>With your explicit consent, to send marketing communications via WhatsApp/email/SMS.</li>
-            <li>To improve our platform and content (analytics — consent-gated).</li>
-          </ul>
-
-          <h2>3. Consent</h2>
-          <p>
-            We ask for your explicit consent before sending marketing communications. You may withdraw
-            consent at any time by contacting us at privacy@stimuliiq.com. Analytics cookies are only
-            activated after you accept the consent banner on our website.
-          </p>
-
-          <h2>4. Contact</h2>
-          <p>
-            For data requests or concerns: <a href="mailto:privacy@stimuliiq.com">privacy@stimuliiq.com</a>
-          </p>
-        </article>
-      </div>
+        <LegalContactCard id="contact-heading" title="4. Contact">
+          For data requests or concerns, email{" "}
+          <ContactLink href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</ContactLink>.
+        </LegalContactCard>
+      </main>
     </>
   );
 }
