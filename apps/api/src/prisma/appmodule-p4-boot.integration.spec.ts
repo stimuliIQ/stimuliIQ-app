@@ -24,9 +24,12 @@
 //     20260702065914_learning_depth_eligibility_columns
 
 import { PrismaClient } from "@prisma/client";
+import { describeIfLocalDb } from "./local-db-guard";
 
-const hasDatabase = !!process.env.DATABASE_URL;
-const describeIfDb = hasDatabase ? describe : describe.skip;
+// Fail closed: this spec touches a real database, so it runs ONLY against a disposable
+// local one. The previous `!!process.env.DATABASE_URL` gate passed against the PRODUCTION
+// DB, because importing @prisma/client auto-loads the repo-root .env. See local-db-guard.ts.
+const describeIfDb = describeIfLocalDb;
 
 describeIfDb("P4 schema boot smoke test — DB table existence + Prisma client sync", () => {
   const prisma = new PrismaClient();

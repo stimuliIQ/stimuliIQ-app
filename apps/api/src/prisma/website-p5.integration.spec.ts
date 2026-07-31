@@ -29,9 +29,13 @@ import { PrismaClient } from "@prisma/client";
 import { softDeleteExtension } from "./soft-delete.extension";
 import { auditExtension } from "./audit.extension";
 import { auditContextStorage } from "./audit-context";
+import { describeIfLocalDb } from "./local-db-guard";
 
-const hasDatabase = !!process.env.DATABASE_URL;
-const describeIfDb = hasDatabase ? describe : describe.skip;
+// Fail closed: this spec creates real rows and hard-`deleteMany`s them in afterAll, so it
+// runs ONLY against a disposable local database. The previous `!!process.env.DATABASE_URL`
+// gate passed against the PRODUCTION DB, because importing @prisma/client auto-loads the
+// repo-root .env. See local-db-guard.ts.
+const describeIfDb = describeIfLocalDb;
 
 describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + partial-unique (integration)", () => {
   const base = new PrismaClient();
