@@ -200,7 +200,10 @@ export const PAGE_TEMPLATES: Record<CoreTemplateSlug, PageTemplateSchema> = {
 
   scholarship: [
     { key: "hero", blockType: "hero", label: "Hero", dataSchema: HeroBlockDataSchema },
-    { key: "hero_stats_band", blockType: "stat_group", label: "Hero Stats Band", dataSchema: StatGroupBlockDataSchema },
+    // NOTE: a `hero_stats_band` sat here (fund total / students supported / completion
+    // rate). Removed 2026-07-31 — the figures were unverifiable, and `stat_group` cannot
+    // be emptied to hide it (StatGroupBlockDataSchema requires 2-6 items for the `band`
+    // variant), so dropping the section is the only way to take it off the page.
     { key: "benefits", blockType: "feature_grid", label: "Scholarship Benefits", dataSchema: FeatureGridBlockDataSchema },
     { key: "apply_cta", blockType: "cta_band", label: "Application Form CTA", dataSchema: CtaBandBlockDataSchema },
     { key: "impact_stats", blockType: "stat_group", label: "Scholarship Impact Stats", dataSchema: StatGroupBlockDataSchema },
