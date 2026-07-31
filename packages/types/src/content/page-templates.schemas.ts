@@ -206,7 +206,9 @@ export const PAGE_TEMPLATES: Record<CoreTemplateSlug, PageTemplateSchema> = {
     // variant), so dropping the section is the only way to take it off the page.
     { key: "benefits", blockType: "feature_grid", label: "Scholarship Benefits", dataSchema: FeatureGridBlockDataSchema },
     { key: "apply_cta", blockType: "cta_band", label: "Application Form CTA", dataSchema: CtaBandBlockDataSchema },
-    { key: "impact_stats", blockType: "stat_group", label: "Scholarship Impact Stats", dataSchema: StatGroupBlockDataSchema },
+    // NOTE: an `impact_stats` band sat here (₹50L+ disbursed / 320+ scholars / 85%
+    // placement / 40+ cities). Removed 2026-07-31 alongside the hero band — same reason,
+    // the figures were unverifiable. `fund_distribution` below is deliberately KEPT.
     { key: "fund_distribution", blockType: "stat_group", label: "Fund Distribution By Track", dataSchema: StatGroupBlockDataSchema },
     { key: "process_steps", blockType: "numbered_steps", label: "Application Process", dataSchema: NumberedStepsBlockDataSchema },
   ],

@@ -93,35 +93,6 @@
   {
     "type": "stat_group",
     "data": {
-      "variant": "band",
-      "heading": {
-        "title": "The ₹1 Crore impact",
-        "titleHighlight": "₹1 Crore",
-        "subtitle": "Financial constraints should never stop a capable student from building a career in healthcare."
-      },
-      "items": [
-        {
-          "label": "Already disbursed",
-          "value": "₹50L+"
-        },
-        {
-          "label": "Scholars active",
-          "value": "320+"
-        },
-        {
-          "label": "Placement success",
-          "value": "85%"
-        },
-        {
-          "label": "Cities reached",
-          "value": "40+"
-        }
-      ]
-    }
-  },
-  {
-    "type": "stat_group",
-    "data": {
       "variant": "bars",
       "heading": {
         "title": "Fund distribution by track (in lakhs)"
