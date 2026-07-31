@@ -27,6 +27,9 @@ function mockRepository(): Mocked<CoursesRepository> {
     createModule: jest.fn(),
     updateModule: jest.fn(),
     reorderModules: jest.fn(),
+    findMaxOrder: jest.fn().mockResolvedValue(-1),
+    findManyByIds: jest.fn(),
+    reorderPrograms: jest.fn(),
     findLessonInModule: jest.fn(),
     createLesson: jest.fn(),
     updateLesson: jest.fn(),
@@ -55,6 +58,10 @@ const ROW: ProgramRow = {
   brochureKey: null,
   scholarshipAvailable: false,
   enrollmentEnabled: true,
+  order: 0,
+  badgeColor: null,
+  badgeLabel: null,
+  badgeEnabled: false,
   createdAt: new Date("2026-01-01T00:00:00Z"),
   updatedAt: new Date("2026-01-01T00:00:00Z"),
   deletedAt: null,
@@ -229,6 +236,7 @@ describe("CoursesService", () => {
             status: "draft",
             scholarshipAvailable: false,
             enrollmentEnabled: true,
+            badgeEnabled: false,
           }),
         ),
       ).rejects.toBeInstanceOf(ForbiddenException);
@@ -306,6 +314,7 @@ describe("CoursesService", () => {
           status: "draft",
           scholarshipAvailable: false,
           enrollmentEnabled: true,
+          badgeEnabled: false,
         }),
       );
 
@@ -333,6 +342,7 @@ describe("CoursesService", () => {
       status: "draft" as const,
       scholarshipAvailable: false,
       enrollmentEnabled: true,
+      badgeEnabled: false,
     };
 
     it("accepts a compare-at price strictly above the price", async () => {
@@ -405,6 +415,146 @@ describe("CoursesService", () => {
         runWithScope("all", () => service.update("tenant-1", "program-1", { pricePaise: 1600000 })),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(repo.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // `order` is server-owned: it is absent from the create/update contracts entirely, so
+  // the only ways it moves are "appended on create" and "rewritten by reorder".
+  describe("program order", () => {
+    const baseCreate = {
+      slug: "ordered-program",
+      title: "Ordered Program",
+      domain: "web-development",
+      level: "beginner" as const,
+      mode: "recorded" as const,
+      durationWeeks: 4,
+      pricePaise: 100000,
+      emi: [],
+      status: "draft" as const,
+      scholarshipAvailable: false,
+      enrollmentEnabled: true,
+      badgeEnabled: false,
+    };
+
+    it("appends a new program after the tenant's current highest order", async () => {
+      repo.findBySlug.mockResolvedValue(null);
+      repo.findMaxOrder.mockResolvedValue(4);
+      repo.create.mockResolvedValue(ROW);
+
+      await runWithScope("all", () => service.create("tenant-1", baseCreate));
+
+      expect(repo.create).toHaveBeenCalledWith("tenant-1", expect.objectContaining({ order: 5 }));
+    });
+
+    it("gives the tenant's first program order 0", async () => {
+      repo.findBySlug.mockResolvedValue(null);
+      repo.findMaxOrder.mockResolvedValue(-1);
+      repo.create.mockResolvedValue(ROW);
+
+      await runWithScope("all", () => service.create("tenant-1", baseCreate));
+
+      expect(repo.create).toHaveBeenCalledWith("tenant-1", expect.objectContaining({ order: 0 }));
+    });
+
+    it("derives order from array position, ignoring any client-supplied numbering", async () => {
+      repo.findManyByIds.mockResolvedValue([{ id: "p-a" }, { id: "p-b" }, { id: "p-c" }]);
+
+      await runWithScope("all", () =>
+        service.reorderPrograms("tenant-1", { programIds: ["p-c", "p-a", "p-b"] }),
+      );
+
+      expect(repo.reorderPrograms).toHaveBeenCalledWith(["p-c", "p-a", "p-b"]);
+    });
+
+    // Tenant isolation: without this check a caller could splice a foreign program id into
+    // the array and have its `order` silently rewritten.
+    it("rejects the whole reorder when any id belongs to another tenant", async () => {
+      repo.findManyByIds.mockResolvedValue([{ id: "p-a" }]);
+
+      await expect(
+        runWithScope("all", () =>
+          service.reorderPrograms("tenant-1", { programIds: ["p-a", "other-tenant-program"] }),
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(repo.reorderPrograms).not.toHaveBeenCalled();
+    });
+  });
+
+  // A badge that is switched on but not configured would render an empty chip on a live
+  // course card, so the incomplete states are refused at write time.
+  describe("badge validation", () => {
+    it("rejects enabling a badge when no colour has ever been set", async () => {
+      repo.findById.mockResolvedValue({ ...ROW, badgeColor: null, badgeLabel: "Hot" });
+
+      await expect(
+        runWithScope("all", () => service.update("tenant-1", "program-1", { badgeEnabled: true })),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects a badge with a colour but no text", async () => {
+      repo.findById.mockResolvedValue(ROW);
+
+      await expect(
+        runWithScope("all", () =>
+          service.update("tenant-1", "program-1", {
+            badgeColor: "#DC2626",
+            badgeLabel: null,
+            badgeEnabled: true,
+          }),
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    // Whitespace is not text — a blank chip is the same defect as a missing label.
+    it("rejects a whitespace-only badge label", async () => {
+      repo.findById.mockResolvedValue(ROW);
+
+      await expect(
+        runWithScope("all", () =>
+          service.update("tenant-1", "program-1", {
+            badgeColor: "#DC2626",
+            badgeLabel: "   ",
+            badgeEnabled: true,
+          }),
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    it("accepts enabling a fully configured badge", async () => {
+      repo.findById.mockResolvedValue(ROW);
+      repo.update.mockResolvedValue({
+        ...ROW,
+        badgeColor: "#DC2626",
+        badgeLabel: "Hot",
+        badgeEnabled: true,
+      });
+
+      const detail = await runWithScope("all", () =>
+        service.update("tenant-1", "program-1", {
+          badgeColor: "#DC2626",
+          badgeLabel: "Hot",
+          badgeEnabled: true,
+        }),
+      );
+
+      expect(detail.badgeColor).toBe("#DC2626");
+      expect(detail.badgeEnabled).toBe(true);
+    });
+
+    // An incomplete badge is only a problem once it is visible — staff must be able to
+    // park a half-configured badge with the switch off.
+    it("allows an unconfigured badge while it stays switched off", async () => {
+      repo.findById.mockResolvedValue(ROW);
+      repo.update.mockResolvedValue(ROW);
+
+      await runWithScope("all", () =>
+        service.update("tenant-1", "program-1", { badgeColor: "#DC2626", badgeEnabled: false }),
+      );
+
+      expect(repo.update).toHaveBeenCalled();
     });
   });
 });

@@ -897,6 +897,42 @@ model Program {
   // there the risk runs the other way (accidental publication).
   enrollmentEnabled Boolean @default(true) @map("enrollment_enabled")
 
+  // order: staff-curated display order (ascending) used by every public program listing
+  // (nav mega-menu, homepage grid, /programs default, related-programs) AND the CRM's own
+  // program table, so staff see exactly the sequence they are curating. Same convention as
+  // Testimonial.order / Partner.order / FacultyBio.order.
+  //
+  // Set EXCLUSIVELY server-side: create assigns max(order)+1 (new programs land last) and
+  // POST /crm/courses/reorder rewrites it from array position. It is deliberately absent
+  // from the create/update DTOs — the same choice Module.order/Lesson.order already make —
+  // so there is only ever one write path and a client cannot desync the sequence.
+  order Int @default(0)
+
+  // badgeColor / badgeLabel / badgeEnabled — the marketing badge shown on public program
+  // cards. Three columns because they answer three separate questions:
+  //   color   = the chip background, an #RRGGBB hex staff pick in the CRM
+  //   label   = the text on the chip
+  //   enabled = whether it is currently visible
+  //
+  // Colour is a free hex rather than a closed enum (this replaced a hot/new/trending
+  // ProgramBadgeTone): staff asked to choose the colour per badge, so any label must be
+  // able to take any colour. The CRM still offers named swatches as one-click presets, but
+  // those are an authoring convenience that resolve to a hex here — the database stores the
+  // decision, not the shortcut used to reach it.
+  //
+  // Only the BACKGROUND is stored. The text colour is derived from its luminance at render
+  // time (see `readableTextOn`), so a freely-chosen colour cannot produce an unreadable
+  // chip — WCAG 2.2 AA is a project requirement, and it would otherwise depend on staff
+  // picking a safe pair by eye.
+  //
+  // `badgeEnabled` is independent of colour/label (rather than "null colour = hidden")
+  // because it models the staff workflow directly: configure a badge once, then flip it on
+  // and off seasonally without retyping it. The public API never exposes this flag — it
+  // nulls colour+label out when false, so a configured-but-disabled badge cannot leak.
+  badgeColor   String?  @map("badge_color") @db.VarChar(7)
+  badgeLabel   String?  @map("badge_label") @db.VarChar(24)
+  badgeEnabled Boolean  @default(false) @map("badge_enabled")
+
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")

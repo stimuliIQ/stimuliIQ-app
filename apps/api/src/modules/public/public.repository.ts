@@ -42,6 +42,11 @@ export interface PublicProgramListRow {
   ogImageKey: string | null; // raw key — converted to CDN URL in the service
   scholarshipAvailable: boolean;
   enrollmentEnabled: boolean;
+  // badgeEnabled is selected but NEVER returned — the service uses it to decide whether to
+  // surface badgeColor/badgeLabel at all (see PublicCatalogService.toSummary).
+  badgeColor: string | null;
+  badgeLabel: string | null;
+  badgeEnabled: boolean;
 }
 
 export interface PublicProgramDetailRow extends PublicProgramListRow {
@@ -120,6 +125,12 @@ const PUBLIC_PROGRAM_LIST_SELECT = {
   ratingCount: true,
   ogImageKey: true,
   scholarshipAvailable: true,
+  // Badge: colour/label are public (the rendered outcome); badgeEnabled is selected ONLY so
+  // the service can null the other two out when the toggle is off. It never reaches a
+  // response — `ForbiddenProgramField` in @repo/types asserts that at compile time.
+  badgeColor: true,
+  badgeLabel: true,
+  badgeEnabled: true,
   // enrollmentEnabled is safe to expose: it only tells the site which CTA to render.
   // Unlike `isPublic` it reveals nothing about unpublished inventory — every row reaching
   // this select already passed the isPublic + status=published gate.
@@ -165,7 +176,7 @@ export interface ListPublicProgramsFilters {
   mode?: string;
   minPricePaise?: number;
   maxPricePaise?: number;
-  sort: "popularity" | "price_asc" | "price_desc" | "newest";
+  sort: "order" | "popularity" | "price_asc" | "price_desc" | "newest";
   cursor?: string;
   limit: number;
 }
@@ -200,9 +211,18 @@ export class PublicRepository {
       ...(filters.cursor ? { id: { gt: filters.cursor } } : {}),
     };
 
-    // Sort order
-    let orderBy: Prisma.ProgramOrderByWithRelationInput;
+    // Sort order.
+    //
+    // `order` (the staff-curated sequence) is the default. Its `id` tiebreak matters: the
+    // cursor below pages on `id`, so without it two programs sharing an `order` value could
+    // straddle a page boundary inconsistently. The other sorts page on a column unrelated to
+    // the cursor and are correspondingly unstable across pages — a pre-existing limitation
+    // left untouched here, since the default path is what the nav and every landing grid use.
+    let orderBy: Prisma.ProgramOrderByWithRelationInput | Prisma.ProgramOrderByWithRelationInput[];
     switch (filters.sort) {
+      case "order":
+        orderBy = [{ order: "asc" }, { id: "asc" }];
+        break;
       case "popularity":
         orderBy = { ratingCount: "desc" };
         break;
@@ -216,7 +236,7 @@ export class PublicRepository {
         orderBy = { createdAt: "desc" };
         break;
       default:
-        orderBy = { ratingCount: "desc" };
+        orderBy = [{ order: "asc" }, { id: "asc" }];
     }
 
     // Fetch limit+1 to determine if there's a next page
@@ -406,6 +426,9 @@ export class PublicRepository {
       cardSummary: string | null;
       pricePaise: number;
       compareAtPricePaise: number | null;
+      badgeColor: string | null;
+      badgeLabel: string | null;
+      badgeEnabled: boolean;
     }>
   > {
     const rows = await this.prisma.client.program.findMany({
@@ -424,6 +447,10 @@ export class PublicRepository {
         cardSummary: true,
         pricePaise: true,
         compareAtPricePaise: true,
+        // badgeEnabled is resolved away in the service — see the list select above.
+        badgeColor: true,
+        badgeLabel: true,
+        badgeEnabled: true,
         // FORBIDDEN: no status, isPublic, tenantId, etc.
       },
       take: limit,

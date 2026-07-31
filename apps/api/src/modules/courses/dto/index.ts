@@ -30,6 +30,8 @@ export {
   type UpdateModuleRequest,
   ReorderModulesRequestSchema,
   type ReorderModulesRequest,
+  ReorderProgramsRequestSchema,
+  type ReorderProgramsRequest,
   CreateLessonRequestSchema,
   type CreateLessonRequest,
   UpdateLessonRequestSchema,

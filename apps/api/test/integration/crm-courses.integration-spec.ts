@@ -189,6 +189,110 @@ describeIfAvailable("CRM courses (programs/modules/lessons) — CRUD + KNOWN-GAP
       expect(lesson.body.data.title).toBe("Lesson 1");
     });
 
+    // `order` is server-owned, so a client cannot smuggle one in through create.
+    it("rejects a client-supplied order on create (strict schema)", async () => {
+      const { accessToken, csrfToken } = await loginAs(SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD);
+
+      await request(app.getHttpServer())
+        .post("/api/v1/crm/courses")
+        .set(authHeaders(accessToken, csrfToken))
+        .send({
+          slug: `qa-order-reject-${Date.now()}`,
+          title: "Order Reject",
+          domain: "test",
+          level: "beginner",
+          mode: "hybrid",
+          durationWeeks: 8,
+          pricePaise: 50000,
+          status: "draft",
+          order: 0,
+        })
+        .expect(400);
+    });
+
+    it("badge round-trips, and rejects enabling one that cannot render", async () => {
+      const { accessToken, csrfToken } = await loginAs(SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD);
+
+      const saved = await request(app.getHttpServer())
+        .patch(`/api/v1/crm/courses/${programId}`)
+        .set(authHeaders(accessToken, csrfToken))
+        .send({ badgeColor: "#7C3AED", badgeLabel: "Limited seats", badgeEnabled: true })
+        .expect(200);
+      expect(saved.body.data.badgeColor).toBe("#7C3AED");
+      expect(saved.body.data.badgeLabel).toBe("Limited seats");
+      expect(saved.body.data.badgeEnabled).toBe(true);
+
+      // Clearing the text while the badge is live would leave a blank chip.
+      await request(app.getHttpServer())
+        .patch(`/api/v1/crm/courses/${programId}`)
+        .set(authHeaders(accessToken, csrfToken))
+        .send({ badgeLabel: null })
+        .expect(400);
+
+      // A malformed colour is refused by the DTO before it can reach the column and
+      // render as an unstyled chip.
+      await request(app.getHttpServer())
+        .patch(`/api/v1/crm/courses/${programId}`)
+        .set(authHeaders(accessToken, csrfToken))
+        .send({ badgeColor: "red" })
+        .expect(400);
+    });
+
+    it("POST /crm/courses/reorder rewrites order from array position", async () => {
+      const { accessToken, csrfToken } = await loginAs(SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD);
+
+      const before = await request(app.getHttpServer())
+        .get("/api/v1/crm/courses")
+        .query({ pageSize: 100 })
+        .set(authHeaders(accessToken, csrfToken))
+        .expect(200);
+      const ids: string[] = before.body.data.map((p: { id: string }) => p.id);
+      expect(ids.length).toBeGreaterThanOrEqual(2);
+
+      // Move the last program to the front.
+      const reversedFirst = [ids[ids.length - 1]!, ...ids.slice(0, -1)];
+      await request(app.getHttpServer())
+        .post("/api/v1/crm/courses/reorder")
+        .set(authHeaders(accessToken, csrfToken))
+        .send({ programIds: reversedFirst })
+        .expect(204);
+
+      const after = await request(app.getHttpServer())
+        .get("/api/v1/crm/courses")
+        .query({ pageSize: 100 })
+        .set(authHeaders(accessToken, csrfToken))
+        .expect(200);
+      expect(after.body.data.map((p: { id: string }) => p.id)).toEqual(reversedFirst);
+      expect(after.body.data[0].order).toBe(0);
+    });
+
+    // Tenant isolation: a foreign id in the array must abort the WHOLE reorder, not be
+    // silently skipped — otherwise the caller still succeeds in resequencing their own rows
+    // while probing for another tenant's ids.
+    it("rejects a reorder containing an id outside the tenant, leaving order untouched", async () => {
+      const { accessToken, csrfToken } = await loginAs(SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD);
+
+      const before = await request(app.getHttpServer())
+        .get("/api/v1/crm/courses")
+        .query({ pageSize: 100 })
+        .set(authHeaders(accessToken, csrfToken))
+        .expect(200);
+      const ids: string[] = before.body.data.map((p: { id: string }) => p.id);
+
+      await request(app.getHttpServer())
+        .post("/api/v1/crm/courses/reorder")
+        .set(authHeaders(accessToken, csrfToken))
+        .send({ programIds: [...ids].reverse().concat("00000000-0000-4000-8000-000000000000") })
+        .expect(404);
+
+      const after = await request(app.getHttpServer())
+        .get("/api/v1/crm/courses")
+        .query({ pageSize: 100 })
+        .set(authHeaders(accessToken, csrfToken))
+        .expect(200);
+      expect(after.body.data.map((p: { id: string }) => p.id)).toEqual(ids);
+    });
+
     it("audit-on-mutation: create + update write Program audit rows", async () => {
       const createAudit = await prisma.auditLog.findFirst({ where: { entity: "Program", entityId: programId, action: "create" } });
       expect(createAudit).toBeTruthy();

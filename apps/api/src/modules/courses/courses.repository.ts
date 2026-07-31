@@ -52,6 +52,10 @@ export interface ProgramRow {
   brochureKey: string | null;
   scholarshipAvailable: boolean;
   enrollmentEnabled: boolean;
+  order: number;
+  badgeColor: string | null;
+  badgeLabel: string | null;
+  badgeEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -100,7 +104,10 @@ export class CoursesRepository {
     const [rows, total] = await Promise.all([
       this.prisma.client.program.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        // Same sequence the public site renders, so the CRM table shows staff exactly what
+        // they are curating. (It sorted newest-first before `order` existed, which meant
+        // the list staff reordered against never matched the one visitors saw.)
+        orderBy: [{ order: "asc" }, { createdAt: "asc" }],
         skip: (filters.page - 1) * filters.pageSize,
         take: filters.pageSize,
       }),
@@ -143,6 +150,11 @@ export class CoursesRepository {
       brochureKey?: string;
       scholarshipAvailable?: boolean;
       enrollmentEnabled?: boolean;
+      // Computed by the service (max(order)+1), never accepted from the client.
+      order: number;
+      badgeColor?: string | null;
+      badgeLabel?: string | null;
+      badgeEnabled?: boolean;
     },
   ): Promise<ProgramRow> {
     return this.prisma.client.program.create({
@@ -169,6 +181,10 @@ export class CoursesRepository {
         scholarshipAvailable: data.scholarshipAvailable ?? false,
         // Defaults TRUE — a new program is sellable unless enrollment is explicitly closed.
         enrollmentEnabled: data.enrollmentEnabled ?? true,
+        order: data.order,
+        badgeColor: data.badgeColor ?? null,
+        badgeLabel: data.badgeLabel ?? null,
+        badgeEnabled: data.badgeEnabled ?? false,
       },
     });
   }
@@ -195,8 +211,14 @@ export class CoursesRepository {
       brochureKey: string | null;
       scholarshipAvailable: boolean;
       enrollmentEnabled: boolean;
+      // null clears the badge colour (UpdateProgramRequest's badgeColor: hex | null)
+      badgeColor: string | null;
+      badgeLabel: string | null;
+      badgeEnabled: boolean;
     }>,
   ): Promise<ProgramRow> {
+    // `order` is intentionally absent from this patch type — it is rewritten only by
+    // reorderPrograms(), so an edit can never silently move a program in the sequence.
     const { mode, emi, seo, outcomes, ...rest } = patch;
     return this.prisma.client.program.update({
       where: { id },
@@ -208,6 +230,40 @@ export class CoursesRepository {
         ...(outcomes !== undefined ? { outcomes: outcomes as Prisma.InputJsonValue } : {}),
       },
     });
+  }
+
+  /**
+   * Highest `order` currently in use for the tenant, or -1 when the tenant has no programs
+   * (so a caller's `+ 1` yields 0 for the very first program). Includes soft-deleted rows:
+   * reusing a deleted program's slot would collide if it were ever restored.
+   */
+  async findMaxOrder(tenantId: string): Promise<number> {
+    const result = await this.prisma.client.program.aggregate({
+      where: { tenantId, deletedAt: undefined },
+      _max: { order: true },
+    });
+    return result._max.order ?? -1;
+  }
+
+  /** Ids from `ids` that actually belong to this tenant — the caller compares counts. */
+  async findManyByIds(tenantId: string, ids: string[]): Promise<{ id: string }[]> {
+    return this.prisma.client.program.findMany({
+      where: { id: { in: ids }, tenantId },
+      select: { id: true },
+    });
+  }
+
+  /**
+   * Rewrite `order` from array position, transactionally. Same full-list-replace contract
+   * as reorderModules: the caller sends every id, so the resulting sequence is always
+   * gap-free and no partial-reorder race can interleave two clients' writes.
+   */
+  async reorderPrograms(programIds: string[]): Promise<void> {
+    await this.prisma.client.$transaction(
+      programIds.map((id, index) =>
+        this.prisma.client.program.update({ where: { id }, data: { order: index } }),
+      ),
+    );
   }
 
   async setStatus(id: string, status: "draft" | "published" | "archived"): Promise<ProgramRow> {

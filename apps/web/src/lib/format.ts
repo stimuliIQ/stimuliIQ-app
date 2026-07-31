@@ -45,6 +45,32 @@ export function formatCompareAtDisplay(
 }
 
 /**
+ * The saving between the "was" price and the real one, as a whole-number percentage
+ * (e.g. ₹14,999 → ₹6,999 gives "53% OFF"). Returns undefined in exactly the cases
+ * `formatCompareAtDisplay` does, so the badge can never appear beside a single price.
+ *
+ * ROUNDED DOWN, not to nearest. A discount percentage is a public claim about money, and
+ * rounding to nearest would let 52.6% advertise as "53% OFF" — a saving slightly larger
+ * than the one actually given. Flooring can only ever understate it. This is the same
+ * posture as the compare-at rule above: never render a price claim the numbers don't
+ * support. (53.3% here floors to 53, so the realistic case is unaffected either way.)
+ *
+ * Percentages of 0 are dropped: a compare-at less than 1% above the price is a rounding
+ * artefact or a data-entry slip, and "0% OFF" reads as broken rather than as a discount.
+ *
+ * DISPLAY-ONLY. Nothing here feeds order math — the charged amount is server-derived.
+ */
+export function formatDiscountPercent(
+  compareAtPaise: number | null | undefined,
+  pricePaise: number,
+): string | undefined {
+  if (compareAtPaise == null || compareAtPaise <= pricePaise) return undefined;
+  const percent = Math.floor(((compareAtPaise - pricePaise) / compareAtPaise) * 100);
+  if (percent <= 0) return undefined;
+  return `${percent}% OFF`;
+}
+
+/**
  * Format a rating value from the ×10 integer scale to a display string.
  * API returns ratingAvg as integer 0–50 representing 0.0–5.0.
  * Example: 47 → "4.7"

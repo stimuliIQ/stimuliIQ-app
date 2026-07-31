@@ -13,6 +13,7 @@ import type {
   CreateModuleRequest,
   UpdateModuleRequest,
   ReorderModulesRequest,
+  ReorderProgramsRequest,
   LessonNode,
   CreateLessonRequest,
   UpdateLessonRequest,
@@ -151,6 +152,20 @@ export class CoursesApi {
     idempotencyKey: string = crypto.randomUUID(),
   ): Promise<ProgramDetail> {
     return this.client.request<ProgramDetail>("PATCH", `/api/v1/crm/courses/${id}/visibility`, { body, idempotencyKey });
+  }
+
+  /**
+   * POST /api/v1/crm/courses/reorder — rewrite the staff-curated program order.
+   *
+   * `body.programIds` must be the FULL ordered list for the tenant, not the page currently
+   * on screen: the server derives `order` from array position, so omitted programs collapse
+   * to the front. Returns nothing (204) — refetch the list to observe the new sequence.
+   */
+  async reorderPrograms(
+    body: ReorderProgramsRequest,
+    idempotencyKey: string = crypto.randomUUID(),
+  ): Promise<void> {
+    await this.client.request<void>("POST", `/api/v1/crm/courses/reorder`, { body, idempotencyKey });
   }
 
   /** GET /api/v1/crm/courses/:id/curriculum — the full program -> modules -> lessons tree. */

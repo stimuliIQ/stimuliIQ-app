@@ -29,6 +29,18 @@ export type ProgramStatus = z.infer<typeof ProgramStatusSchema>;
 export const LessonTypeSchema = z.enum(["video", "reading", "assignment", "quiz"]);
 export type LessonType = z.infer<typeof LessonTypeSchema>;
 
+/**
+ * Marketing badge background colour, `#RRGGBB`. Shorthand (`#f00`), alpha, and named
+ * colours are rejected so every consumer can assume one parseable format and the column
+ * stays VARCHAR(7).
+ *
+ * Only the background is stored — badge text colour is derived from this at render time
+ * (`readableTextOn` in @repo/ui), so a freely-picked colour cannot yield an unreadable chip.
+ */
+export const ProgramBadgeColorSchema = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, "must be a 6-digit hex colour like #DC2626");
+
 /** EMI plan option attached to a program (`programs.emi` json column). */
 export const EmiPlanSchema = z.object({
   months: z.number().int().min(1).max(60),
@@ -113,6 +125,25 @@ export const CreateProgramRequestSchema = z
       .boolean()
       .default(false)
       .describe("When true the website shows a 'Scholarship available' badge on the course."),
+    // ── Marketing badge ──
+    // Three fields, not one: colour is the chip background, label the text, enabled the
+    // visibility. The "enabled needs both a colour and a label" invariant is enforced in
+    // CoursesService, NOT here — a PATCH may send any subset, so the check needs the
+    // stored row to resolve the merged state (same reason `compareAtPricePaise` is
+    // validated there rather than in a superRefine).
+    badgeColor: ProgramBadgeColorSchema.nullish().describe(
+      "Badge background as #RRGGBB. Text colour is derived from it at render time.",
+    ),
+    badgeLabel: z
+      .string()
+      .min(1)
+      .max(24)
+      .nullish()
+      .describe("Badge text, e.g. 'Hot' or 'Limited seats'."),
+    badgeEnabled: z
+      .boolean()
+      .default(false)
+      .describe("When true the badge renders on the public course card. Requires a colour and a label."),
     enrollmentEnabled: z
       .boolean()
       .default(true)
@@ -284,6 +315,21 @@ export type PublishProgramRequest = z.infer<typeof PublishProgramRequestSchema>;
 export const SetProgramVisibilityRequestSchema = z.object({ isPublic: z.boolean() }).strict();
 export type SetProgramVisibilityRequest = z.infer<typeof SetProgramVisibilityRequestSchema>;
 
+/**
+ * POST /api/v1/crm/courses/reorder
+ *
+ * Full ordered list of the tenant's program ids — the server re-derives `order` from
+ * array position, exactly like `ReorderModulesRequestSchema`. Because it is a full-list
+ * replace (not a pairwise swap), callers must send EVERY program id, not just the page
+ * currently on screen, or the omitted programs collapse to the front of the sequence.
+ */
+export const ReorderProgramsRequestSchema = z
+  .object({
+    programIds: z.array(UuidSchema).min(1),
+  })
+  .strict();
+export type ReorderProgramsRequest = z.infer<typeof ReorderProgramsRequestSchema>;
+
 // ─────────────────────────────────────────────────────────────────────────
 // Module requests
 // ─────────────────────────────────────────────────────────────────────────
@@ -360,6 +406,10 @@ export const ProgramSummarySchema = z.object({
   compareAtPricePaise: z.number().int().nullable(),
   status: ProgramStatusSchema,
   isPublic: z.boolean().describe("Marketing visibility flag. Program appears on the public site only when status='published' AND isPublic=true."),
+  order: z.number().int().describe("Staff-curated display order (ascending). Set only via POST /crm/courses/reorder."),
+  badgeColor: z.string().nullable(),
+  badgeLabel: z.string().nullable(),
+  badgeEnabled: z.boolean(),
   createdAt: IsoDateTimeSchema,
 });
 export type ProgramSummary = z.infer<typeof ProgramSummarySchema>;

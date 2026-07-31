@@ -159,6 +159,51 @@ describe("PublicCatalogService", () => {
     });
   });
 
+  // The badge toggle is resolved server-side: the public DTO carries the rendered outcome,
+  // never the switch, so a hidden badge leaves nothing on the wire for a client to misread.
+  describe("badge exposure", () => {
+    async function listWithBadge(badge: {
+      badgeColor: string | null;
+      badgeLabel: string | null;
+      badgeEnabled: boolean;
+    }) {
+      (repo.listPublicPrograms as jest.Mock).mockResolvedValue({
+        rows: [{ ...MOCK_PROGRAM_LIST_ROW, ...badge }],
+        nextCursor: null,
+      });
+      const result = await service.listPrograms({ sort: "order", limit: 12 });
+      return result.items[0]!;
+    }
+
+    it("surfaces colour and label when the badge is switched on", async () => {
+      const item = await listWithBadge({ badgeColor: "#DC2626", badgeLabel: "Hot", badgeEnabled: true });
+
+      expect(item.badgeColor).toBe("#DC2626");
+      expect(item.badgeLabel).toBe("Hot");
+    });
+
+    // Nulls the stored values rather than merely omitting them: this proves the toggle
+    // hides a CONFIGURED badge, not just an empty one.
+    it("nulls out a configured badge while it is switched off", async () => {
+      const item = await listWithBadge({
+        badgeColor: "#2563EB",
+        badgeLabel: "Trending",
+        badgeEnabled: false,
+      });
+
+      expect(item.badgeColor).toBeNull();
+      expect(item.badgeLabel).toBeNull();
+    });
+
+    it("never exposes the badgeEnabled toggle itself", async () => {
+      const enabled = await listWithBadge({ badgeColor: "#16A34A", badgeLabel: "New", badgeEnabled: true });
+      const disabled = await listWithBadge({ badgeColor: "#16A34A", badgeLabel: "New", badgeEnabled: false });
+
+      expect(enabled).not.toHaveProperty("badgeEnabled");
+      expect(disabled).not.toHaveProperty("badgeEnabled");
+    });
+  });
+
   describe("getProgramBySlug", () => {
     it("returns program detail with allowed fields only", async () => {
       const result = await service.getProgramBySlug("web-dev");

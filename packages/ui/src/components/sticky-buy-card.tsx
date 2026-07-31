@@ -48,6 +48,8 @@ import { cn } from "../lib/cn";
 export interface StickyBuyCardProps {
   priceDisplay: string;
   originalPriceDisplay?: string;
+  /** Optional saving badge e.g. "53% OFF" — caller-computed (`formatDiscountPercent`). */
+  discountLabel?: string;
   emiDisplay?: string;
   primaryCtaLabel?: string;
   primaryCtaHref?: string;
@@ -66,6 +68,7 @@ export interface StickyBuyCardProps {
 export function StickyBuyCard({
   priceDisplay,
   originalPriceDisplay,
+  discountLabel,
   emiDisplay,
   primaryCtaLabel = "Enroll Now",
   primaryCtaHref,
@@ -93,6 +96,11 @@ export function StickyBuyCard({
           <span className="text-3xl font-bold text-fg">{priceDisplay}</span>
           {originalPriceDisplay ? (
             <span className="text-base text-fg-muted line-through">{originalPriceDisplay}</span>
+          ) : null}
+          {discountLabel ? (
+            <span className="rounded bg-success/10 px-2 py-0.5 text-sm font-bold text-success">
+              {discountLabel}
+            </span>
           ) : null}
         </div>
         {emiDisplay ? (
@@ -192,6 +200,8 @@ export interface MobileBuyBarProps {
   priceDisplay: string;
   /** Optional struck-through "was" price, e.g. "₹14,999". */
   originalPriceDisplay?: string;
+  /** Optional saving badge e.g. "53% OFF" — caller-computed (`formatDiscountPercent`). */
+  discountLabel?: string;
   primaryCtaLabel?: string;
   primaryCtaHref?: string;
   onPrimaryCtaClick?: () => void;
@@ -202,6 +212,7 @@ export interface MobileBuyBarProps {
 export function MobileBuyBar({
   priceDisplay,
   originalPriceDisplay,
+  discountLabel,
   primaryCtaLabel = "Enroll Now",
   primaryCtaHref,
   onPrimaryCtaClick,
@@ -226,6 +237,11 @@ export function MobileBuyBar({
             <span aria-hidden="true" className="text-sm text-fg-subtle line-through">{originalPriceDisplay}</span>
             <span className="sr-only">, reduced from {originalPriceDisplay}</span>
           </>
+        ) : null}
+        {discountLabel ? (
+          <span className="rounded bg-success/10 px-1.5 py-0.5 text-xs font-bold text-success">
+            {discountLabel}
+          </span>
         ) : null}
       </div>
 

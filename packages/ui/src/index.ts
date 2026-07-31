@@ -8,6 +8,17 @@ export const PACKAGE_NAME = "@repo/ui" as const;
 
 export { cn } from "./lib/cn";
 
+export {
+  PHONE_LOCAL_LENGTH,
+  PHONE_COUNTRY_CODE,
+  PHONE_PLACEHOLDER,
+  PHONE_INPUT_PROPS,
+  PHONE_LENGTH_MESSAGE,
+  toLocalPhoneDigits,
+  isCompleteLocalPhone,
+  toE164Phone,
+} from "./lib/phone";
+
 export { Button, buttonVariants, type ButtonProps } from "./components/button";
 
 export {
@@ -80,6 +91,14 @@ export {
   statusTone,
   type StatusSemantic,
 } from "./lib/status-semantics";
+
+export {
+  BADGE_COLOR_PATTERN,
+  BADGE_COLOR_PRESETS,
+  badgeContrastRatio,
+  isValidBadgeColor,
+  readableTextOn,
+} from "./lib/badge-color";
 
 export { EmptyState, type EmptyStateProps } from "./components/empty-state";
 export { EmptyIllustration, type EmptyIllustrationProps } from "./components/empty-illustration";
@@ -226,6 +245,7 @@ export {
   type NavItem,
   type MegaMenuConfig,
   type MegaMenuSection,
+  type MegaMenuItemBadge,
 } from "./components/marketing-header";
 
 export {

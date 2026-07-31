@@ -156,6 +156,9 @@ export const PublicRelatedProgramSchema = z.object({
     .min(0)
     .nullable()
     .describe("Struck-through 'was' price in paise. Null = single price."),
+  /** Resolved badge — null unless configured AND enabled. Same contract as the summary. */
+  badgeColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable(),
+  badgeLabel: z.string().nullable(),
 });
 export type PublicRelatedProgram = z.infer<typeof PublicRelatedProgramSchema>;
 
@@ -163,6 +166,14 @@ export type PublicRelatedProgram = z.infer<typeof PublicRelatedProgramSchema>;
 // PublicProgramSummary — program list card DTO
 // (P-1: GET /public/programs list items)
 // ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Marketing badge background colour (`#RRGGBB`) on public program cards. Deliberately
+ * DUPLICATED from `crm/courses.schemas.ts` rather than imported: the public and CRM
+ * contracts are separate surfaces with no cross-imports today, and a future change to the
+ * CRM's accepted format should not silently reshape the public wire format.
+ */
+export const PublicProgramBadgeColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 
 /**
  * Program list card DTO — one item in the public catalog listing.
@@ -220,6 +231,14 @@ export const PublicProgramSummarySchema = z.object({
    * matching server-side guard lives in `CommerceService.createOrder`.
    */
   enrollmentEnabled: z.boolean().describe("Whether the 'Enroll Now' CTA / checkout is open."),
+  /**
+   * Marketing badge, already RESOLVED server-side: both fields are null unless staff have
+   * a badge configured AND switched on. The `badgeEnabled` toggle itself is deliberately
+   * never exposed — the public contract carries the display outcome, not the control, so a
+   * configured-but-hidden badge cannot leak through the wire.
+   */
+  badgeColor: PublicProgramBadgeColorSchema.nullable().describe("Badge background hex, or null when no badge is visible."),
+  badgeLabel: z.string().nullable().describe("Badge chip text, or null when no badge is visible."),
 });
 export type PublicProgramSummary = z.infer<typeof PublicProgramSummarySchema>;
 
@@ -274,7 +293,13 @@ export type PublicProgramDetail = z.infer<typeof PublicProgramDetailSchema>;
 // (P-1: GET /public/programs query params)
 // ─────────────────────────────────────────────────────────────────────────
 
-export const PublicProgramSortSchema = z.enum(["popularity", "price_asc", "price_desc", "newest"]);
+/**
+ * `order` = the staff-curated sequence set in the CRM (programs.order ascending). It is
+ * the DEFAULT because the alternatives are all worse defaults: "popularity" ranks by
+ * `ratingCount`, which is null/0 for most of the catalog and therefore degenerates into an
+ * unstable database tie-break, and "newest" inverts the order staff actually arranged.
+ */
+export const PublicProgramSortSchema = z.enum(["order", "popularity", "price_asc", "price_desc", "newest"]);
 export type PublicProgramSort = z.infer<typeof PublicProgramSortSchema>;
 
 /**
@@ -308,7 +333,7 @@ export const ListPublicProgramsQuerySchema = z
       .min(0)
       .optional()
       .describe("Maximum price in paise (inclusive)."),
-    sort: PublicProgramSortSchema.optional().default("popularity"),
+    sort: PublicProgramSortSchema.optional().default("order"),
     /** Opaque cursor from the previous page's meta.nextCursor. */
     cursor: z.string().optional().describe("Cursor for the next page (from meta.nextCursor)."),
     limit: z.coerce
@@ -349,7 +374,12 @@ type ForbiddenProgramField =
   | "createdAt"
   | "cost"
   | "margin"
-  | "notes";
+  | "notes"
+  // The badge VISIBILITY toggle. `badgeColor`/`badgeLabel` are public (they are the
+  // rendered outcome), but the control that decides whether staff are showing a badge is
+  // internal — listing it here makes "the public DTO carries the outcome, never the
+  // switch" a compile-time guarantee rather than a convention the mapper must remember.
+  | "badgeEnabled";
 
 /** Asserts that T does NOT have any key in ForbiddenKeys. Fails to compile if it does. */
 type AssertNoForbiddenFields<T, ForbiddenKeys extends string> = [

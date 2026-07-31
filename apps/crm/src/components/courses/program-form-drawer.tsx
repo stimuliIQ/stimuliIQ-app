@@ -6,7 +6,26 @@
 // natural numeric input, converted to paise only in the submit handler.
 import * as React from "react";
 import { useForm } from "react-hook-form";
-import { Button, Checkbox, Drawer, DrawerContent, DrawerBody, DrawerFooter, FileUpload, Input, Select, SelectItem, Textarea, useToast, type SignedUploadResult } from "@repo/ui";
+import {
+  BADGE_COLOR_PRESETS,
+  Button,
+  Checkbox,
+  Drawer,
+  DrawerContent,
+  DrawerBody,
+  DrawerFooter,
+  FileUpload,
+  Input,
+  Select,
+  SelectItem,
+  Switch,
+  Textarea,
+  badgeContrastRatio,
+  isValidBadgeColor,
+  readableTextOn,
+  useToast,
+  type SignedUploadResult,
+} from "@repo/ui";
 import {
   CreateProgramRequestSchema,
   UpdateProgramRequestSchema,
@@ -104,6 +123,11 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
   // undefined = leave as-is, a string = newly uploaded, null = remove on save.
   const [brochureKey, setBrochureKey] = React.useState<string | null | undefined>(undefined);
   const [scholarshipAvailable, setScholarshipAvailable] = React.useState(false);
+  // Marketing badge. Both the text and the colour are staff-authored — the swatches below
+  // are shortcuts that fill these in, not a stored choice. Empty colour = never configured.
+  const [badgeColor, setBadgeColor] = React.useState("");
+  const [badgeLabel, setBadgeLabel] = React.useState("");
+  const [badgeEnabled, setBadgeEnabled] = React.useState(false);
 
   /**
    * Step 1 of the brochure ingest: mint the signed PUT for the picked file.
@@ -142,17 +166,33 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
       setOgImageKey(undefined); // undefined = keep the existing image unless changed
       setBrochureKey(undefined); // undefined = keep the existing brochure unless changed
       setScholarshipAvailable(program.scholarshipAvailable);
+      setBadgeColor(program.badgeColor ?? "");
+      setBadgeLabel(program.badgeLabel ?? "");
+      setBadgeEnabled(program.badgeEnabled);
     } else {
       reset({ priceRupees: 0 });
       setOutcomesText("");
       setOgImageKey(undefined);
       setBrochureKey(undefined);
       setScholarshipAvailable(false);
+      setBadgeColor("");
+      setBadgeLabel("");
+      setBadgeEnabled(false);
     }
     // Intentionally reset only on open/identity change, not on every render.
   }, [open, isEdit, program]);
 
   const isPending = createProgram.isPending || updateProgram.isPending;
+
+  // A badge that cannot render: no colour to draw, or no text to show. Mirrors the
+  // server's assertBadgeConfigured so the toggle is unavailable rather than 422-ing.
+  const badgeIncomplete = !isValidBadgeColor(badgeColor) || !badgeLabel.trim();
+
+  // Clearing the text while the badge is live would otherwise leave a blank chip
+  // staged for save; drop the toggle at the same moment the badge stops being renderable.
+  React.useEffect(() => {
+    if (badgeIncomplete && badgeEnabled) setBadgeEnabled(false);
+  }, [badgeIncomplete, badgeEnabled]);
 
   const onSubmit = handleSubmit(async (values) => {
     const { priceRupees, compareAtRupees, ...rest } = values;
@@ -185,10 +225,15 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
 
     // Shared marketing-field payload: blank cardSummary → undefined; outcomes
     // textarea → array; ogImageKey undefined = unchanged (edit) / absent (create).
+    // A half-typed hex is sent as null rather than as-is: the column would reject it, and
+    // clearing matches what the staff member sees (the preview stops rendering).
     const marketing = {
       cardSummary: rest.cardSummary?.trim() ? rest.cardSummary.trim() : undefined,
       outcomes: textToOutcomes(outcomesText),
       scholarshipAvailable,
+      badgeColor: isValidBadgeColor(badgeColor) ? badgeColor.toUpperCase() : null,
+      badgeLabel: badgeLabel.trim() || null,
+      badgeEnabled,
     };
 
     try {
@@ -403,6 +448,134 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
                 </span>
               </span>
             </label>
+
+            <div className="flex flex-col gap-3 rounded-md border border-border p-3">
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-fg">Badge</span>
+                <span className="text-xs text-fg-muted">
+                  Highlights this course on the website. Takes priority over the scholarship badge.
+                </span>
+              </div>
+
+              <Input
+                label="Badge text"
+                id="program-form-badge-label"
+                value={badgeLabel}
+                onChange={(e) => setBadgeLabel(e.target.value)}
+                maxLength={24}
+                placeholder="e.g. Limited seats"
+                data-testid="program-form-badge-label"
+              />
+
+              {/* Swatches are shortcuts, not a stored choice — each one fills in the colour
+                  (and the text, while it is still blank) and is then indistinguishable from
+                  a hand-picked colour. */}
+              <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium text-fg">Badge colour</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {BADGE_COLOR_PRESETS.map((preset) => {
+                    const selected = badgeColor.toUpperCase() === preset.color;
+                    return (
+                      <button
+                        key={preset.color}
+                        type="button"
+                        onClick={() => {
+                          setBadgeColor(preset.color);
+                          // Only fill the text when the staff member has not written their
+                          // own — a swatch must never overwrite typed copy.
+                          if (!badgeLabel.trim()) setBadgeLabel(preset.label);
+                        }}
+                        // The ring (not just the fill) carries selection, so the state is
+                        // visible on a colour close to the surrounding surface.
+                        className={`h-8 rounded-full px-3 text-xs font-semibold ring-offset-2 ring-offset-surface transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                          selected ? "ring-2 ring-fg" : "ring-1 ring-border"
+                        }`}
+                        style={{ backgroundColor: preset.color, color: readableTextOn(preset.color) }}
+                        aria-pressed={selected}
+                        data-testid={`program-form-badge-swatch-${preset.label.toLowerCase()}`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Native colour input: no new dependency, and it brings the OS picker
+                      (eyedropper, recent colours) for free. It cannot express "unset",
+                      so the text field beside it stays the source of truth. */}
+                  <input
+                    type="color"
+                    value={isValidBadgeColor(badgeColor) ? badgeColor : "#DC2626"}
+                    onChange={(e) => setBadgeColor(e.target.value.toUpperCase())}
+                    className="h-9 w-12 cursor-pointer rounded border border-border bg-surface p-1"
+                    aria-label="Pick a custom badge colour"
+                    data-testid="program-form-badge-color-picker"
+                  />
+                  <Input
+                    id="program-form-badge-color-hex"
+                    aria-label="Badge colour hex code"
+                    value={badgeColor}
+                    onChange={(e) => {
+                      // Accept a pasted value with or without the leading #, so copying a
+                      // hex out of a brand doc just works.
+                      const raw = e.target.value.trim().replace(/^#?/, "");
+                      setBadgeColor(raw ? `#${raw.toUpperCase()}` : "");
+                    }}
+                    maxLength={7}
+                    placeholder="#DC2626"
+                    className="font-mono"
+                    data-testid="program-form-badge-color-hex"
+                  />
+                  {badgeColor && !isValidBadgeColor(badgeColor) ? (
+                    <span className="text-xs text-danger" data-testid="program-form-badge-color-error">
+                      Needs 6 hex digits
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* Live preview — the same chip the site renders, including the derived text
+                  colour, so staff see the real result rather than approving a hex code. */}
+              {isValidBadgeColor(badgeColor) && badgeLabel.trim() ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-fg-muted">Preview</span>
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[11px] font-semibold shadow-sm"
+                    style={{ backgroundColor: badgeColor, color: readableTextOn(badgeColor) }}
+                    data-testid="program-form-badge-preview"
+                  >
+                    {badgeLabel.trim()}
+                  </span>
+                  {/* AA needs 4.5:1 for normal text. Advisory, not blocking: the chip is
+                      small and bold, and staff may have a brand colour they must use. */}
+                  {badgeContrastRatio(badgeColor) < 4.5 ? (
+                    <span className="text-xs text-warning" data-testid="program-form-badge-contrast-warning">
+                      Low contrast ({badgeContrastRatio(badgeColor).toFixed(1)}:1) — harder to read.
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <label className="flex cursor-pointer items-center justify-between gap-3">
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium text-fg">Show badge on website</span>
+                  <span className="text-xs text-fg-muted">
+                    Turn off to hide the badge without losing what you set up here.
+                  </span>
+                </span>
+                <Switch
+                  checked={badgeEnabled}
+                  onCheckedChange={setBadgeEnabled}
+                  // Mirrors the server's badge invariant, so the states it rejects (enabled
+                  // without a colour or without text) simply cannot be reached from the
+                  // form — the user is stopped by a disabled control, not a save error.
+                  disabled={badgeIncomplete}
+                  aria-label="Show badge on website"
+                  data-testid="program-form-badge-enabled"
+                />
+              </label>
+            </div>
           </DrawerBody>
           <DrawerFooter>
             <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} data-testid="program-form-cancel">

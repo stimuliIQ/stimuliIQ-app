@@ -44,6 +44,13 @@ import { cn } from "../lib/cn";
  *   />
  */
 
+/**
+ * Fallback chip colours for a caller that passes a `badgeLabel` with no `badgeStyle` —
+ * the scholarship badge's original red, with white text. Callers that carry a staff-picked
+ * colour pass `badgeStyle` and never hit this.
+ */
+const DEFAULT_BADGE_STYLE: React.CSSProperties = { backgroundColor: "#DC2626", color: "#FFFFFF" };
+
 export interface ProgramCardProps {
   /** Icon slot — domain icon, rendered at top-left ~32px. */
   icon?: React.ReactNode;
@@ -53,6 +60,13 @@ export interface ProgramCardProps {
   imageAlt?: string;
   /** Ribbon overlaid on the image (or chip when no image), e.g. "Scholarship available". */
   badgeLabel?: string;
+  /**
+   * Badge colours as an inline style — background plus the text colour derived from it
+   * (`resolveProgramBadge` in web builds this). An inline style rather than a token because
+   * staff pick the colour freely in the CRM, so it cannot be a fixed Tailwind class.
+   * Omitted → the scholarship badge's original red ribbon.
+   */
+  badgeStyle?: React.CSSProperties;
   /** Short marketing hook (cardSummary) rendered under the title, 2-line clamp. */
   summary?: string;
   /** Domain category label. */
@@ -69,6 +83,12 @@ export interface ProgramCardProps {
    * (web callers go through `formatCompareAtDisplay`, which enforces that).
    */
   originalPriceDisplay?: string;
+  /**
+   * Optional saving badge e.g. "53% OFF". Computed by the caller (web goes through
+   * `formatDiscountPercent`) for the same reason as `originalPriceDisplay`: this component
+   * receives formatted money strings, never paise, so it cannot derive the figure itself.
+   */
+  discountLabel?: string;
   /** Optional EMI blurb e.g. "EMI from ₹1,100/mo". */
   emiDisplay?: string;
   /** 0–5 rating average. */
@@ -90,6 +110,7 @@ export function ProgramCard({
   imageUrl,
   imageAlt = "",
   badgeLabel,
+  badgeStyle,
   summary,
   domain,
   title,
@@ -98,6 +119,7 @@ export function ProgramCard({
   level,
   priceDisplay,
   originalPriceDisplay,
+  discountLabel,
   emiDisplay,
   ratingAvg,
   ratingCount,
@@ -140,7 +162,10 @@ export function ProgramCard({
             className="size-full object-cover"
           />
           {badgeLabel ? (
-            <span className="absolute right-0 top-3 bg-danger px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-white shadow-sm">
+            <span
+              className="absolute right-0 top-3 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider shadow-sm"
+              style={badgeStyle ?? DEFAULT_BADGE_STYLE}
+            >
               {badgeLabel}
             </span>
           ) : null}
@@ -167,7 +192,10 @@ export function ProgramCard({
           ) : null}
           {/* No image to carry the ribbon — fall back to an inline chip */}
           {badgeLabel && !imageUrl ? (
-            <span className="mt-0.5 inline-block rounded-full bg-danger px-2.5 py-0.5 text-xs font-semibold text-white">
+            <span
+              className="mt-0.5 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold"
+              style={badgeStyle ?? DEFAULT_BADGE_STYLE}
+            >
               {badgeLabel}
             </span>
           ) : null}
@@ -219,6 +247,11 @@ export function ProgramCard({
                       </span>
                       <span className="sr-only">, reduced from {originalPriceDisplay}</span>
                     </>
+                  ) : null}
+                  {discountLabel ? (
+                    <span className="rounded bg-success/10 px-1.5 py-0.5 text-[11px] font-bold text-success">
+                      {discountLabel}
+                    </span>
                   ) : null}
                 </span>
                 {emiDisplay ? (

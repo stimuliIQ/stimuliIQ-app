@@ -35,6 +35,7 @@ import type {
   ProgramSummary,
   ReorderLessonsRequest,
   ReorderModulesRequest,
+  ReorderProgramsRequest,
   SignedUploadResponse,
   UpdateLessonRequest,
   UpdateModuleRequest,
@@ -278,6 +279,12 @@ export class CoursesService {
     }
 
     assertCompareAtAbovePrice(body.pricePaise, body.compareAtPricePaise);
+    assertBadgeConfigured(body.badgeColor ?? null, body.badgeLabel ?? null, body.badgeEnabled);
+
+    // New programs land at the END of the staff-curated sequence. `order` is deliberately
+    // not part of the request contract — appending here keeps a single write path (this
+    // and the reorder endpoint) so a create can never wedge itself into the middle.
+    const order = (await this.repository.findMaxOrder(tenantId)) + 1;
 
     const row = await this.repository.create(tenantId, {
       slug: body.slug,
@@ -298,6 +305,10 @@ export class CoursesService {
       brochureKey: body.brochureKey,
       scholarshipAvailable: body.scholarshipAvailable,
       enrollmentEnabled: body.enrollmentEnabled,
+      order,
+      badgeColor: body.badgeColor ?? null,
+      badgeLabel: body.badgeLabel ?? null,
+      badgeEnabled: body.badgeEnabled,
     });
     return toDetail(row);
   }
@@ -327,8 +338,40 @@ export class CoursesService {
       body.compareAtPricePaise === undefined ? existing.compareAtPricePaise : body.compareAtPricePaise,
     );
 
+    // Same merge-then-check shape, for the same reason: a PATCH carrying only
+    // `{badgeEnabled: true}` passes DTO validation on its own, but would switch on a badge
+    // whose colour/label were never configured — an empty chip on a live course card.
+    assertBadgeConfigured(
+      body.badgeColor === undefined ? existing.badgeColor : body.badgeColor ?? null,
+      body.badgeLabel === undefined ? existing.badgeLabel : body.badgeLabel ?? null,
+      body.badgeEnabled ?? existing.badgeEnabled,
+    );
+
     const row = await this.repository.update(id, body);
     return toDetail(row);
+  }
+
+  /**
+   * Rewrite the staff-curated program sequence. `programIds` is the FULL ordered list for
+   * the tenant (see ReorderProgramsRequestSchema) — the server derives `order` from array
+   * position rather than trusting client-supplied numbers.
+   */
+  async reorderPrograms(tenantId: string, body: ReorderProgramsRequest): Promise<void> {
+    this.assertResolvableScope();
+
+    // Verify every id belongs to this tenant BEFORE writing — otherwise a caller could
+    // splice another tenant's program id into the array and have its `order` rewritten.
+    // Batched as one query rather than reorderModules' per-id loop: a full catalog reorder
+    // can carry a hundred-plus ids, where N sequential lookups would be the dominant cost.
+    const owned = await this.repository.findManyByIds(tenantId, body.programIds);
+    const ownedIds = new Set(owned.map((row) => row.id));
+    for (const id of body.programIds) {
+      if (!ownedIds.has(id)) {
+        throw new NotFoundException({ code: "courses.not_found", title: "Program not found" });
+      }
+    }
+
+    await this.repository.reorderPrograms(body.programIds);
   }
 
   async publish(tenantId: string, id: string): Promise<ProgramDetail> {
@@ -523,6 +566,36 @@ function assertCompareAtAbovePrice(pricePaise: number, compareAtPricePaise: numb
   });
 }
 
+/**
+ * A visible badge must actually be renderable — it needs both a colour to draw and text to
+ * show. Either can be missing only through a partial PATCH; the create path always carries
+ * the whole object.
+ *
+ * Rejected at write time rather than skipped at render time, so the CRM tells staff their
+ * badge is incomplete instead of silently showing nothing on the live site.
+ */
+function assertBadgeConfigured(
+  badgeColor: string | null,
+  badgeLabel: string | null,
+  badgeEnabled: boolean,
+): void {
+  if (!badgeEnabled) return;
+  if (!badgeColor) {
+    throw new BadRequestException({
+      code: "courses.badge_color_required",
+      title: "Badge needs a colour",
+      detail: "Pick a badge colour before switching the badge on.",
+    });
+  }
+  if (!badgeLabel?.trim()) {
+    throw new BadRequestException({
+      code: "courses.badge_label_required",
+      title: "Badge needs text",
+      detail: "Enter the text to display before switching the badge on.",
+    });
+  }
+}
+
 function toSummary(row: ProgramRow): ProgramSummary {
   return {
     id: row.id,
@@ -539,6 +612,10 @@ function toSummary(row: ProgramRow): ProgramSummary {
     compareAtPricePaise: row.compareAtPricePaise,
     status: row.status as ProgramSummary["status"],
     isPublic: row.isPublic,
+    order: row.order,
+    badgeColor: row.badgeColor,
+    badgeLabel: row.badgeLabel,
+    badgeEnabled: row.badgeEnabled,
     createdAt: row.createdAt.toISOString(),
   };
 }

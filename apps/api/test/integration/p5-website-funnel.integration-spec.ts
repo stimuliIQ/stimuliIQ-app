@@ -592,6 +592,9 @@ describeIfAvailable(
         expect(bodyStr).not.toContain('"cost"');           // internal margin
         expect(bodyStr).not.toContain('"margin"');         // internal margin
         expect(bodyStr).not.toContain('"notes"');          // internal notes
+        // The badge VISIBILITY toggle is internal — the response carries only the resolved
+        // badgeColor/badgeLabel, never the switch that decides whether they render.
+        expect(bodyStr).not.toContain('"badgeEnabled"');
 
         // Must have public fields
         for (const item of items) {
@@ -600,6 +603,21 @@ describeIfAvailable(
           expect(item).toHaveProperty("title");
           expect(item).toHaveProperty("pricePaise");
         }
+      });
+
+      // Staff-curated order is the default sort. The previous default ("popularity") ranked
+      // by ratingCount, which is null/0 across most of the catalog and so degenerated into
+      // an unstable tie-break — the reason programs appeared in a scrambled order.
+      it("GET /public/programs defaults to the staff-curated order", async () => {
+        const res = await anonGet("/api/v1/public/programs?limit=50");
+        expect(res.status).toBe(200);
+        const items: Array<Record<string, unknown>> = res.body.data?.items ?? res.body.data ?? [];
+        const explicit = await anonGet("/api/v1/public/programs?limit=50&sort=order");
+        expect(explicit.status).toBe(200);
+        const explicitItems: Array<Record<string, unknown>> =
+          explicit.body.data?.items ?? explicit.body.data ?? [];
+
+        expect(items.map((i) => i.id)).toEqual(explicitItems.map((i) => i.id));
       });
 
       it("AC-25: hidden/draft program slug → 404, no internal content leaked", async () => {

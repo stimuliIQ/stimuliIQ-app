@@ -28,6 +28,8 @@ function makeProgram(overrides: Partial<PublicProgramSummary> = {}): PublicProgr
     ogImageUrl: null,
     scholarshipAvailable: false,
     enrollmentEnabled: true,
+    badgeColor: null,
+    badgeLabel: null,
     ...overrides,
   };
 }

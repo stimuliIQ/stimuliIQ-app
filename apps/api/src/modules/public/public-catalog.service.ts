@@ -109,7 +109,10 @@ export class PublicCatalogService {
       mode: query.mode,
       minPricePaise: query.minPricePaise,
       maxPricePaise: query.maxPricePaise,
-      sort: query.sort ?? "popularity",
+      // Matches ListPublicProgramsQuerySchema's default. The schema normally supplies it;
+      // this fallback only covers a caller that bypassed validation, and it must not
+      // disagree with the schema or the two paths would sort differently.
+      sort: query.sort ?? "order",
       cursor: query.cursor,
       limit: query.limit ?? 12,
     });
@@ -289,6 +292,12 @@ export class PublicCatalogService {
       ogImageUrl: mintCdnUrl(row.ogImageKey),
       scholarshipAvailable: row.scholarshipAvailable,
       enrollmentEnabled: row.enrollmentEnabled,
+      // The toggle is resolved HERE, not at render time: when staff switch a badge off, its
+      // colour and label leave the response entirely rather than travelling to the client with
+      // a "don't draw this" flag. That way a renderer cannot show a hidden badge by accident,
+      // and `badgeEnabled` never appears on the wire at all.
+      badgeColor: row.badgeEnabled ? row.badgeColor : null,
+      badgeLabel: row.badgeEnabled ? row.badgeLabel : null,
     };
   }
 
@@ -345,6 +354,9 @@ export class PublicCatalogService {
         r.compareAtPricePaise != null && r.compareAtPricePaise > r.pricePaise
           ? r.compareAtPricePaise
           : null,
+      // Same toggle resolution as `toSummary` — a disabled badge leaves no trace here either.
+      badgeColor: r.badgeEnabled ? r.badgeColor : null,
+      badgeLabel: r.badgeEnabled ? r.badgeLabel : null,
     }));
 
     return {

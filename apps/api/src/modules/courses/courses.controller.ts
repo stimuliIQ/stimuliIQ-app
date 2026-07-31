@@ -45,6 +45,8 @@ import {
   type ReorderLessonsRequest,
   ReorderModulesRequestSchema,
   type ReorderModulesRequest,
+  ReorderProgramsRequestSchema,
+  type ReorderProgramsRequest,
   UpdateLessonRequestSchema,
   type UpdateLessonRequest,
   UpdateModuleRequestSchema,
@@ -111,6 +113,26 @@ export class CoursesController {
     @Body() body: ProgramBrochureUploadUrlRequest,
   ): Promise<SignedUploadResponse> {
     return this.coursesService.getBrochureUploadUrl(user.tenantId, body);
+  }
+
+  /**
+   * POST /api/v1/crm/courses/reorder — rewrite the staff-curated program sequence that the
+   * public site and this CRM table both render. Body is the FULL ordered id list; the
+   * server derives `order` from array position (same contract as modules/lessons reorder).
+   *
+   * Declared before the `:id` routes so the static segment is never shadowed. Permission is
+   * courses.edit, not courses.approve: curating the order is an editorial act, not a
+   * publish-state change.
+   */
+  @Post("reorder")
+  @HttpCode(204)
+  @RequirePermission("courses.edit")
+  @UsePipes(new ZodValidationPipe(ReorderProgramsRequestSchema))
+  async reorder(
+    @CurrentUser() user: RequestUser,
+    @Body() body: ReorderProgramsRequest,
+  ): Promise<void> {
+    await this.coursesService.reorderPrograms(user.tenantId, body);
   }
 
   @Get(":id")

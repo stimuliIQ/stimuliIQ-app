@@ -17,6 +17,7 @@ import { unstable_cache } from "next/cache";
 
 import { serverApiClient } from "./api-client";
 import { humanizeDomain } from "./format";
+import { resolveMarketingBadge } from "./program-badge";
 import type { PublicProgramSummary } from "@repo/types";
 import type { MegaMenuSection } from "@repo/ui";
 
@@ -45,12 +46,14 @@ async function fetchProgramsNav(): Promise<ProgramsNav | null> {
   // static fallback nav for a full hour. getProgramsNav() catches per-request.
   const result = await serverApiClient.public.programs.list({
     limit: FETCH_LIMIT,
-    sort: "popularity",
+    // Explicit rather than relying on the API default: the menu's order is a visible
+    // editorial decision, so it should not silently change if that default ever moves.
+    sort: "order",
   });
   const items = Array.isArray(result.items) ? result.items : [];
   if (items.length === 0) return null;
 
-    // Group by domain, preserving popularity order within and across groups.
+    // Group by domain, preserving the staff-curated order within and across groups.
     const byDomain = new Map<string, PublicProgramSummary[]>();
     for (const program of items) {
       const key = program.domain || "programs";
@@ -62,20 +65,27 @@ async function fetchProgramsNav(): Promise<ProgramsNav | null> {
       }
     }
 
-    // Domains in first-seen order. `items` is popularity-sorted and Map preserves
-    // insertion order, so the columns are the domains of the MOST POPULAR programs —
-    // a size-first sort (previous behavior) arbitrarily dropped popular programs
-    // whenever many domains had only one or two courses each.
+    // Domains in first-seen order. `items` arrives in the staff-curated order and Map
+    // preserves insertion order, so the columns follow the sequence set in the CRM —
+    // a size-first sort (an earlier behaviour) arbitrarily dropped programs whenever
+    // many domains had only one or two courses each.
     const sections: MegaMenuSection[] = [...byDomain.entries()]
       .slice(0, MAX_SECTIONS)
       .map(([domain, programs]) => ({
         heading: humanizeDomain(domain),
         // No description line: the menu shows the course title only (mode/duration
         // were removed 2026-07-31 — the "Hybrid · 4 weeks" subline).
-        items: programs.slice(0, MAX_ITEMS_PER_SECTION).map((program) => ({
-          label: program.title,
-          href: `/programs/${program.slug}`,
-        })),
+        items: programs.slice(0, MAX_ITEMS_PER_SECTION).map((program) => {
+          // Marketing badge only — deliberately NOT resolveProgramBadge, which would fall
+          // back to a "Scholarship available" chip on most rows here. See
+          // resolveMarketingBadge's doc comment for why this surface takes the narrow one.
+          const badge = resolveMarketingBadge(program);
+          return {
+            label: program.title,
+            href: `/programs/${program.slug}`,
+            ...(badge ? { badge } : {}),
+          };
+        }),
       }));
 
   const footerLinks = [

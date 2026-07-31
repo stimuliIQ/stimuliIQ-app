@@ -9,6 +9,7 @@ import type {
   ListProgramsQuery,
   ReorderLessonsRequest,
   ReorderModulesRequest,
+  ReorderProgramsRequest,
   UpdateLessonRequest,
   UpdateModuleRequest,
   UpdateProgramRequest,
@@ -30,11 +31,12 @@ export function curriculumKey(programId: string) {
   return [...PROGRAMS_QUERY_KEY, "curriculum", programId] as const;
 }
 
-export function useProgramsList(query: ListProgramsQuery) {
+export function useProgramsList(query: ListProgramsQuery, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: programsListKey(query),
     queryFn: () => apiClient.crm.courses.list(query),
     placeholderData: (previousData) => previousData,
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -129,6 +131,19 @@ export function useReorderModules(programId: string) {
   return useMutation({
     mutationFn: (body: ReorderModulesRequest) => apiClient.crm.courses.reorderModules(programId, body),
     onSuccess: () => invalidate(programId),
+  });
+}
+
+/**
+ * Rewrite the staff-curated program order. `body.programIds` must be the FULL ordered list
+ * for the tenant — see ReorderProgramsRequestSchema — so callers building it from a
+ * paginated table must fetch every id first, not just the page on screen.
+ */
+export function useReorderPrograms() {
+  const invalidate = useInvalidatePrograms();
+  return useMutation({
+    mutationFn: (body: ReorderProgramsRequest) => apiClient.crm.courses.reorderPrograms(body),
+    onSuccess: () => invalidate(),
   });
 }
 
