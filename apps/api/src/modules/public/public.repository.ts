@@ -48,6 +48,7 @@ export interface PublicProgramDetailRow extends PublicProgramListRow {
   seoTitle: string | null;
   seoDescription: string | null;
   outcomes: unknown;
+  brochureKey: string | null; // raw key — converted to a public asset URL in the service
 }
 
 export interface PublicModuleRow {
@@ -133,6 +134,9 @@ const PUBLIC_PROGRAM_DETAIL_SELECT = {
   seoTitle: true,
   seoDescription: true,
   outcomes: true,
+  // Raw brochure key — the service converts it to a public asset URL; like ogImageKey the
+  // key itself never reaches the response. Detail-only: the listing cards offer no download.
+  brochureKey: true,
   // FORBIDDEN (still excluded): status, isPublic, tenantId, deletedAt, cost, margin, notes
 } satisfies Prisma.ProgramSelect;
 

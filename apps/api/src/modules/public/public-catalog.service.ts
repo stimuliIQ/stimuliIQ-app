@@ -356,6 +356,9 @@ export class PublicCatalogService {
       mentorBios,
       reviewsSummary,
       relatedPrograms,
+      // Raw brochureKey NEVER in the response — mint the public asset URL server-side,
+      // same contract as ogImageUrl above.
+      brochureUrl: mintCdnUrl(row.brochureKey),
     };
   }
 }

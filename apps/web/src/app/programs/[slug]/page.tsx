@@ -249,6 +249,24 @@ function ProgramHero({ program }: { program: PublicProgramDetail }) {
             Book Free Slot
           </a>
         </div>
+
+        {/* Brochure download — only when staff uploaded one in the CRM (no dead link
+            otherwise). Outside the lg:hidden CTA row on purpose: this is useful at every
+            breakpoint, unlike the mobile-only Enroll/Book pair which the sticky card
+            replaces on desktop. `download` asks the browser to save rather than navigate. */}
+        {program.brochureUrl ? (
+          <a
+            href={program.brochureUrl}
+            download
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-fit min-h-[44px] items-center gap-2 rounded-md border border-border px-5 text-sm font-semibold text-fg transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            data-testid="program-brochure-download"
+          >
+            <span aria-hidden="true">📄</span>
+            Download brochure (PDF)
+          </a>
+        ) : null}
       </div>
     </header>
   );

@@ -8,7 +8,7 @@
 //
 // FORBIDDEN fields — enforced by compile-time type assertions at the bottom of
 // this file. These must NEVER appear in PublicProgramSummary or PublicProgramDetail:
-//   status, isPublic, ogImageKey (raw key), emi (full JSON), tenantId,
+//   status, isPublic, ogImageKey / brochureKey (raw keys), emi (full JSON), tenantId,
 //   deletedAt, updatedAt, createdAt, cost, margin, notes, any lesson content,
 //   provider_asset_id (video), storage_key (resources), answer_key (assessments),
 //   mentor userId/email/phone/branchId/internal rating, reviewer email/phone/studentId.
@@ -257,6 +257,15 @@ export const PublicProgramDetailSchema = PublicProgramSummarySchema.extend({
   reviewsSummary: PublicReviewsSummarySchema,
   /** Related programs for the "You may also like" section. */
   relatedPrograms: z.array(PublicRelatedProgramSchema),
+  /**
+   * Public asset URL for the downloadable course brochure (PDF), minted server-side from
+   * programs.brochure_key. NEVER the raw key. Null when staff haven't uploaded one — the
+   * site then omits the "Download brochure" button rather than linking to a missing file.
+   *
+   * Detail-only (not on the summary): the listing cards don't offer a download, and keeping
+   * it off the list projection avoids minting a URL per card for something nobody clicks.
+   */
+  brochureUrl: z.string().url().nullable().describe("Public URL of the course brochure PDF."),
 });
 export type PublicProgramDetail = z.infer<typeof PublicProgramDetailSchema>;
 
@@ -332,6 +341,7 @@ type ForbiddenProgramField =
   | "status"
   | "isPublic"
   | "ogImageKey"
+  | "brochureKey"
   | "emi"
   | "tenantId"
   | "deletedAt"

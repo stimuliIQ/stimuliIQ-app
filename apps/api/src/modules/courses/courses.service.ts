@@ -30,6 +30,7 @@ import type {
   ListProgramsQuery,
   ModuleNode,
   ProgramDetail,
+  ProgramBrochureUploadUrlRequest,
   ProgramImageUploadUrlRequest,
   ProgramSummary,
   ReorderLessonsRequest,
@@ -65,6 +66,43 @@ export class CoursesService {
     const { randomUUID } = await import("node:crypto");
     const key = S3StorageProvider.buildKey({
       namespace: "program_images",
+      tenantId,
+      uniqueId: randomUUID(),
+      filename: body.fileName,
+    });
+    const result = await this.storage.getSignedUploadUrl({
+      key,
+      contentType: body.contentType,
+      maxBytes: body.sizeBytes,
+      ttlSeconds: 900, // ≤15 min
+    });
+    return {
+      storageKey: result.storageKey,
+      uploadUrl: result.url,
+      expiresAt: result.expiresAt.toISOString(),
+      additionalHeaders: result.requiredHeaders,
+      maxSizeBytes: body.sizeBytes,
+    };
+  }
+
+  /**
+   * Mint a short-lived signed PUT URL for the downloadable course brochure (PDF). Same
+   * two-step ingest as the course image: the client PUTs the file directly to the returned
+   * URL, then submits `storageKey` as `brochureKey` on create/update.
+   * Key: program_brochures/{tenantId}/{uuid}-{filename}.
+   *
+   * A separate namespace from `program_images` on purpose: brochures are PDFs served as
+   * downloads while images are inlined, so keeping them apart lets the bucket/CDN treat
+   * the two differently (cache rules, content-disposition) without a per-object exception.
+   */
+  async getBrochureUploadUrl(
+    tenantId: string,
+    body: ProgramBrochureUploadUrlRequest,
+  ): Promise<SignedUploadResponse> {
+    this.assertResolvableScope();
+    const { randomUUID } = await import("node:crypto");
+    const key = S3StorageProvider.buildKey({
+      namespace: "program_brochures",
       tenantId,
       uniqueId: randomUUID(),
       filename: body.fileName,
@@ -257,6 +295,7 @@ export class CoursesService {
       cardSummary: body.cardSummary,
       outcomes: body.outcomes,
       ogImageKey: body.ogImageKey,
+      brochureKey: body.brochureKey,
       scholarshipAvailable: body.scholarshipAvailable,
       enrollmentEnabled: body.enrollmentEnabled,
     });
@@ -513,6 +552,7 @@ function toDetail(row: ProgramRow): ProgramDetail {
     cardSummary: row.cardSummary,
     outcomes: Array.isArray(row.outcomes) ? (row.outcomes as string[]) : null,
     ogImageUrl: mintCdnUrl(row.ogImageKey),
+    brochureUrl: mintCdnUrl(row.brochureKey),
     scholarshipAvailable: row.scholarshipAvailable,
     enrollmentEnabled: row.enrollmentEnabled,
     deletedAt: row.deletedAt ? row.deletedAt.toISOString() : null,

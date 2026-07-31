@@ -52,6 +52,7 @@ const ROW: ProgramRow = {
   cardSummary: null,
   outcomes: null,
   ogImageKey: null,
+  brochureKey: null,
   scholarshipAvailable: false,
   enrollmentEnabled: true,
   createdAt: new Date("2026-01-01T00:00:00Z"),
@@ -132,6 +133,81 @@ describe("CoursesService", () => {
           service.updateModule("tenant-1", ROW.id, "module-from-another-program", { title: "x" }),
         ),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe("course brochure (PDF)", () => {
+    /** Own storage stub so the minted key/TTL can be asserted, not just the response. */
+    function serviceWithStorage() {
+      const storage = {
+        getSignedUploadUrl: jest.fn().mockResolvedValue({
+          storageKey: "program_brochures/tenant-1/uuid-syllabus.pdf",
+          url: "https://signed.example/put",
+          expiresAt: new Date("2026-01-01T00:15:00Z"),
+          requiredHeaders: undefined,
+        }),
+      };
+      const svc = new CoursesService(
+        repo as unknown as CoursesRepository,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- minimal stub, only getSignedUploadUrl used
+        storage as any,
+      );
+      return { svc, storage };
+    }
+
+    it("mints the signed PUT under the program_brochures namespace, tenant-scoped", async () => {
+      const { svc, storage } = serviceWithStorage();
+
+      const result = await runWithScope("all", () =>
+        svc.getBrochureUploadUrl("tenant-1", {
+          contentType: "application/pdf",
+          fileName: "syllabus.pdf",
+          sizeBytes: 1024,
+        }),
+      );
+
+      expect(storage.getSignedUploadUrl).toHaveBeenCalledWith(
+        expect.objectContaining({
+          key: expect.stringMatching(/^program_brochures\/tenant-1\//),
+          contentType: "application/pdf",
+          maxBytes: 1024,
+        }),
+      );
+      // The response carries the opaque key + presigned URL only — never the bucket URL.
+      expect(result.storageKey).toBe("program_brochures/tenant-1/uuid-syllabus.pdf");
+      expect(result.uploadUrl).toBe("https://signed.example/put");
+    });
+
+    it("rejects an unresolvable scope before touching storage (fail-closed)", async () => {
+      const { svc, storage } = serviceWithStorage();
+
+      await expect(
+        runWithScope("assigned", () =>
+          svc.getBrochureUploadUrl("tenant-1", {
+            contentType: "application/pdf",
+            fileName: "syllabus.pdf",
+            sizeBytes: 1024,
+          }),
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(storage.getSignedUploadUrl).not.toHaveBeenCalled();
+    });
+
+    it("returns brochureUrl (minted) and never the raw brochureKey on the detail DTO", async () => {
+      repo.findById.mockResolvedValue({ ...ROW, brochureKey: "program_brochures/tenant-1/uuid-syllabus.pdf" });
+
+      const detail = await runWithScope("all", () => service.getById("tenant-1", ROW.id));
+
+      expect(detail.brochureUrl).toContain("program_brochures/tenant-1/uuid-syllabus.pdf");
+      expect(detail).not.toHaveProperty("brochureKey");
+    });
+
+    it("returns a null brochureUrl when no brochure has been uploaded", async () => {
+      repo.findById.mockResolvedValue(ROW);
+
+      const detail = await runWithScope("all", () => service.getById("tenant-1", ROW.id));
+
+      expect(detail.brochureUrl).toBeNull();
     });
   });
 

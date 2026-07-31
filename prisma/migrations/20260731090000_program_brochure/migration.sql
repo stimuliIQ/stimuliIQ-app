@@ -1,0 +1,13 @@
+-- Program marketing: downloadable course brochure (PDF).
+--
+-- Staff upload a brochure per program in the CRM; the public course page renders a
+-- "Download brochure" button so a prospective student can read the full syllabus
+-- offline / share it with a parent before enrolling.
+--
+-- Stores the RAW S3/R2 object key, never a URL — identical contract to og_image_key.
+-- The public URL is minted server-side at serve time (mintCdnUrl); the key itself is
+-- excluded from every public projection (see public.repository.ts).
+--
+-- NULLABLE with no default: a program without a brochure is the normal state, and the
+-- website omits the button entirely rather than linking to a missing object.
+ALTER TABLE "programs" ADD COLUMN "brochure_key" TEXT;

@@ -6,7 +6,7 @@
 // natural numeric input, converted to paise only in the submit handler.
 import * as React from "react";
 import { useForm } from "react-hook-form";
-import { Button, Checkbox, Drawer, DrawerContent, DrawerBody, DrawerFooter, Input, Select, SelectItem, Textarea, useToast } from "@repo/ui";
+import { Button, Checkbox, Drawer, DrawerContent, DrawerBody, DrawerFooter, FileUpload, Input, Select, SelectItem, Textarea, useToast, type SignedUploadResult } from "@repo/ui";
 import {
   CreateProgramRequestSchema,
   UpdateProgramRequestSchema,
@@ -57,7 +57,7 @@ interface ProgramFormDrawerProps {
 // RHF state form shape — same fields, but `priceRupees` instead of
 // `pricePaise` (converted at submit), so the zod resolver only applies to
 // the wire shape, not this presentation-only form shape. `outcomes` (textarea,
-// one per line) and `ogImageKey` (upload component) live outside RHF.
+// one per line) and the upload keys (`ogImageKey`, `brochureKey`) live outside RHF.
 type ProgramFormValues = Omit<
   CreateProgramRequest,
   | "pricePaise"
@@ -66,12 +66,16 @@ type ProgramFormValues = Omit<
   | "status"
   | "outcomes"
   | "ogImageKey"
+  | "brochureKey"
   | "scholarshipAvailable"
 > & {
   priceRupees: number;
   /** Blank / 0 = no strike-through price. Converted to `compareAtPricePaise` at submit. */
   compareAtRupees?: number;
 };
+
+/** Max brochure size — mirrors ProgramBrochureUploadUrlRequestSchema's server ceiling. */
+const BROCHURE_MAX_BYTES = 20 * 1024 * 1024;
 
 /** Textarea (one outcome per line) → wire array; empty → undefined. */
 function textToOutcomes(text: string): string[] | undefined {
@@ -96,7 +100,28 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
   // the scholarship badge flag.
   const [outcomesText, setOutcomesText] = React.useState("");
   const [ogImageKey, setOgImageKey] = React.useState<string | null | undefined>(undefined);
+  // Brochure PDF: same three-state convention as the image key —
+  // undefined = leave as-is, a string = newly uploaded, null = remove on save.
+  const [brochureKey, setBrochureKey] = React.useState<string | null | undefined>(undefined);
   const [scholarshipAvailable, setScholarshipAvailable] = React.useState(false);
+
+  /**
+   * Step 1 of the brochure ingest: mint the signed PUT for the picked file.
+   * The type check is a client-side courtesy — the signed URL pins `application/pdf`
+   * server-side, so a tampered client still can't upload something else.
+   */
+  async function requestBrochureUploadUrl(file: File): Promise<SignedUploadResult> {
+    if (file.type !== "application/pdf") {
+      throw new Error("Brochures must be PDF files.");
+    }
+    const signed = await apiClient.crm.courses.brochureUploadUrl({
+      contentType: "application/pdf",
+      fileName: file.name,
+      sizeBytes: file.size,
+    });
+    // additionalHeaders are signed into the presigned PUT — forward them or S3/R2 403s.
+    return { url: signed.uploadUrl, storageKey: signed.storageKey, headers: signed.additionalHeaders };
+  }
 
   React.useEffect(() => {
     if (!open) return;
@@ -115,11 +140,13 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
       });
       setOutcomesText((program.outcomes ?? []).join("\n"));
       setOgImageKey(undefined); // undefined = keep the existing image unless changed
+      setBrochureKey(undefined); // undefined = keep the existing brochure unless changed
       setScholarshipAvailable(program.scholarshipAvailable);
     } else {
       reset({ priceRupees: 0 });
       setOutcomesText("");
       setOgImageKey(undefined);
+      setBrochureKey(undefined);
       setScholarshipAvailable(false);
     }
     // Intentionally reset only on open/identity change, not on every render.
@@ -172,6 +199,7 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
           pricePaise,
           compareAtPricePaise,
           ...(ogImageKey !== undefined ? { ogImageKey } : {}),
+          ...(brochureKey !== undefined ? { brochureKey } : {}),
         });
         if (!parsed.success) return applyIssues(parsed.error.issues);
         await updateProgram.mutateAsync({ id: program.id, body: parsed.data });
@@ -184,8 +212,9 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
           compareAtPricePaise,
           emi: [],
           status: "draft",
-          // Create's ogImageKey is optional-not-nullable: null (removed) → absent.
+          // Create's ogImageKey/brochureKey are optional-not-nullable: null (removed) → absent.
           ...(ogImageKey ? { ogImageKey } : {}),
+          ...(brochureKey ? { brochureKey } : {}),
         });
         if (!parsed.success) return applyIssues(parsed.error.issues);
         await createProgram.mutateAsync(parsed.data);
@@ -301,6 +330,56 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
               error={errors.cardSummary?.message}
               data-testid="program-form-card-summary"
             />
+            {/* Course brochure (PDF) — surfaces as the "Download brochure" button on the
+                public course page. Three states, mirroring the image upload: keep (no
+                change), replace (a fresh upload), or remove (explicit null on save). */}
+            <div className="flex flex-col gap-2" data-testid="program-form-brochure">
+              <span className="text-sm font-medium text-fg">Course brochure (PDF)</span>
+              <p className="text-xs text-fg-muted">
+                Shown as a &quot;Download brochure&quot; button on the website course page so
+                students can read the full details offline. PDF only · up to 20 MB.
+              </p>
+
+              {/* Existing brochure — only meaningful while nothing new has been picked. */}
+              {isEdit && program?.brochureUrl && brochureKey === undefined ? (
+                <div className="flex items-center gap-3 rounded-md border border-border bg-card px-3 py-2">
+                  <a
+                    href={program.brochureUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="min-w-0 flex-1 truncate text-sm font-medium text-brand-500 hover:underline"
+                    data-testid="program-form-brochure-current"
+                  >
+                    View current brochure
+                  </a>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setBrochureKey(null)}
+                    data-testid="program-form-brochure-remove"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ) : null}
+
+              {brochureKey === null ? (
+                <p className="text-xs text-warning" data-testid="program-form-brochure-pending-removal">
+                  The brochure will be removed when you save. Upload a new file below to keep one.
+                </p>
+              ) : null}
+
+              <FileUpload
+                requestUploadUrl={requestBrochureUploadUrl}
+                onUploaded={(storageKey) => setBrochureKey(storageKey)}
+                acceptedTypes={["application/pdf"]}
+                maxBytes={BROCHURE_MAX_BYTES}
+                label={isEdit && program?.brochureUrl ? "Replace brochure PDF" : "Upload brochure PDF"}
+                data-testid="program-form-brochure-upload"
+              />
+            </div>
+
             <Textarea
               label="Learning outcomes"
               id="program-form-outcomes"

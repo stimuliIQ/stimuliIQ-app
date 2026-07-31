@@ -170,6 +170,37 @@ describe("FileUpload", () => {
     expect(key).not.toMatch(/^https?:\/\//);
   });
 
+  it("sends the signed headers on the PUT, letting them override the guessed Content-Type", async () => {
+    // S3/R2 sign Content-Type and x-amz-meta-* into the V4 canonical request, so a PUT
+    // that omits them is rejected with 403 SignatureDoesNotMatch. Dropping these silently
+    // breaks every real upload while passing against a permissive mock — hence this test.
+    const requestUploadUrl = vi.fn(
+      async (_file: File): Promise<SignedUploadResult> => ({
+        url: "https://storage.example.com/upload-signed",
+        storageKey: "program_brochures/tenant1/brochure.pdf",
+        headers: { "Content-Type": "application/pdf", "x-amz-meta-max-bytes": "20971520" },
+      }),
+    );
+
+    render(
+      <FileUpload requestUploadUrl={requestUploadUrl} onUploaded={vi.fn()} />,
+    );
+    uploadFile(screen.getByTestId("file-upload-input"), makePdfFile());
+
+    await waitFor(() => {
+      expect(xhrInstances[0]?.send).toHaveBeenCalled();
+    });
+
+    const calls = xhrInstances[0]!.setRequestHeader.mock.calls as [string, string][];
+    expect(calls).toContainEqual(["x-amz-meta-max-bytes", "20971520"]);
+    // Content-Type is set twice: the File guess first, then the server's signed value —
+    // the last write is what the request carries.
+    expect(calls.filter(([name]) => name === "Content-Type").at(-1)).toEqual([
+      "Content-Type",
+      "application/pdf",
+    ]);
+  });
+
   // ---------------------------------------------------------------------------
   // Client-hint validation tests
   // ---------------------------------------------------------------------------

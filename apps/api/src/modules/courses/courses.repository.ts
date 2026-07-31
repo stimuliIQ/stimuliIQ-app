@@ -49,6 +49,7 @@ export interface ProgramRow {
   cardSummary: string | null;
   outcomes: unknown;
   ogImageKey: string | null;
+  brochureKey: string | null;
   scholarshipAvailable: boolean;
   enrollmentEnabled: boolean;
   createdAt: Date;
@@ -139,6 +140,7 @@ export class CoursesRepository {
       cardSummary?: string;
       outcomes?: string[];
       ogImageKey?: string;
+      brochureKey?: string;
       scholarshipAvailable?: boolean;
       enrollmentEnabled?: boolean;
     },
@@ -163,6 +165,7 @@ export class CoursesRepository {
           ? { outcomes: data.outcomes as Prisma.InputJsonValue }
           : {}),
         ogImageKey: data.ogImageKey,
+        brochureKey: data.brochureKey,
         scholarshipAvailable: data.scholarshipAvailable ?? false,
         // Defaults TRUE — a new program is sellable unless enrollment is explicitly closed.
         enrollmentEnabled: data.enrollmentEnabled ?? true,
@@ -188,6 +191,8 @@ export class CoursesRepository {
       outcomes: string[];
       // null clears the image (UpdateProgramRequest's ogImageKey: string | null)
       ogImageKey: string | null;
+      // null removes the brochure (UpdateProgramRequest's brochureKey: string | null)
+      brochureKey: string | null;
       scholarshipAvailable: boolean;
       enrollmentEnabled: boolean;
     }>,

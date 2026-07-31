@@ -47,6 +47,7 @@ const MOCK_PROGRAM_DETAIL_ROW = {
   seoTitle: "Web Dev SEO Title",
   seoDescription: "SEO description",
   outcomes: ["Build REST APIs", "Deploy to AWS"],
+  brochureKey: "program_brochures/tenant-1/web-dev-brochure.pdf",
 };
 
 function buildMockRepository(): jest.Mocked<Partial<PublicRepository>> {
@@ -174,6 +175,24 @@ describe("PublicCatalogService", () => {
       expect(result).not.toHaveProperty("tenantId");
       expect(result).not.toHaveProperty("deletedAt");
       expect(result).not.toHaveProperty("emi"); // full JSON forbidden
+    });
+
+    it("mints brochureUrl from brochureKey and never exposes the raw key", async () => {
+      const result = await service.getProgramBySlug("web-dev");
+
+      expect(result.brochureUrl).toBe(assetUrl("program_brochures/tenant-1/web-dev-brochure.pdf"));
+      expect(result).not.toHaveProperty("brochureKey");
+    });
+
+    it("returns a null brochureUrl when the program has no brochure", async () => {
+      (repo.findPublicProgramBySlug as jest.Mock).mockResolvedValue({
+        ...MOCK_PROGRAM_DETAIL_ROW,
+        brochureKey: null,
+      });
+
+      const result = await service.getProgramBySlug("web-dev");
+
+      expect(result.brochureUrl).toBeNull();
     });
 
     it("throws NotFoundException for draft/non-public slug (AC-25)", async () => {

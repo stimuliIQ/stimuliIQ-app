@@ -60,6 +60,8 @@ import {
   type LessonResource,
   ProgramImageUploadUrlRequestSchema,
   type ProgramImageUploadUrlRequest,
+  ProgramBrochureUploadUrlRequestSchema,
+  type ProgramBrochureUploadUrlRequest,
   type SignedUploadResponse,
   type ProgramSummary,
 } from "./dto";
@@ -93,6 +95,22 @@ export class CoursesController {
     @Body() body: ProgramImageUploadUrlRequest,
   ): Promise<SignedUploadResponse> {
     return this.coursesService.getImageUploadUrl(user.tenantId, body);
+  }
+
+  /**
+   * POST /api/v1/crm/courses/brochure-upload-url — mint a signed PUT URL for the course
+   * brochure PDF. Also declared BEFORE the `:id` routes so the static segment is never
+   * shadowed. Permission: courses.edit (same as update — staff only).
+   */
+  @Post("brochure-upload-url")
+  @HttpCode(200)
+  @RequirePermission("courses.edit")
+  @UsePipes(new ZodValidationPipe(ProgramBrochureUploadUrlRequestSchema))
+  async brochureUploadUrl(
+    @CurrentUser() user: RequestUser,
+    @Body() body: ProgramBrochureUploadUrlRequest,
+  ): Promise<SignedUploadResponse> {
+    return this.coursesService.getBrochureUploadUrl(user.tenantId, body);
   }
 
   @Get(":id")

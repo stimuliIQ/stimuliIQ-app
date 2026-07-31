@@ -18,6 +18,7 @@ import type {
   UpdateLessonRequest,
   ReorderLessonsRequest,
   ProgramImageUploadUrlRequest,
+  ProgramBrochureUploadUrlRequest,
   LessonResourceUploadUrlRequest,
   CreateLessonResourceRequest,
   LessonResource,
@@ -49,6 +50,16 @@ export class CoursesApi {
    */
   async imageUploadUrl(body: ProgramImageUploadUrlRequest): Promise<SignedUploadResponse> {
     return this.client.request<SignedUploadResponse>("POST", "/api/v1/crm/courses/image-upload-url", { body });
+  }
+
+  /**
+   * POST /api/v1/crm/courses/brochure-upload-url — mint a short-lived signed PUT URL for the
+   * downloadable course brochure (PDF). Then PUT the file to `uploadUrl` (with
+   * `additionalHeaders`) and pass the returned `storageKey` back as `brochureKey` on
+   * create/update.
+   */
+  async brochureUploadUrl(body: ProgramBrochureUploadUrlRequest): Promise<SignedUploadResponse> {
+    return this.client.request<SignedUploadResponse>("POST", "/api/v1/crm/courses/brochure-upload-url", { body });
   }
 
   // ─── Lesson resources (PDF / slides / datasets) ─────────────────────────

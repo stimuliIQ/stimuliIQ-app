@@ -99,6 +99,16 @@ export const CreateProgramRequestSchema = z
         "S3/R2 object key from POST /crm/courses/image-upload-url. The API mints a public CDN " +
           "URL from it — the raw key is never returned. Used as the course card + OG image.",
       ),
+    brochureKey: z
+      .string()
+      .min(1)
+      .max(1024)
+      .optional()
+      .describe(
+        "S3/R2 object key from POST /crm/courses/brochure-upload-url (PDF). The API mints a " +
+          "public asset URL from it — the raw key is never returned. Surfaced as the " +
+          "'Download brochure' button on the public course page.",
+      ),
     scholarshipAvailable: z
       .boolean()
       .default(false)
@@ -126,6 +136,13 @@ export const UpdateProgramRequestSchema = CreateProgramRequestSchema.omit({ stat
       .nullable()
       .optional()
       .describe("Set to a new key to replace the image, or null to clear it."),
+    brochureKey: z
+      .string()
+      .min(1)
+      .max(1024)
+      .nullable()
+      .optional()
+      .describe("Set to a new key to replace the brochure, or null to remove it."),
   })
   .strict();
 export type UpdateProgramRequest = z.infer<typeof UpdateProgramRequestSchema>;
@@ -147,6 +164,27 @@ export const ProgramImageUploadUrlRequestSchema = z
   })
   .strict();
 export type ProgramImageUploadUrlRequest = z.infer<typeof ProgramImageUploadUrlRequestSchema>;
+
+/**
+ * POST /api/v1/crm/courses/brochure-upload-url — mint a short-lived signed PUT URL for the
+ * downloadable course brochure (staff-scoped; permission `courses.edit`). Same two-step
+ * ingest as the course image: PUT the file to the returned URL, then send `storageKey` back
+ * as `brochureKey` on create/update.
+ *
+ * PDF ONLY, deliberately: this object is linked straight from a public marketing page, so
+ * the content-type the signed URL pins is also what a visitor's browser will be handed.
+ * Allowing arbitrary types here would turn the course page into an open file host.
+ */
+export const ProgramBrochureUploadUrlRequestSchema = z
+  .object({
+    contentType: z
+      .literal("application/pdf")
+      .describe("Brochures are PDFs only — the signed URL enforces this content-type."),
+    fileName: z.string().min(1).max(255),
+    sizeBytes: z.number().int().min(1).max(20_971_520).describe("Max 20 MB per brochure."),
+  })
+  .strict();
+export type ProgramBrochureUploadUrlRequest = z.infer<typeof ProgramBrochureUploadUrlRequestSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────
 // Lesson resources (PDFs, slides, datasets, cheat-sheets) — staff authoring
@@ -334,6 +372,8 @@ export const ProgramDetailSchema = ProgramSummarySchema.extend({
   outcomes: z.array(z.string()).nullable(),
   /** Public CDN URL minted from og_image_key; null if no image. NEVER the raw key. */
   ogImageUrl: z.string().url().nullable(),
+  /** Public CDN URL minted from brochure_key; null if no brochure. NEVER the raw key. */
+  brochureUrl: z.string().url().nullable(),
   scholarshipAvailable: z.boolean(),
   enrollmentEnabled: z.boolean(),
   deletedAt: IsoDateTimeSchema.nullable(),

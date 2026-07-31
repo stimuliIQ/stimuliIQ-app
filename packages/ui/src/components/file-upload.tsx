@@ -52,6 +52,14 @@ export interface SignedUploadResult {
   url: string;
   /** Scoped storage key (e.g. "submissions/tenant-id/enrollment-id/filename"). */
   storageKey: string;
+  /**
+   * Headers the signature covers and the PUT MUST therefore carry verbatim — the API
+   * returns these as `additionalHeaders` on the signed-upload response. Omitting them is
+   * not a cosmetic loss: S3/R2 sign Content-Type and the `x-amz-meta-*` metadata into the
+   * V4 canonical request, so a PUT without them is rejected with 403 SignatureDoesNotMatch.
+   * Anything set here wins over the Content-Type guessed from the File.
+   */
+  headers?: Record<string, string>;
 }
 
 export type FileUploadStatus =
@@ -211,6 +219,11 @@ export function FileUpload({
         const xhr = new XMLHttpRequest();
         xhr.open("PUT", signedResult.url);
         xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+        // Applied after the guessed Content-Type so the server's signed values win —
+        // see SignedUploadResult.headers for why dropping these breaks real S3/R2.
+        for (const [name, value] of Object.entries(signedResult.headers ?? {})) {
+          xhr.setRequestHeader(name, value);
+        }
 
         xhr.upload.addEventListener("progress", (event) => {
           if (event.lengthComputable) {

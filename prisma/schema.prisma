@@ -866,6 +866,11 @@ model Program {
   seoTitle       String? @map("seo_title")
   seoDescription String? @map("seo_description")
   ogImageKey     String? @map("og_image_key")
+  // brochureKey: S3/R2 object key for the downloadable course brochure (PDF) staff upload
+  //   in the CRM. Same contract as ogImageKey — the raw key is NEVER returned to a client;
+  //   a public asset URL is minted at serve time (mintCdnUrl). Null = no brochure, and the
+  //   website simply omits the "Download brochure" button rather than linking to nothing.
+  brochureKey    String? @map("brochure_key")
   cardSummary    String? @map("card_summary")
   outcomes       Json?
   // ratingAvg: integer 0–50 = 0.0–5.0 stars (×10 scale — no float per CLAUDE.md §3.6-adjacent).

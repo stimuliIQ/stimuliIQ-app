@@ -21,6 +21,8 @@ export {
   type LessonResource,
   ProgramImageUploadUrlRequestSchema,
   type ProgramImageUploadUrlRequest,
+  ProgramBrochureUploadUrlRequestSchema,
+  type ProgramBrochureUploadUrlRequest,
   type SignedUploadResponse,
   CreateModuleRequestSchema,
   type CreateModuleRequest,
