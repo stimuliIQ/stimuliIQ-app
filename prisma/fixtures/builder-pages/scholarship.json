@@ -93,6 +93,35 @@
   {
     "type": "stat_group",
     "data": {
+      "heading": {
+        "title": "The impact we're building",
+        "titleHighlight": "impact",
+        "subtitle": "Financial constraints should never stop a capable student from building a career in healthcare."
+      },
+      "items": [
+        {
+          "label": "Being disbursed",
+          "value": "₹50L+"
+        },
+        {
+          "label": "Scholars supported",
+          "value": "300+"
+        },
+        {
+          "label": "Career guidance through community referrals",
+          "value": "Strong"
+        },
+        {
+          "label": "Cities represented",
+          "value": "40+"
+        }
+      ],
+      "variant": "band"
+    }
+  },
+  {
+    "type": "stat_group",
+    "data": {
       "variant": "bars",
       "heading": {
         "title": "Fund distribution by track (in lakhs)"
