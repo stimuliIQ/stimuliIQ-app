@@ -25,9 +25,11 @@ import Image from "next/image";
 import type { PublicProgramSummary } from "@repo/types";
 import {
   formatCompareAtDisplay,
+  formatDiscountPercent,
   formatPaiseDisplay,
   humanizeDomain,
 } from "../../../lib/format";
+import { readableTextOn } from "@repo/ui";
 
 const MAX_VISIBLE = 6;
 
@@ -59,6 +61,20 @@ function CourseCard({ program, index }: { program: PublicProgramSummary; index: 
             {domainLabel.charAt(0)}
           </span>
         )}
+
+        {/* Marketing badge only — this card has never shown the scholarship pill, and
+            adding one here is a separate editorial decision, not part of badge support. */}
+        {program.badgeColor && program.badgeLabel ? (
+          <span
+            className="absolute left-3 top-3 rounded-full px-2 py-0.5 text-[11px] font-semibold shadow-sm"
+            style={{
+              backgroundColor: program.badgeColor,
+              color: readableTextOn(program.badgeColor),
+            }}
+          >
+            {program.badgeLabel}
+          </span>
+        ) : null}
       </div>
 
       {/* Body */}
@@ -75,6 +91,11 @@ function CourseCard({ program, index }: { program: PublicProgramSummary; index: 
                   , reduced from {formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
                 </span>
               </>
+            ) : null}
+            {formatDiscountPercent(program.compareAtPricePaise, program.pricePaise) ? (
+              <span className="rounded bg-success/10 px-1.5 py-0.5 text-[11px] font-bold text-success">
+                {formatDiscountPercent(program.compareAtPricePaise, program.pricePaise)}
+              </span>
             ) : null}
           </span>
         </div>

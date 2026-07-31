@@ -26,7 +26,8 @@ import { buildMetadata } from "../../lib/seo/metadata";
 import { serverApiClient } from "../../lib/api-client";
 import { getCourseDomains } from "../../lib/course-facets";
 import { ProgramCard, EmptyState, Skeleton } from "@repo/ui";
-import { formatPaiseDisplay, formatCompareAtDisplay, formatRating } from "../../lib/format";
+import { formatPaiseDisplay, formatCompareAtDisplay, formatDiscountPercent, formatRating } from "../../lib/format";
+import { resolveProgramBadge } from "../../lib/program-badge";
 import { UpcomingWorkshopStrip } from "../../components/home/upcoming-workshop";
 import { CoursesSidebar } from "./_components/courses-sidebar";
 import { ProgramsPagination } from "./_components/programs-pagination";
@@ -49,11 +50,12 @@ export const metadata: Metadata = buildMetadata({
 
 /** Safely parse a sort string from URL params */
 function parseSort(raw: string | undefined): PublicProgramSort {
-  const valid: PublicProgramSort[] = ["popularity", "price_asc", "price_desc", "newest"];
+  const valid: PublicProgramSort[] = ["order", "popularity", "price_asc", "price_desc", "newest"];
   if (raw && valid.includes(raw as PublicProgramSort)) {
     return raw as PublicProgramSort;
   }
-  return "popularity";
+  // Staff-curated order is the landing default; visitors can still switch to the others.
+  return "order";
 }
 
 // ---------------------------------------------------------------------------
@@ -221,16 +223,20 @@ export default async function CoursesListingPage({ searchParams }: PageProps) {
                 aria-label={`${programs.length} course${programs.length === 1 ? "" : "s"}`}
                 data-testid="programs-grid"
               >
-                {programs.map((program) => (
+                {programs.map((program) => {
+                  const badge = resolveProgramBadge(program);
+                  return (
                   <li key={program.id}>
                     <ProgramCard
                       data-testid="program-listing-card"
                       title={program.title}
                       imageUrl={program.ogImageUrl ?? undefined}
-                      badgeLabel={program.scholarshipAvailable ? "Scholarship available" : undefined}
+                      badgeLabel={badge?.label}
+                      badgeStyle={badge?.style}
                       summary={program.cardSummary ?? undefined}
                       priceDisplay={formatPaiseDisplay(program.pricePaise)}
                       originalPriceDisplay={formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
+                      discountLabel={formatDiscountPercent(program.compareAtPricePaise, program.pricePaise)}
                       emiDisplay={program.emiDisplay ?? undefined}
                       ratingAvg={
                         program.ratingAvg != null
@@ -242,7 +248,8 @@ export default async function CoursesListingPage({ searchParams }: PageProps) {
                       ctaHref={`/programs/${program.slug}`}
                     />
                   </li>
-                ))}
+                  );
+                })}
               </ul>
 
               {/* Pagination (hidden while searching — search is a single filtered page) */}

@@ -148,7 +148,7 @@ export default async function PricingPage() {
   let fetchError = false;
 
   try {
-    const result = await serverApiClient.public.programs.list({ limit: 50, sort: "popularity" });
+    const result = await serverApiClient.public.programs.list({ limit: 50, sort: "order" });
     programs = Array.isArray(result.items) ? result.items : [];
   } catch {
     fetchError = true;

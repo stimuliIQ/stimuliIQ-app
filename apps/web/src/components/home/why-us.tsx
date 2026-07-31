@@ -218,8 +218,7 @@ export function WhyUsSection() {
             Why <span className="text-chart-3">Stimuli IQ</span>?
           </h2>
           <p className="mx-auto mt-5 max-w-md text-lg leading-relaxed text-fg-muted">
-            We focus on what actually prepares you for a real healthcare career
-            &mdash; real training, real clinical exposure, real mentorship.
+            We focus on what actually prepares you for a healthcare career — hands-on training, clinical exposure, and mentorship that goes beyond the classroom.
           </p>
         </div>
 

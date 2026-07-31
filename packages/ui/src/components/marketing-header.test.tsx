@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { MarketingHeader, type NavItem } from "./marketing-header";
@@ -421,5 +421,77 @@ describe("MarketingHeader — active nav state", () => {
     expect(screen.getByRole("button", { name: /programs/i })).not.toHaveAttribute(
       "aria-current",
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Mega-menu row badges
+// ---------------------------------------------------------------------------
+
+const badgedNavItems: NavItem[] = [
+  {
+    label: "Courses",
+    megaMenu: {
+      sections: [
+        {
+          heading: "Clinical Research",
+          items: [
+            {
+              label: "Clinical Research",
+              href: "/programs/clinical-research",
+              badge: { label: "New", style: { backgroundColor: "#16A34A", color: "#FFFFFF" } },
+            },
+            { label: "Neurology Workshop", href: "/programs/neurology" },
+          ],
+        },
+      ],
+    },
+  },
+];
+
+describe("MarketingHeader — mega-menu badges", () => {
+  it("renders the badge chip on a desktop row that carries one", async () => {
+    const user = userEvent.setup();
+    render(<MarketingHeader logo={logo} navItems={badgedNavItems} bookSlotHref="/book" />);
+    await user.click(screen.getByRole("button", { name: /courses/i }));
+
+    // The chip lives INSIDE the row's link, so the accessible name carries it — this is
+    // what proves it renders next to the right program rather than as a stray node.
+    expect(
+      screen.getByRole("link", { name: /clinical research\s+new/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("applies the staff-picked colour as an inline style", async () => {
+    const user = userEvent.setup();
+    render(<MarketingHeader logo={logo} navItems={badgedNavItems} bookSlotHref="/book" />);
+    await user.click(screen.getByRole("button", { name: /courses/i }));
+
+    const chip = screen.getByText("New");
+    expect(chip).toHaveStyle({ backgroundColor: "#16A34A", color: "#FFFFFF" });
+  });
+
+  it("renders no chip for a row without a badge", async () => {
+    const user = userEvent.setup();
+    render(<MarketingHeader logo={logo} navItems={badgedNavItems} bookSlotHref="/book" />);
+    await user.click(screen.getByRole("button", { name: /courses/i }));
+
+    expect(screen.getByRole("link", { name: "Neurology Workshop" })).toBeInTheDocument();
+    // Exactly one chip in the panel — a missing badge must not fall back to a placeholder.
+    expect(screen.getAllByText("New")).toHaveLength(1);
+  });
+
+  it("renders the badge in the mobile menu too", async () => {
+    const user = userEvent.setup();
+    render(<MarketingHeader logo={logo} navItems={badgedNavItems} bookSlotHref="/book" />);
+    await user.click(screen.getByRole("button", { name: /open navigation menu/i }));
+
+    // Scoped to the dialog: the desktop trigger is also in the DOM under jsdom (it is
+    // hidden by CSS, which jsdom does not apply), so an unscoped /courses/i match is
+    // ambiguous and would not prove the MOBILE row rendered the chip.
+    const dialog = within(screen.getByRole("dialog", { name: /navigation menu/i }));
+    await user.click(dialog.getByRole("button", { name: /courses/i }));
+
+    expect(dialog.getByText("New")).toHaveStyle({ backgroundColor: "#16A34A" });
   });
 });

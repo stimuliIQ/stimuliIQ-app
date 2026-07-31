@@ -34,11 +34,13 @@ import {
   ProgramCard,
   TestimonialCard,
 } from "@repo/ui";
-import { formatPaiseDisplay, formatCompareAtDisplay, formatRating, formatMode } from "../../../lib/format";
+import { formatPaiseDisplay, formatCompareAtDisplay, formatDiscountPercent, formatRating, formatMode } from "../../../lib/format";
+import { resolveProgramBadge } from "../../../lib/program-badge";
 import { BOOK_SLOT_HREF } from "../../../components/shell/nav-config";
 import { buildWhatsAppHref } from "../../../lib/contact";
 import { StickyLeadBarConnected } from "../../../components/leads/sticky-lead-bar-connected";
 import { CurriculumPreview } from "../_components/curriculum-preview";
+import { CertificateSpecimens } from "../../../components/verify/certificate-preview";
 import type { PublicProgramDetail } from "@repo/types";
 
 // ---------------------------------------------------------------------------
@@ -149,9 +151,21 @@ import * as React from "react";
 // Sub-components (server, no business logic)
 // ---------------------------------------------------------------------------
 
+/** Inline icon — lucide-react is not a web dependency, so no new package (see curriculum-preview.tsx). */
+function DownloadIcon({ className }: { className?: string }): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}>
+      <path d="M12 3v12" />
+      <path d="m7 10 5 5 5-5" />
+      <path d="M5 21h14" />
+    </svg>
+  );
+}
+
 function ProgramHero({ program }: { program: PublicProgramDetail }) {
   const price = formatPaiseDisplay(program.pricePaise);
   const wasPrice = formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise);
+  const discount = formatDiscountPercent(program.compareAtPricePaise, program.pricePaise);
   const ratingDisplay = program.ratingAvg != null ? formatRating(program.ratingAvg) : null;
 
   return (
@@ -220,6 +234,11 @@ function ProgramHero({ program }: { program: PublicProgramDetail }) {
               <span className="sr-only">, reduced from {wasPrice}</span>
             </>
           ) : null}
+          {discount ? (
+            <span className="rounded bg-success/10 px-2 py-0.5 text-sm font-bold text-success">
+              {discount}
+            </span>
+          ) : null}
           {program.emiDisplay ? (
             <span className="text-sm text-fg-muted">{program.emiDisplay}</span>
           ) : null}
@@ -260,11 +279,19 @@ function ProgramHero({ program }: { program: PublicProgramDetail }) {
             download
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex w-fit min-h-[44px] items-center gap-2 rounded-md border border-border px-5 text-sm font-semibold text-fg transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="group inline-flex w-fit min-h-[44px] items-center gap-3 rounded-lg border border-border bg-surface py-2 pl-3 pr-4 transition-colors hover:border-brand-500/40 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             data-testid="program-brochure-download"
           >
-            <span aria-hidden="true">📄</span>
-            Download brochure (PDF)
+            <span
+              aria-hidden="true"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-100 text-brand-600 transition-colors group-hover:bg-brand-500 group-hover:text-white"
+            >
+              <DownloadIcon className="h-4 w-4" />
+            </span>
+            <span className="flex flex-col leading-tight">
+              <span className="text-sm font-semibold text-fg">Download brochure</span>
+              <span className="text-xs text-fg-muted">PDF · course details &amp; fees</span>
+            </span>
           </a>
         ) : null}
       </div>
@@ -394,6 +421,16 @@ function ReviewsSection({ reviews }: { reviews: PublicProgramDetail["reviewsSumm
   );
 }
 
+/**
+ * Certificate section — the promise, the verification link, then the artwork.
+ *
+ * The specimens are shown on EVERY program page, not just on /verify: "you get a
+ * certificate" is a claim a prospect has no reason to believe, and the document itself is
+ * the proof. Placing it under the verification link means the reader has just been told
+ * the certificate is checkable and is then shown where the ID they would check is printed.
+ *
+ * Same watermarked files as the /verify band, via the shared CertificateSpecimens.
+ */
 function CertificateSection({ programTitle }: { programTitle: string }) {
   return (
     <section
@@ -412,6 +449,10 @@ function CertificateSection({ programTitle }: { programTitle: string }) {
       >
         See how verification works →
       </a>
+
+      {/* Narrower container than the /verify band (this sits in the left column beside the
+          360px buy rail), so `sizes` is tuned down to avoid over-fetching the artwork. */}
+      <CertificateSpecimens className="mt-6" sizes="(min-width: 1024px) 400px, (min-width: 768px) 46vw, 100vw" />
     </section>
   );
 }
@@ -426,17 +467,23 @@ function RelatedProgramsSection({
     <section aria-label="Related programs" data-testid="program-related">
       <h2 className="mb-6 text-xl font-semibold text-fg">You May Also Like</h2>
       <ul role="list" className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {programs.map((p) => (
-          <li key={p.id}>
-            <ProgramCard
-              title={p.title}
-              priceDisplay={formatPaiseDisplay(p.pricePaise)}
-              originalPriceDisplay={formatCompareAtDisplay(p.compareAtPricePaise, p.pricePaise)}
-              ctaLabel="View Program"
-              ctaHref={`/programs/${p.slug}`}
-            />
-          </li>
-        ))}
+        {programs.map((p) => {
+          const badge = resolveProgramBadge(p);
+          return (
+            <li key={p.id}>
+              <ProgramCard
+                title={p.title}
+                badgeLabel={badge?.label}
+                badgeStyle={badge?.style}
+                priceDisplay={formatPaiseDisplay(p.pricePaise)}
+                originalPriceDisplay={formatCompareAtDisplay(p.compareAtPricePaise, p.pricePaise)}
+                discountLabel={formatDiscountPercent(p.compareAtPricePaise, p.pricePaise)}
+                ctaLabel="View Program"
+                ctaHref={`/programs/${p.slug}`}
+              />
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
@@ -501,6 +548,7 @@ export default async function ProgramDetailPage({ params }: PageProps) {
 
   const price = formatPaiseDisplay(program.pricePaise);
   const wasPrice = formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise);
+  const discount = formatDiscountPercent(program.compareAtPricePaise, program.pricePaise);
   const enrollHref = `/enroll/${program.slug}`;
   const faqItems = buildProgramFaqItems(program);
 
@@ -608,6 +656,7 @@ export default async function ProgramDetailPage({ params }: PageProps) {
             <StickyBuyCard
               priceDisplay={price}
               originalPriceDisplay={wasPrice}
+              discountLabel={discount}
               emiDisplay={program.emiDisplay ?? undefined}
               // Enrollment closed → "Book Free Slot" becomes the card's PRIMARY action and
               // there is no secondary, so the card never renders a dead-end.
@@ -634,6 +683,7 @@ export default async function ProgramDetailPage({ params }: PageProps) {
       <MobileBuyBar
         priceDisplay={price}
         originalPriceDisplay={wasPrice}
+        discountLabel={discount}
         primaryCtaLabel={program.enrollmentEnabled ? "Enroll Now" : "Book Free Slot"}
         primaryCtaHref={program.enrollmentEnabled ? enrollHref : BOOK_SLOT_HREF}
         data-testid="mobile-buy-bar"

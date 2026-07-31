@@ -29,6 +29,7 @@ export interface CoursesFilterState {
 }
 
 const SORT_OPTIONS = [
+  { value: "order", label: "Featured" },
   { value: "popularity", label: "Most popular" },
   { value: "price_asc", label: "Price: Low to high" },
   { value: "price_desc", label: "Price: High to low" },
@@ -172,7 +173,7 @@ export function CoursesSidebar({ domains, current, totalCount, hasMore }: Course
         </label>
         <select
           id="courses-sort"
-          value={current.sort ?? "popularity"}
+          value={current.sort ?? "order"}
           onChange={(e) => updateParams({ sort: e.target.value })}
           aria-label="Sort courses"
           className="h-[44px] w-full rounded-md border border-border bg-card px-3 text-sm text-fg transition-colors hover:border-brand-500 focus:outline-none focus:ring-2 focus:ring-ring"

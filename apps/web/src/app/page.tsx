@@ -87,7 +87,7 @@ export default async function HomePage() {
   // its own, exactly as the three separate try/catch blocks did — one failing
   // read must never take the other two down with it.
   const [programsResult, collegesResult, testimonialsResult] = await Promise.allSettled([
-    serverApiClient.public.programs.list({ limit: 12, sort: "popularity" }),
+    serverApiClient.public.programs.list({ limit: 12, sort: "order" }),
     serverApiClient.public.content.partners.list({ category: COLLEGE_PARTNER_CATEGORY }),
     serverApiClient.public.content.testimonials.list(),
   ]);

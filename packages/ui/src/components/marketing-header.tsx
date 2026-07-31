@@ -49,9 +49,25 @@ import { isPathActive } from "../lib/active-path";
 // Types
 // ---------------------------------------------------------------------------
 
+/**
+ * A marketing badge on a mega-menu row, pre-resolved by the caller (web's
+ * `resolveMarketingBadge`). The colour arrives as an inline style rather than a token
+ * because staff pick it freely in the CRM — same contract as `ProgramCard.badgeStyle`.
+ */
+export interface MegaMenuItemBadge {
+  label: string;
+  style: React.CSSProperties;
+}
+
 export interface MegaMenuSection {
   heading: string;
-  items: Array<{ label: string; href: string; description?: string }>;
+  items: Array<{
+    label: string;
+    href: string;
+    description?: string;
+    /** Optional chip after the label, e.g. the program's "New" badge. */
+    badge?: MegaMenuItemBadge;
+  }>;
 }
 
 export interface MegaMenuConfig {
@@ -133,6 +149,36 @@ function isNavItemActive(item: NavItem, activePath?: string): boolean {
     item.megaMenu?.sections.some((section) =>
       section.items.some((link) => isPathActive(link.href, activePath)),
     ) ?? false
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Mega-menu row badge
+// ---------------------------------------------------------------------------
+
+/**
+ * Badge chip shown after a mega-menu row's label. Smaller and pill-shaped where
+ * `ProgramCard`'s is a squared ribbon overlaying an image — these rows are dense text, so
+ * the chip has to sit on the baseline as an annotation rather than compete with the title.
+ *
+ * `align-middle` + `whitespace-nowrap` keep it on the label's line: the row is inline
+ * content (the optional description is a sibling block below), so without them a long
+ * badge would drop or wrap mid-word in a narrow column.
+ *
+ * Not exposed to assistive tech separately — the label already names the destination and
+ * "New" read after every such link is noise, so the chip is decorative here.
+ */
+function MegaMenuBadge({ badge }: { badge: MegaMenuItemBadge }) {
+  return (
+    <span
+      className={
+        "ml-2 inline-block whitespace-nowrap rounded-full px-1.5 py-0.5 align-middle " +
+        "text-[10px] font-bold uppercase leading-none tracking-wider"
+      }
+      style={badge.style}
+    >
+      {badge.label}
+    </span>
   );
 }
 
@@ -240,6 +286,7 @@ function DesktopMegaMenu({
                       >
                         {item.label}
                       </span>
+                      {item.badge ? <MegaMenuBadge badge={item.badge} /> : null}
                       {item.description ? (
                         <span className="mt-0.5 block text-xs text-fg-muted">
                           {item.description}
@@ -378,6 +425,7 @@ function MobileMenu({
                                         )}
                                       >
                                         {link.label}
+                                        {link.badge ? <MegaMenuBadge badge={link.badge} /> : null}
                                       </a>
                                     </li>
                                   );

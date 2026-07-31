@@ -37,7 +37,8 @@ import * as React from "react";
 import Image from "next/image";
 import type { PublicProgramSummary, HeadingSimple } from "@repo/types";
 
-import { formatCompareAtDisplay, formatPaiseDisplay, formatRating } from "../../lib/format";
+import { formatCompareAtDisplay, formatDiscountPercent, formatPaiseDisplay, formatRating } from "../../lib/format";
+import { readableTextOn } from "@repo/ui";
 import { HighlightText } from "../page-builder/highlight-text";
 import { safeHref } from "../../lib/safe-href";
 
@@ -106,7 +107,21 @@ function CourseCard({
             </div>
           )}
 
-          {showScholarshipBadge && program.scholarshipAvailable ? (
+          {/* One badge slot. The staff-set marketing badge outranks the scholarship pill —
+              it is the deliberate per-course choice, while "Scholarship" is a broad marker
+              that also appears elsewhere on the page. The scholarship pill keeps its own
+              green treatment rather than borrowing a marketing tone. */}
+          {program.badgeColor && program.badgeLabel ? (
+            <span
+              className="absolute left-2.5 top-2.5 rounded-full px-2 py-0.5 text-[11px] font-semibold shadow-sm"
+              style={{
+                backgroundColor: program.badgeColor,
+                color: readableTextOn(program.badgeColor),
+              }}
+            >
+              {program.badgeLabel}
+            </span>
+          ) : showScholarshipBadge && program.scholarshipAvailable ? (
             <span className="absolute left-2.5 top-2.5 rounded-full bg-chart-3 px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm">
               Scholarship
             </span>
@@ -145,6 +160,11 @@ function CourseCard({
                     , reduced from {formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
                   </span>
                 </>
+              ) : null}
+              {formatDiscountPercent(program.compareAtPricePaise, program.pricePaise) ? (
+                <span className="rounded bg-success/10 px-1.5 py-0.5 text-[10px] font-bold text-success">
+                  {formatDiscountPercent(program.compareAtPricePaise, program.pricePaise)}
+                </span>
               ) : null}
               {rating ? (
                 <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-fg-muted">

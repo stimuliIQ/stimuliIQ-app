@@ -13,7 +13,8 @@ import { ProgramCard } from "@repo/ui";
 import { buildMetadata, SITE_URL } from "../../../../lib/seo/metadata";
 import { buildBreadcrumbJsonLd, buildCourseJsonLd } from "../../../../lib/seo/json-ld";
 import { serverApiClient } from "../../../../lib/api-client";
-import { formatPaiseDisplay, formatCompareAtDisplay } from "../../../../lib/format";
+import { formatPaiseDisplay, formatCompareAtDisplay, formatDiscountPercent } from "../../../../lib/format";
+import { resolveProgramBadge } from "../../../../lib/program-badge";
 import { UpcomingWorkshopStrip } from "../../../../components/home/upcoming-workshop";
 
 export const revalidate = 86_400; // 24h — city program counts change infrequently
@@ -125,22 +126,27 @@ export default async function CitySeoPage({ params }: PageProps) {
             role="list"
             data-testid="city-seo-program-list"
           >
-            {detail.programs.map((program) => (
+            {detail.programs.map((program) => {
+              const badge = resolveProgramBadge(program);
+              return (
               <li key={program.id}>
                 <ProgramCard
                   imageUrl={program.ogImageUrl ?? undefined}
-                  badgeLabel={program.scholarshipAvailable ? "Scholarship available" : undefined}
+                  badgeLabel={badge?.label}
+                  badgeStyle={badge?.style}
                   summary={program.cardSummary ?? undefined}
                   title={program.title}
                   priceDisplay={formatPaiseDisplay(program.pricePaise)}
                   originalPriceDisplay={formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
+                  discountLabel={formatDiscountPercent(program.compareAtPricePaise, program.pricePaise)}
                   emiDisplay={program.emiDisplay ?? undefined}
                   ratingAvg={program.ratingAvg != null ? program.ratingAvg / 10 : undefined}
                   ratingCount={program.ratingCount ?? undefined}
                   ctaHref={`/programs/${program.slug}`}
                 />
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </main>

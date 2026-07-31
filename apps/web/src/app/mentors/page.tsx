@@ -77,7 +77,7 @@ export default async function MentorsPage() {
   // empty mentor list must not also blank the course strip.
   const [mentorsResult, programsResult] = await Promise.allSettled([
     serverApiClient.public.mentors.list({ limit: 8 }),
-    serverApiClient.public.programs.list({ limit: 50, sort: "popularity" }),
+    serverApiClient.public.programs.list({ limit: 50, sort: "order" }),
   ]);
 
   if (mentorsResult.status === "fulfilled" && Array.isArray(mentorsResult.value.items)) {
