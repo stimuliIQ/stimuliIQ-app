@@ -7,6 +7,7 @@ settings:
 overrides:
   multer: ^2.2.0
   ioredis: ^5.11.1
+  isomorphic-dompurify>jsdom: 25.0.1
 
 importers:
 
@@ -229,7 +230,7 @@ importers:
         version: 1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       isomorphic-dompurify:
         specifier: ^3.18.0
-        version: 3.18.0(@noble/hashes@1.8.0)
+        version: 3.18.0
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@19.2.7)
@@ -281,7 +282,7 @@ importers:
         version: 19.2.3(@types/react@19.2.17)
       '@vitejs/plugin-react':
         specifier: ^4.3.4
-        version: 4.7.0(vite@6.4.3(@types/node@22.20.0)(jiti@2.7.0)(terser@5.48.0)(yaml@2.9.0))
+        version: 4.7.0(vite@6.4.3(@types/node@22.20.0)(jiti@1.21.7)(terser@5.48.0)(yaml@2.9.0))
       autoprefixer:
         specifier: ^10.4.20
         version: 10.5.2(postcss@8.5.15)
@@ -308,7 +309,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^6.0.7
-        version: 6.4.3(@types/node@22.20.0)(jiti@2.7.0)(terser@5.48.0)(yaml@2.9.0)
+        version: 6.4.3(@types/node@22.20.0)(jiti@1.21.7)(terser@5.48.0)(yaml@2.9.0)
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.0)(jsdom@25.0.1)(terser@5.48.0)
@@ -335,7 +336,7 @@ importers:
         version: 1.6.16
       isomorphic-dompurify:
         specifier: ^3.18.0
-        version: 3.18.0(@noble/hashes@1.8.0)
+        version: 3.18.0
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@19.2.7)
@@ -426,7 +427,7 @@ importers:
         version: 2.0.1(next@15.5.19(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)
       isomorphic-dompurify:
         specifier: ^3.18.0
-        version: 3.18.0(@noble/hashes@1.8.0)
+        version: 3.18.0
       next:
         specifier: ^15.1.3
         version: 15.5.19(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -593,7 +594,7 @@ importers:
         version: 2.1.1
       isomorphic-dompurify:
         specifier: ^3.18.0
-        version: 3.18.0(@noble/hashes@1.8.0)
+        version: 3.18.0
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@19.2.7)
@@ -8079,6 +8080,7 @@ snapshots:
       '@csstools/css-color-parser': 4.1.9(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-tokenizer': 4.0.0
+    optional: true
 
   '@asamuzakjp/dom-selector@7.1.1':
     dependencies:
@@ -8087,10 +8089,13 @@ snapshots:
       bidi-js: 1.0.3
       css-tree: 3.2.1
       is-potential-custom-element-name: 1.0.1
+    optional: true
 
-  '@asamuzakjp/generational-cache@1.0.1': {}
+  '@asamuzakjp/generational-cache@1.0.1':
+    optional: true
 
-  '@asamuzakjp/nwsapi@2.3.9': {}
+  '@asamuzakjp/nwsapi@2.3.9':
+    optional: true
 
   '@asteasolutions/zod-to-openapi@7.3.4(zod@3.25.76)':
     dependencies:
@@ -8479,6 +8484,7 @@ snapshots:
   '@bramus/specificity@2.4.2':
     dependencies:
       css-tree: 3.2.1
+    optional: true
 
   '@colors/colors@1.5.0':
     optional: true
@@ -8489,7 +8495,8 @@ snapshots:
 
   '@csstools/color-helpers@5.1.0': {}
 
-  '@csstools/color-helpers@6.1.0': {}
+  '@csstools/color-helpers@6.1.0':
+    optional: true
 
   '@csstools/css-calc@2.1.4(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)':
     dependencies:
@@ -8500,6 +8507,7 @@ snapshots:
     dependencies:
       '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-tokenizer': 4.0.0
+    optional: true
 
   '@csstools/css-color-parser@3.1.0(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)':
     dependencies:
@@ -8514,6 +8522,7 @@ snapshots:
       '@csstools/css-calc': 3.2.1(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-tokenizer': 4.0.0
+    optional: true
 
   '@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4)':
     dependencies:
@@ -8522,14 +8531,17 @@ snapshots:
   '@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0)':
     dependencies:
       '@csstools/css-tokenizer': 4.0.0
+    optional: true
 
   '@csstools/css-syntax-patches-for-csstree@1.1.6(css-tree@3.2.1)':
     optionalDependencies:
       css-tree: 3.2.1
+    optional: true
 
   '@csstools/css-tokenizer@3.0.4': {}
 
-  '@csstools/css-tokenizer@4.0.0': {}
+  '@csstools/css-tokenizer@4.0.0':
+    optional: true
 
   '@dimforge/rapier3d-compat@0.12.0': {}
 
@@ -8734,6 +8746,7 @@ snapshots:
   '@exodus/bytes@1.15.1(@noble/hashes@1.8.0)':
     optionalDependencies:
       '@noble/hashes': 1.8.0
+    optional: true
 
   '@floating-ui/core@1.7.5':
     dependencies:
@@ -11645,7 +11658,7 @@ snapshots:
       next: 15.5.19(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       react: 19.2.7
 
-  '@vitejs/plugin-react@4.7.0(vite@6.4.3(@types/node@22.20.0)(jiti@2.7.0)(terser@5.48.0)(yaml@2.9.0))':
+  '@vitejs/plugin-react@4.7.0(vite@6.4.3(@types/node@22.20.0)(jiti@1.21.7)(terser@5.48.0)(yaml@2.9.0))':
     dependencies:
       '@babel/core': 7.29.7
       '@babel/plugin-transform-react-jsx-self': 7.29.7(@babel/core@7.29.7)
@@ -11653,7 +11666,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-beta.27
       '@types/babel__core': 7.20.5
       react-refresh: 0.17.0
-      vite: 6.4.3(@types/node@22.20.0)(jiti@2.7.0)(terser@5.48.0)(yaml@2.9.0)
+      vite: 6.4.3(@types/node@22.20.0)(jiti@1.21.7)(terser@5.48.0)(yaml@2.9.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -12505,6 +12518,7 @@ snapshots:
     dependencies:
       mdn-data: 2.27.1
       source-map-js: 1.2.1
+    optional: true
 
   css.escape@1.5.1: {}
 
@@ -12568,6 +12582,7 @@ snapshots:
       whatwg-url: 16.0.1(@noble/hashes@1.8.0)
     transitivePeerDependencies:
       - '@noble/hashes'
+    optional: true
 
   dateformat@4.6.3: {}
 
@@ -12730,7 +12745,8 @@ snapshots:
 
   entities@6.0.1: {}
 
-  entities@8.0.0: {}
+  entities@8.0.0:
+    optional: true
 
   error-ex@1.3.4:
     dependencies:
@@ -13433,6 +13449,7 @@ snapshots:
       '@exodus/bytes': 1.15.1(@noble/hashes@1.8.0)
     transitivePeerDependencies:
       - '@noble/hashes'
+    optional: true
 
   html-escaper@2.0.2: {}
 
@@ -13619,13 +13636,15 @@ snapshots:
 
   isexe@2.0.0: {}
 
-  isomorphic-dompurify@3.18.0(@noble/hashes@1.8.0):
+  isomorphic-dompurify@3.18.0:
     dependencies:
       dompurify: 3.4.11
-      jsdom: 29.1.1(@noble/hashes@1.8.0)
+      jsdom: 25.0.1
     transitivePeerDependencies:
-      - '@noble/hashes'
+      - bufferutil
       - canvas
+      - supports-color
+      - utf-8-validate
 
   istanbul-lib-coverage@3.2.2: {}
 
@@ -14091,6 +14110,7 @@ snapshots:
       xml-name-validator: 5.0.0
     transitivePeerDependencies:
       - '@noble/hashes'
+    optional: true
 
   jsesc@3.1.0: {}
 
@@ -14335,7 +14355,8 @@ snapshots:
     dependencies:
       '@types/mdast': 4.0.4
 
-  mdn-data@2.27.1: {}
+  mdn-data@2.27.1:
+    optional: true
 
   media-engine@1.0.3: {}
 
@@ -14847,6 +14868,7 @@ snapshots:
   parse5@8.0.1:
     dependencies:
       entities: 8.0.0
+    optional: true
 
   parseurl@1.3.3: {}
 
@@ -16045,7 +16067,8 @@ snapshots:
 
   tldts-core@6.1.86: {}
 
-  tldts-core@7.4.5: {}
+  tldts-core@7.4.5:
+    optional: true
 
   tldts@6.1.86:
     dependencies:
@@ -16054,6 +16077,7 @@ snapshots:
   tldts@7.4.5:
     dependencies:
       tldts-core: 7.4.5
+    optional: true
 
   tmp@0.0.33:
     dependencies:
@@ -16084,6 +16108,7 @@ snapshots:
   tough-cookie@6.0.1:
     dependencies:
       tldts: 7.4.5
+    optional: true
 
   tr46@0.0.3: {}
 
@@ -16094,6 +16119,7 @@ snapshots:
   tr46@6.0.0:
     dependencies:
       punycode: 2.3.1
+    optional: true
 
   tree-kill@1.2.2: {}
 
@@ -16224,7 +16250,8 @@ snapshots:
 
   undici-types@6.21.0: {}
 
-  undici@7.28.0: {}
+  undici@7.28.0:
+    optional: true
 
   undici@8.5.0: {}
 
@@ -16393,7 +16420,7 @@ snapshots:
       fsevents: 2.3.3
       terser: 5.48.0
 
-  vite@6.4.3(@types/node@22.20.0)(jiti@2.7.0)(terser@5.48.0)(yaml@2.9.0):
+  vite@6.4.3(@types/node@22.20.0)(jiti@1.21.7)(terser@5.48.0)(yaml@2.9.0):
     dependencies:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.4)
@@ -16404,7 +16431,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.20.0
       fsevents: 2.3.3
-      jiti: 2.7.0
+      jiti: 1.21.7
       terser: 5.48.0
       yaml: 2.9.0
 
@@ -16502,7 +16529,8 @@ snapshots:
 
   webidl-conversions@7.0.0: {}
 
-  webidl-conversions@8.0.1: {}
+  webidl-conversions@8.0.1:
+    optional: true
 
   webpack-node-externals@3.0.0: {}
 
@@ -16593,7 +16621,8 @@ snapshots:
 
   whatwg-mimetype@4.0.0: {}
 
-  whatwg-mimetype@5.0.0: {}
+  whatwg-mimetype@5.0.0:
+    optional: true
 
   whatwg-url@14.2.0:
     dependencies:
@@ -16607,6 +16636,7 @@ snapshots:
       webidl-conversions: 8.0.1
     transitivePeerDependencies:
       - '@noble/hashes'
+    optional: true
 
   whatwg-url@5.0.0:
     dependencies:
