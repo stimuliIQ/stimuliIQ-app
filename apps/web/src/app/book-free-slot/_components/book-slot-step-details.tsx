@@ -16,6 +16,7 @@
  */
 
 import { useId } from "react";
+import { PHONE_INPUT_PROPS, PHONE_PLACEHOLDER, toLocalPhoneDigits } from "@repo/ui";
 import type { BookSlotFormData } from "../../../hooks/use-book-slot";
 import { TurnstileWidget } from "../../../components/captcha/turnstile-widget";
 
@@ -108,16 +109,15 @@ export function DetailsStep({ formData, onChange, errors }: DetailsStepProps) {
           Phone number <span aria-hidden="true" className="text-danger">*</span>
         </label>
         <input
+          {...PHONE_INPUT_PROPS}
           id={phoneId}
-          type="tel"
-          autoComplete="tel"
           value={formData.phone}
-          onChange={(e) => onChange({ phone: e.target.value })}
+          onChange={(e) => onChange({ phone: toLocalPhoneDigits(e.target.value) })}
           aria-required="true"
           aria-invalid={!!errors.phone}
           aria-describedby={errors.phone ? `${phoneId}-error` : undefined}
           className={[inputClass, errors.phone ? "border-danger" : ""].join(" ")}
-          placeholder="+91 98765 43210"
+          placeholder={PHONE_PLACEHOLDER}
           data-testid="field-phone"
         />
         {errors.phone ? (

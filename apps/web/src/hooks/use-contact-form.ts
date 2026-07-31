@@ -11,6 +11,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { SubmitContactRequestSchema } from "@repo/types";
+import { isCompleteLocalPhone, toE164Phone, PHONE_LENGTH_MESSAGE } from "@repo/ui";
 import { apiClient } from "../lib/api-client";
 
 const TOS_VERSION =
@@ -47,10 +48,18 @@ export function useContactForm(): UseContactFormReturn {
   const submittingRef = useRef(false);
 
   const submit = useCallback(async (input: ContactFormInput) => {
+    // Phone is optional here, but when given it must be a complete 10-digit
+    // number — a partial one would otherwise fail with the generic E.164 error.
+    const phone = input.phone.trim();
+    if (phone && !isCompleteLocalPhone(phone)) {
+      setFieldErrors({ phone: PHONE_LENGTH_MESSAGE });
+      return;
+    }
+
     const parsed = SubmitContactRequestSchema.safeParse({
       name: input.name.trim(),
       email: input.email.trim(),
-      phone: input.phone.trim() || undefined,
+      phone: toE164Phone(phone) || undefined,
       subject: input.subject.trim() || undefined,
       message: input.message.trim(),
       consent: { marketingOptIn: input.marketingOptIn, tosVersion: TOS_VERSION },

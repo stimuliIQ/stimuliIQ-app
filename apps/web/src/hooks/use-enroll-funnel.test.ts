@@ -75,7 +75,8 @@ const _VERIFY_RESPONSE = {
 const VALID_REGISTER_DATA = {
   name: "Aarav Kumar",
   email: "aarav@example.com",
-  phone: "+919876543210",
+  // The field holds 10 local digits; the hook normalises to E.164 on submit.
+  phone: "9876543210",
   otpCode: "123456",
   password: "securepass99",
   tosAccepted: true as const,
@@ -101,13 +102,31 @@ describe("useEnrollFunnel", () => {
     expect(result.current.funnelState.kind).toBe("idle");
   });
 
-  it("requestOtp calls auth.requestOtp with the phone number", async () => {
+  it("requestOtp normalises the 10-digit field value to E.164 before calling auth.requestOtp", async () => {
     mockRequestOtp.mockResolvedValueOnce({});
     const { result } = renderHook(() => useEnrollFunnel(PROGRAM_ID));
     await act(async () => {
-      await result.current.requestOtp("+919876543210");
+      await result.current.requestOtp("9876543210");
     });
     expect(mockRequestOtp).toHaveBeenCalledWith({ phone: "+919876543210" });
+  });
+
+  it("submitRegister sends the same E.164 phone the OTP was requested for", async () => {
+    mockRegister.mockResolvedValueOnce(AUTH_SESSION);
+    const { result } = renderHook(() => useEnrollFunnel(PROGRAM_ID));
+    act(() => { result.current.setRegisterData(VALID_REGISTER_DATA); });
+    await act(async () => { await result.current.submitRegister(); });
+    expect(mockRegister.mock.calls[0]![0].phone).toBe("+919876543210");
+  });
+
+  it("submitRegister rejects a phone that is not exactly 10 digits", async () => {
+    const { result } = renderHook(() => useEnrollFunnel(PROGRAM_ID));
+    act(() => {
+      result.current.setRegisterData({ ...VALID_REGISTER_DATA, phone: "987654321" });
+    });
+    await act(async () => { await result.current.submitRegister(); });
+    expect(result.current.registerErrors.phone).toBeTruthy();
+    expect(mockRegister).not.toHaveBeenCalled();
   });
 
   it("submitRegister validates required fields and sets errors for missing captchaToken", async () => {

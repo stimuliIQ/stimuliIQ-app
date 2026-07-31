@@ -19,6 +19,12 @@
  */
 
 import { useId, useState } from "react";
+import {
+  PHONE_INPUT_PROPS,
+  PHONE_PLACEHOLDER,
+  isCompleteLocalPhone,
+  toLocalPhoneDigits,
+} from "@repo/ui";
 import type { RegisterFormData } from "../../../../hooks/use-enroll-funnel";
 import { TurnstileWidget } from "../../../../components/captcha/turnstile-widget";
 
@@ -61,8 +67,12 @@ export function EnrollRegisterStep({
   const [sendingOtp, setSendingOtp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // The OTP is bound to the number, so it can only be requested once the full
+  // 10 digits are in — a partial number would mint a code for the wrong phone.
+  const canRequestOtp = isCompleteLocalPhone(data.phone);
+
   async function handleRequestOtp() {
-    if (!data.phone || data.phone.trim().length < 7) return;
+    if (!canRequestOtp) return;
     setSendingOtp(true);
     await onRequestOtp(data.phone);
     setSendingOtp(false);
@@ -174,22 +184,21 @@ export function EnrollRegisterStep({
         </label>
         <div className="flex gap-2">
           <input
+            {...PHONE_INPUT_PROPS}
             id={phoneId}
-            type="tel"
-            autoComplete="tel"
             value={data.phone}
-            onChange={(e) => onChange({ phone: e.target.value })}
+            onChange={(e) => onChange({ phone: toLocalPhoneDigits(e.target.value) })}
             aria-required="true"
             aria-invalid={!!errors.phone}
             aria-describedby={errors.phone ? `${phoneId}-error` : undefined}
             className={[inputClass, "flex-1", errors.phone ? "border-danger" : ""].join(" ")}
-            placeholder="+91 98765 43210"
+            placeholder={PHONE_PLACEHOLDER}
             data-testid="register-phone"
           />
           <button
             type="button"
             onClick={handleRequestOtp}
-            disabled={sendingOtp || !data.phone || data.phone.trim().length < 7}
+            disabled={sendingOtp || !canRequestOtp}
             aria-label={otpSent ? "Resend OTP" : "Send OTP to phone"}
             className="shrink-0 flex min-h-[44px] items-center rounded-md border border-border px-4 text-sm font-medium text-fg transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             data-testid="send-otp-btn"

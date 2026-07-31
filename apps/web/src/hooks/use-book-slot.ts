@@ -23,6 +23,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { z } from "zod";
+import { PHONE_LOCAL_LENGTH, PHONE_LENGTH_MESSAGE, toE164Phone } from "@repo/ui";
 import { apiClient } from "../lib/api-client";
 import { useUtm, utmCaptureToSdkUtm } from "./use-utm";
 import type { PublicBookingResponse } from "@repo/types";
@@ -42,7 +43,9 @@ export const SlotStepSchema = z.object({
 
 export const DetailsStepSchema = z.object({
   name: z.string().min(1, "Name is required").max(200),
-  phone: z.string().min(7, "Valid phone number required").max(20),
+  // The field itself only accepts digits and caps at 10 — this is the guard for
+  // an incomplete number.
+  phone: z.string().regex(new RegExp(`^\\d{${PHONE_LOCAL_LENGTH}}$`), PHONE_LENGTH_MESSAGE),
   email: z.string().email("Valid email required").max(254).optional().or(z.literal("")),
   tosAccepted: z.literal(true, { errorMap: () => ({ message: "You must accept the Terms of Service" }) }),
   marketingOptIn: z.boolean(),
@@ -224,7 +227,9 @@ export function useBookSlot(): UseBookSlotReturn {
 
       const result = await apiClient.public.bookings.create({
         name: formData.name,
-        phone: formData.phone,
+        // 10 local digits in the field → E.164 on the wire, so booking dedupe by
+        // phone matches leads/students created anywhere else.
+        phone: toE164Phone(formData.phone),
         email: formData.email || undefined,
         programId: formData.programId || undefined,
         slotAt: formData.slotAt!,

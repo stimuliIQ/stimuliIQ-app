@@ -15,6 +15,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { SubmitCareerApplicationRequestSchema, ResumeContentTypeSchema } from "@repo/types";
+import { isCompleteLocalPhone, toE164Phone, PHONE_LENGTH_MESSAGE } from "@repo/ui";
 import { apiClient } from "../lib/api-client";
 
 export interface CareerApplyInput {
@@ -65,10 +66,18 @@ export function useCareerApply(): UseCareerApplyReturn {
   }, []);
 
   const submit = useCallback(async (input: CareerApplyInput) => {
+    // Optional field, but a half-typed number must fail with the 10-digit
+    // message rather than the generic E.164 one.
+    const phone = input.phone.trim();
+    if (phone && !isCompleteLocalPhone(phone)) {
+      setFieldErrors({ phone: PHONE_LENGTH_MESSAGE });
+      return;
+    }
+
     const parsed = SubmitCareerApplicationRequestSchema.safeParse({
       name: input.name.trim(),
       email: input.email.trim(),
-      phone: input.phone.trim() || undefined,
+      phone: toE164Phone(phone) || undefined,
       role: input.role,
       resumeStorageKey: input.resumeStorageKey,
       coverLetter: input.coverLetter.trim() || undefined,

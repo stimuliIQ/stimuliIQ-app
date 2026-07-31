@@ -14,7 +14,7 @@
  *   - empty: N/A (form always has initial state)
  */
 
-import { MultiStepForm } from "@repo/ui";
+import { MultiStepForm, isCompleteLocalPhone } from "@repo/ui";
 import type { MultiStep } from "@repo/ui";
 import { useBookSlot } from "../../../hooks/use-book-slot";
 import { buildWhatsAppHref } from "../../../lib/contact";
@@ -135,6 +135,32 @@ export function BookSlotForm({ programs = [] }: BookSlotFormProps) {
   const formError =
     submitState.kind === "error" ? submitState.message : undefined;
 
+  // Forward-button gate, per step. Mirrors (but does NOT replace) the zod checks
+  // in useBookSlot.validateStep — those still run on click and own the inline
+  // error messages; this only stops the button reading as actionable when the
+  // step is plainly incomplete.
+  //   0 Program — genuinely optional ("Not sure yet" is a valid answer).
+  //   1 Slot    — nothing selected → nothing to continue with.
+  //   2 Details — name + 10-digit phone + TOS + a solved captcha.
+  //   3 Confirm — everything already gathered.
+  const stepComplete: Record<number, boolean> = {
+    0: true,
+    1: Boolean(formData.slotAt),
+    2:
+      formData.name.trim().length > 0 &&
+      isCompleteLocalPhone(formData.phone) &&
+      formData.tosAccepted &&
+      formData.captchaToken.length > 0,
+    3: true,
+  };
+  const canProceed = stepComplete[currentStep] ?? true;
+  const blockedHint =
+    currentStep === 1
+      ? "Pick a slot above to continue."
+      : currentStep === 2
+        ? "Fill in your name and 10-digit phone number, accept the terms, and complete the verification to continue."
+        : undefined;
+
   return (
     <div
       className="rounded-xl border border-border bg-card p-6 shadow-sm md:p-8"
@@ -148,6 +174,8 @@ export function BookSlotForm({ programs = [] }: BookSlotFormProps) {
         onSubmit={submit}
         isLastStep={isLastStep}
         isSubmitting={isSubmitting}
+        canProceed={canProceed}
+        blockedHint={blockedHint}
         nextLabel="Continue"
         submitLabel="Book My Slot"
         backLabel="Back"

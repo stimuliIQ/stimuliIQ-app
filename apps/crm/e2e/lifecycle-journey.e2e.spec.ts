@@ -52,7 +52,8 @@ test.describe("Lifecycle journey — one person along the Lead → Certified spi
     const stamp = Date.now();
     const leadName = `Journey E2E ${stamp}`;
     const email = `journey-e2e-${stamp}@stimuliiq.test`;
-    const phone = `+9198${String(stamp).slice(-8)}`;
+    // Phone fields take 10 local digits — the +91 is added on submit.
+    const phone = `98${String(stamp).slice(-8)}`;
 
     await login(page);
 

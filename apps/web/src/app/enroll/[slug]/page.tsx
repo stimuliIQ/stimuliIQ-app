@@ -20,7 +20,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { serverApiClient } from "../../../lib/api-client";
 import { buildMetadata } from "../../../lib/seo/metadata";
-import { formatPaiseDisplay, formatCompareAtDisplay } from "../../../lib/format";
+import { formatPaiseDisplay, formatCompareAtDisplay, formatDiscountPercent } from "../../../lib/format";
 import { buildWhatsAppHref } from "../../../lib/contact";
 import { EnrollFunnelClient } from "./_components/enroll-funnel-client";
 
@@ -82,6 +82,11 @@ export default async function EnrollPage({ params }: PageProps) {
                 , reduced from {formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
               </span>
             </>
+          ) : null}
+          {formatDiscountPercent(program.compareAtPricePaise, program.pricePaise) ? (
+            <span className="rounded bg-success/10 px-2 py-0.5 text-sm font-bold text-success">
+              {formatDiscountPercent(program.compareAtPricePaise, program.pricePaise)}
+            </span>
           ) : null}
           {program.emiDisplay ? (
             <span className="text-sm text-fg-muted">{program.emiDisplay}</span>

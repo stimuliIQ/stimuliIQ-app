@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useId, useState, type FormEvent } from "react";
+import { PHONE_INPUT_PROPS, PHONE_PLACEHOLDER, toLocalPhoneDigits } from "@repo/ui";
 import { TurnstileWidget } from "../captcha/turnstile-widget";
 import { useCaptchaToken } from "../../hooks/use-captcha-token";
 import { useContactForm } from "../../hooks/use-contact-form";
@@ -67,6 +68,10 @@ export function ContactForm() {
 
   const isSubmitting = state.kind === "submitting";
   const isSuccess = state.kind === "success";
+  // Required fields per SubmitContactRequestSchema — phone/subject are optional.
+  // Presentation-only gate; the hook still validates on submit.
+  const canSubmit =
+    name.trim().length > 0 && email.trim().length > 0 && message.trim().length > 0;
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -198,15 +203,14 @@ export function ContactForm() {
             Phone <span className="text-fg-subtle text-xs">(optional)</span>
           </label>
           <input
+            {...PHONE_INPUT_PROPS}
             id={phoneId}
-            type="tel"
-            autoComplete="tel"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => setPhone(toLocalPhoneDigits(e.target.value))}
             aria-invalid={Boolean(fieldErrors.phone) || undefined}
             aria-describedby={fieldErrors.phone ? `${phoneId}-error` : undefined}
             className={inputClass}
-            placeholder="+91 98765 43210"
+            placeholder={PHONE_PLACEHOLDER}
             data-testid="contact-field-phone"
           />
           {fieldErrors.phone ? (
@@ -317,7 +321,8 @@ export function ContactForm() {
 
       <button
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !canSubmit}
+        aria-disabled={isSubmitting || !canSubmit}
         className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-brand-500 px-6 text-sm font-semibold text-white transition-colors hover:bg-brand-600 active:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         data-testid="contact-submit"
       >

@@ -25,7 +25,7 @@
  */
 
 import { useState } from "react";
-import { LeadFormInline } from "@repo/ui";
+import { LeadFormInline, toE164Phone } from "@repo/ui";
 import type { LeadFormValues } from "@repo/ui";
 import { TurnstileWidget } from "../captcha/turnstile-widget";
 import { useLeadCapture } from "../../hooks/use-lead-capture";
@@ -78,7 +78,7 @@ export function LeadFormConnected({
 
     await submit({
       name: values.name,
-      phone: values.phone,
+      phone: toE164Phone(values.phone),
       email: values.email,
       programInterestId: values.program || programInterestId,
       source,

@@ -8,6 +8,7 @@ import {
   StickyLeadBar,
   type LeadFormValues,
 } from "./lead-forms";
+import { PHONE_PLACEHOLDER } from "../lib/phone";
 
 // ---------------------------------------------------------------------------
 // LeadFormInline
@@ -27,13 +28,13 @@ describe("LeadFormInline — rendering", () => {
   it("renders name, phone, email fields by default", () => {
     render(<LeadFormInline />);
     expect(screen.getByPlaceholderText("Your name")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Phone number")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(PHONE_PLACEHOLDER)).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Email address")).toBeInTheDocument();
   });
 
   it("only renders requested fields", () => {
     render(<LeadFormInline fields={["phone"]} />);
-    expect(screen.getByPlaceholderText("Phone number")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(PHONE_PLACEHOLDER)).toBeInTheDocument();
     expect(screen.queryByPlaceholderText("Your name")).not.toBeInTheDocument();
   });
 
@@ -58,7 +59,7 @@ describe("LeadFormInline — rendering", () => {
   it("renders a fixed phone prefix when phonePrefix is set", () => {
     render(<LeadFormInline fields={["phone"]} phonePrefix="+91" />);
     expect(screen.getByText("+91")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Phone number")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(PHONE_PLACEHOLDER)).toBeInTheDocument();
   });
 
   it("forwards course/college/language values to onSubmit", async () => {
@@ -143,13 +144,39 @@ describe("LeadFormInline — honeypot", () => {
         submitLabel="Submit"
       />,
     );
-    await user.type(screen.getByPlaceholderText("Phone number"), "9876543210");
+    await user.type(screen.getByPlaceholderText(PHONE_PLACEHOLDER), "9876543210");
     await user.click(screen.getByRole("button", { name: "Submit" }));
     expect(onSubmit).toHaveBeenCalled();
     const args = onSubmit.mock.calls[0]![0];
     expect("_hp_email" in args).toBe(true);
     // Honeypot should be empty (no bot filled it)
     expect(args._hp_email).toBe("");
+  });
+
+  it("the phone field takes exactly 10 digits and drops anything typed past that", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn<(values: LeadFormValues) => void>();
+    render(<LeadFormInline fields={["phone"]} onSubmit={onSubmit} submitLabel="Submit" />);
+
+    const field = screen.getByPlaceholderText(PHONE_PLACEHOLDER) as HTMLInputElement;
+    expect(field).toHaveAttribute("maxLength", "10");
+    await user.type(field, "98765432109999");
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+
+    expect(onSubmit.mock.calls[0]![0].phone).toBe("9876543210");
+  });
+
+  it("the phone field strips non-digits (paste/autofill of a formatted number)", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn<(values: LeadFormValues) => void>();
+    render(<LeadFormInline fields={["phone"]} onSubmit={onSubmit} submitLabel="Submit" />);
+
+    const field = screen.getByPlaceholderText(PHONE_PLACEHOLDER);
+    await user.click(field);
+    await user.paste("+91 98765 43210");
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+
+    expect(onSubmit.mock.calls[0]![0].phone).toBe("9876543210");
   });
 });
 

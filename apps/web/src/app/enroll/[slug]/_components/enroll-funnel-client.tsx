@@ -13,6 +13,7 @@
  */
 
 import { useEffect, useRef } from "react";
+import { isCompleteLocalPhone } from "@repo/ui";
 import { useEnrollFunnel } from "../../../../hooks/use-enroll-funnel";
 import { EnrollRegisterStep } from "./enroll-register-step";
 import { EnrollOrderStep } from "./enroll-order-step";
@@ -78,6 +79,18 @@ export function EnrollFunnelClient({
     funnelState.kind === "payment_failed" ? funnelState.message : undefined;
 
   const stepLabel = STEP_LABELS[step] ?? step;
+
+  // "Create Account & Continue" stays disabled until the register step has
+  // everything RegisterStepSchema requires. Presentation only — submitRegister
+  // re-validates and owns the inline field errors.
+  const canCreateAccount =
+    registerData.name.trim().length > 0 &&
+    registerData.email.trim().length > 0 &&
+    isCompleteLocalPhone(registerData.phone) &&
+    /^\d{6}$/.test(registerData.otpCode) &&
+    registerData.password.length > 0 &&
+    registerData.tosAccepted &&
+    registerData.captchaToken.length > 0;
 
   return (
     <div
@@ -151,11 +164,18 @@ export function EnrollFunnelClient({
             isLoading={isLoading}
             globalError={globalError}
           />
+          {!canCreateAccount && !isLoading ? (
+            <p aria-live="polite" className="text-sm text-fg-muted" data-testid="register-blocked-hint">
+              Fill in every field, verify your phone with the OTP, accept the terms, and complete
+              the verification to continue.
+            </p>
+          ) : null}
           <button
             type="button"
             onClick={submitRegister}
-            disabled={isLoading}
+            disabled={isLoading || !canCreateAccount}
             aria-busy={isLoading}
+            aria-disabled={isLoading || !canCreateAccount}
             className="flex min-h-[44px] w-full items-center justify-center rounded-md bg-brand-500 px-6 text-base font-semibold text-white transition-colors hover:bg-brand-600 active:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
             data-testid="register-submit-btn"
           >

@@ -64,6 +64,22 @@ export interface MultiStepFormProps {
   onSubmit?: () => void;
   isLastStep?: boolean;
   isSubmitting?: boolean;
+  /**
+   * Whether the CURRENT step is complete enough to leave. `false` disables the
+   * Next/Submit button — the caller owns the per-step rule (this primitive runs
+   * no validation). Defaults to `true` so steps with nothing required, or
+   * callers that gate elsewhere, behave as before.
+   *
+   * This is a UX guard only: `onNext`/`onSubmit` must still validate, since a
+   * disabled button is not a security boundary.
+   */
+  canProceed?: boolean;
+  /**
+   * Shown next to a disabled Next/Submit button so the block is explained
+   * rather than silent (a disabled button is not focusable, so it cannot carry
+   * its own tooltip for keyboard/SR users).
+   */
+  blockedHint?: string;
   nextLabel?: string;
   submitLabel?: string;
   backLabel?: string;
@@ -81,6 +97,8 @@ export function MultiStepForm({
   onSubmit,
   isLastStep = false,
   isSubmitting = false,
+  canProceed = true,
+  blockedHint,
   nextLabel = "Continue",
   submitLabel = "Submit",
   backLabel = "Back",
@@ -222,6 +240,18 @@ export function MultiStepForm({
         </div>
       ) : null}
 
+      {/* Why the forward button is disabled — a disabled button can't be focused,
+          so the reason has to live outside it. */}
+      {!canProceed && blockedHint && !isSubmitting ? (
+        <p
+          aria-live="polite"
+          className="text-sm text-fg-muted"
+          data-testid="multi-step-blocked-hint"
+        >
+          {blockedHint}
+        </p>
+      ) : null}
+
       {/* Navigation */}
       <div className="flex items-center justify-between gap-3 pt-2">
         {/* Back button */}
@@ -245,9 +275,10 @@ export function MultiStepForm({
           <button
             type="button"
             onClick={onSubmit}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !canProceed}
             aria-busy={isSubmitting}
-            aria-disabled={isSubmitting}
+            aria-disabled={isSubmitting || !canProceed}
+            data-testid="multi-step-submit"
             className={cn(
               "flex min-h-[44px] items-center rounded-md bg-brand-500 px-6 text-sm font-semibold text-white",
               "transition-colors hover:bg-brand-600 active:bg-brand-700",
@@ -276,7 +307,9 @@ export function MultiStepForm({
           <button
             type="button"
             onClick={onNext}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !canProceed}
+            aria-disabled={isSubmitting || !canProceed}
+            data-testid="multi-step-next"
             className={cn(
               "flex min-h-[44px] items-center rounded-md bg-brand-500 px-6 text-sm font-semibold text-white",
               "transition-colors hover:bg-brand-600 active:bg-brand-700",

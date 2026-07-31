@@ -81,6 +81,62 @@ describe("BookSlotForm", () => {
     render(<BookSlotForm />);
     expect(screen.getByTestId("program-step")).toBeInTheDocument();
   });
+
+  it("keeps Continue enabled on the program step — picking a program is optional", () => {
+    render(<BookSlotForm />);
+    expect(screen.getByTestId("multi-step-next")).toBeEnabled();
+  });
+});
+
+describe("BookSlotForm — forward button gating", () => {
+  it("disables Continue on the slot step until a slot is picked", () => {
+    vi.mocked(useBookSlot).mockReturnValue({
+      ...idleState,
+      currentStep: 1,
+    } as ReturnType<typeof useBookSlot>);
+
+    render(<BookSlotForm />);
+    expect(screen.getByTestId("multi-step-next")).toBeDisabled();
+    expect(screen.getByTestId("multi-step-blocked-hint")).toHaveTextContent(/pick a slot/i);
+  });
+
+  it("enables Continue once a slot is selected", () => {
+    vi.mocked(useBookSlot).mockReturnValue({
+      ...idleState,
+      currentStep: 1,
+      formData: { ...idleState.formData, slotAt: "2026-08-03T04:30:00.000Z" },
+    } as ReturnType<typeof useBookSlot>);
+
+    render(<BookSlotForm />);
+    expect(screen.getByTestId("multi-step-next")).toBeEnabled();
+    expect(screen.queryByTestId("multi-step-blocked-hint")).not.toBeInTheDocument();
+  });
+
+  it("disables Continue on the details step until name, a 10-digit phone, TOS and captcha are all present", () => {
+    const partial = {
+      ...idleState,
+      currentStep: 2,
+      formData: {
+        ...idleState.formData,
+        slotAt: "2026-08-03T04:30:00.000Z",
+        name: "Aarav",
+        phone: "98765", // incomplete
+        tosAccepted: true,
+        captchaToken: "tok",
+      },
+    };
+    const { rerender } = render(<BookSlotForm />);
+    vi.mocked(useBookSlot).mockReturnValue(partial as ReturnType<typeof useBookSlot>);
+    rerender(<BookSlotForm />);
+    expect(screen.getByTestId("multi-step-next")).toBeDisabled();
+
+    vi.mocked(useBookSlot).mockReturnValue({
+      ...partial,
+      formData: { ...partial.formData, phone: "9876543210" },
+    } as ReturnType<typeof useBookSlot>);
+    rerender(<BookSlotForm />);
+    expect(screen.getByTestId("multi-step-next")).toBeEnabled();
+  });
 });
 
 // Test success state rendering

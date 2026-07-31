@@ -37,7 +37,7 @@ export default async function BookFreeSlotPage() {
   // public programs). Empty on failure → the form still works ("Not sure yet").
   let programs: ProgramOption[] = [];
   try {
-    const result = await serverApiClient.public.programs.list({ limit: 50, sort: "popularity" });
+    const result = await serverApiClient.public.programs.list({ limit: 50, sort: "order" });
     programs = Array.isArray(result.items)
       ? result.items.map((p) => ({ id: p.id, title: p.title }))
       : [];

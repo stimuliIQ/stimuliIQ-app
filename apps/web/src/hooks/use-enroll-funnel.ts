@@ -26,6 +26,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { z } from "zod";
+import { PHONE_LOCAL_LENGTH, PHONE_LENGTH_MESSAGE, toE164Phone } from "@repo/ui";
 import { apiClient } from "../lib/api-client";
 import type {
   PublicOrderResponse,
@@ -109,7 +110,7 @@ async function loadRazorpayScript(): Promise<void> {
 export const RegisterStepSchema = z.object({
   name: z.string().min(1, "Name is required").max(200),
   email: z.string().email("Valid email required").max(254),
-  phone: z.string().min(7, "Valid phone number required").max(20),
+  phone: z.string().regex(new RegExp(`^\\d{${PHONE_LOCAL_LENGTH}}$`), PHONE_LENGTH_MESSAGE),
   otpCode: z.string().regex(/^\d{6}$/, "Enter the 6-digit OTP"),
   password: z
     .string()
@@ -257,7 +258,9 @@ export function useEnrollFunnel(programId: string): UseEnrollFunnelReturn {
   const requestOtp = useCallback(async (phone: string) => {
     setFunnelState({ kind: "loading", message: "Sending OTP…" });
     try {
-      await apiClient.auth.otpRequest({ phone });
+      // Normalised here (not in the component) so the OTP is minted against the
+      // exact same E.164 value `register` later verifies against.
+      await apiClient.auth.otpRequest({ phone: toE164Phone(phone) });
       setFunnelState({ kind: "idle" });
     } catch (err: unknown) {
       const message =
@@ -305,7 +308,9 @@ export function useEnrollFunnel(programId: string): UseEnrollFunnelReturn {
       await apiClient.public.auth.register({
         name: registerData.name,
         email: registerData.email,
-        phone: registerData.phone,
+        // Same normalisation as `requestOtp` — the backend matches the OTP
+        // against the phone it was issued for, so both must be identical.
+        phone: toE164Phone(registerData.phone),
         otpCode: registerData.otpCode,
         password: registerData.password,
         consent: {

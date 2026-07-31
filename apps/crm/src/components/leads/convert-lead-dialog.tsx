@@ -24,6 +24,13 @@ import { ConvertLeadRequestSchema, type ConvertLeadRequest, type CourseType, typ
 import { useConvertLead } from "../../hooks/use-leads";
 import { useProgramsList } from "../../hooks/use-courses";
 import { useBatchesList } from "../../hooks/use-batches";
+import {
+  isCompleteLocalPhone,
+  optionalE164Phone,
+  phoneFieldProps,
+  toLocalPhoneDigits,
+} from "../../lib/phone-field";
+import { PHONE_LENGTH_MESSAGE } from "@repo/ui";
 
 const COURSE_TYPES: { value: CourseType; label: string }[] = [
   { value: "btech", label: "B.Tech" },
@@ -80,7 +87,8 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
       reset({
         name: lead.name,
         email: lead.email ?? "",
-        phone: lead.phone,
+        // The lead's stored E.164 number → the 10 local digits the field takes.
+        phone: toLocalPhoneDigits(lead.phone),
         college: lead.college ?? "",
       });
       clearErrors();
@@ -102,14 +110,24 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
       return;
     }
 
+    // No zod resolver on this form, so the 10-digit rule is checked here. Both
+    // numbers are optional; only a partially-typed one is rejected.
+    for (const field of ["phone", "alternatePhone"] as const) {
+      const raw = values[field]?.trim();
+      if (raw && !isCompleteLocalPhone(raw)) {
+        setError(field, { message: PHONE_LENGTH_MESSAGE }, { shouldFocus: true });
+        return;
+      }
+    }
+
     try {
       const body: ConvertLeadRequest = ConvertLeadRequestSchema.parse({
         studentFields: {
           name: values.name,
           email: values.email,
           courseType: values.courseType,
-          phone: values.phone?.trim() || undefined,
-          alternatePhone: values.alternatePhone?.trim() || undefined,
+          phone: optionalE164Phone(values.phone),
+          alternatePhone: optionalE164Phone(values.alternatePhone),
           college: values.college?.trim() || undefined,
           year: values.year?.trim() ? Number(values.year) : undefined,
           city: values.city?.trim() || undefined,
@@ -201,17 +219,13 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
                 />
                 <Input
                   label="Phone"
-                  type="tel"
-                  placeholder="+91XXXXXXXXXX"
-                  {...register("phone")}
+                  {...phoneFieldProps(register("phone"))}
                   error={errors.phone?.message}
                   data-testid="convert-lead-phone"
                 />
                 <Input
                   label="Alternate / guardian phone"
-                  type="tel"
-                  placeholder="+91XXXXXXXXXX"
-                  {...register("alternatePhone")}
+                  {...phoneFieldProps(register("alternatePhone"))}
                   error={errors.alternatePhone?.message}
                   data-testid="convert-lead-alternate-phone"
                 />

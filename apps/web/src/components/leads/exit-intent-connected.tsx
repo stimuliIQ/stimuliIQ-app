@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { ExitIntentModal } from "@repo/ui";
+import { ExitIntentModal, toE164Phone } from "@repo/ui";
 import type { LeadFormValues } from "@repo/ui";
 import { TurnstileWidget } from "../captcha/turnstile-widget";
 import { useLeadCapture } from "../../hooks/use-lead-capture";
@@ -65,7 +65,7 @@ export function ExitIntentConnected() {
   async function handleSubmit(values: LeadFormValues) {
     await submit({
       name: values.name,
-      phone: values.phone,
+      phone: toE164Phone(values.phone),
       email: values.email,
       source: "web-exit-intent",
       captchaToken: captchaToken ?? "noop",

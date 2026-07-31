@@ -29,6 +29,14 @@ import { CreateMentorRequestSchema, UpdateMentorRequestSchema, type MentorDetail
 import { useCreateMentor, useUpdateMentor } from "../../hooks/use-mentors";
 import { surfaceError } from "../../lib/surface-error";
 import { MentorProfileFields, normalizeProfileValues } from "./mentor-profile-fields";
+import {
+  optionalE164Phone,
+  phoneFieldProps,
+  requireLocalPhones,
+  toLocalPhoneDigits,
+} from "../../lib/phone-field";
+
+const PHONE_FIELDS = ["phone"] as const;
 
 // Use the schema's *input* type (pre-`.default()`) for the RHF generic —
 // CreateMentorRequest is the inferred *output* type, which makes
@@ -67,11 +75,11 @@ export function MentorFormDrawer({ open, onOpenChange, mentor }: MentorFormDrawe
   const updateMentor = useUpdateMentor();
 
   const createForm = useForm<CreateMentorFormValues>({
-    resolver: zodResolver(CreateMentorRequestSchema),
+    resolver: zodResolver(requireLocalPhones(CreateMentorRequestSchema, PHONE_FIELDS)),
     defaultValues: { expertise: [], engagementStatus: "prospective" },
   });
   const updateForm = useForm<UpdateMentorFormValues>({
-    resolver: zodResolver(UpdateMentorRequestSchema),
+    resolver: zodResolver(requireLocalPhones(UpdateMentorRequestSchema, PHONE_FIELDS)),
   });
 
   const [expertiseText, setExpertiseText] = React.useState("");
@@ -82,7 +90,7 @@ export function MentorFormDrawer({ open, onOpenChange, mentor }: MentorFormDrawe
       updateForm.reset({
         fullName: mentor.fullName,
         email: mentor.email,
-        phone: mentor.phone ?? undefined,
+        phone: toLocalPhoneDigits(mentor.phone) || undefined,
         externalInstitute: mentor.externalInstitute,
         expertise: mentor.expertise,
         engagementStatus: mentor.engagementStatus,
@@ -114,6 +122,7 @@ export function MentorFormDrawer({ open, onOpenChange, mentor }: MentorFormDrawe
     try {
       const body = CreateMentorRequestSchema.parse({
         ...values,
+        phone: optionalE164Phone(values.phone),
         expertise: textToExpertise(expertiseText),
         ...normalizeProfileValues(values),
         // "Remove photo" sets photoKey null (the edit-mode "clear" semantic);
@@ -137,6 +146,7 @@ export function MentorFormDrawer({ open, onOpenChange, mentor }: MentorFormDrawe
     try {
       const body = UpdateMentorRequestSchema.parse({
         ...values,
+        phone: optionalE164Phone(values.phone),
         expertise: textToExpertise(expertiseText),
         ...normalizeProfileValues(values),
       });
@@ -174,7 +184,7 @@ export function MentorFormDrawer({ open, onOpenChange, mentor }: MentorFormDrawe
                 error={errors.email?.message}
                 data-testid="mentor-form-email"
               />
-              <Input label="Phone" placeholder="+91 98765 43210" {...register("phone")} error={errors.phone?.message} data-testid="mentor-form-phone" />
+              <Input label="Phone" {...phoneFieldProps(register("phone"))} error={errors.phone?.message} data-testid="mentor-form-phone" />
               <Input
                 label="External institute"
                 required
@@ -268,7 +278,7 @@ export function MentorFormDrawer({ open, onOpenChange, mentor }: MentorFormDrawe
               error={errors.email?.message}
               data-testid="mentor-form-email"
             />
-            <Input label="Phone" placeholder="+91 98765 43210" {...register("phone")} error={errors.phone?.message} data-testid="mentor-form-phone" />
+            <Input label="Phone" {...phoneFieldProps(register("phone"))} error={errors.phone?.message} data-testid="mentor-form-phone" />
             <Input
               label="External institute"
               required

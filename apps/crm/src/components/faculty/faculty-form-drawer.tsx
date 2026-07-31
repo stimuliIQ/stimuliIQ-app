@@ -20,6 +20,14 @@ type CreateFacultyFormValues = z.input<typeof CreateFacultyRequestSchema>;
 type UpdateFacultyFormValues = z.input<typeof UpdateFacultyRequestSchema>;
 
 import { useCreateFaculty, useUpdateFaculty } from "../../hooks/use-faculty";
+import {
+  optionalE164Phone,
+  phoneFieldProps,
+  requireLocalPhones,
+  toLocalPhoneDigits,
+} from "../../lib/phone-field";
+
+const PHONE_FIELDS = ["phone"] as const;
 
 interface FacultyFormDrawerProps {
   open: boolean;
@@ -45,11 +53,11 @@ export function FacultyFormDrawer({ open, onOpenChange, faculty }: FacultyFormDr
   const updateFaculty = useUpdateFaculty();
 
   const createForm = useForm<CreateFacultyFormValues>({
-    resolver: zodResolver(CreateFacultyRequestSchema),
+    resolver: zodResolver(requireLocalPhones(CreateFacultyRequestSchema, PHONE_FIELDS)),
     defaultValues: { expertise: [] },
   });
   const updateForm = useForm<UpdateFacultyFormValues>({
-    resolver: zodResolver(UpdateFacultyRequestSchema),
+    resolver: zodResolver(requireLocalPhones(UpdateFacultyRequestSchema, PHONE_FIELDS)),
   });
 
   const [expertiseText, setExpertiseText] = React.useState("");
@@ -59,7 +67,7 @@ export function FacultyFormDrawer({ open, onOpenChange, faculty }: FacultyFormDr
     if (isEdit && faculty) {
       updateForm.reset({
         name: faculty.name,
-        phone: faculty.phone ?? undefined,
+        phone: toLocalPhoneDigits(faculty.phone) || undefined,
         expertise: faculty.expertise,
         bio: faculty.bio ?? undefined,
         branchId: faculty.branchId,
@@ -76,7 +84,11 @@ export function FacultyFormDrawer({ open, onOpenChange, faculty }: FacultyFormDr
 
   const onSubmitCreate = createForm.handleSubmit(async (values) => {
     try {
-      const body = CreateFacultyRequestSchema.parse({ ...values, expertise: textToExpertise(expertiseText) });
+      const body = CreateFacultyRequestSchema.parse({
+        ...values,
+        phone: optionalE164Phone(values.phone),
+        expertise: textToExpertise(expertiseText),
+      });
       await createFaculty.mutateAsync(body);
       toast({ title: "Faculty member created", variant: "success" });
       onOpenChange(false);
@@ -92,7 +104,11 @@ export function FacultyFormDrawer({ open, onOpenChange, faculty }: FacultyFormDr
   const onSubmitUpdate = updateForm.handleSubmit(async (values) => {
     if (!faculty) return;
     try {
-      const body = UpdateFacultyRequestSchema.parse({ ...values, expertise: textToExpertise(expertiseText) });
+      const body = UpdateFacultyRequestSchema.parse({
+        ...values,
+        phone: optionalE164Phone(values.phone),
+        expertise: textToExpertise(expertiseText),
+      });
       await updateFaculty.mutateAsync({ id: faculty.id, body });
       toast({ title: "Faculty member updated", variant: "success" });
       onOpenChange(false);
@@ -114,7 +130,7 @@ export function FacultyFormDrawer({ open, onOpenChange, faculty }: FacultyFormDr
           <form onSubmit={onSubmitUpdate} className="flex flex-1 flex-col overflow-hidden">
             <DrawerBody className="flex flex-col gap-4">
               <Input label="Full name" required placeholder="e.g. Priya Sharma" {...register("name")} error={errors.name?.message} data-testid="faculty-form-name" />
-              <Input label="Phone" placeholder="+91 98765 43210" {...register("phone")} error={errors.phone?.message} data-testid="faculty-form-phone" />
+              <Input label="Phone" {...phoneFieldProps(register("phone"))} error={errors.phone?.message} data-testid="faculty-form-phone" />
               <Input
                 label="Expertise"
                 helperText="Comma-separated, e.g. React, Node.js, Data Structures"
@@ -148,7 +164,7 @@ export function FacultyFormDrawer({ open, onOpenChange, faculty }: FacultyFormDr
           <DrawerBody className="flex flex-col gap-4">
             <Input label="Full name" required placeholder="e.g. Priya Sharma" {...register("name")} error={errors.name?.message} data-testid="faculty-form-name" />
             <Input label="Email" type="email" required placeholder="name@example.com" {...register("email")} error={errors.email?.message} data-testid="faculty-form-email" />
-            <Input label="Phone" placeholder="+91 98765 43210" {...register("phone")} error={errors.phone?.message} data-testid="faculty-form-phone" />
+            <Input label="Phone" {...phoneFieldProps(register("phone"))} error={errors.phone?.message} data-testid="faculty-form-phone" />
             <Input
               label="Expertise"
               helperText="Comma-separated, e.g. React, Node.js, Data Structures"

@@ -29,6 +29,14 @@ import { UpdateStudentRequestSchema, type CourseType, type StudentDetail } from 
 import { useUpdateStudent } from "../../hooks/use-students";
 import { surfaceError } from "../../lib/surface-error";
 import { COURSE_TYPES, optionalText, optionalNumber } from "./student-form-drawer";
+import {
+  optionalE164Phone,
+  phoneFieldProps,
+  requireLocalPhones,
+  toLocalPhoneDigits,
+} from "../../lib/phone-field";
+
+const PHONE_FIELDS = ["phone", "alternatePhone"] as const;
 
 type RegisterFormValues = z.input<typeof UpdateStudentRequestSchema>;
 
@@ -49,7 +57,9 @@ export function RegisterStudentDialog({
   const { toast } = useToast();
   const updateStudent = useUpdateStudent();
 
-  const form = useForm<RegisterFormValues>({ resolver: zodResolver(UpdateStudentRequestSchema) });
+  const form = useForm<RegisterFormValues>({
+    resolver: zodResolver(requireLocalPhones(UpdateStudentRequestSchema, PHONE_FIELDS)),
+  });
   const { register, formState, watch, setValue, reset, handleSubmit } = form;
   const errors = formState.errors;
 
@@ -57,8 +67,9 @@ export function RegisterStudentDialog({
     if (open && student) {
       reset({
         name: student.name,
-        phone: student.phone ?? undefined,
-        alternatePhone: student.alternatePhone ?? undefined,
+        // Stored E.164 → the 10 local digits the field is capped at.
+        phone: toLocalPhoneDigits(student.phone) || undefined,
+        alternatePhone: toLocalPhoneDigits(student.alternatePhone) || undefined,
         college: student.college ?? undefined,
         courseType: student.courseType,
         year: student.year ?? undefined,
@@ -73,7 +84,12 @@ export function RegisterStudentDialog({
     try {
       // status:"active" is what "registration complete" means to the lifecycle
       // resolver: an active-status profile without an enrollment reads Registered.
-      const body = UpdateStudentRequestSchema.parse({ ...values, status: "active" });
+      const body = UpdateStudentRequestSchema.parse({
+        ...values,
+        phone: optionalE164Phone(values.phone),
+        alternatePhone: values.alternatePhone === null ? null : optionalE164Phone(values.alternatePhone),
+        status: "active",
+      });
       const updated = await updateStudent.mutateAsync({ id: student.id, body });
       toast({
         title: "Registration complete",
@@ -100,11 +116,11 @@ export function RegisterStudentDialog({
             <Input label="Full name" required placeholder="As it should appear on records" {...register("name")} error={errors.name?.message} data-testid="register-form-name" />
             <Input label="Email" value={student?.email ?? ""} disabled readOnly helperText="The contact's login identity — changing email is a separate verified flow." data-testid="register-form-email" />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Input label="Phone" placeholder="+91 98765 43210" {...register("phone", optionalText)} error={errors.phone?.message} data-testid="register-form-phone" />
+              <Input label="Phone" {...phoneFieldProps(register("phone", optionalText))} error={errors.phone?.message} data-testid="register-form-phone" />
               <Input
                 label="Alternate phone"
-                placeholder="Guardian / secondary"
-                {...register("alternatePhone", optionalText)}
+                {...phoneFieldProps(register("alternatePhone", optionalText))}
+                helperText="Guardian / secondary"
                 error={errors.alternatePhone?.message}
                 data-testid="register-form-alternate-phone"
               />

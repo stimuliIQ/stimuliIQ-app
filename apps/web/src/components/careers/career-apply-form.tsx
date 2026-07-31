@@ -13,7 +13,7 @@
  */
 
 import { useId, useState, type FormEvent } from "react";
-import { FileUpload } from "@repo/ui";
+import { FileUpload, PHONE_INPUT_PROPS, PHONE_PLACEHOLDER, toLocalPhoneDigits } from "@repo/ui";
 import { TurnstileWidget } from "../captcha/turnstile-widget";
 import { useCaptchaToken } from "../../hooks/use-captcha-token";
 import { useCareerApply } from "../../hooks/use-career-apply";
@@ -136,15 +136,19 @@ export function CareerApplyForm({ role, onClose }: CareerApplyFormProps) {
           Phone <span className="text-fg-subtle text-xs">(optional)</span>
         </label>
         <input
+          {...PHONE_INPUT_PROPS}
           id={phoneId}
-          type="tel"
-          autoComplete="tel"
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={(e) => setPhone(toLocalPhoneDigits(e.target.value))}
+          aria-invalid={Boolean(fieldErrors.phone) || undefined}
+          aria-describedby={fieldErrors.phone ? `${phoneId}-error` : undefined}
           className={inputClass}
-          placeholder="+91 98765 43210"
+          placeholder={PHONE_PLACEHOLDER}
           data-testid="career-field-phone"
         />
+        {fieldErrors.phone ? (
+          <p id={`${phoneId}-error`} role="alert" className="mt-1.5 text-xs text-danger">{fieldErrors.phone}</p>
+        ) : null}
       </div>
 
       <div>

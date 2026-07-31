@@ -5,6 +5,12 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 
 import { cn } from "../lib/cn";
+import {
+  PHONE_INPUT_PROPS,
+  PHONE_PLACEHOLDER,
+  isCompleteLocalPhone,
+  toLocalPhoneDigits,
+} from "../lib/phone";
 
 /**
  * LeadFormInline / ExitIntentModal / StickyLeadBar
@@ -244,6 +250,23 @@ function LeadFormCore({
     await onSubmit?.({ ...values, _hp_email: honeypot });
   }
 
+  // The submit button stays disabled until every REQUIRED rendered field has a
+  // usable value, so it never reads as actionable on an empty form. Optional
+  // fields (program/message/course/college/language) are ignored. The caller
+  // still validates on submit — this is presentation, not enforcement.
+  const requiredFieldsFilled = fields.every((field) => {
+    switch (field) {
+      case "name":
+        return (values.name ?? "").trim().length > 0;
+      case "phone":
+        return isCompleteLocalPhone(values.phone);
+      case "email":
+        return (values.email ?? "").trim().length > 0;
+      default:
+        return true;
+    }
+  });
+
   if (successSlot) {
     return <div>{successSlot}</div>;
   }
@@ -299,26 +322,24 @@ function LeadFormCore({
                         {phonePrefix}
                       </span>
                       <input
+                        {...PHONE_INPUT_PROPS}
                         id={fieldId("phone")}
-                        type="tel"
                         name="phone"
-                        autoComplete="tel"
-                        placeholder="Phone number"
+                        placeholder={PHONE_PLACEHOLDER}
                         value={values.phone ?? ""}
-                        onChange={(e) => set("phone")(e.target.value)}
+                        onChange={(e) => set("phone")(toLocalPhoneDigits(e.target.value))}
                         required
                         className={cn(inputClass, "flex-1")}
                       />
                     </div>
                   ) : (
                     <input
+                      {...PHONE_INPUT_PROPS}
                       id={fieldId("phone")}
-                      type="tel"
                       name="phone"
-                      autoComplete="tel"
-                      placeholder="Phone number"
+                      placeholder={PHONE_PLACEHOLDER}
                       value={values.phone ?? ""}
-                      onChange={(e) => set("phone")(e.target.value)}
+                      onChange={(e) => set("phone")(toLocalPhoneDigits(e.target.value))}
                       required
                       className={inputClass}
                     />
@@ -441,9 +462,9 @@ function LeadFormCore({
 
       <button
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !requiredFieldsFilled}
         aria-busy={isSubmitting}
-        aria-disabled={isSubmitting}
+        aria-disabled={isSubmitting || !requiredFieldsFilled}
         className={cn(
           "flex min-h-[44px] w-full items-center justify-center rounded-md bg-brand-500 px-5 text-sm font-semibold text-white",
           "transition-colors hover:bg-brand-600 active:bg-brand-700",
@@ -621,7 +642,7 @@ export interface StickyLeadBarProps {
 
 export function StickyLeadBar({
   label = "Get a free counselling call",
-  placeholder = "Your phone number",
+  placeholder = PHONE_PLACEHOLDER,
   submitLabel = "Call Me",
   captchaSlot,
   onSubmit,
@@ -653,7 +674,12 @@ export function StickyLeadBar({
           className,
         )}
       >
-        {successSlot}
+        {/* Centred, not left-aligned: the confirmation replaces a full-width bar,
+            so an unconstrained slot would strand the message against the left
+            edge on desktop. Same max-width as the form below it. */}
+        <div className="mx-auto flex max-w-screen-sm items-center justify-center">
+          {successSlot}
+        </div>
       </div>
     );
   }
@@ -682,13 +708,12 @@ export function StickyLeadBar({
 
         <label className="sr-only" htmlFor="sticky-lead-phone">Phone number</label>
         <input
+          {...PHONE_INPUT_PROPS}
           id="sticky-lead-phone"
-          type="tel"
           name="phone"
-          autoComplete="tel"
           placeholder={placeholder}
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={(e) => setPhone(toLocalPhoneDigits(e.target.value))}
           required
           className={cn(inputClass, "flex-1")}
         />
@@ -704,9 +729,10 @@ export function StickyLeadBar({
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          // "Call Me" is pointless without a complete number to call.
+          disabled={isSubmitting || !isCompleteLocalPhone(phone)}
           aria-busy={isSubmitting}
-          aria-disabled={isSubmitting}
+          aria-disabled={isSubmitting || !isCompleteLocalPhone(phone)}
           className={cn(
             "shrink-0 flex min-h-[44px] items-center rounded-md bg-brand-500 px-5 text-sm font-semibold text-white",
             "transition-colors hover:bg-brand-600 active:bg-brand-700",

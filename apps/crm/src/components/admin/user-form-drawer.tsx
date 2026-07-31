@@ -31,6 +31,14 @@ import {
 import { useRolesList } from "../../hooks/use-roles";
 import { useCreateStaffUser, useUpdateStaffUser } from "../../hooks/use-staff-users";
 import { surfaceError } from "../../lib/surface-error";
+import {
+  optionalE164Phone,
+  phoneFieldProps,
+  requireLocalPhones,
+  toLocalPhoneDigits,
+} from "../../lib/phone-field";
+
+const PHONE_FIELDS = ["phone"] as const;
 
 type CreateFormValues = z.input<typeof CreateStaffUserRequestSchema>;
 type UpdateFormValues = z.input<typeof UpdateStaffUserRequestSchema>;
@@ -89,11 +97,11 @@ export function UserFormDrawer({ open, onOpenChange, user }: UserFormDrawerProps
   const updateUser = useUpdateStaffUser();
 
   const createForm = useForm<CreateFormValues>({
-    resolver: zodResolver(CreateStaffUserRequestSchema),
+    resolver: zodResolver(requireLocalPhones(CreateStaffUserRequestSchema, PHONE_FIELDS)),
     defaultValues: { roleIds: [] },
   });
   const updateForm = useForm<UpdateFormValues>({
-    resolver: zodResolver(UpdateStaffUserRequestSchema),
+    resolver: zodResolver(requireLocalPhones(UpdateStaffUserRequestSchema, PHONE_FIELDS)),
   });
 
   React.useEffect(() => {
@@ -101,7 +109,7 @@ export function UserFormDrawer({ open, onOpenChange, user }: UserFormDrawerProps
     if (isEdit && user) {
       updateForm.reset({
         name: user.name,
-        phone: user.phone ?? undefined,
+        phone: toLocalPhoneDigits(user.phone) || undefined,
         status: user.status,
         roleIds: user.roles.map((role) => role.id),
         password: undefined,
@@ -118,7 +126,7 @@ export function UserFormDrawer({ open, onOpenChange, user }: UserFormDrawerProps
     try {
       const body = CreateStaffUserRequestSchema.parse({
         ...values,
-        phone: values.phone || undefined,
+        phone: optionalE164Phone(values.phone),
       });
       await createUser.mutateAsync(body);
       toast({ title: "User created", description: "Share the email and password with them securely.", variant: "success" });
@@ -133,7 +141,7 @@ export function UserFormDrawer({ open, onOpenChange, user }: UserFormDrawerProps
     try {
       const body = UpdateStaffUserRequestSchema.parse({
         ...values,
-        phone: values.phone || undefined,
+        phone: optionalE164Phone(values.phone),
         // Empty password field = "don't change the password".
         password: values.password || undefined,
       });
@@ -156,7 +164,7 @@ export function UserFormDrawer({ open, onOpenChange, user }: UserFormDrawerProps
             <DrawerBody className="flex flex-col gap-4">
               <Input label="Name" required {...register("name")} error={errors.name?.message} data-testid="user-form-name" />
               <Input label="Email" value={user.email} disabled helperText="Email is the login identity and cannot be changed." data-testid="user-form-email" />
-              <Input label="Phone" placeholder="e.g. 9198xxxxxx00" {...register("phone")} error={errors.phone?.message} data-testid="user-form-phone" />
+              <Input label="Phone" {...phoneFieldProps(register("phone"))} error={errors.phone?.message} data-testid="user-form-phone" />
               <Select
                 label="Status"
                 required
@@ -221,7 +229,7 @@ export function UserFormDrawer({ open, onOpenChange, user }: UserFormDrawerProps
           <DrawerBody className="flex flex-col gap-4">
             <Input label="Name" required placeholder="e.g. Priya Sharma" {...register("name")} error={errors.name?.message} data-testid="user-form-name" />
             <Input label="Email" required type="email" placeholder="e.g. priya@stimuliiq.com" {...register("email")} error={errors.email?.message} data-testid="user-form-email" />
-            <Input label="Phone" placeholder="e.g. 9198xxxxxx00" {...register("phone")} error={errors.phone?.message} data-testid="user-form-phone" />
+            <Input label="Phone" {...phoneFieldProps(register("phone"))} error={errors.phone?.message} data-testid="user-form-phone" />
             <PasswordInput
               label="Password"
               required

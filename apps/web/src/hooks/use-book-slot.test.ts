@@ -58,7 +58,8 @@ const MOCK_BOOKING_RESPONSE = {
 function getValidFormData() {
   return {
     name: "Aarav Kumar",
-    phone: "+919876543210",
+    // The field holds 10 local digits; the hook normalises to E.164 on submit.
+    phone: "9876543210",
     email: "aarav@example.com",
     tosAccepted: true,
     marketingOptIn: false,
@@ -216,6 +217,20 @@ describe("useBookSlot", () => {
 
     expect(result.current.currentStep).toBe(0);
     expect(result.current.submitState.kind).toBe("idle");
+  });
+
+  it("step 2 rejects a phone that is not exactly 10 digits", () => {
+    const { result } = renderHook(() => useBookSlot());
+    act(() => { result.current.goNext(); });
+    act(() => { result.current.setFormData({ slotAt: "2026-07-10T10:00:00.000Z" }); });
+    act(() => { result.current.goNext(); });
+    act(() => {
+      result.current.setFormData({ ...getValidFormData(), phone: "987654321" });
+    });
+    act(() => { result.current.goNext(); });
+
+    expect(result.current.currentStep).toBe(2);
+    expect(result.current.stepErrors.phone).toBeTruthy();
   });
 
   it("captcha token required on step 2 — shows error if absent", () => {

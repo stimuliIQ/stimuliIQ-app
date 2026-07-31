@@ -22,6 +22,8 @@ import { useCreateLead } from "../../hooks/use-leads";
 import { useProgramsList } from "../../hooks/use-courses";
 import { useAllBranches } from "../../hooks/use-branches";
 import { surfaceError } from "../../lib/surface-error";
+import { phoneFieldProps, isCompleteLocalPhone, toE164Phone } from "../../lib/phone-field";
+import { PHONE_LENGTH_MESSAGE } from "@repo/ui";
 
 interface LeadFormDrawerProps {
   open: boolean;
@@ -49,7 +51,7 @@ export function LeadFormDrawer({ open, onOpenChange }: LeadFormDrawerProps): Rea
   const { data: programsData } = useProgramsList({ page: 1, pageSize: 200, includeDeleted: false });
   const { data: branchesData } = useAllBranches();
 
-  const { register, handleSubmit, reset, watch, setValue, formState } = useForm<LeadFormValues>();
+  const { register, handleSubmit, reset, watch, setValue, setError, formState } = useForm<LeadFormValues>();
   const errors = formState.errors;
 
   React.useEffect(() => {
@@ -57,11 +59,16 @@ export function LeadFormDrawer({ open, onOpenChange }: LeadFormDrawerProps): Rea
   }, [open, reset]);
 
   const onSubmit = handleSubmit(async (values) => {
+    // This form has no zod resolver, so the 10-digit rule is checked here.
+    if (!isCompleteLocalPhone(values.phone)) {
+      setError("phone", { type: "manual", message: PHONE_LENGTH_MESSAGE }, { shouldFocus: true });
+      return;
+    }
     try {
       const hasUtm = Boolean(values.utmSource || values.utmMedium || values.utmCampaign);
       const body: CreateLeadRequest = CreateLeadRequestSchema.parse({
         name: values.name,
-        phone: values.phone,
+        phone: toE164Phone(values.phone),
         email: values.email || undefined,
         programInterestId: values.programInterestId || undefined,
         source: values.source,
@@ -106,8 +113,7 @@ export function LeadFormDrawer({ open, onOpenChange }: LeadFormDrawerProps): Rea
             <Input
               label="Phone"
               required
-              placeholder="+91XXXXXXXXXX"
-              {...register("phone")}
+              {...phoneFieldProps(register("phone"))}
               error={errors.phone?.message}
               data-testid="lead-form-phone"
             />

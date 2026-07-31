@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { ExitIntentModal } from "@repo/ui";
+import { ExitIntentModal, PHONE_COUNTRY_CODE, toE164Phone } from "@repo/ui";
 import type { LeadFormValues } from "@repo/ui";
 import { TurnstileWidget } from "../captcha/turnstile-widget";
 import { useLeadCapture } from "../../hooks/use-lead-capture";
@@ -29,16 +29,7 @@ const SESSION_KEY = "stimuliiq_timed_popup_shown";
 const OPEN_DELAY_MS = 4000;
 
 /** Country code shown as a fixed prefix on the phone field (India-first). */
-const PHONE_PREFIX = "+91";
-
-/** Normalise a user-typed local number to E.164 with the +91 country code. */
-function toE164(raw: string): string {
-  const digits = raw.replace(/\D/g, "");
-  if (!digits) return "";
-  // Already includes the country code (12 digits like 91XXXXXXXXXX).
-  if (digits.startsWith("91") && digits.length > 10) return `+${digits}`;
-  return `${PHONE_PREFIX}${digits}`;
-}
+const PHONE_PREFIX = PHONE_COUNTRY_CODE;
 
 export function TimedLeadPopupConnected(): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
@@ -69,7 +60,7 @@ export function TimedLeadPopupConnected(): React.JSX.Element {
   async function handleSubmit(values: LeadFormValues) {
     await submit({
       name: values.name,
-      phone: toE164(values.phone ?? ""),
+      phone: toE164Phone(values.phone),
       message: values.message,
       source: "web-timed-popup",
       captchaToken: captchaToken ?? "noop",

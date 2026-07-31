@@ -42,6 +42,14 @@ type UpdateStudentFormValues = z.input<typeof UpdateStudentRequestSchema>;
 
 import { useCreateStudent, useUpdateStudent } from "../../hooks/use-students";
 import { errorCode, queryErrorMessage, surfaceError } from "../../lib/surface-error";
+import {
+  optionalE164Phone,
+  phoneFieldProps,
+  requireLocalPhones,
+  toLocalPhoneDigits,
+} from "../../lib/phone-field";
+
+const PHONE_FIELDS = ["phone", "alternatePhone"] as const;
 
 export const COURSE_TYPES: { value: CourseType; label: string }[] = [
   { value: "btech", label: "B.Tech" },
@@ -92,11 +100,11 @@ export function StudentFormDrawer({ open, onOpenChange, student, onCreated }: St
   const updateStudent = useUpdateStudent();
 
   const createForm = useForm<CreateStudentFormValues>({
-    resolver: zodResolver(CreateStudentRequestSchema),
+    resolver: zodResolver(requireLocalPhones(CreateStudentRequestSchema, PHONE_FIELDS)),
     defaultValues: { status: "lead" },
   });
   const updateForm = useForm<UpdateStudentFormValues>({
-    resolver: zodResolver(UpdateStudentRequestSchema),
+    resolver: zodResolver(requireLocalPhones(UpdateStudentRequestSchema, PHONE_FIELDS)),
   });
 
   React.useEffect(() => {
@@ -104,8 +112,9 @@ export function StudentFormDrawer({ open, onOpenChange, student, onCreated }: St
     if (isEdit && student) {
       updateForm.reset({
         name: student.name,
-        phone: student.phone ?? undefined,
-        alternatePhone: student.alternatePhone ?? undefined,
+        // Stored E.164 → the 10 local digits the field is capped at.
+        phone: toLocalPhoneDigits(student.phone) || undefined,
+        alternatePhone: toLocalPhoneDigits(student.alternatePhone) || undefined,
         college: student.college ?? undefined,
         courseType: student.courseType,
         year: student.year ?? undefined,
@@ -125,7 +134,12 @@ export function StudentFormDrawer({ open, onOpenChange, student, onCreated }: St
     try {
       // Contacts ALWAYS enter the lifecycle at "lead" — registration (the next
       // step, auto-opened via onCreated) is what moves them to Registered.
-      const body = CreateStudentRequestSchema.parse({ ...values, status: "lead" });
+      // Fields hold 10 local digits; the API and DB speak E.164.
+      const body = CreateStudentRequestSchema.parse({
+        ...values,
+        phone: optionalE164Phone(values.phone),
+        status: "lead",
+      });
       const created = await createStudent.mutateAsync(body);
       toast({
         title: "Contact created",
@@ -149,7 +163,12 @@ export function StudentFormDrawer({ open, onOpenChange, student, onCreated }: St
   const onSubmitUpdate = updateForm.handleSubmit(async (values) => {
     if (!student) return;
     try {
-      const body = UpdateStudentRequestSchema.parse(values);
+      const body = UpdateStudentRequestSchema.parse({
+        ...values,
+        phone: optionalE164Phone(values.phone),
+        // `null` explicitly clears the alternate number — don't collapse it to "omitted".
+        alternatePhone: values.alternatePhone === null ? null : optionalE164Phone(values.alternatePhone),
+      });
       await updateStudent.mutateAsync({ id: student.id, body });
       toast({ title: "Student updated", variant: "success" });
       onOpenChange(false);
@@ -167,11 +186,11 @@ export function StudentFormDrawer({ open, onOpenChange, student, onCreated }: St
           <form onSubmit={onSubmitUpdate} className="flex flex-1 flex-col overflow-hidden">
             <DrawerBody className="flex flex-col gap-4">
               <Input label="Full name" required placeholder="e.g. Priya Sharma" {...register("name")} error={errors.name?.message} data-testid="student-form-name" />
-              <Input label="Phone" placeholder="+91 98765 43210" {...register("phone", optionalText)} error={errors.phone?.message} data-testid="student-form-phone" />
+              <Input label="Phone" {...phoneFieldProps(register("phone", optionalText))} error={errors.phone?.message} data-testid="student-form-phone" />
               <Input
                 label="Alternate phone"
-                placeholder="Guardian / secondary number"
-                {...register("alternatePhone", optionalText)}
+                {...phoneFieldProps(register("alternatePhone", optionalText))}
+                helperText="Guardian / secondary number"
                 error={errors.alternatePhone?.message}
                 data-testid="student-form-alternate-phone"
               />
@@ -247,7 +266,7 @@ export function StudentFormDrawer({ open, onOpenChange, student, onCreated }: St
           <DrawerBody className="flex flex-col gap-4">
             <Input label="Full name" required placeholder="e.g. Priya Sharma" {...register("name")} error={errors.name?.message} data-testid="student-form-name" />
             <Input label="Email" type="email" required placeholder="name@example.com" {...register("email")} error={errors.email?.message} data-testid="student-form-email" />
-            <Input label="Phone" placeholder="+91 98765 43210" {...register("phone", optionalText)} error={errors.phone?.message} data-testid="student-form-phone" />
+            <Input label="Phone" {...phoneFieldProps(register("phone", optionalText))} error={errors.phone?.message} data-testid="student-form-phone" />
             <Select
               label="Course type"
               required
