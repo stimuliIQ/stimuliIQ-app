@@ -60,6 +60,19 @@ const LOGO_BY_SLUG: Record<string, string> = {
 };
 
 /**
+ * Every bundled logo, as a `/public` path, in logo-sheet order.
+ *
+ * For DECORATIVE use (the /for-colleges hero collage). Deliberately the bundled sheet
+ * rather than the live CRM partner list, for two reasons: a decorative layer must never
+ * render empty if the API is unreachable, and CRM-uploaded logos resolve through the asset
+ * CDN — which is currently unset in production, so those URLs 404. The live, named college
+ * list still drives the marquee section further down the same page; this is only wallpaper.
+ */
+export const BUNDLED_COLLEGE_LOGOS: readonly string[] = Object.values(LOGO_BY_SLUG).map(
+  (file) => `/colleges/${file}`,
+);
+
+/**
  * "Kasturba Medical College (KMC), Manipal" → "kasturba-medical-college-kmc-manipal".
  *
  * `&` becomes `and` BEFORE punctuation is stripped — otherwise "College & Hospital" and

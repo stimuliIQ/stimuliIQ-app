@@ -16,7 +16,7 @@
 import { unstable_cache } from "next/cache";
 
 import { serverApiClient } from "./api-client";
-import { formatDuration, formatMode, humanizeDomain } from "./format";
+import { humanizeDomain } from "./format";
 import type { PublicProgramSummary } from "@repo/types";
 import type { MegaMenuSection } from "@repo/ui";
 
@@ -37,15 +37,6 @@ export interface ProgramsNav {
   megaMenuSections: MegaMenuSection[];
   /** Footer "Programs" column links (top programs + view-all). */
   footerLinks: Array<{ label: string; href: string }>;
-}
-
-/** One-line menu description: "Hybrid · 12 weeks" (mode/duration are optional). */
-function menuDescription(program: PublicProgramSummary): string | undefined {
-  const parts = [
-    program.mode ? formatMode(program.mode) : undefined,
-    formatDuration(program.durationWeeks),
-  ].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
 async function fetchProgramsNav(): Promise<ProgramsNav | null> {
@@ -79,10 +70,11 @@ async function fetchProgramsNav(): Promise<ProgramsNav | null> {
       .slice(0, MAX_SECTIONS)
       .map(([domain, programs]) => ({
         heading: humanizeDomain(domain),
+        // No description line: the menu shows the course title only (mode/duration
+        // were removed 2026-07-31 — the "Hybrid · 4 weeks" subline).
         items: programs.slice(0, MAX_ITEMS_PER_SECTION).map((program) => ({
           label: program.title,
           href: `/programs/${program.slug}`,
-          description: menuDescription(program),
         })),
       }));
 

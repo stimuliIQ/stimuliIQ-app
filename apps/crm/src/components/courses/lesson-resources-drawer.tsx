@@ -30,6 +30,7 @@ import {
   SelectItem,
   Skeleton,
   useToast,
+  type SignedUploadResult,
 } from "@repo/ui";
 import type { LessonResource, LessonResourceType } from "@repo/types";
 
@@ -117,7 +118,7 @@ export function LessonResourcesDrawer({
   }, [open]);
 
   /** Step 1+2: mint the signed PUT for the picked file. */
-  async function requestUploadUrl(file: File): Promise<{ url: string; storageKey: string }> {
+  async function requestUploadUrl(file: File): Promise<SignedUploadResult> {
     if (!lessonId) throw new Error("No lesson selected.");
     const signed = await uploadUrl.mutateAsync({
       lessonId,
@@ -129,7 +130,8 @@ export function LessonResourcesDrawer({
         sizeBytes: file.size,
       },
     });
-    return { url: signed.uploadUrl, storageKey: signed.storageKey };
+    // additionalHeaders are signed into the presigned PUT — forward them or S3/R2 403s.
+    return { url: signed.uploadUrl, storageKey: signed.storageKey, headers: signed.additionalHeaders };
   }
 
   /** Step 3: register the uploaded object against the lesson. */

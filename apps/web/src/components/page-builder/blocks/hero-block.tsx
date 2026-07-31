@@ -75,7 +75,7 @@ function TrustBadge({ trustBadge }: { trustBadge: HeroBlockData["trustBadge"] })
   );
 }
 
-function CenteredHeadline({ data }: { data: HeroBlockData }) {
+function CenteredHeadline({ data, eyebrowStyle = "plain" }: { data: HeroBlockData; eyebrowStyle?: "plain" | "pill" }) {
   return (
     <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
       {data.trustBadge ? (
@@ -84,7 +84,16 @@ function CenteredHeadline({ data }: { data: HeroBlockData }) {
         </div>
       ) : null}
       {data.eyebrow ? (
-        <p className="mt-4 text-sm font-semibold uppercase tracking-[0.2em] text-fg-muted">{data.eyebrow}</p>
+        eyebrowStyle === "pill" ? (
+          // Chip treatment: against a busy backdrop (the college-logo collage) tracked
+          // caps float and read as stray text — a bordered pill on card background reads
+          // as a deliberate label and gives the eyebrow its own contrast surface.
+          <span className="rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-fg-muted shadow-sm">
+            {data.eyebrow}
+          </span>
+        ) : (
+          <p className="mt-4 text-sm font-semibold uppercase tracking-[0.2em] text-fg-muted">{data.eyebrow}</p>
+        )
       ) : null}
       <h1 className="mt-8 font-display text-5xl font-bold leading-[1.05] tracking-tight text-fg sm:text-6xl lg:text-7xl">
         <HighlightText text={data.headline} highlight={data.headlineHighlight} />
@@ -216,7 +225,17 @@ export function HeroBlock({
       ) : null}
       {showMotif ? <HeroMotif kind={motif} /> : null}
 
-      <div className="relative mx-auto max-w-screen-2xl px-4 py-20 md:px-6 lg:py-32">
+      {/* The college-collage motif hangs a card band from the top of the section, so the
+          copy needs the band's height reserved above it — the reference composition puts
+          the headline in clean space BELOW the cards, not inside them. Every other hero
+          keeps its symmetric padding. */}
+      <div
+        className={
+          motif === "college-collage"
+            ? "relative mx-auto max-w-screen-2xl px-4 pb-20 pt-[196px] md:px-6 md:pt-[262px] lg:pb-28 lg:pt-[344px]"
+            : "relative mx-auto max-w-screen-2xl px-4 py-20 md:px-6 lg:py-32"
+        }
+      >
         {data.variant === "centered-with-flanking-photos" && data.flankingPhotos?.[0] ? (
           <FlankingPhoto photo={data.flankingPhotos[0]} side="left" />
         ) : null}
@@ -224,7 +243,7 @@ export function HeroBlock({
           <FlankingPhoto photo={data.flankingPhotos[1]} side="right" />
         ) : null}
 
-        <CenteredHeadline data={data} />
+        <CenteredHeadline data={data} eyebrowStyle={motif === "college-collage" ? "pill" : "plain"} />
       </div>
     </section>
   );

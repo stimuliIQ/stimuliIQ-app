@@ -2327,53 +2327,74 @@ async function main(): Promise<void> {
     });
   })();
 
-  // ── Phase-4 sample data: certificate template ──────────────────────────────────────────
+  // ── Phase-4 sample data: certificate templates ─────────────────────────────────────────
   //
-  // One seeded CertificateTemplate used as the default for P4 certificate issuance.
-  // The design/fields JSON defines a minimal server-side template (no designer UI in P4).
+  // TWO seeded CertificateTemplates, one per award: students finishing a programme receive
+  // an internship certificate, a training certificate, or both. The two differ ONLY in
+  // `design.certificateKind`, which drives the ribbon heading and the noun in the body
+  // sentence (see KIND_COPY in sync-certificate-pdf.adapter.ts) — everything else about
+  // the artwork is shared, so the rest of the design JSON is deliberately identical.
+  //
+  // Ordering matters: `autoIssueOnCompletion` picks the first ACTIVE template when no
+  // template is named, so the internship certificate is created first and is the default.
 
-  const certTemplate = await (async () => {
+  // Directives consumed by SyncCertificatePdfAdapter (CertificateDesign). The earlier x/y
+  // coordinate map was dead weight — that renderer lays the certificate out with flexbox,
+  // so absolute positions were never read.
+  //
+  // The `*FileName` keys name images in the API's PRIVATE assets/certificate/ directory;
+  // they are NOT URLs and are never served over HTTP (the authorised signature must not be
+  // liftable from the web). Each is optional — an absent file simply is not drawn. See
+  // apps/api/assets/certificate/README.md.
+  const CERT_DESIGN_BASE = {
+    orientation: "landscape",
+    orgName: "STIMULI IQ",
+    accentColor: "#14563C",
+    textColor: "#1F2933",
+    borderColor: "#14563C",
+    backgroundColor: "#FFFFFF",
+    signatoryName: "Chandra Sekhar",
+    signatoryDesignation: "Founder",
+    logoFileName: "logo.png",
+    signatureFileName: "ceo-signature.png",
+    isoBadgeFileName: "iso-badge.png",
+    msmeBadgeFileName: "msme-badge.png",
+    footerLines: ["Ministry of MSME, Govt. of India"],
+  } as const;
+
+  const CERT_FIELDS = [
+    { key: "student_name", label: "Student Name" },
+    { key: "program_title", label: "Program Title" },
+    { key: "issued_at", label: "Date of Issue", format: "DD MMMM YYYY" },
+    { key: "serial", label: "Certificate ID" },
+  ];
+
+  async function upsertCertTemplate(name: string, certificateKind: "internship" | "training") {
     const existing = await prisma.certificateTemplate.findFirst({
-      where: { tenantId: tenant.id, name: "Stimuliiq Standard Certificate" },
+      where: { tenantId: tenant.id, name },
     });
-    if (existing) return existing;
+    // Re-write `design` on an existing row rather than returning it untouched: the seed is
+    // the source of truth for the approved artwork, and a template seeded before
+    // `certificateKind` existed would otherwise keep rendering the old neutral wording.
+    if (existing) {
+      return prisma.certificateTemplate.update({
+        where: { id: existing.id },
+        data: { design: { ...CERT_DESIGN_BASE, certificateKind }, fields: CERT_FIELDS, status: "active" },
+      });
+    }
     return prisma.certificateTemplate.create({
       data: {
         tenantId: tenant.id,
-        name: "Stimuliiq Standard Certificate",
-        // Directives consumed by SyncCertificatePdfAdapter (CertificateDesign). The
-        // earlier x/y coordinate map was dead weight — that renderer lays the
-        // certificate out with flexbox, so absolute positions were never read.
-        //
-        // The `*FileName` keys name images in the API's PRIVATE assets/certificate/
-        // directory; they are NOT URLs and are never served over HTTP (the authorised
-        // signature must not be liftable from the web). Each is optional — an absent
-        // file simply is not drawn. See apps/api/assets/certificate/README.md.
-        design: {
-          orientation: "landscape",
-          orgName: "STIMULIIQ",
-          accentColor: "#14563C",
-          textColor: "#1F2933",
-          borderColor: "#14563C",
-          backgroundColor: "#FFFFFF",
-          signatoryName: "Chandra Shekar",
-          signatoryDesignation: "Founder",
-          logoFileName: "logo.png",
-          signatureFileName: "ceo-signature.png",
-          isoBadgeFileName: "iso-badge.png",
-          msmeBadgeFileName: "msme-badge.png",
-          footerLines: ["Ministry of MSME, Govt. of India"],
-        },
-        fields: [
-          { key: "student_name", label: "Student Name" },
-          { key: "program_title", label: "Program Title" },
-          { key: "issued_at", label: "Date of Issue", format: "DD MMMM YYYY" },
-          { key: "serial", label: "Certificate ID" },
-        ],
+        name,
+        design: { ...CERT_DESIGN_BASE, certificateKind },
+        fields: CERT_FIELDS,
         status: "active",
       },
     });
-  })();
+  }
+
+  const certTemplate = await upsertCertTemplate("Stimuli IQ Internship Certificate", "internship");
+  const trainingCertTemplate = await upsertCertTemplate("Stimuli IQ Training Certificate", "training");
 
   // ── Phase-4 sample data: assignment (with rubric) on fullstack lesson0 ───────────────
   //
@@ -3769,7 +3790,9 @@ async function main(): Promise<void> {
   // eslint-disable-next-line no-console
   console.log("[seed]   faculty scope=assigned: assignments.create/edit/grade, submissions.view/grade, projects.review, assessments.create/edit, attempts.view, certificates.recommend");
   // eslint-disable-next-line no-console
-  console.log(`[seed]   cert_template:     1 (Stimuliiq Standard Certificate, id=${certTemplate.id})`);
+  console.log(
+    `[seed]   cert_templates:    2 (Internship id=${certTemplate.id}, Training id=${trainingCertTemplate.id})`,
+  );
   // eslint-disable-next-line no-console
   console.log(`[seed]   assignment:        1 (kind=assignment, is_final=false, allow_resubmit=false, on lesson0)`);
   // eslint-disable-next-line no-console

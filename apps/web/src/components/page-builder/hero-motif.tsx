@@ -26,15 +26,22 @@
  * prefers-reduced-motion users by the global rule in @repo/ui/styles.css.
  */
 import Image from "next/image";
+import { CollegeCollageMotif } from "./college-collage";
 
-export type HeroMotifKind = "campus-network";
+export type HeroMotifKind = "campus-network" | "college-collage";
 
 /** Slug → motif. Pages absent from this map keep the plain background they have today.
  *
- * EMPTY on purpose (user decision, 2026-07-29): the `campus-network` constellation on
- * /for-colleges read as visual noise over the hero copy, so no page currently opts in.
- * The motif implementation below is kept so a page can be re-mapped with one line. */
-const MOTIF_BY_SLUG: Record<string, HeroMotifKind> = {};
+ * `campus-network` is mapped to NOTHING (user decision, 2026-07-29): the constellation on
+ * /for-colleges read as visual noise over the hero copy. Its implementation is kept below
+ * so a page can be re-mapped with one line.
+ *
+ * `college-collage` replaced it on /for-colleges (2026-07-31): same intent — fill an empty
+ * white band — but built from the real partner-college logos rather than abstract nodes,
+ * and masked out of the headline's footprint instead of running underneath it. */
+const MOTIF_BY_SLUG: Record<string, HeroMotifKind> = {
+  "for-colleges": "college-collage",
+};
 
 export function heroMotifForSlug(slug: string | undefined): HeroMotifKind | undefined {
   return slug ? MOTIF_BY_SLUG[slug] : undefined;
@@ -241,7 +248,11 @@ function CampusNetworkMotif() {
 // Public
 // ---------------------------------------------------------------------------
 
-export function HeroMotif({ kind }: { kind: HeroMotifKind }): React.JSX.Element {
+export function HeroMotif({ kind }: { kind: HeroMotifKind }): React.JSX.Element | null {
+  // `college-collage` owns its own absolutely-positioned, masked layer — wrapping it in the
+  // shared box below would apply the mask to a nested element and clip the tiles twice.
+  if (kind === "college-collage") return <CollegeCollageMotif />;
+
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
       {kind === "campus-network" ? <CampusNetworkMotif /> : null}
