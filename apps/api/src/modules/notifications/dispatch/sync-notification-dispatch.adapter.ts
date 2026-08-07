@@ -106,8 +106,20 @@ export class SyncNotificationDispatchAdapter implements NotificationDispatchPort
 
   private async dispatchEmail(job: ChannelSendJob): Promise<ChannelSendResult> {
     if (!job.toEmail) {
-      this.logger.warn(`[Dispatch] email channel job missing toEmail — key="${job.dedupeKey}" — skipping.`);
-      return { dispatched: false, skipped: false, error: "MISSING_RECIPIENT_EMAIL" };
+      // NOT an error, despite how this used to read in the logs. `toEmail` is optional on
+      // `notify()`, and callers omit it deliberately when they have ALREADY sent a richer
+      // one-off email themselves and only want the remaining channels to fan out — e.g.
+      // CommerceService sends the combined "receipt + LMS credentials" mail, then passes
+      // `toEmail: undefined` so this channel does not send a second, duplicate receipt.
+      //
+      // Logging that at WARN with an "error" code made a working, intended path look like
+      // a failure, which is actively misleading when someone is debugging "why is no email
+      // arriving" — it was the first thing that showed up in the log and it was a red
+      // herring. Reported as a skip now; genuine send failures still log at ERROR below.
+      this.logger.debug(
+        `[Dispatch] email channel skipped — no recipient supplied (the caller sent its own email) key="${job.dedupeKey}"`,
+      );
+      return { dispatched: false, skipped: true };
     }
 
     const maskedTo = this.maskAddress(job.toEmail);

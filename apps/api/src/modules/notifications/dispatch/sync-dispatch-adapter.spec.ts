@@ -170,7 +170,11 @@ describe("SyncNotificationDispatchAdapter", () => {
       expect(result.providerMessageId).toBe("mail-msg-001");
     });
 
-    it("returns error when toEmail is missing", async () => {
+    // `toEmail` is optional by design: a caller that has already sent its own richer
+    // email (e.g. CommerceService's combined "receipt + LMS credentials" mail) omits the
+    // address so this channel does NOT send a duplicate. That is a skip, not a failure —
+    // reporting it as an error made a working path look broken in the logs.
+    it("skips (does not error) when toEmail is absent — the caller sent its own email", async () => {
       const job: ChannelSendJob = {
         channel: "email",
         dedupeKey: "notif-005:email",
@@ -178,7 +182,8 @@ describe("SyncNotificationDispatchAdapter", () => {
       };
       const result = await adapter.dispatch(job);
       expect(result.dispatched).toBe(false);
-      expect(result.error).toBe("MISSING_RECIPIENT_EMAIL");
+      expect(result.skipped).toBe(true);
+      expect(result.error).toBeUndefined();
       expect(mail.send).not.toHaveBeenCalled();
     });
 
