@@ -321,6 +321,18 @@ const AUDITED_MODELS = new Set<string>([
   // marketing config — every create/update is a meaningful accountability event
   // (super_admin-only, site_settings.edit). No secrets; denylist-only sufficient.
   "SiteSetting",
+  // Student onboarding form (stimuliiq.com/onboarding):
+  //
+  // OnboardingField: audited. The question set is what every future submission is
+  //   measured against — "who removed the payment-receipt question, and when" is
+  //   exactly the accountability trail this table exists to provide. No secrets.
+  "OnboardingField",
+  // OnboardingSubmission: audited (create + the staff status/notes transitions that
+  //   move it new → verified/rejected). Carries a real student's PII, so it is ALSO
+  //   registered in PII_FIELD_REGISTRY below — same posture as CareerApplication.
+  //   Note the free-form `answers` snapshot can itself contain PII in staff-defined
+  //   fields; see the registry comment for why that is bounded, not ignored.
+  "OnboardingSubmission",
 ]);
 
 // --- Secret redaction (Wave 6 security audit H-1/H-2) ----------------------------------
@@ -474,6 +486,16 @@ export const PII_FIELD_REGISTRY: Readonly<Record<string, Readonly<Record<string,
   ContactSubmission: { name: "name", email: "email", phone: "phone" },
   CareerApplication: { name: "name", email: "email", phone: "phone" },
   NewsletterSubscription: { email: "email" },
+  // Onboarding form intake — same posture as CareerApplication (unsolicited PII from a
+  // public form). Only the three DENORMALISED identity columns are registered, because
+  // those are the ones with a known kind. The `answers` JSON snapshot is deliberately
+  // NOT masked here: it is a staff-authored key/value bag whose shape this registry
+  // cannot know ahead of time, and a blanket mask would destroy the legibility that
+  // makes the audit row useful. The mitigation is that `answers` duplicates the same
+  // three identifiers that ARE masked in the columns, and audit_logs is an admin-only
+  // table. If a future field type introduces a new machine-checkable identifier
+  // (Aadhaar, PAN), mask it at the service write boundary before it reaches this row.
+  OnboardingSubmission: { fullName: "name", email: "email", phone: "phone" },
 };
 
 /** Masks a personal name: keeps the first character, replaces the rest with "***". */

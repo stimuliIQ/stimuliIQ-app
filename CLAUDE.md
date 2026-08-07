@@ -189,6 +189,30 @@ db foundation). Then execute it, delegating each task to the named specialist su
   `docs/plans/phase-11-locked-templates.md`. ADR-0063 (supersedes ADR-0062's authoring
   model). Known limitation: same-`blockType`-position swaps are not detected by
   `validatePageBodyAgainstTemplate` (`docs/phase-11-followups.md`).
+- **P12 Onboarding Form (DONE):** the Google Form students filled after paying is now in
+  the product — a standalone form at **`/onboarding`** on the marketing site (`apps/web`;
+  `SiteShell` drops the marketing chrome the same way it does for `/pay/:token`), with
+  every submission landing in **CRM ▸ Onboarding**. NO subdomain: an
+  `onboarding.stimuliiq.com` host rewrite was built and then removed on the owner's call
+  (needed DNS + a Vercel domain attachment, and ran edge middleware sitewide to serve one
+  page) — do not re-add it without asking. Deliberately the OPPOSITE of P11's locked
+  templates: the
+  question set is **CRM-authored DATA** (`onboarding_fields`) — staff add/rename/retype/
+  reorder/hide/delete questions with no deploy — because a form, unlike a marketing page,
+  has no shape a non-engineer can break. Answers are stored as self-describing snapshots
+  (`{key,label,type,value,storageKey}`) so later field edits can't rewrite history, and
+  validation is one shared function (`buildOnboardingAnswerIssues`, `@repo/types`) run
+  identically in the browser and the API, since a data-defined form admits no fixed DTO.
+  The payment receipt uploads through the anonymous signed-PUT posture built for career
+  resumes (`onboarding/{tenantId}/…`, signed-URL delivery only, never CDN). Permissions
+  split intentionally: `onboarding.view/edit/delete` (intake queue — counsellor/support)
+  vs `onboarding.fields.manage` (editing the live form — admin only).
+  Spec: `docs/specs/onboarding-form.md`, ADR-0064.
+  **DB setup on an existing/live database:** `prisma migrate deploy` (additive — two new
+  tables + three enums, nothing existing touched) then `pnpm db:seed:onboarding`. Do NOT
+  run the full `pnpm db:seed` against a live DB — it upserts demo students/programs/
+  campaigns; `seed-onboarding.ts` writes only the permissions + the nine questions, and
+  skips any question a staff member has already edited.
 
 Do **not** jump ahead. Each phase ends with tests green + a demo path.
 
@@ -221,4 +245,5 @@ Do **not** jump ahead. Each phase ends with tests green + a demo path.
 | Mentor feature spec (human external-hire mentors) | `docs/specs/phase-8-mentor.md` |
 | Page-builder spec (blocks, ACs, edge cases — authoring UX superseded by P11) | `docs/specs/phase-10-page-builder.md` |
 | Locked page-templates plan (P11) | `docs/plans/phase-11-locked-templates.md` |
+| Onboarding form spec (CRM-authored questions, subdomain) | `docs/specs/onboarding-form.md` |
 | Agent roster & protocol | `.claude/agents/README.md` |

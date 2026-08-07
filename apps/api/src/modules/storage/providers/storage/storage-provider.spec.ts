@@ -232,6 +232,7 @@ describe("validateStorageKey", () => {
       "program_brochures",
       "marketing_images",
       "college_logos",
+      "onboarding",
     ];
     for (const namespace of namespaces) {
       const key = buildStorageKey({
@@ -260,6 +261,9 @@ describe("validateStorageKey", () => {
     expect(isPublicAssetKey("invoices/t1/inv123.pdf")).toBe(false);
     expect(isPublicAssetKey("receipts/t1/pay-1.pdf")).toBe(false);
     expect(isPublicAssetKey("careers/t1/uuid-resume.pdf")).toBe(false);
+    // Onboarding file answers — a payment receipt carries an amount and a bank/UPI
+    // reference, so it is signed-URL-only like careers/, never CDN-served.
+    expect(isPublicAssetKey("onboarding/t1/uuid-receipt.png")).toBe(false);
     expect(isPublicAssetKey("certificates/t1/cert123.pdf")).toBe(false);
     expect(isPublicAssetKey("resources/t1/l1/abc.pdf")).toBe(false);
   });
@@ -474,6 +478,7 @@ describe("buildStorageKey", () => {
       "program_images",
       "marketing_images",
       "college_logos",
+      "onboarding",
     ];
 
     for (const namespace of namespaces) {
