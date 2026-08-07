@@ -343,7 +343,7 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
                               type="datetime-local"
                               value={followUpAt}
                               onChange={(e) => setFollowUpAt(e.target.value)}
-                              className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              className="h-[var(--density-control-height)] w-full rounded-md border border-border bg-card px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                               data-testid="lead-detail-followup-input"
                             />
                             <div className="flex items-center gap-2">

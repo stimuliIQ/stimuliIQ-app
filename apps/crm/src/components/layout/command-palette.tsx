@@ -69,7 +69,7 @@ export function CommandPalette(): React.JSX.Element {
         data-testid="command-palette-trigger"
         onClick={() => setOpen(true)}
         className={cn(
-          "flex h-9 w-full max-w-xs items-center gap-2 rounded-md border border-border bg-bg px-3 text-sm text-fg-subtle",
+          "flex h-[var(--density-toolbar-height)] w-full max-w-xs items-center gap-2 rounded-md border border-border bg-bg px-3 text-sm text-fg-subtle",
           "transition-colors duration-fast hover:text-fg",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         )}

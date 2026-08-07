@@ -61,7 +61,7 @@ export function TicketQueue({ me }: { me: MeResponse | undefined }): React.JSX.E
   ];
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="ticket-queue">
+    <div className="space-y-4 md:space-y-5" data-testid="ticket-queue">
       <PageHeader
         title="Tickets"
         description="Support queue with SLA tracking, assignment, and canned replies."
@@ -98,7 +98,7 @@ export function TicketQueue({ me }: { me: MeResponse | undefined }): React.JSX.E
               aria-label="Filter by status"
               value={status ?? ""}
               onChange={(e) => setStatus((e.target.value || undefined) as TicketStatus | undefined)}
-              className="h-9 rounded-md border border-border bg-bg px-2 text-sm text-fg"
+              className="h-[var(--density-toolbar-height)] rounded-md border border-border bg-bg px-2 text-sm text-fg"
             >
               <option value="">All statuses</option>
               <option value="open">Open</option>
@@ -110,7 +110,7 @@ export function TicketQueue({ me }: { me: MeResponse | undefined }): React.JSX.E
               aria-label="Filter by priority"
               value={priority ?? ""}
               onChange={(e) => setPriority((e.target.value || undefined) as TicketPriority | undefined)}
-              className="h-9 rounded-md border border-border bg-bg px-2 text-sm text-fg"
+              className="h-[var(--density-toolbar-height)] rounded-md border border-border bg-bg px-2 text-sm text-fg"
             >
               <option value="">All priorities</option>
               <option value="low">Low</option>

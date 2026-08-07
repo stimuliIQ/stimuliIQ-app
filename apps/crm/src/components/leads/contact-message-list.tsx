@@ -118,7 +118,7 @@ export function ContactMessageList({ me }: ContactMessageListProps): React.JSX.E
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="contact-message-list">
+    <div className="space-y-4 md:space-y-5" data-testid="contact-message-list">
       <PageHeader
         title="Contact messages"
         description="Inbound enquiries from the website's Contact form. Open a message to read it and set its status."
@@ -227,7 +227,7 @@ export function ContactMessageList({ me }: ContactMessageListProps): React.JSX.E
               <DrawerFooter>
                 <a
                   href={`mailto:${selected.email}${selected.subject ? `?subject=Re: ${encodeURIComponent(selected.subject)}` : ""}`}
-                  className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-fg transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="inline-flex h-[var(--density-control-height)] items-center justify-center rounded-md border border-border px-[var(--density-control-px)] text-sm font-medium text-fg transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   Reply by email
                 </a>
