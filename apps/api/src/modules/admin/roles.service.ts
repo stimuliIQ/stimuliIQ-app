@@ -29,6 +29,30 @@ import type { CreateRoleRequest, ListRolesQuery, UpdateRolePermissionsRequest, U
 
 const SCOPE_RANK: Record<RolePermissionScope, number> = { all: 4, branch: 3, assigned: 2, own: 1 };
 
+/**
+ * Roles that application code resolves BY KEY at runtime, and therefore cannot be deleted
+ * no matter what `is_system` says.
+ *
+ * `is_system` alone was not enough. It is true only for `super_admin`/`admin`
+ * (prisma/seed.ts), but these three keys are looked up directly by `findUnique` on
+ * `tenantId_key` in hot paths:
+ *   - "student"    students.repository.ts + public.repository.ts — assigning the role to
+ *                  every newly created student (lead conversion, website self-signup).
+ *   - "faculty"    faculty.repository.ts — same, for faculty creation.
+ *   - "counsellor" leads.repository.ts — resolving the round-robin assignment pool.
+ *
+ * This guard exists because deleting `student` really happened (2026-07-29, production)
+ * and silently broke EVERY lead → student conversion with a bare 500: the role had no
+ * users assigned to it at the time (the catalog reset had removed them all), so the
+ * `assignedUsers > 0` guard below waved it through, and `is_system: false` meant the
+ * system-role guard did too. Nothing surfaced the breakage until a counsellor tried to
+ * convert a lead weeks later.
+ *
+ * Keep this in sync with the `findUnique({ where: { tenantId_key: ... } })` call sites —
+ * adding a new by-key lookup without adding the key here re-opens exactly this hole.
+ */
+const UNDELETABLE_ROLE_KEYS = new Set(["student", "faculty", "counsellor"]);
+
 @Injectable()
 export class RolesService {
   constructor(
@@ -76,9 +100,12 @@ export class RolesService {
   }
 
   /**
-   * DELETE /admin/roles/:id — soft-deletes a CUSTOM role. Two guards:
+   * DELETE /admin/roles/:id — soft-deletes a CUSTOM role. Three guards:
    *   - System roles (`is_system` — super_admin, admin) can never be deleted; they are
    *     seed-defined and other code assumes they exist.
+   *   - Roles resolved by key at runtime (`UNDELETABLE_ROLE_KEYS` — student, faculty,
+   *     counsellor) can never be deleted either, regardless of `is_system`. See that
+   *     constant for the production incident that made this necessary.
    *   - A role still assigned to any user is rejected (409) rather than silently orphaning
    *     those users' access — reassign them first. Mirrors the referential-integrity
    *     stance the rest of the CRM takes on delete (see the delete-coverage convention).
@@ -93,6 +120,13 @@ export class RolesService {
         code: "roles.system_role_immutable",
         title: "System roles cannot be deleted",
         detail: "Seeded system roles (super_admin, admin) cannot be deleted.",
+      });
+    }
+    if (UNDELETABLE_ROLE_KEYS.has(existing.key)) {
+      throw new ForbiddenException({
+        code: "roles.required_role_immutable",
+        title: "This role is required by the platform",
+        detail: `The "${existing.key}" role is assigned automatically when records are created, so it cannot be deleted. Edit its permissions instead.`,
       });
     }
     const assignedUsers = await this.repository.countAssignedUsers(id);

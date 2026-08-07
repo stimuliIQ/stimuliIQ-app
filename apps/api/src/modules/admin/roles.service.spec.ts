@@ -79,6 +79,25 @@ describe("RolesService", () => {
       expect(repo.softDelete).not.toHaveBeenCalled();
     });
 
+    // Regression: the "student" role was soft-deleted in production on 2026-07-29 and
+    // broke every lead -> student conversion with a bare 500. It slipped past BOTH
+    // existing guards — `isSystem` is false for it (prisma/seed.ts), and the catalog reset
+    // had left it with zero assigned users, so the in-use check passed too. Roles that
+    // application code resolves by key need their own guard.
+    it.each(["student", "faculty", "counsellor"])(
+      "rejects deleting the platform-required '%s' role (403) even though isSystem is false",
+      async (key) => {
+        repo.findById.mockResolvedValue({ ...TARGET_ROLE, key, isSystem: false });
+
+        await expect(service.remove("tenant-1", TARGET_ROLE.id)).rejects.toBeInstanceOf(
+          ForbiddenException,
+        );
+        // Rejected before the in-use check — zero assigned users must not make it deletable.
+        expect(repo.countAssignedUsers).not.toHaveBeenCalled();
+        expect(repo.softDelete).not.toHaveBeenCalled();
+      },
+    );
+
     it("rejects deleting a role still assigned to users (409), without soft-deleting", async () => {
       repo.findById.mockResolvedValue(TARGET_ROLE);
       repo.countAssignedUsers.mockResolvedValue(3);

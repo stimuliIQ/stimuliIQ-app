@@ -27,7 +27,7 @@
 // resolved `restrictToIds` set (or no filter, for scope "all") that students.service.ts
 // computed via the shared `EnrollmentScopeRepository`.
 
-import { Injectable } from "@nestjs/common";
+import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 import type {
   Prisma,
   StudentProfileStatus,
@@ -311,7 +311,19 @@ export class StudentsRepository {
         select: { id: true },
       });
       if (!studentRole) {
-        throw new Error("[students] expected the 'student' role to exist (seeded by db-architect)");
+        // A bare `Error` here surfaced to the CRM as "Internal server error" with nothing
+        // to act on — the counsellor converting a lead had no way to know a ROLE was
+        // missing, let alone which one or how to restore it. This happened in production
+        // on 2026-07-29 when the "student" role was soft-deleted (see
+        // UNDELETABLE_ROLE_KEYS in admin/roles.service.ts, which now prevents it).
+        // A 503 with a named cause is honest: the request is valid, the tenant is
+        // misconfigured, and the fix is an admin action rather than a retry.
+        throw new ServiceUnavailableException({
+          code: "students.student_role_missing",
+          title: "The Student role is missing",
+          detail:
+            'This tenant has no active "student" role, so a student account cannot be created. Restore it under Admin → Roles, then try again.',
+        });
       }
 
       const user = await tx.user.create({
