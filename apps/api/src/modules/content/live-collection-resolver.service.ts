@@ -28,13 +28,20 @@ import type {
   ResolvedPartnerItem,
 } from "@repo/types";
 import { PageBuilderBlockSchema } from "@repo/types";
-import { TestimonialsRepository, type TestimonialRow } from "./testimonials.repository";
+import { TestimonialsRepository, type PublishedTestimonialRow } from "./testimonials.repository";
 import { PartnersRepository, type PartnerRow } from "./partners.repository";
 import { PublicCatalogService } from "../public/public-catalog.service";
 import { mintCdnUrl } from "./content.util";
 
-function toPublicTestimonial(row: TestimonialRow): PublicTestimonial {
-  return { id: row.id, studentName: row.studentName, studentPhotoUrl: mintCdnUrl(row.studentPhotoKey), quote: row.quote, rating: row.rating };
+function toPublicTestimonial(row: PublishedTestimonialRow): PublicTestimonial {
+  return {
+    id: row.id,
+    studentName: row.studentName,
+    studentPhotoUrl: mintCdnUrl(row.studentPhotoKey),
+    quote: row.quote,
+    rating: row.rating,
+    programTitle: row.programTitle,
+  };
 }
 
 function toResolvedPartner(row: PartnerRow): ResolvedPartnerItem {
@@ -129,7 +136,7 @@ export class LiveCollectionResolverService {
       const byId = new Map(rows.map((row) => [row.id, row]));
       // Missing/unpublished/deleted ids are silently dropped (Edge case #2) — preserve
       // the author's selected ORDER for the ids that DID resolve.
-      const ordered = ids.map((id) => byId.get(id)).filter((row): row is TestimonialRow => row !== undefined);
+      const ordered = ids.map((id) => byId.get(id)).filter((row): row is PublishedTestimonialRow => row !== undefined);
       return ordered.slice(0, selection.limit).map(toPublicTestimonial);
     }
     const rows = await this.testimonialsRepository.listPublishedFiltered(tenantId, {

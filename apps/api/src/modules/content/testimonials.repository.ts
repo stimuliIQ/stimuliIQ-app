@@ -20,6 +20,31 @@ export interface TestimonialRow {
   createdAt: Date;
 }
 
+/**
+ * A published testimonial plus the joined program title.
+ *
+ * Public testimonial cards show the program a student trained on ("Clinical Research")
+ * under their name. The title lives on `Program`, not `Testimonial`, so every PUBLIC read
+ * path joins it — the CRM reads (`list`/`findById`) deliberately do not, since the CRM DTO
+ * carries the raw `programId` and the manager renders its own program picker.
+ *
+ * Flattened here rather than leaking Prisma's nested `{ program: { title } }` shape past
+ * the repository boundary (CLAUDE.md §3.3).
+ */
+export interface PublishedTestimonialRow extends TestimonialRow {
+  programTitle: string | null;
+}
+
+/** Prisma args shared by every published read, so the joined shape can't drift between them. */
+const PUBLISHED_INCLUDE = { program: { select: { title: true } } } as const;
+
+function toPublishedRow(
+  row: TestimonialRow & { program: { title: string } | null },
+): PublishedTestimonialRow {
+  const { program, ...rest } = row;
+  return { ...rest, programTitle: program?.title ?? null };
+}
+
 @Injectable()
 export class TestimonialsRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -48,11 +73,13 @@ export class TestimonialsRepository {
     return this.prisma.client.testimonial.findFirst({ where: { id, tenantId, deletedAt: null } });
   }
 
-  async listPublished(tenantId: string, programId?: string): Promise<TestimonialRow[]> {
-    return this.prisma.client.testimonial.findMany({
+  async listPublished(tenantId: string, programId?: string): Promise<PublishedTestimonialRow[]> {
+    const rows = await this.prisma.client.testimonial.findMany({
       where: { tenantId, status: "published", deletedAt: null, ...(programId ? { programId } : {}) },
       orderBy: [{ order: "asc" }, { createdAt: "desc" }],
+      include: PUBLISHED_INCLUDE,
     });
+    return rows.map(toPublishedRow);
   }
 
   /**
@@ -61,19 +88,21 @@ export class TestimonialsRepository {
    * re-orders to match the author's selected `ids` sequence); missing/unpublished/
    * deleted ids are simply absent from the result (no error).
    */
-  async findManyPublishedByIds(tenantId: string, ids: string[]): Promise<TestimonialRow[]> {
+  async findManyPublishedByIds(tenantId: string, ids: string[]): Promise<PublishedTestimonialRow[]> {
     if (ids.length === 0) return [];
-    return this.prisma.client.testimonial.findMany({
+    const rows = await this.prisma.client.testimonial.findMany({
       where: { tenantId, id: { in: ids }, status: "published", deletedAt: null },
+      include: PUBLISHED_INCLUDE,
     });
+    return rows.map(toPublishedRow);
   }
 
   /** Phase-10 page builder (`live_collection_ref`, `mode=filter`) — published-only, filtered + sorted + limited. */
   async listPublishedFiltered(
     tenantId: string,
     filters: { programId?: string; minRating?: number; limit: number; sort: "order" | "newest" },
-  ): Promise<TestimonialRow[]> {
-    return this.prisma.client.testimonial.findMany({
+  ): Promise<PublishedTestimonialRow[]> {
+    const rows = await this.prisma.client.testimonial.findMany({
       where: {
         tenantId,
         status: "published",
@@ -83,7 +112,9 @@ export class TestimonialsRepository {
       },
       orderBy: filters.sort === "newest" ? [{ createdAt: "desc" }] : [{ order: "asc" }, { createdAt: "desc" }],
       take: filters.limit,
+      include: PUBLISHED_INCLUDE,
     });
+    return rows.map(toPublishedRow);
   }
 
   async create(

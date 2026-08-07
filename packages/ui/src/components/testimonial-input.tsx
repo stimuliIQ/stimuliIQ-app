@@ -124,6 +124,17 @@ export interface TestimonialInputProps {
   onSubmit?: (value: TestimonialFormValues) => void;
   submitting?: boolean;
   errors?: Partial<Record<keyof TestimonialFormValues, string>>;
+  /**
+   * Render the College + Program pair. Defaults to `true` (the public
+   * "submit your testimonial" shape this component was built for).
+   *
+   * Pass `false` on a surface that cannot persist them — an input whose value is dropped
+   * on save is worse than no input: it reads as a working field and silently loses what
+   * staff typed. The CRM manager passes `false` because `model Testimonial` has no
+   * `college` column (tracked as P11-6 in docs/phase-11-followups.md) and captures the
+   * program through a real `programId` picker instead of free text.
+   */
+  showCollegeProgram?: boolean;
   className?: string;
   /** Test hook; defaults to "testimonial-input" when omitted. */
   "data-testid"?: string;
@@ -135,6 +146,7 @@ export function TestimonialInput({
   onSubmit,
   submitting = false,
   errors,
+  showCollegeProgram = true,
   className,
   "data-testid": testId,
 }: TestimonialInputProps): React.JSX.Element {
@@ -163,7 +175,10 @@ export function TestimonialInput({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="testimonial-quote">Your review</Label>
+        <Label htmlFor="testimonial-quote">
+          Your review
+          <span aria-hidden="true" className="text-danger"> *</span>
+        </Label>
         <textarea
           id="testimonial-quote"
           value={value.quote}
@@ -194,22 +209,24 @@ export function TestimonialInput({
         required
       />
 
-      <div className="flex gap-3">
-        <Input
-          label="College"
-          value={value.college ?? ""}
-          onChange={(e) => patch({ college: e.target.value })}
-          data-testid="testimonial-input-college"
-          wrapperClassName="flex-1"
-        />
-        <Input
-          label="Program"
-          value={value.program ?? ""}
-          onChange={(e) => patch({ program: e.target.value })}
-          data-testid="testimonial-input-program"
-          wrapperClassName="flex-1"
-        />
-      </div>
+      {showCollegeProgram ? (
+        <div className="flex gap-3">
+          <Input
+            label="College"
+            value={value.college ?? ""}
+            onChange={(e) => patch({ college: e.target.value })}
+            data-testid="testimonial-input-college"
+            wrapperClassName="flex-1"
+          />
+          <Input
+            label="Program"
+            value={value.program ?? ""}
+            onChange={(e) => patch({ program: e.target.value })}
+            data-testid="testimonial-input-program"
+            wrapperClassName="flex-1"
+          />
+        </div>
+      ) : null}
 
       {onSubmit ? (
         <Button type="submit" loading={submitting} data-testid="testimonial-input-submit" className="self-start">
