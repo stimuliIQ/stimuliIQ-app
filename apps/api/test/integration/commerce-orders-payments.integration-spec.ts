@@ -248,6 +248,57 @@ describeIfAvailable("Commerce — orders + payments + webhooks (P2, spec A)", ()
       expect(rows).toHaveLength(1);
     });
 
+    // Regression (production, 2026-08-06): "Add program" clicked twice for one student
+    // produced two identical open ₹6,999 orders on the same program + batch, 30 seconds
+    // apart. The idempotency key does not cover this — a second click mints a NEW key, so
+    // the replay check above misses entirely and both orders become payable.
+    it("a SECOND open order for the same student+program+batch is rejected (409), different Idempotency-Key", async () => {
+      const { accessToken, csrfToken } = await loginAs(CL_FINANCE_EMAIL, CL_FINANCE_PASSWORD);
+      const studentId = await createStudentDirectly("dupe-order");
+      const body = { studentId, programId: fixtures.programId, batchId: fixtures.batchAId };
+
+      const first = await request(app.getHttpServer())
+        .post("/api/v1/commerce/orders")
+        .set(authHeaders(accessToken, csrfToken))
+        .set("Idempotency-Key", `qa-dupe-first-${Date.now()}`)
+        .send(body)
+        .expect(201);
+
+      const second = await request(app.getHttpServer())
+        .post("/api/v1/commerce/orders")
+        .set(authHeaders(accessToken, csrfToken))
+        .set("Idempotency-Key", `qa-dupe-second-${Date.now()}`) // DIFFERENT key = a real second click
+        .send(body)
+        .expect(409);
+      expect(second.body.error.code).toBe("commerce.duplicate_open_order");
+
+      // Exactly one order exists — the guard rejected rather than half-writing.
+      const rows = await prisma.order.findMany({ where: { studentId, deletedAt: null } });
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.id).toBe(first.body.data.id);
+    });
+
+    it("allows a second open order on a DIFFERENT batch of the same program (batch switch)", async () => {
+      const { accessToken, csrfToken } = await loginAs(CL_FINANCE_EMAIL, CL_FINANCE_PASSWORD);
+      const studentId = await createStudentDirectly("dupe-other-batch");
+
+      await request(app.getHttpServer())
+        .post("/api/v1/commerce/orders")
+        .set(authHeaders(accessToken, csrfToken))
+        .set("Idempotency-Key", `qa-batchA-${Date.now()}`)
+        .send({ studentId, programId: fixtures.programId, batchId: fixtures.batchAId })
+        .expect(201);
+
+      // The guard is scoped to the exact duplicate, so lining up a move to another cohort
+      // while the first order is still unpaid stays possible.
+      await request(app.getHttpServer())
+        .post("/api/v1/commerce/orders")
+        .set(authHeaders(accessToken, csrfToken))
+        .set("Idempotency-Key", `qa-batchB-${Date.now()}`)
+        .send({ studentId, programId: fixtures.programId, batchId: fixtures.batchBId })
+        .expect(201);
+    });
+
     it("server-computed amount: client cannot override the amount (order uses program.pricePaise)", async () => {
       const { accessToken, csrfToken } = await loginAs(CL_FINANCE_EMAIL, CL_FINANCE_PASSWORD);
       const res = await request(app.getHttpServer())
@@ -255,7 +306,10 @@ describeIfAvailable("Commerce — orders + payments + webhooks (P2, spec A)", ()
         .set(authHeaders(accessToken, csrfToken))
         .set("Idempotency-Key", `qa-amount-test-${Date.now()}`)
         .send({
-          studentId: fixtures.enrollableStudentProfileId,
+          // Own student: these tests used to share one fixture student, so each one after
+          // the first was opening a SECOND unpaid order for the same student+program+batch
+          // — which the duplicate-order guard now (correctly) rejects with a 409.
+          studentId: await createStudentDirectly("amount-test"),
           programId: fixtures.programId,
           batchId: fixtures.batchAId,
           // No amountPaise field — the request schema doesn't accept it (server-computed).
@@ -290,7 +344,7 @@ describeIfAvailable("Commerce — orders + payments + webhooks (P2, spec A)", ()
         .set(authHeaders(accessToken, csrfToken))
         .set("Idempotency-Key", `qa-pct-coupon-${Date.now()}`)
         .send({
-          studentId: fixtures.enrollableStudentProfileId,
+          studentId: await createStudentDirectly("pct-coupon"),
           programId: fixtures.programId,
           batchId: fixtures.batchAId,
           couponCode,
@@ -325,7 +379,7 @@ describeIfAvailable("Commerce — orders + payments + webhooks (P2, spec A)", ()
         .set(authHeaders(accessToken, csrfToken))
         .set("Idempotency-Key", `qa-flat-coupon-${Date.now()}`)
         .send({
-          studentId: fixtures.enrollableStudentProfileId,
+          studentId: await createStudentDirectly("flat-coupon"),
           programId: fixtures.programId,
           batchId: fixtures.batchAId,
           couponCode,
@@ -348,7 +402,7 @@ describeIfAvailable("Commerce — orders + payments + webhooks (P2, spec A)", ()
         .post("/api/v1/commerce/orders")
         .set(authHeaders(accessToken, csrfToken))
         .set("Idempotency-Key", `qa-pay-secret-test-${Date.now()}`)
-        .send({ studentId: fixtures.enrollableStudentProfileId, programId: fixtures.programId, batchId: fixtures.batchAId })
+        .send({ studentId: await createStudentDirectly("pay-secret"), programId: fixtures.programId, batchId: fixtures.batchAId })
         .expect(201);
       orderId = res.body.data.id;
     });
@@ -388,7 +442,7 @@ describeIfAvailable("Commerce — orders + payments + webhooks (P2, spec A)", ()
         .post("/api/v1/commerce/orders")
         .set(authHeaders(accessToken, csrfToken))
         .set("Idempotency-Key", `qa-verify-test-${Date.now()}`)
-        .send({ studentId: fixtures.enrollableStudentProfileId, programId: fixtures.programId, batchId: fixtures.batchAId })
+        .send({ studentId: await createStudentDirectly("verify"), programId: fixtures.programId, batchId: fixtures.batchAId })
         .expect(201);
       orderId = orderRes.body.data.id;
 

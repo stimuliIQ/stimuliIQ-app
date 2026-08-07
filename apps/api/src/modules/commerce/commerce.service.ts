@@ -248,6 +248,49 @@ export class CommerceService {
       throw new NotFoundException({ code: "commerce.student_not_found", title: "Student not found" });
     }
 
+    // ── Duplicate-order guard ────────────────────────────────────────────────
+    //
+    // `idempotencyKey` above only collapses a REPLAY of one request (same key). It does
+    // nothing about a second deliberate click, which mints a fresh key — so "Add program"
+    // pressed twice produced two identical open orders for the same student/program/batch
+    // (observed in production 2026-08-06, 30 seconds apart). Left alone that is a
+    // double-charge waiting to happen: both orders are payable, but the SECOND payment's
+    // enrollment insert would then violate the `enrollments_active_student_batch_key`
+    // partial-unique index — i.e. money taken with no enrollment to show for it.
+    //
+    // Checked AFTER student/program/batch validation (so a genuinely bad request still
+    // gets its specific 404/400) and BEFORE the coupon `used` increment (so a rejected
+    // duplicate never burns a redemption).
+    const openOrders = await this.repository.findOpenOrdersForProgram(
+      tenantId,
+      body.studentId,
+      body.programId,
+    );
+    if (openOrders.some((o) => o.batchId === body.batchId)) {
+      throw new ConflictException({
+        code: "commerce.duplicate_open_order",
+        title: "This student already has an open order for this program and batch",
+        detail:
+          "An unpaid order for this exact program and batch is already awaiting payment. Record its payment, or cancel it before creating another.",
+      });
+    }
+
+    // Scoped to the SAME batch, not the whole program: an open order on batch A while
+    // staff line up a move to batch B is a real workflow, and blocking it would be a
+    // product decision beyond fixing the duplicate.
+    //
+    // Already enrolled? Checked on the ENROLLMENT, not on "is there a paid order" —
+    // re-enrolling into a batch whose enrollment was soft-deleted is supported and
+    // hard-restores the old row (`enrollments_active_student_batch_key`). Guarding on the
+    // paid order would break that restore path.
+    if (await this.repository.hasActiveEnrollment(body.studentId, body.batchId)) {
+      throw new ConflictException({
+        code: "commerce.already_enrolled_in_batch",
+        title: "This student is already enrolled in this batch",
+        detail: "They already have a live enrollment in this batch. Pick a different batch.",
+      });
+    }
+
     // Coupon validation and discount computation — all in INTEGER PAISE
     let discountPaise = 0;
     let couponId: string | null = null;
