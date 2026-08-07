@@ -149,7 +149,7 @@ export function CampaignDirectory({ me }: CampaignDirectoryProps): React.JSX.Ele
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="campaign-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="campaign-directory">
       <PageHeader
         title="Campaigns"
         description="Email, WhatsApp, and SMS bulk campaigns with per-recipient delivery tracking."

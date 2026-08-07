@@ -93,7 +93,9 @@ export function Select({
           aria-invalid={Boolean(error) || undefined}
           aria-describedby={describedBy}
           className={cn(
-            "flex h-10 w-full items-center justify-between rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg",
+            // Height is density-aware so filter dropdowns line up with Button/Input on
+            // every surface: 40px comfortable, 32px under `data-density="compact"`.
+            "flex h-[var(--density-control-height)] w-full items-center justify-between rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg",
             "transition-colors duration-fast ease-out",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
             "disabled:cursor-not-allowed disabled:opacity-50",

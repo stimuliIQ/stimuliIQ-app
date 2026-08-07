@@ -12,7 +12,7 @@ import { ContentPagesManager } from "../components/content/content-pages-manager
 function ContentResourcesPage() {
   const { me } = useMe();
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="content-resources-page">
+    <div className="space-y-4 md:space-y-5" data-testid="content-resources-page">
       <PageHeader
         title="Resources"
         description="Downloadable and linked resource pages, managed as content pages (also visible under Marketing → Blog CMS → Pages)."

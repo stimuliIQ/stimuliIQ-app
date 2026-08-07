@@ -54,7 +54,7 @@ export function OverviewDashboard({ me }: OverviewDashboardProps): React.JSX.Ele
   const hasAnyAccess = canRevenue || canEnrollment || canFunnel || canAttendance || canPayments || canTickets;
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="overview-dashboard">
+    <div className="space-y-4 md:space-y-5" data-testid="overview-dashboard">
       <PageHeader
         title="Dashboard"
         description="A role-aware snapshot of the last 30 days, plus what needs your attention right now."

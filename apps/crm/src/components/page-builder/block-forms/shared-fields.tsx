@@ -148,6 +148,7 @@ export function CtaListField<TForm extends FieldValues>({
         <div key={field.id} className="flex items-end gap-2 rounded-md border border-border p-2">
           <Input
             label="Label"
+            required
             {...register(`${name}.${index}.label` as Path<TForm>)}
             error={fieldErrors?.[index]?.label?.message}
             wrapperClassName="flex-1"
@@ -155,6 +156,7 @@ export function CtaListField<TForm extends FieldValues>({
           />
           <Input
             label="Link"
+            required
             placeholder="/programs or https://…"
             {...register(`${name}.${index}.href` as Path<TForm>)}
             error={fieldErrors?.[index]?.href?.message}
@@ -234,6 +236,7 @@ export function LinkListField<TForm extends FieldValues>({
         <div key={field.id} className="flex items-end gap-2 rounded-md border border-border p-2">
           <Input
             label="Label"
+            required
             {...register(`${name}.${index}.label` as Path<TForm>)}
             error={fieldErrors?.[index]?.label?.message}
             wrapperClassName="flex-1"
@@ -241,6 +244,7 @@ export function LinkListField<TForm extends FieldValues>({
           />
           <Input
             label="Link"
+            required
             placeholder="/about or https://…"
             {...register(`${name}.${index}.href` as Path<TForm>)}
             error={fieldErrors?.[index]?.href?.message}

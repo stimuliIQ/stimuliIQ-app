@@ -260,7 +260,7 @@ export function PipelineBoard({ me }: PipelineBoardProps): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="pipeline-board">
+    <div className="space-y-4 md:space-y-5" data-testid="pipeline-board">
       <PageHeader
         title="Pipeline"
         description="New → Contacted → Qualified → Counselling → Negotiation → Won/Lost. Server enforces who you can see and move."

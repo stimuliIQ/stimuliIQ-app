@@ -94,7 +94,10 @@ export function KbArticleFormDrawer({ open, onOpenChange, article }: KbArticleFo
               <TabsContent value="write">
                 <Textarea
                   id="kb-article-body"
-                  aria-label="Body (HTML)"
+                  label="Body (HTML)"
+                  // Only mandatory on create — an edit that leaves this blank keeps the
+                  // existing body (see the submit gate below).
+                  required={!isEdit}
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   rows={10}

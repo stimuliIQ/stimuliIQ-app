@@ -469,6 +469,7 @@ export function CurriculumBuilder({
                     <div className="mt-3 flex flex-wrap items-end gap-2">
                       <Input
                         label="Lesson title"
+                        required
                         value={newLessonTitle}
                         onChange={(event) => setNewLessonTitle(event.target.value)}
                         placeholder="e.g. Setting up your dev environment"
@@ -477,6 +478,7 @@ export function CurriculumBuilder({
                       />
                       <Select
                         label="Type"
+                        required
                         placeholder="Select type"
                         value={newLessonType}
                         onValueChange={(value) => setNewLessonType(value as LessonType)}
@@ -519,6 +521,7 @@ export function CurriculumBuilder({
         <div className="flex items-end gap-2 rounded-md border border-dashed border-border p-3">
           <Input
             label="New module title"
+            required
             value={newModuleTitle}
             onChange={(event) => setNewModuleTitle(event.target.value)}
             placeholder="e.g. Introduction to React"

@@ -235,6 +235,7 @@ export function LessonResourcesDrawer({
               />
               <Select
                 label="Type"
+                required
                 value={type}
                 onValueChange={(v) => setType(v as LessonResourceType)}
                 data-testid="lesson-resource-type"

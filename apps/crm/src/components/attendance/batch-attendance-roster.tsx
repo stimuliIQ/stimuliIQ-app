@@ -45,7 +45,7 @@ export function BatchAttendanceRoster({ me }: { me: MeResponse | undefined }): R
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="batch-attendance-roster">
+    <div className="space-y-4 md:space-y-5" data-testid="batch-attendance-roster">
       <PageHeader
         title="Attendance"
         description="Batch roster and aggregate attendance. Select a batch to drill in."

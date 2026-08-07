@@ -85,6 +85,7 @@ export function HeroFields({ control, register, errors, watch, setValue }: Block
           <div className="grid grid-cols-2 gap-2">
             <Input
               label="Rating stars (1-5)"
+              required
               type="number"
               min={1}
               max={5}
@@ -94,6 +95,7 @@ export function HeroFields({ control, register, errors, watch, setValue }: Block
             />
             <Input
               label="Caption"
+              required
               {...register("trustBadge.caption")}
               error={errors.trustBadge?.caption?.message}
               data-testid="hero-trust-badge-caption"
@@ -133,12 +135,14 @@ export function HeroFields({ control, register, errors, watch, setValue }: Block
                 <IconKeySelect control={control} name={`flankingPhotos.${index}.statIconKey`} label="Stat icon" testId={`hero-flanking-photo-${index}-icon`} />
                 <Input
                   label="Stat value"
+                  required
                   {...register(`flankingPhotos.${index}.statValue`)}
                   error={errors.flankingPhotos?.[index]?.statValue?.message}
                   data-testid={`hero-flanking-photo-${index}-stat-value`}
                 />
                 <Input
                   label="Stat label"
+                  required
                   {...register(`flankingPhotos.${index}.statLabel`)}
                   error={errors.flankingPhotos?.[index]?.statLabel?.message}
                   data-testid={`hero-flanking-photo-${index}-stat-label`}
@@ -189,6 +193,7 @@ export function HeroFields({ control, register, errors, watch, setValue }: Block
             <div key={field.id} className="flex items-end gap-2 rounded border border-border p-2">
               <Input
                 label="Body text"
+                required
                 {...register(`infoCards.${index}.bodyText`)}
                 error={errors.infoCards?.[index]?.bodyText?.message}
                 wrapperClassName="flex-1"

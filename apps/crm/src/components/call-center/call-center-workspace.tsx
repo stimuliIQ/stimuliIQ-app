@@ -176,7 +176,7 @@ export function CallCenterWorkspace({ me }: CallCenterWorkspaceProps): React.JSX
   const isLoading = searching && (studentsQuery.isLoading || leadsQuery.isLoading);
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="call-center-workspace">
+    <div className="space-y-4 md:space-y-5" data-testid="call-center-workspace">
       <PageHeader
         title="Call Center"
         description="Search by name, phone, or email — status, details, and the next step for every caller, one click from their full record."

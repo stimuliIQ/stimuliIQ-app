@@ -69,6 +69,7 @@ export function LogActivityForm({ leadId }: LogActivityFormProps): React.JSX.Ele
       </p>
       <Select
         label="Type"
+        required
         placeholder="Select type"
         value={type}
         onValueChange={(value) => setValue("type", value as ActivityType)}

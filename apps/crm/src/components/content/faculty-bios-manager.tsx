@@ -68,7 +68,8 @@ function FacultyBioFormDrawer({ open, onOpenChange, bio }: { open: boolean; onOp
               <TabsContent value="write">
                 <Textarea
                   id="faculty-bio-body"
-                  aria-label="Bio"
+                  label="Bio"
+                  required
                   value={bodyText}
                   onChange={(e) => setBodyText(e.target.value)}
                   rows={6}

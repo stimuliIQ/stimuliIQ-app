@@ -130,7 +130,7 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="users-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="users-directory">
       <PageHeader
         title="Users"
         description="Create and manage staff logins for the CRM — counsellors, managers, and admins. Students are managed on the Students screen."

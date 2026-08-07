@@ -114,7 +114,7 @@ export function BookingList({ me }: BookingListProps): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="booking-list">
+    <div className="space-y-4 md:space-y-5" data-testid="booking-list">
       <PageHeader
         title="Bookings"
         description="Demo/slot bookings — manage status from requested through to completed."

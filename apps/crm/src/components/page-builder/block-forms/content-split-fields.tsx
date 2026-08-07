@@ -148,8 +148,8 @@ export function ContentSplitFields({ control, register, errors, watch, setValue 
         {badge ? (
           <div className="grid grid-cols-3 gap-2">
             <IconKeySelect control={control} name="badge.iconKey" testId="content-split-badge-icon" />
-            <Input label="Title" {...register("badge.title")} error={errors.badge?.title?.message} data-testid="content-split-badge-title" />
-            <Input label="Subtitle" {...register("badge.subtitle")} error={errors.badge?.subtitle?.message} data-testid="content-split-badge-subtitle" />
+            <Input label="Title" required {...register("badge.title")} error={errors.badge?.title?.message} data-testid="content-split-badge-title" />
+            <Input label="Subtitle" required {...register("badge.subtitle")} error={errors.badge?.subtitle?.message} data-testid="content-split-badge-subtitle" />
           </div>
         ) : null}
       </fieldset>

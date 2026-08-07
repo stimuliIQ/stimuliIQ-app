@@ -87,10 +87,11 @@ export function CannedResponseManagerDrawer({ open, onOpenChange, me }: CannedRe
           <DrawerBody className="flex flex-col gap-4">
             {canManage ? (
               <div className="flex flex-col gap-2 rounded-md border border-border p-3">
-                <Input label="Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Password reset instructions" data-testid="canned-response-title-input" />
+                <Input label="Title" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Password reset instructions" data-testid="canned-response-title-input" />
                 <Input label="Category (optional)" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Account & Billing" data-testid="canned-response-category-input" />
                 <Textarea
                   label="Body"
+                  required
                   id="canned-response-body"
                   value={body}
                   onChange={(e) => setBody(e.target.value)}

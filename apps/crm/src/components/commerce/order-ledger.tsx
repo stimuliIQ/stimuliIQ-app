@@ -104,7 +104,7 @@ export function OrderLedger({ me: _me }: OrderLedgerProps): React.JSX.Element {
   const programs = programsData?.items ?? [];
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="orders-ledger">
+    <div className="space-y-4 md:space-y-5" data-testid="orders-ledger">
       <PageHeader
         title="Orders"
         description="The order ledger — every program purchase, its coupon, and its enrollment link."

@@ -78,7 +78,7 @@ export function VideoLibraryDirectory({ me }: { me: MeResponse | undefined }): R
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="video-library-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="video-library-directory">
       <PageHeader
         title="Video library"
         description="Upload source video, track transcode status, and manage caption tracks."

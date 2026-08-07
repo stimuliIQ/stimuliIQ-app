@@ -9,6 +9,10 @@ interface DivProps extends React.HTMLAttributes<HTMLDivElement> {
 /**
  * Card — composable surface (header/content/footer) per docs/07-design-system.md §5.
  * Used for program cards, KPI tiles, lesson cards across web/lms/crm.
+ *
+ * Header/content/footer inset is density-aware (`--density-card-padding`): 24px under the
+ * default comfortable density — identical to the `p-6` it replaced — and 16px wherever an
+ * ancestor sets `data-density="compact"` (the CRM shell). See packages/ui/src/styles.css.
  */
 export const Card = React.forwardRef<HTMLDivElement, DivProps>(
   ({ className, "data-testid": testId, ...props }, ref) => (
@@ -29,7 +33,7 @@ export const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("flex flex-col gap-1.5 p-6", className)}
+      className={cn("flex flex-col gap-1.5 p-[var(--density-card-padding)]", className)}
       {...props}
     />
   ),
@@ -58,14 +62,14 @@ CardDescription.displayName = "CardDescription";
 
 export const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+    <div ref={ref} className={cn("p-[var(--density-card-padding)] pt-0", className)} {...props} />
   ),
 );
 CardContent.displayName = "CardContent";
 
 export const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex items-center gap-2 p-6 pt-0", className)} {...props} />
+    <div ref={ref} className={cn("flex items-center gap-2 p-[var(--density-card-padding)] pt-0", className)} {...props} />
   ),
 );
 CardFooter.displayName = "CardFooter";

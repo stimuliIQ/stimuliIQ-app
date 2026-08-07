@@ -114,7 +114,7 @@ export function MentorDashboard({ me }: MentorDashboardProps): React.JSX.Element
   const batches = data?.batches ?? [];
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="mentor-dashboard">
+    <div className="space-y-4 md:space-y-5" data-testid="mentor-dashboard">
       <PageHeader
         title={`Welcome${data ? `, ${data.mentorFullName}` : ""}`}
         description={

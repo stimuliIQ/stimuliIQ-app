@@ -76,7 +76,7 @@ export function PageBuilderList({ onOpenPage }: { onOpenPage: (pageId: string) =
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="page-builder-list">
+    <div className="space-y-4 md:space-y-5" data-testid="page-builder-list">
       <PageHeader
         title="Page builder"
         description="Your site's core marketing pages, each with a fixed layout — open one to edit its text, images, and list items. Every save publishes immediately — there is no draft/approval step."

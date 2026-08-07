@@ -70,7 +70,7 @@ export function AnalyticsOverview({ me }: AnalyticsOverviewProps): React.JSX.Ele
   const visibleTiles = TILES.filter((tile) => hasPermission(me?.permissions, tile.permission));
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="analytics-overview">
+    <div className="space-y-4 md:space-y-5" data-testid="analytics-overview">
       <PageHeader
         title="Analytics"
         description="KPI snapshot for the last 30 days, and links into every detailed dashboard you have access to."

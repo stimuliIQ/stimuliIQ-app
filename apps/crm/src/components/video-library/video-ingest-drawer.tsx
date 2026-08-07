@@ -162,6 +162,7 @@ export function VideoIngestDrawer({ open, onOpenChange, replaceFor, attachFor }:
             <>
               <Select
                 label="Program"
+                required
                 placeholder="Select a program"
                 value={programId}
                 onValueChange={(v) => {
@@ -180,6 +181,7 @@ export function VideoIngestDrawer({ open, onOpenChange, replaceFor, attachFor }:
 
               <Select
                 label="Lesson"
+                required
                 placeholder={programId ? "Select a video lesson" : "Select a program first"}
                 value={lessonId}
                 onValueChange={(v) => {

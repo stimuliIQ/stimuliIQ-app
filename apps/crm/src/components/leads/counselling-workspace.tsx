@@ -51,7 +51,7 @@ export function CounsellingWorkspace({ me: _me }: CounsellingWorkspaceProps): Re
   ];
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="counselling-workspace">
+    <div className="space-y-4 md:space-y-5" data-testid="counselling-workspace">
       <PageHeader
         title="Counselling workspace"
         description="Today's and overdue follow-ups, due bookings, and leads needing action."

@@ -29,9 +29,13 @@ export const buttonVariants = cva(
       },
       size: {
         sm: "h-8 px-3 text-sm",
-        md: "h-10 px-4 text-sm",
+        // `md` and `icon` are density-aware: 40px under the default comfortable density
+        // (identical to the old `h-10`/`h-10 w-10`), 32px wherever an ancestor sets
+        // `data-density="compact"` (the CRM shell). This is why CRM buttons are `btn-sm`
+        // sized without every call site passing size="sm" — see packages/ui/src/styles.css.
+        md: "h-[var(--density-control-height)] px-[var(--density-control-px)] text-sm",
         lg: "h-12 px-6 text-base",
-        icon: "h-10 w-10 p-0",
+        icon: "h-[var(--density-control-height)] w-[var(--density-control-height)] p-0",
       },
     },
     defaultVariants: {

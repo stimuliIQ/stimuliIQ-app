@@ -143,6 +143,20 @@ export function useUpdateTestimonial() {
   });
 }
 
+/**
+ * Publish a testimonial — makes it visible in the homepage "What Our Students Say"
+ * section. Separate from `useUpdateTestimonial` because publishing is a dedicated
+ * endpoint, not a status field on the PATCH (the API rejects `status: "published"` on
+ * PATCH outright). Unpublishing IS a plain update to `draft`.
+ */
+export function usePublishTestimonial() {
+  const invalidate = useInvalidateTestimonials();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.crm.content.testimonials.publish(id),
+    onSuccess: invalidate,
+  });
+}
+
 export function useDeleteTestimonial() {
   const invalidate = useInvalidateTestimonials();
   return useMutation({

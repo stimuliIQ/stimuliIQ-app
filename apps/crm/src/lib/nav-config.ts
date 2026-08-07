@@ -48,6 +48,7 @@ import {
   Calendar,
   UserCog,
   Headset,
+  ClipboardList,
 } from "lucide-react";
 
 export interface NavLeaf {
@@ -131,6 +132,18 @@ export const NAV_SECTIONS: NavSection[] = [
       // created via the same POST /crm/students contract.
       { label: "Import", to: "/students/import", permission: "students.create" },
     ],
+  },
+  {
+    // Student onboarding form (stimuliiq.com/onboarding) — the post-payment intake that
+    // turns a paid enquiry into a student record. Top-level rather than a Students child
+    // because it is its own daily queue with its own permission set, and because the
+    // second half of the screen (the CRM-authored question set) is not about any one
+    // student at all. Gated on `onboarding.view`; the Form-fields tab inside additionally
+    // checks `onboarding.fields.manage`.
+    label: "Onboarding",
+    icon: ClipboardList,
+    to: "/onboarding",
+    permission: "onboarding.view",
   },
   {
     label: "Academics",

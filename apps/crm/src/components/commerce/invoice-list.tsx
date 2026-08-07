@@ -69,7 +69,7 @@ export function InvoiceList(): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="invoices-list">
+    <div className="space-y-4 md:space-y-5" data-testid="invoices-list">
       <PageHeader
         title="Invoices"
         description="Generated automatically on payment success. PDF rendering is a stub in this phase — the row, numbering, and queue are real."

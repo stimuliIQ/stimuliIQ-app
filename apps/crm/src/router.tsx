@@ -82,6 +82,9 @@ import { forgotPasswordRoute } from "./routes/forgot-password-route";
 import { resetPasswordRoute } from "./routes/reset-password-route";
 import { callCenterRoute } from "./routes/call-center-route";
 import { leadsImportRoute } from "./routes/leads-import-route";
+// Student onboarding form (stimuliiq.com/onboarding) — submissions + the CRM-authored
+// question set that drives the public form.
+import { onboardingRoute } from "./routes/onboarding-route";
 
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
@@ -149,6 +152,7 @@ const routeTree = rootRoute.addChildren([
   analyticsSchedulesRoute,
   mentorsRoute,
   mentorDashboardRoute,
+  onboardingRoute,
 ]);
 
 export const router = createRouter({ routeTree });

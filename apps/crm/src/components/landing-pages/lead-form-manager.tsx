@@ -91,9 +91,9 @@ function LeadFormFormDrawer({
               <h3 className="text-sm font-semibold text-fg">Fields</h3>
               {fields.map((field, index) => (
                 <div key={index} className="flex flex-wrap items-end gap-2 rounded-md border border-border p-2.5">
-                  <Input label="Key" placeholder="e.g. email" value={field.key} onChange={(e) => updateField(index, { key: e.target.value })} wrapperClassName="w-32" data-testid={`lead-form-field-key-${index}`} />
-                  <Input label="Label" placeholder="e.g. Email Address" value={field.label} onChange={(e) => updateField(index, { label: e.target.value })} wrapperClassName="w-40" data-testid={`lead-form-field-label-${index}`} />
-                  <Select label="Type" placeholder="Select field type" value={field.type} onValueChange={(v) => updateField(index, { type: v as LeadFormFieldType })} wrapperClassName="w-36" data-testid={`lead-form-field-type-${index}`}>
+                  <Input label="Key" required placeholder="e.g. email" value={field.key} onChange={(e) => updateField(index, { key: e.target.value })} wrapperClassName="w-32" data-testid={`lead-form-field-key-${index}`} />
+                  <Input label="Label" required placeholder="e.g. Email Address" value={field.label} onChange={(e) => updateField(index, { label: e.target.value })} wrapperClassName="w-40" data-testid={`lead-form-field-label-${index}`} />
+                  <Select label="Type" required placeholder="Select field type" value={field.type} onValueChange={(v) => updateField(index, { type: v as LeadFormFieldType })} wrapperClassName="w-36" data-testid={`lead-form-field-type-${index}`}>
                     {FIELD_TYPES.map((t) => (
                       <SelectItem key={t} value={t}>
                         {t}

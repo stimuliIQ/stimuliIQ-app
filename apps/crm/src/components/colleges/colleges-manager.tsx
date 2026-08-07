@@ -95,7 +95,7 @@ export function CollegesManager({ me }: { me: MeResponse | undefined }): React.J
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="colleges-manager">
+    <div className="space-y-4 md:space-y-5" data-testid="colleges-manager">
       <PageHeader
         title="Colleges"
         description={

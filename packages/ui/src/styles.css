@@ -118,6 +118,20 @@
   --density-padding-x: var(--space-4);
   --density-padding-y: var(--space-3);
   --density-row-height: 2.5rem;
+
+  /* Control geometry — the height/inline-padding of the interactive controls that
+   * set a screen's whole vertical rhythm (Button `md`, Input `md`, Select trigger,
+   * DataFilterBar search, Pagination). Comfortable = exactly the values these
+   * components hardcoded before the tokens existed, so `web`/`lms` are unchanged;
+   * `[data-density="compact"]` below is what shrinks the CRM. */
+  --density-control-height: 2.5rem; /* 40px — matches the old `h-10` */
+  --density-control-px: 1rem; /* 16px — matches the old `px-4` */
+  /* DataFilterBar's own inputs sat at 36px, one notch below the form controls. Kept as a
+   * separate token so the comfortable rendering (the LMS search page) is untouched. */
+  --density-toolbar-height: 2.25rem; /* 36px — matches the old `h-9` */
+
+  /* Card/panel inset — Card header/content/footer padding. */
+  --density-card-padding: 1.5rem; /* 24px — matches the old `p-6` */
 }
 
 .dark {
@@ -143,13 +157,42 @@
   --chart-6: 154 166 184;
 }
 
-/* CRM density preset (docs/07 §12: compact density mode for dense tables/lists). */
+/* CRM density preset (docs/07 §12: compact density mode for dense tables/lists).
+ *
+ * This is the ONE place the CRM's scale is defined. Because the Tailwind preset maps
+ * every `text-*` utility and (now) the control-geometry utilities onto these variables,
+ * re-declaring them under this attribute re-scales every @repo/ui primitive and every
+ * CRM page at once — no per-component "compact" fork, no `size="sm"` on 500 call sites.
+ *
+ * Why a full type ramp and not just `--text-base`: an admin console is read at a desk,
+ * densely, one row at a time. The marketing scale (h1 at 30px, body at 16px) pushed page
+ * headers, filter bars and table rows past the fold and forced horizontal scroll on wide
+ * tables. The ramp below is the same shape, one step tighter throughout.
+ *
+ * Scoped to `[data-density="compact"]`, which only the CRM shell + CRM auth layout set —
+ * `web` and `lms` inherit the `:root` comfortable values and render unchanged.
+ */
 [data-density="compact"] {
   --density-gap: var(--space-2);
   --density-padding-x: var(--space-3);
   --density-padding-y: var(--space-2);
   --density-row-height: 2rem;
-  --text-base: 0.875rem;
+
+  --density-control-height: 2rem; /* 32px — the `btn-sm` height, everywhere */
+  --density-control-px: 0.75rem; /* 12px */
+  --density-toolbar-height: 2rem; /* 32px — filter bars match the buttons beside them */
+  --density-card-padding: 1rem; /* 16px */
+
+  /* Type ramp, one step down from the comfortable scale. */
+  --text-xs: 0.6875rem; /* 11px — chips, table meta */
+  --text-sm: 0.8125rem; /* 13px — table cells, buttons, inputs */
+  --text-base: 0.875rem; /* 14px — body */
+  --text-lg: 1rem; /* 16px — card titles */
+  --text-xl: 1.0625rem; /* 17px */
+  --text-2xl: 1.125rem; /* 18px — PageHeader h1 (mobile) */
+  --text-3xl: 1.25rem; /* 20px — PageHeader h1 (md+), KPI values */
+  --text-4xl: 1.5rem; /* 24px */
+  --text-5xl: 1.875rem; /* 30px */
 }
 
 /* Respect reduced-motion preference globally (docs/07 §7 / CLAUDE.md §3.9). */

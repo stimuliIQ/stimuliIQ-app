@@ -52,7 +52,7 @@ export function TasksPage({ me: _me }: TasksPageProps): React.JSX.Element {
   }, [tasksQuery.data, filter, now]);
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="tasks-page">
+    <div className="space-y-4 md:space-y-5" data-testid="tasks-page">
       <PageHeader
         title="Tasks"
         description="Your follow-up tasks across all leads, with SLA timers."

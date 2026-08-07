@@ -75,7 +75,10 @@ export function AppShell({ children }: { children: React.ReactNode }): React.JSX
         <Sidebar me={me} collapsed={collapsed} onToggleCollapsed={() => setCollapsed((c) => !c)} />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <Topbar me={me} onLogout={() => logout.mutate()} loggingOut={logout.isPending} />
-          <main id="main-content" className="flex-1 overflow-y-auto p-6">
+          {/* p-4, not p-6: the shell inset is paid on every page, and 24px on all four
+              sides of a dense table pushed the first rows below the fold on a 900px-tall
+              viewport. Matches the compact card inset. */}
+          <main id="main-content" className="flex-1 overflow-y-auto p-4">
             {children}
           </main>
         </div>
