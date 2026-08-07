@@ -110,6 +110,18 @@ block builder to locked, fixed-layout templates (server-enforced via
 live-collection pattern, the ad-hoc `/pages/[slug]` route was removed, and a per-page OG
 image (`ContentPage.seoImagePath`/`ContentPageVersion.seoImagePath`) was added.
 
+ADR 0064 was decided/implemented for the student onboarding form
+(`docs/specs/onboarding-form.md`), replacing the Google Form students filled after paying:
+the question set is CRM-authored DATA (`onboarding_fields`) rather than a schema in code —
+the deliberate opposite of ADR-0063's locked page templates, and for the opposite reason
+(a form has no shape to break); answers are stored as self-describing snapshots so later
+field edits cannot rewrite history; validation is a shared function
+(`buildOnboardingAnswerIssues`) run identically on both sides, because a data-defined form
+admits no fixed DTO. It ships as ONE route on the existing marketing site
+(`/onboarding` in `apps/web`) — an `onboarding.stimuliiq.com` subdomain was built and then
+dropped, since it needed DNS + a Vercel domain attachment and ran edge middleware on every
+request to the whole site to serve one page.
+
 Security follow-ups and deferred work from each phase's security review and build are
 tracked separately in the relevant followups file (`docs/phase-0-followups.md`,
 `docs/phase-1-followups.md`, `docs/phase-2-followups.md`, `docs/phase-3-followups.md`,

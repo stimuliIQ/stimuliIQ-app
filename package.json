@@ -31,6 +31,7 @@
     "db:seed:medical": "ts-node --project prisma/tsconfig.seed.json prisma/seed-medical.ts",
     "db:seed:neurology": "ts-node --project prisma/tsconfig.seed.json prisma/seed-neurology-curriculum.ts",
     "db:seed:psychology": "ts-node --project prisma/tsconfig.seed.json prisma/seed-psychology-curriculum.ts",
+    "db:seed:onboarding": "ts-node --project prisma/tsconfig.seed.json prisma/seed-onboarding.ts",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "prepare": "node ./infra/scripts/check-env-example.mjs || true"

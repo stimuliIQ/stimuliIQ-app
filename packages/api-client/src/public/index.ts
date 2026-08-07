@@ -46,6 +46,7 @@ import { PublicSeoApi } from "./seo.api.js";
 import { PublicBundlesApi } from "./bundles.api.js";
 import { PublicSearchApi } from "./search.api.js";
 import { PublicPayLinkApi } from "./pay-link.api.js";
+import { PublicOnboardingApi } from "./onboarding.api.js";
 
 export class PublicApi {
   /** P-1, P-2: Public program catalog (anonymous reads). */
@@ -97,6 +98,13 @@ export class PublicApi {
   readonly seo: PublicSeoApi;
   readonly bundles: PublicBundlesApi;
   readonly search: PublicSearchApi;
+  /**
+   * Student onboarding form (onboarding.stimuliiq.com). The question set is authored in the
+   * CRM, so `onboarding.getForm()` is what the page renders from — the client bundle
+   * hardcodes no questions. File answers (the payment receipt) go through
+   * `onboarding.getUploadUrl()` first; only the returned `storageKey` is ever submitted.
+   */
+  readonly onboarding: PublicOnboardingApi;
 
   constructor(client: ApiClient) {
     this.programs = new PublicProgramsApi(client);
@@ -118,6 +126,7 @@ export class PublicApi {
     this.seo = new PublicSeoApi(client);
     this.bundles = new PublicBundlesApi(client);
     this.search = new PublicSearchApi(client);
+    this.onboarding = new PublicOnboardingApi(client);
   }
 }
 
@@ -139,3 +148,4 @@ export * from "./referrals.api.js";
 export * from "./seo.api.js";
 export * from "./bundles.api.js";
 export * from "./search.api.js";
+export * from "./onboarding.api.js";

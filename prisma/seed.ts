@@ -474,6 +474,29 @@ function buildP10PermissionCatalog(): Array<{ key: string; label: string }> {
   return P10_PERMISSIONS;
 }
 
+/**
+ * Student onboarding form (onboarding.stimuliiq.com).
+ *
+ * `onboarding.fields.manage` is deliberately a SEPARATE key from the three submission
+ * permissions, because editing the form and reading responses are genuinely different
+ * privileges: a counsellor should be able to work through the intake queue without being
+ * able to quietly delete the payment-receipt question out of the live form.
+ *
+ * Grants below (see the role blocks further down) follow the P9/P10 discipline — every key
+ * reaches at least one non-admin role, so none of them is the "@RequirePermission key with
+ * zero grants = 403 for everybody" bug this catalog exists to prevent.
+ */
+const ONBOARDING_PERMISSIONS: Array<{ key: string; label: string }> = [
+  { key: "onboarding.view", label: "View Onboarding Submissions" },
+  { key: "onboarding.edit", label: "Update Onboarding Submission Status" },
+  { key: "onboarding.delete", label: "Delete Onboarding Submissions" },
+  { key: "onboarding.fields.manage", label: "Edit the Onboarding Form Fields" },
+];
+
+function buildOnboardingPermissionCatalog(): Array<{ key: string; label: string }> {
+  return ONBOARDING_PERMISSIONS;
+}
+
 function p3Key(mod: P3Module, action: P3Action): string {
   return `${mod}.${action}`;
 }
@@ -632,6 +655,7 @@ async function main(): Promise<void> {
     ...buildP8PermissionCatalog(),
     ...buildP9PermissionCatalog(),
     ...buildP10PermissionCatalog(),
+    ...buildOnboardingPermissionCatalog(),
   ];
   const permissions = await Promise.all(
     permissionCatalog.map((perm) =>
@@ -947,6 +971,19 @@ async function main(): Promise<void> {
 
   // support: docs/03 §9 row "Support" — students = view; reports(support, not in P1).
   await grant(supportRole.id, permId(p1Key("students", "view")), RolePermissionScope.all);
+
+  // ── Onboarding-form grants ───────────────────────────────────────────────────────
+  //
+  // scope=all, not branch: an onboarding submission arrives from an anonymous public form,
+  // so it has no branch to be partitioned by — the service fails closed on any narrowed
+  // scope rather than silently widening it. Counsellors and support work the intake queue
+  // (read + set status/notes); DELETING a submission and EDITING the live form stay with
+  // admin/super_admin, who receive them through the catch-all catalog grant above.
+  await Promise.all(
+    [counsellorRole, supportRole].flatMap((role) =>
+      ["onboarding.view", "onboarding.edit"].map((key) => grant(role.id, permId(key), RolePermissionScope.all)),
+    ),
+  );
 
   // content_editor: not in the docs/03 §9 table verbatim (table lists Owner..Support),
   // but §9's prose + course-authoring needs imply ContentEditor manages courses/curriculum
@@ -4649,6 +4686,89 @@ async function main(): Promise<void> {
       : prisma.leadForm.create({ data });
   })();
 
+  // ── Onboarding form (onboarding.stimuliiq.com) ─────────────────────────────────
+  //
+  // Seeds the eight questions the Google Form asked, in its order. Nothing about them is
+  // special after this point: they are ordinary `onboarding_fields` rows, and staff edit
+  // labels, help text, choices, required-ness, order — or delete them and add their own —
+  // entirely from the CRM. This seed exists so the form is usable on day one, not to
+  // define a protected core.
+  //
+  // Two deliberate departures from the Google Form:
+  //   - "Month Opted" was a hardcoded Sep–Dec radio, which goes stale every year. It stays
+  //     a radio (staff edit the choices in the CRM when the intake window moves).
+  //   - The program is a `program`-typed dropdown fed live from the published catalog,
+  //     replacing the form title's hardcoded "Psychology Fellowship Program 2026" — so one
+  //     permanent link keeps working as programs change.
+  //
+  // Upsert-by-key, and `update` touches only `label`/`type`-shaped defaults on a row staff
+  // have not yet made their own: re-running the seed must never silently revert a staff
+  // edit. `sortOrder`/`required` are set on create only for exactly that reason.
+  const onboardingFieldDefs: Array<{
+    key: string;
+    label: string;
+    helpText?: string;
+    placeholder?: string;
+    type: "text" | "email" | "phone" | "radio" | "textarea" | "file" | "program";
+    required: boolean;
+    options?: string[];
+    allowOther?: boolean;
+    identityRole?: "name" | "email" | "phone";
+  }> = [
+    { key: "full_name", label: "Name", type: "text", required: true, identityRole: "name", placeholder: "Your full name" },
+    { key: "email", label: "Email ID", type: "email", required: true, identityRole: "email", placeholder: "you@example.com" },
+    { key: "contact_number", label: "Contact Number", type: "phone", required: true, identityRole: "phone" },
+    { key: "whatsapp_number", label: "Whatsapp Number", type: "phone", required: true },
+    { key: "college_name", label: "College Name", type: "text", required: true },
+    { key: "program", label: "Program", helpText: "The program you have enrolled in.", type: "program", required: true },
+    {
+      key: "month_opted",
+      label: "Month Opted",
+      helpText: "Enter the preferred month.",
+      type: "radio",
+      required: true,
+      options: ["September", "October", "November", "December"],
+      allowOther: true,
+    },
+    {
+      key: "referrals",
+      label: "Referrals from the batch",
+      helpText: "Contact details of someone you would like to refer to this program.",
+      type: "textarea",
+      required: false,
+    },
+    {
+      key: "payment_receipt",
+      label: "Payment Receipt",
+      helpText: "Upload a screenshot or PDF of your payment. Max 10 MB.",
+      type: "file",
+      required: true,
+    },
+  ];
+
+  for (const [index, def] of onboardingFieldDefs.entries()) {
+    const existing = await prisma.onboardingField.findFirst({
+      where: { tenantId: tenant.id, key: def.key, deletedAt: null },
+    });
+    if (existing) continue; // Staff own this row now — never overwrite their edits.
+    await prisma.onboardingField.create({
+      data: {
+        tenantId: tenant.id,
+        key: def.key,
+        label: def.label,
+        helpText: def.helpText ?? null,
+        placeholder: def.placeholder ?? null,
+        type: def.type,
+        required: def.required,
+        options: def.options ?? undefined,
+        allowOther: def.allowOther ?? false,
+        identityRole: def.identityRole ?? "none",
+        sortOrder: index,
+        active: true,
+      },
+    });
+  }
+
   // eslint-disable-next-line no-console
   console.log("[seed]   --- Phase-9 Completion (Wave 1 schema) ---");
   // eslint-disable-next-line no-console
@@ -4677,6 +4797,12 @@ async function main(): Promise<void> {
   console.log(`[seed]   emi_plan:          1 (2 installments — 1 paid, 1 pending, on paidOrder)`);
   // eslint-disable-next-line no-console
   console.log(`[seed]   landing_page/lead_form: 1 each`);
+  // eslint-disable-next-line no-console
+  console.log(`[seed]   --- Onboarding form (onboarding.stimuliiq.com) ---`);
+  // eslint-disable-next-line no-console
+  console.log(`[seed]   onboarding perms:  ${ONBOARDING_PERMISSIONS.length} (onboarding.view/edit/delete + onboarding.fields.manage)`);
+  // eslint-disable-next-line no-console
+  console.log(`[seed]   onboarding_fields: ${onboardingFieldDefs.length} seeded questions (all CRM-editable; existing rows never overwritten)`);
 
   void seedCannedResponse;
   void seedFacultyBio;

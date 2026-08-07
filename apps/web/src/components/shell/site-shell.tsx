@@ -137,6 +137,11 @@ export function SiteShell({
   // WhatsApp FAB, lead popup, or analytics. Just the logo (trust anchor), a
   // "Secure checkout" badge, the payment card, and a one-line reassurance footer.
   const isFocusedCheckout = pathname?.startsWith("/pay/") ?? false;
+  // STANDALONE FORM MODE (/onboarding): the same reasoning as focused checkout, one step
+  // further. A student was handed this link and told to fill it in — a mega-menu, a
+  // newsletter band, a timed "book a slot" popup and a WhatsApp FAB are all invitations to
+  // abandon a form they were asked to complete. Logo for trust, the form, nothing else.
+  const isStandaloneForm = pathname?.startsWith("/onboarding") ?? false;
   // Consent state — initialised from localStorage (SSR-safe: readStoredConsent returns null on server)
   const [analyticsConsent, setAnalyticsConsent] = React.useState<boolean>(false);
 
@@ -150,6 +155,23 @@ export function SiteShell({
 
   function handleConsentAccept() {
     setAnalyticsConsent(true);
+  }
+
+  if (isStandaloneForm) {
+    return (
+      <>
+        <header className="border-b border-border bg-bg" data-testid="standalone-form-header">
+          <div className="mx-auto flex max-w-3xl items-center px-4 py-4 sm:px-6">
+            <SiteLogo />
+          </div>
+        </header>
+        {/* The page provides its own <main id="main-content"> landmark. */}
+        {children}
+        <footer className="pb-8 text-center text-xs text-fg-subtle" data-testid="standalone-form-footer">
+          {copyrightText}
+        </footer>
+      </>
+    );
   }
 
   if (isFocusedCheckout) {

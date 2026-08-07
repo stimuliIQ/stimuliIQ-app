@@ -587,6 +587,10 @@ model Tenant {
   leadForms               LeadForm[]
   twoFactorCredentials    TwoFactorCredential[]
 
+  // Student onboarding form (onboarding.stimuliiq.com)
+  onboardingFields      OnboardingField[]
+  onboardingSubmissions OnboardingSubmission[]
+
   @@map("tenants")
 }
 
@@ -685,6 +689,9 @@ model User {
   // the raw-SQL partial-unique index (user_id WHERE deleted_at IS NULL) so a user can
   // re-enrol after a soft-deleted disable.
   twoFactorCredentials TwoFactorCredential[]
+
+  // Staff member who last moved an onboarding submission out of `new`.
+  reviewedOnboardingSubmissions OnboardingSubmission[] @relation("OnboardingSubmissionReviewer")
 
   @@unique([tenantId, email])
   @@index([phone])
@@ -953,6 +960,8 @@ model Program {
   liveClasses  LiveClass[]
   testimonials Testimonial[]
   leadForms    LeadForm[]
+  // Onboarding-form submissions tagged with the program the student picked.
+  onboardingSubmissions OnboardingSubmission[]
 
   @@index([tenantId, domain, status])
   @@index([tenantId, deletedAt])
@@ -1050,6 +1059,8 @@ model StudentProfile {
   certificates       Certificate[]
   // Phase-6: campaign recipients that target this student
   campaignRecipients CampaignRecipient[]
+  // Onboarding submissions whose approval created/activated this student.
+  onboardingSubmissions OnboardingSubmission[]
 
   @@index([tenantId, status])
   @@index([tenantId, deletedAt])
@@ -3644,4 +3655,139 @@ model LeadForm {
   @@index([tenantId, active])
   @@index([tenantId, deletedAt])
   @@map("lead_forms")
+}
+
+// ─── Student Onboarding form (onboarding.stimuliiq.com) ─────────────────────────────
+//
+// A standalone, fully CRM-authored intake form the student fills AFTER paying — the
+// in-product replacement for the Google Form (name/email/contact/WhatsApp/college/month/
+// referrals/payment receipt). Two tables, deliberately split:
+//
+//   OnboardingField      — the QUESTION definitions. Every field is staff-editable from
+//                          the CRM (label/help/type/required/options/order/active) and
+//                          staff can add new ones. Nothing about the question set is
+//                          hardcoded in the apps; the web form renders whatever is here.
+//   OnboardingSubmission — one student's ANSWERS. `answers` is a self-describing JSON
+//                          SNAPSHOT (`[{fieldId,key,label,type,value,storageKey}]`) rather
+//                          than a live join, because fields are editable: renaming
+//                          "College Name" → "Institution" a year from now must NOT
+//                          retroactively relabel answers already collected, and deleting
+//                          a field must not orphan the answers given to it. The CRM detail
+//                          view renders straight from that snapshot.
+//
+// `fullName`/`email`/`phone`/`programId` are DENORMALISED out of `answers` at submit time
+// (from whichever fields carry the matching `identityRole` / a `program` type) purely so
+// the CRM list can show columns, search, and sort without opening every JSON blob. They
+// are a projection, never the source of truth.
+
+// Question widget rendered on the public form. `program` is special: it renders as a
+// dropdown populated LIVE from published, enrollment-open programs — so one permanent
+// onboarding link keeps working as the catalog changes — and its answer additionally
+// lands on OnboardingSubmission.programId.
+enum OnboardingFieldType {
+  text
+  textarea
+  email
+  phone
+  number
+  date
+  select
+  radio
+  checkbox
+  file
+  program
+}
+
+// Marks a field as the source of a denormalised CRM list column. At most one active
+// field per role per tenant (enforced in the service, not the DB — staff reassigning a
+// role mid-edit is a routine operation, not a constraint violation).
+enum OnboardingIdentityRole {
+  none
+  name
+  email
+  phone
+}
+
+// Triage state of one submission.
+//
+// `pending` is the ONLY state the system sets by itself — it means nobody has looked yet.
+// The other three are decisions a named staff member made (recorded in `reviewed_by_id`),
+// which is why `pending` is deliberately not offered as something staff can select: moving
+// a submission back to "nobody has looked at this" would erase that fact.
+//
+// `approved` is not just a label — it is the trigger that creates/links the student,
+// enrols them, and emails their LMS login (see OnboardingActivationService).
+enum OnboardingSubmissionStatus {
+  pending
+  approved
+  rejected
+  hold
+}
+
+model OnboardingField {
+  id           String                 @id @default(uuid()) @db.Uuid
+  tenantId     String                 @map("tenant_id") @db.Uuid
+  // Stable snake_case identifier written into every answer snapshot. Immutable after
+  // create (the CRM edits `label`, never `key`) so historical answers stay joinable.
+  key          String
+  label        String
+  helpText     String?                @map("help_text")
+  placeholder  String?
+  type         OnboardingFieldType    @default(text)
+  required     Boolean                @default(false)
+  // string[] for select/radio. Null for every other type.
+  options      Json?
+  // Google-Forms "Other:" escape hatch on select/radio.
+  allowOther   Boolean                @default(false) @map("allow_other")
+  identityRole OnboardingIdentityRole @default(none) @map("identity_role")
+  sortOrder    Int                    @default(0) @map("sort_order")
+  active       Boolean                @default(true)
+  createdAt    DateTime               @default(now()) @map("created_at")
+  updatedAt    DateTime               @updatedAt @map("updated_at")
+  deletedAt    DateTime?              @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  // Partial-unique `(tenant_id, key) WHERE deleted_at IS NULL` lives in raw migration
+  // SQL (Prisma cannot express partial uniques) — same pattern as LeadForm.key.
+  @@index([tenantId, active, sortOrder])
+  @@index([tenantId, deletedAt])
+  @@map("onboarding_fields")
+}
+
+model OnboardingSubmission {
+  id          String                     @id @default(uuid()) @db.Uuid
+  tenantId    String                     @map("tenant_id") @db.Uuid
+  fullName    String?                    @map("full_name")
+  email       String?
+  phone       String?
+  programId   String?                    @map("program_id") @db.Uuid
+  answers     Json
+  status      OnboardingSubmissionStatus @default(pending)
+  reviewNotes String?                    @map("review_notes")
+  // WHO decided, and when. Set on every approve/reject/hold — the audit trail lives in
+  // `audit_logs` too, but a reviewer is asked "who approved this?" often enough that it
+  // belongs on the row rather than behind a log query.
+  reviewedById String?                   @map("reviewed_by_id") @db.Uuid
+  reviewedAt  DateTime?                  @map("reviewed_at")
+  // The student this submission activated, set on approve. Nullable because a pending,
+  // rejected or held submission has no student yet — and because approval is what creates
+  // the link, this doubles as the idempotency guard against double-activation.
+  studentProfileId String?               @map("student_profile_id") @db.Uuid
+  // Hashed, never raw — DPDP posture, matches Lead/ContactSubmission consent handling.
+  ipHash      String?                    @map("ip_hash")
+  createdAt   DateTime                   @default(now()) @map("created_at")
+  updatedAt   DateTime                   @updatedAt @map("updated_at")
+  deletedAt   DateTime?                  @map("deleted_at")
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  program        Program?        @relation(fields: [programId], references: [id])
+  reviewedBy     User?           @relation("OnboardingSubmissionReviewer", fields: [reviewedById], references: [id])
+  studentProfile StudentProfile? @relation(fields: [studentProfileId], references: [id])
+
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, programId])
+  @@index([tenantId, email])
+  @@index([tenantId, deletedAt])
+  @@map("onboarding_submissions")
 }

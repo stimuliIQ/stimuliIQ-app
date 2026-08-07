@@ -181,3 +181,8 @@ export * from "./growth/public-seo.schemas.js";
 
 // LMS video-library ingest (CRM upload/status/attach-captions surface).
 export * from "./lms/video-library.schemas.js";
+
+// Student onboarding form (onboarding.stimuliiq.com) — CRM-authored question set +
+// public submissions. The question set is DATA, so the shared answer validator
+// (`buildOnboardingAnswerIssues`) is exported alongside the schemas and run on BOTH sides.
+export * from "./onboarding/onboarding.schemas.js";

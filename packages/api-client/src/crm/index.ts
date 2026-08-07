@@ -41,6 +41,7 @@ import { BulkActionsApi } from "./bulk-actions.api.js";
 import { SavedViewsApi } from "./saved-views.api.js";
 import { VideoLibraryApi } from "./video-library.api.js";
 import { AttendanceCrmApi } from "./attendance.api.js";
+import { OnboardingApi } from "./onboarding.api.js";
 
 /** Admin sub-namespace → `client.crm.admin.roles` / `.branches` / `.users`. */
 export class AdminApi {
@@ -114,6 +115,10 @@ export class CrmApi {
   // Phase-9-completion gap #6 — CRM attendance-editor write (staff counterpart to
   // `client.lms.attendance.list()`, the student own-scope read).
   readonly attendance: AttendanceCrmApi;
+  // Student onboarding form (onboarding.stimuliiq.com) — `onboarding.fields.*` authors the
+  // question set (staff add/edit/reorder/delete, no deploy) and `onboarding.submissions.*`
+  // reads and triages what students sent. The public form is `client.public.onboarding.*`.
+  readonly onboarding: OnboardingApi;
 
   constructor(client: ApiClient) {
     this.students = new StudentsApi(client);
@@ -149,6 +154,7 @@ export class CrmApi {
     this.savedViews = new SavedViewsApi(client);
     this.videoLibrary = new VideoLibraryApi(client);
     this.attendance = new AttendanceCrmApi(client);
+    this.onboarding = new OnboardingApi(client);
   }
 }
 
@@ -180,3 +186,4 @@ export * from "./bulk-actions.api.js";
 export * from "./saved-views.api.js";
 export * from "./video-library.api.js";
 export * from "./attendance.api.js";
+export * from "./onboarding.api.js";
