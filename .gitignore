@@ -63,3 +63,4 @@ docs/**/*signature*
 # Local .env backups (contain live secrets — never commit)
 .env.bak-*
 .env.*.bak
+.env.save*
