@@ -39,7 +39,7 @@ export const revalidate = 300; // 5 min
 const HOME_SLUG = "home";
 
 const FALLBACK_METADATA = {
-  title: "Stimuli IQ — Healthcare Training & Internships for Students in India",
+  title: "Healthcare training and internships for students in India",
   description:
     "Structured training and internship tracks in psychology, clinical practice, and allied healthcare. Healthcare mentors, real case work, and verifiable certificates.",
 };

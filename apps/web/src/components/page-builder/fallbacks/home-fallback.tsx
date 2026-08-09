@@ -27,9 +27,9 @@ const FAQ_ITEMS = [
     id: "faq-1",
     question: "What qualifications do I need to enroll?",
     answer:
-      "Our programs are designed for MBBS, BDS, BPT, BA & BSc, BAMS, BHMS and other health sciences students. No prior industry experience is required — just a willingness to learn and build real projects.",
+      "Our programs are designed for MBBS, BDS, BPT, BA & BSc, BAMS, BHMS and other health sciences students. No prior industry experience is required, just a willingness to learn and build real projects.",
     answerText:
-      "Our programs are designed for MBBS, BDS, BPT, BA & BSc, BAMS, BHMS and other health sciences students. No prior industry experience is required — just a willingness to learn and build real projects.",
+      "Our programs are designed for MBBS, BDS, BPT, BA & BSc, BAMS, BHMS and other health sciences students. No prior industry experience is required, just a willingness to learn and build real projects.",
   },
   {
     id: "faq-2",
@@ -84,7 +84,7 @@ const HOW_IT_WORKS = [
   {
     title: "Get certified",
     description:
-      "Earn a verifiable certificate after assessment. Your gateway into healthcare careers — powered by mentor referrals and a community.",
+      "Earn a verifiable certificate after assessment. Your gateway into healthcare careers, powered by mentor referrals and a community.",
   },
 ];
 

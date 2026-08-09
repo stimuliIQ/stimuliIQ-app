@@ -39,7 +39,7 @@ export const revalidate = 3600;
 // ---------------------------------------------------------------------------
 
 export const metadata: Metadata = buildMetadata({
-  title: "Pricing — Transparent Program Fees & EMI Options",
+  title: "Programme fees and payment options",
   description:
     "Clear, transparent pricing for all Stimuli IQ programs. EMI options available. No hidden fees. Apply a coupon to save on your enrollment.",
   canonicalPath: "/pricing",
@@ -94,7 +94,7 @@ const COMPARISON_TIERS = [
     id: "recorded",
     name: "Self-Paced",
     priceDisplay: "From ₹8,999",
-    description: "Fully recorded — learn at your own pace.",
+    description: "Fully recorded, so you learn at your own pace.",
     features: [] as string[],
     ctaLabel: "Browse Programs",
     ctaHref: "/programs?mode=recorded",
@@ -103,7 +103,7 @@ const COMPARISON_TIERS = [
     id: "hybrid",
     name: "Live + Recorded",
     priceDisplay: "From ₹12,999",
-    description: "Best of both — structured live + flexible recorded.",
+    description: "Structured live sessions plus the flexibility of recorded ones.",
     features: [] as string[],
     ctaLabel: "Browse Programs",
     ctaHref: "/programs?mode=hybrid",
@@ -294,13 +294,13 @@ export default async function PricingPage() {
         data-testid="emi-explainer"
         className="mt-16 rounded-xl border border-border bg-surface p-8"
       >
-        <h2 className="mb-4 text-2xl font-bold text-fg">0% EMI — Pay in Easy Installments</h2>
+        <h2 className="mb-4 text-2xl font-bold text-fg">0% EMI: pay in easy instalments</h2>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <div>
             <h3 className="mb-2 font-semibold text-fg">How it works</h3>
             <p className="text-sm text-fg-muted leading-relaxed">
               Select your EMI plan at checkout. The installment amount is charged to your
-              card or bank account monthly. No interest charged by us — 0% EMI.
+              card or bank account monthly. We charge no interest, so it stays 0% EMI.
             </p>
           </div>
           <div>

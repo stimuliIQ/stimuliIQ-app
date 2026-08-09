@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { AccountStatus } from "../../components/account-status";
 
 export const metadata: Metadata = {
-  title: "Your Account — stimuliiq",
+  title: "Your account",
   description: "View your stimuliiq account status, enrollments, and roles.",
 };
 

@@ -26,7 +26,7 @@ export const revalidate = 300;
 const GALLERY_SLUG = "gallery";
 
 const FALLBACK_METADATA = {
-  title: "Gallery — Sessions, Certificates & Events",
+  title: "Gallery of sessions, certificates and events",
   description: "Photos and highlights from Stimuli IQ training sessions, certificate ceremonies, and industry events.",
 };
 

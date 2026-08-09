@@ -119,7 +119,7 @@ const LEFT_CARDS = [
     icon: <PricingIcon />,
     title: "Affordable Pricing",
     description:
-      "High-quality, mentor-led training priced for students — with scholarships.",
+      "Mentor-led training priced for students, with scholarships available.",
   },
 ];
 
@@ -218,7 +218,7 @@ export function WhyUsSection() {
             Why <span className="text-chart-3">Stimuli IQ</span>?
           </h2>
           <p className="mx-auto mt-5 max-w-md text-lg leading-relaxed text-fg-muted">
-            We focus on what actually prepares you for a healthcare career — hands-on training, clinical exposure, and mentorship that goes beyond the classroom.
+            We focus on what actually prepares you for a healthcare career: hands-on training, clinical exposure, and mentorship that goes beyond the classroom.
           </p>
         </div>
 

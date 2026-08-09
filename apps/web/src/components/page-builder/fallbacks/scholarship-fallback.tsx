@@ -13,7 +13,7 @@ const HERO_STATS = [
 ];
 
 const BENEFITS = [
-  { title: "Completely merit and need based", description: "Awards are decided on academic merit and financial need — nothing else." },
+  { title: "Completely merit and need based", description: "Awards are decided on academic merit and financial need, nothing else." },
   { title: "Up to 50% fee waiver", description: "No repayment, no service obligation. The waiver applies directly to your program fee." },
   { title: "Covers every Stimuli IQ program", description: "Psychology, Clinical & Counselling Psychology, Neurology, Healthcare Training, and Internship tracks are all eligible." },
   { title: "Open to students across India", description: "MBBS, BDS, BSc Nursing, Psychology, Life Sciences, Allied Health, and related degree students from any college or university can apply." },
@@ -35,7 +35,7 @@ const FUND_DISTRIBUTION = [
 ];
 
 const PROCESS_STEPS = [
-  { title: "Check your eligibility", description: "Fill the short application form below — it takes less than two minutes." },
+  { title: "Check your eligibility", description: "Fill the short application form below. It takes less than two minutes." },
   { title: "Submit your details", description: "Tell us your qualification, the program you want to join and your financial background." },
   { title: "Receive your scholarship award", description: "Applications are reviewed competitively and successful applicants are notified within days." },
   { title: "Enrol and prepare", description: "Join your program with the fee waiver applied, plus extended mentor sessions." },
@@ -112,7 +112,7 @@ export function ScholarshipPageFallback() {
                 <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
               </div>
               <p className="mt-4 text-sm leading-relaxed text-fg-muted">
-                The Stimuli IQ Scholarship grants merit-and-need-based fee waivers of up to 50% on internship-training programs — with extended mentor access and job assistance
+                The Stimuli IQ Scholarship grants merit-and-need-based fee waivers of up to 50% on internship-training programs, with extended mentor access and job assistance
                 included.
               </p>
             </div>
@@ -138,7 +138,7 @@ export function ScholarshipPageFallback() {
             <h2 className="text-3xl font-bold text-fg md:text-4xl">
               Built for every <span className="text-chart-3">healthcare career aspirant</span>
             </h2>
-            <p className="mt-4 text-lg text-fg-muted">One scholarship, every program — here is what it gives you.</p>
+            <p className="mt-4 text-lg text-fg-muted">One scholarship, every program. Here is what it gives you.</p>
           </div>
           <ul role="list" className="mx-auto mt-12 grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2">
             {BENEFITS.map((benefit) => (
@@ -170,7 +170,7 @@ export function ScholarshipPageFallback() {
             <LeadFormConnected
               source="scholarship-page"
               heading="Apply for the scholarship"
-              subheading="Takes less than two minutes — no documents needed to start."
+              subheading="Takes less than two minutes, and you do not need documents to start."
               fields={["name", "phone", "email"]}
               submitLabel="Apply for Scholarship"
               data-testid="scholarship-lead-form"
@@ -190,7 +190,7 @@ export function ScholarshipPageFallback() {
                 Financial constraints should never stop a capable student from building a career in healthcare.
               </h3>
               <p className="mt-4 text-base leading-relaxed text-fg-muted">
-                The fund is structured to democratise access to industry-grade internship training — awards are spread across every track so students from any discipline can
+                The fund is structured to democratise access to industry-grade internship training, and awards are spread across every track so students from any discipline can
                 benefit.
               </p>
               <dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border">

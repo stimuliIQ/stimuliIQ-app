@@ -296,7 +296,7 @@ export function ExploreCourses({
         {/* Cards */}
         {filtered.length === 0 ? (
           <p role="status" className="py-10 text-center text-sm text-fg-muted">
-            No courses in this category yet — check back soon.
+            No courses in this category yet. Check back soon.
           </p>
         ) : (
           <ul role="list" className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">

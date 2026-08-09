@@ -25,7 +25,7 @@ import type { ProgramOption } from "./_components/book-slot-step-program";
 export const revalidate = 3600; // ISR: new CRM programs surface within the hour
 
 export const metadata: Metadata = buildMetadata({
-  title: "Book a Free Counselling Slot — Stimuli IQ",
+  title: "Book a free counselling slot",
   description:
     "Book a free 30-minute counselling session with a Stimuli IQ mentor. Choose your program, pick a slot, and start your tech career journey.",
   canonicalPath: "/book-free-slot",

@@ -27,7 +27,7 @@ export const revalidate = 3600; // ISR: revalidate every hour
 // ---------------------------------------------------------------------------
 
 export const metadata: Metadata = buildMetadata({
-  title: "Blog — Career & Clinical Insights for Healthcare Students",
+  title: "Career and clinical insights for healthcare students",
   description:
     "Career guides, clinical explainers, and program FAQs for medical, psychology, and allied health science students — from the mentors who teach our programs.",
   canonicalPath: "/blog",

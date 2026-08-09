@@ -38,7 +38,7 @@ import type { ListPublicProgramsQuery, PublicProgramSort } from "@repo/types";
 // ---------------------------------------------------------------------------
 
 export const metadata: Metadata = buildMetadata({
-  title: "Courses & Programs — Internship & Career Training",
+  title: "Courses and internship training programmes",
   description:
     "Browse all Stimuli IQ courses: Full Stack, Python, Data Science, AI/ML, Cloud, DevOps, and more. Search by name and filter by specialisation.",
   canonicalPath: "/programs",

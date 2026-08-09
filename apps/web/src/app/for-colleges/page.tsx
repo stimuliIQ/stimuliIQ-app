@@ -23,7 +23,7 @@ export const revalidate = 300;
 const FOR_COLLEGES_SLUG = "for-colleges";
 
 const FALLBACK_METADATA = {
-  title: "For Colleges — Campus Training Partnerships",
+  title: "Campus training partnerships for colleges",
   description: "Partner with Stimuli IQ to provide industry-grade tech training to your students. We work with 80+ colleges across India.",
 };
 

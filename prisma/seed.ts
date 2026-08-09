@@ -4432,7 +4432,7 @@ async function main(): Promise<void> {
     {
       slug: "home",
       title: "Stimuli IQ | Healthcare Training & Internships for Students in India",
-      seoTitle: "Stimuli IQ — Healthcare Training & Internships in India",
+      seoTitle: "Healthcare training and internships for students in India",
       seoDescription:
         "Structured training and internship tracks in psychology, clinical practice, and allied healthcare. Healthcare mentors, real case work, and verifiable certificates.",
     },
@@ -4446,14 +4446,14 @@ async function main(): Promise<void> {
     {
       slug: "scholarship",
       title: "Stimuli IQ Scholarship Programme",
-      seoTitle: "Stimuli IQ Scholarship Programme — Merit & Need Based Fee Waivers",
+      seoTitle: "Scholarship programme: merit and need based fee waivers",
       seoDescription:
         "The Stimuli IQ Scholarship grants merit-and-need-based fee waivers of up to 50% on healthcare training and internship programs for students across India.",
     },
     {
       slug: "for-colleges",
       title: "For Campus Communities",
-      seoTitle: "For Campus Communities — Healthcare Training Collaborations",
+      seoTitle: "Healthcare training collaborations for campus communities",
       seoDescription: "Collaborate with Stimuli IQ to bring hands-on healthcare training, workshops, mentorship, and career exposure to your campus community.",
     },
     {

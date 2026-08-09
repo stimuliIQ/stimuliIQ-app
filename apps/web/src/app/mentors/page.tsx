@@ -29,7 +29,7 @@ export const revalidate = 3600; // ISR: CRM changes surface within the hour
 // ---------------------------------------------------------------------------
 
 export const metadata: Metadata = buildMetadata({
-  title: "Mentors — Learn from Industry Experts",
+  title: "Mentors who work in healthcare",
   description:
     "Meet Stimuli IQ's mentors: active engineers and specialists from top companies like Google, Microsoft, and Amazon who review your projects and guide your career.",
   canonicalPath: "/mentors",

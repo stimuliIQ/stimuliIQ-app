@@ -14,7 +14,7 @@ const JOURNEY = [
     step: "01",
     title: "Discover the right program",
     description:
-      "Browse programs across psychology, neurology, clinical research, and allied health sciences — or book a free counselling slot and let a mentor guide your choice. Transparent pricing, easy pre-registration, no hidden fees.",
+      "Browse programs across psychology, neurology, clinical research, and allied health sciences, or book a free counselling slot and let a mentor guide your choice. Transparent pricing, easy pre-registration, no hidden fees.",
   },
   {
     step: "02",
@@ -26,7 +26,7 @@ const JOURNEY = [
     step: "03",
     title: "Build real case studies",
     description:
-      "Every program is structured around real-world case studies and practice scenarios — reviewed by working healthcare professionals, not graders. Your portfolio becomes the proof that shows you're genuinely prepared.",
+      "Every program is structured around real-world case studies and practice scenarios, reviewed by working healthcare professionals, not graders. Your portfolio becomes the proof that shows you're genuinely prepared.",
   },
   {
     step: "04",
@@ -44,7 +44,7 @@ const JOURNEY = [
 
 const PILLARS = [
   { icon: "lms", title: "A structured learning portal", description: "One dashboard for lessons, live classes, assignments, progress, and attendance." },
-  { icon: "mentor", title: "Mentors who do the job", description: "Active healthcare professionals and psychologists from real practice — people who work in the field, and guide yours." },
+  { icon: "mentor", title: "Mentors who do the job", description: "Active healthcare professionals and psychologists from real practice: people who work in the field, and guide yours." },
   { icon: "project", title: "Case studies & research, not just lectures", description: "Assignments and capstone case studies modelled on real healthcare practice, individually evaluated with feedback." },
   { icon: "certificate", title: "Certificates employers can check", description: "Every certificate carries a unique ID and QR code, instantly verifiable on our public portal." },
   { icon: "placement", title: "A growing career network", description: "Direct referrals through our network of healthcare mentors and alumni, with portfolio reviews and career guidance." },
@@ -83,7 +83,7 @@ const TESTIMONIALS = [
 
 const COMMITMENTS = [
   { title: "Mentor-led training", description: "Every program is guided by practicing healthcare professionals." },
-  { title: "Transparent pricing", description: "The price you see is the price you pay — upfront, with no hidden fees." },
+  { title: "Transparent pricing", description: "The price you see is the price you pay, upfront, with no hidden fees." },
   { title: "Your data, protected", description: "DPDP-compliant privacy: consent-first analytics, no data resale." },
   { title: "Verified outcomes", description: "Ratings and reviews come from enrolled students only." },
 ];

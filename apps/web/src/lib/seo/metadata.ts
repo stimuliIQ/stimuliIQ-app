@@ -21,14 +21,29 @@
 import type { Metadata } from "next";
 
 // ---------------------------------------------------------------------------
-// Constants (public env — safe for NEXT_PUBLIC_*)
+// Constants (public env, safe for NEXT_PUBLIC_*)
 // ---------------------------------------------------------------------------
 
 export const SITE_NAME = "Stimuli IQ" as const;
+
+/**
+ * The one host the site is canonical on. MUST be the host that answers 200.
+ *
+ * `stimuliiq.com` serves a 307 redirect to `www.stimuliiq.com`; only the www host returns a
+ * page. While this default was the bare domain, every canonical tag and every `<loc>` in the
+ * sitemap pointed at a URL that never returns content, so Google indexed
+ * `https://stimuliiq.com/` and had nothing to show for it. That is what produced "No
+ * information is available for this page" in search results: not a ranking problem, and not a
+ * robots.txt block, but a canonical pointing at a redirect.
+ *
+ * If the bare domain is ever made primary instead (Vercel project settings, Domains), flip this
+ * default with it. The two must agree, and a Vercel `NEXT_PUBLIC_SITE_URL` overrides this, so
+ * check that env var too before assuming this line is what production uses.
+ */
 export const SITE_URL =
-  (process.env.NEXT_PUBLIC_SITE_URL ?? "https://stimuliiq.com").replace(/\/$/, "");
+  (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.stimuliiq.com").replace(/\/$/, "");
 export const DEFAULT_DESCRIPTION =
-  "Stimuli IQ — India's next generation healthcare learning platform. Structured training, real internships, and mentorship from healthcare industry experts for medical, psychology, and allied health science students.";
+  "Healthcare training and internships for students in India. Structured programmes in psychology, clinical practice and allied health, with mentors who work in the field and a real internship at the end.";
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
 
 // ---------------------------------------------------------------------------

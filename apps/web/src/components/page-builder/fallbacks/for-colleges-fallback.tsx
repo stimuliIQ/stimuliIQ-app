@@ -7,9 +7,9 @@ import { HeroMotif } from "../hero-motif";
 
 const ITEMS = [
   { title: "Campus Training Programs", desc: "Tailored 8 to 16 week internship programs delivered on campus or hybrid. We handle curriculum, mentors, and assessments." },
-  { title: "Career Roadmaps & Guidance", desc: "Give your students access to structured career roadmaps for health sciences — built with mentor insights, real time opportunities, and guidance from our growing healthcare community." },
+  { title: "Career Roadmaps & Guidance", desc: "Give your students access to structured career roadmaps for health sciences, built with mentor insights, real time opportunities, and guidance from our growing healthcare community." },
   { title: "Internship Certification", desc: "Students earn verifiable Stimuli IQ certificates recognised by hospitals and healthcare employers across India." },
-  { title: "Collaborate & Get Sponsored", desc: "Collaborate with us and get sponsorship support for your campus fests and events — helping your committee bring bigger, more impactful events." },
+  { title: "Collaborate & Get Sponsored", desc: "Collaborate with us and get sponsorship support for your campus fests and events, helping your committee bring bigger, more impactful events." },
 ];
 
 export function ForCollegesPageFallback() {
@@ -37,7 +37,7 @@ export function ForCollegesPageFallback() {
 
       <div className="mt-10 rounded-xl border border-brand-100 bg-brand-50 p-8 text-center">
         <h2 className="mb-2 text-xl font-bold text-fg">Ready to collaborate with us?</h2>
-        <p className="mb-6 text-sm text-fg-muted">Reach out to our campus team or grab a quick call — let&apos;s figure out what works for your committee.</p>
+        <p className="mb-6 text-sm text-fg-muted">Reach out to our campus team or grab a quick call. Let&apos;s figure out what works for your committee.</p>
         <a
           href="mailto:colleges@stimuliiq.com"
           className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-brand-500 px-6 text-sm font-semibold text-white transition-colors hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"

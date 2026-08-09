@@ -56,8 +56,24 @@ const STATIC_ROUTES: MetadataRoute.Sitemap = [
     changeFrequency: "monthly",
     priority: 0.6,
   },
+  // `/partners` was listed here but no such route exists: it returns 404 on the live site.
+  // A sitemap is a set of assertions that these URLs are worth crawling, so a 404 in it spends
+  // crawl budget to earn an error and lowers trust in the rest of the file. Removed rather than
+  // stubbed, because the partner logos already render inside /about and /for-colleges.
   {
-    url: `${SITE_URL}/partners`,
+    url: `${SITE_URL}/scholarship`,
+    lastModified: new Date(),
+    changeFrequency: "monthly",
+    priority: 0.8,
+  },
+  {
+    url: `${SITE_URL}/mentors`,
+    lastModified: new Date(),
+    changeFrequency: "weekly",
+    priority: 0.7,
+  },
+  {
+    url: `${SITE_URL}/gallery`,
     lastModified: new Date(),
     changeFrequency: "monthly",
     priority: 0.5,

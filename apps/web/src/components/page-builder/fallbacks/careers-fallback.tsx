@@ -44,7 +44,7 @@ export function CareersPageFallback() {
       ) : (
         <div className="rounded-xl border border-border bg-card p-12 text-center" data-testid="careers-empty">
           <p className="text-lg font-medium text-fg">No open roles right now</p>
-          <p className="mt-2 text-sm text-fg-muted">Send your CV to hello@stimuliiq.com — we are always looking for great people.</p>
+          <p className="mt-2 text-sm text-fg-muted">Send your CV to hello@stimuliiq.com. We are always looking for great people.</p>
         </div>
       )}
     </>

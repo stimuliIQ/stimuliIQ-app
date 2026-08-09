@@ -93,10 +93,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description:
         program.seoDescription ??
         program.cardSummary ??
-        `Learn ${program.title} — project-based program with verifiable certificate.`,
+        `Learn ${program.title}. Project-based programme with a verifiable certificate.`,
       canonicalPath: `/programs/${slug}`,
       ogImage: program.ogImageUrl ?? undefined,
-      ogImageAlt: `${program.title} — Stimuli IQ`,
+      ogImageAlt: `${program.title}, Stimuli IQ`,
     });
   } catch {
     // If program not found, metadata falls back to defaults; notFound() in the page component
@@ -117,7 +117,7 @@ function buildCourseStructuredData(program: PublicProgramDetail): string {
     description:
       program.seoDescription ??
       program.cardSummary ??
-      `${program.title} — online training program by Stimuli IQ`,
+      `${program.title}, an online training programme by Stimuli IQ`,
     url: `${SITE_URL}/programs/${program.slug}`,
     imageUrl: program.ogImageUrl ?? undefined,
     pricePaise: program.pricePaise,
@@ -206,7 +206,7 @@ function ProgramHero({ program }: { program: PublicProgramDetail }) {
             href="/scholarship"
             className="inline-flex w-fit items-center gap-2 rounded-full bg-danger px-3 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            Scholarship available — check eligibility
+            Scholarship available. Check eligibility
           </a>
         ) : null}
 
@@ -335,7 +335,7 @@ function MentorsSection({ mentors }: { mentors: PublicProgramDetail["mentorBios"
             {mentor.avatarUrl ? (
               <img
                 src={mentor.avatarUrl}
-                alt={`${mentor.name} — mentor`}
+                alt={`${mentor.name}, mentor`}
                 className="size-14 shrink-0 rounded-full object-cover"
                 loading="lazy"
                 decoding="async"
