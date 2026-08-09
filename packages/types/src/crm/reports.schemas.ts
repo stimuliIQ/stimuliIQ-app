@@ -4,7 +4,7 @@
 //   WS-A1 Revenue                → RevenueReport
 //   WS-A2 Enrollment trend       → EnrollmentTrendReport
 //   WS-A3 Lead funnel/conversion → FunnelReport
-//   WS-A4 Attendance             → AttendanceReport
+//   (WS-A4 Attendance was removed with the attendance feature.)
 //   WS-A5 Course/video engagement → EngagementReport
 //   WS-A6 Campaign performance   → CampaignPerformanceReport
 //   WS-A7 Gamification participation → GamificationParticipationReport
@@ -210,52 +210,6 @@ export const FunnelReportDtoSchema = ReportFreshnessSchema.extend({
 export type FunnelReportDto = z.infer<typeof FunnelReportDtoSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────
-// WS-A4: Attendance dashboard — GET /api/v1/crm/reports/attendance
-// ─────────────────────────────────────────────────────────────────────────
-
-/**
- * GET /api/v1/crm/reports/attendance[?batchId=][&from=][&to=]
- * No `batchId` + Admin/Owner (all-scope) = aggregate across every batch in
- * the tenant (AC-16). Faculty MUST supply a `batchId` they are assigned to —
- * an unassigned batch returns 404 (AC-15, IDOR-safe).
- */
-export const AttendanceReportQuerySchema = z
-  .object({
-    batchId: UuidSchema.optional(),
-    from: IsoDateSchema.optional(),
-    to: IsoDateSchema.optional(),
-  })
-  .strict();
-export type AttendanceReportQuery = z.infer<typeof AttendanceReportQuerySchema>;
-
-export const AttendanceByBatchRowSchema = z
-  .object({
-    batchId: UuidSchema,
-    batchName: z.string(),
-    presentCount: z.number().int().min(0),
-    totalCount: z.number().int().min(0),
-    attendancePercent: z.number().min(0).max(100),
-  })
-  .strict();
-export type AttendanceByBatchRow = z.infer<typeof AttendanceByBatchRowSchema>;
-
-/**
- * GET /api/v1/crm/reports/attendance response.
- * AC-14: `attendancePercent` equals `COUNT(status='present') / COUNT(*)
- * WHERE enrollment_id IN (batch's enrollments)`, matching a direct recomputation.
- */
-export const AttendanceReportDtoSchema = ReportFreshnessSchema.extend({
-  /** Null when the caller queried the all-batch aggregate (Admin/Owner, no batchId filter). */
-  batchId: UuidSchema.nullable(),
-  presentCount: z.number().int().min(0),
-  totalCount: z.number().int().min(0),
-  attendancePercent: z.number().min(0).max(100).describe("0 when totalCount=0 (never NaN)."),
-  /** Populated ONLY for the all-batch aggregate view (batchId=null). Null for a single-batch query. */
-  perBatch: z.array(AttendanceByBatchRowSchema).nullable(),
-}).strict();
-export type AttendanceReportDto = z.infer<typeof AttendanceReportDtoSchema>;
-
-// ─────────────────────────────────────────────────────────────────────────
 // WS-A5: Course/video engagement dashboard — GET /api/v1/crm/reports/engagement
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -410,6 +364,115 @@ export const ForumHealthReportDtoSchema = ReportFreshnessSchema.extend({
   resolutionRate: z.number().min(0).max(1).describe("resolved threads / threadCount. 0 when threadCount=0 (never NaN)."),
 }).strict();
 export type ForumHealthReportDto = z.infer<typeof ForumHealthReportDtoSchema>;
+
+// ─────────────────────────────────────────────────────────────────────────
+// Lead performance by rep — GET /api/v1/crm/reports/lead-performance
+//
+// "Who created how many leads, called how many, and converted how many" — the
+// per-person scoreboard the other dashboards deliberately do not answer (they
+// aggregate the BUSINESS; this one aggregates the PEOPLE).
+//
+// WHY THIS ONE READS LIVE TABLES, NOT A MATERIALIZED VIEW:
+//   Every other report here is served off an MV refreshed on a cron (LOCK-D1),
+//   which is right for revenue and funnel trends measured over weeks. A manager
+//   looking at this report is asking "has Priya called anyone TODAY" — an answer
+//   that is up to an MV-refresh-interval stale is not a slightly worse answer,
+//   it is the wrong answer, and it would get a rep unfairly pulled up in a
+//   stand-up. The cost is bounded: the query is per-rep aggregates over
+//   `leads` + `activities`, both indexed on exactly these access paths
+//   (leads_tenant_id_created_by_id_created_at_idx,
+//    leads_tenant_id_owner_id_assigned_at_idx, activities(user_id, due_at)).
+//   Consequently the response carries NO ReportFreshnessSchema — there is no
+//   snapshot to be stale relative to.
+//
+// PII POSTURE: this report names STAFF (name + role), never students or leads.
+// It is the one report where identifying the individual IS the product.
+// ─────────────────────────────────────────────────────────────────────────
+
+/** GET /api/v1/crm/reports/lead-performance?from=&to=[&branchId=][&userId=] */
+export const LeadPerformanceReportQuerySchema = ReportDateRangeQuerySchema.extend({
+  /** Optional narrowing filter. ADDITIONAL to the caller's resolved scope, never a replacement (IDOR → 404). */
+  branchId: UuidSchema.optional(),
+  /** Narrow to one rep. Omit for the whole team. */
+  userId: UuidSchema.optional().describe("Narrow the report to a single staff user."),
+}).strict();
+export type LeadPerformanceReportQuery = z.infer<typeof LeadPerformanceReportQuerySchema>;
+
+/**
+ * One rep's row.
+ *
+ * Note carefully which metrics are windowed by [from,to] and which are "as of now" —
+ * mixing them silently is how a scoreboard starts lying:
+ *   WINDOWED (counted by their own timestamp inside the range):
+ *     leadsCreated, leadsAssigned, callsLogged, activitiesLogged,
+ *     followUpsCompleted, converted
+ *   AS-OF-NOW (a snapshot of the current desk, ignores the range entirely):
+ *     openLeads, overdueFollowUps
+ * The UI must label the as-of-now pair distinctly — see the report page.
+ */
+export const LeadPerformanceRowSchema = z
+  .object({
+    userId: UuidSchema,
+    userName: z.string(),
+    roleKeys: z.array(z.string()).describe("e.g. ['counsellor'] — how the rep is employed, for grouping."),
+
+    // ── Windowed by [from, to] ──────────────────────────────────────────
+    leadsCreated: z.number().int().min(0).describe("Leads this user keyed in themselves (created_by_id)."),
+    leadsAssigned: z.number().int().min(0).describe("Leads that became theirs in the window (assigned_at)."),
+    callsLogged: z.number().int().min(0).describe("Activities of type `call`."),
+    activitiesLogged: z.number().int().min(0).describe("All logged activities: call + note + whatsapp + email + task."),
+    followUpsCompleted: z.number().int().min(0).describe("Task activities they marked done."),
+    converted: z.number().int().min(0).describe("Leads they owned that became students in the window."),
+    conversionRate: z
+      .number()
+      .min(0)
+      .max(1)
+      .describe("converted / leadsAssigned. 0 when leadsAssigned=0 — never NaN."),
+    contactRate: z
+      .number()
+      .min(0)
+      .max(1)
+      .describe("Share of leads assigned in the window that have ever been contacted. 0 when leadsAssigned=0."),
+    avgFirstResponseMinutes: z
+      .number()
+      .min(0)
+      .nullable()
+      .describe(
+        "Mean minutes from assigned_at to first_contacted_at, over leads assigned in the window that HAVE been contacted. " +
+          "null (not 0) when none have been — 0 would read as 'instant response', the opposite of the truth.",
+      ),
+
+    // ── As of now (NOT windowed) ────────────────────────────────────────
+    openLeads: z.number().int().min(0).describe("Leads they own right now that are not won/lost."),
+    overdueFollowUps: z.number().int().min(0).describe("Their pending task activities whose due date has passed."),
+  })
+  .strict();
+export type LeadPerformanceRow = z.infer<typeof LeadPerformanceRowSchema>;
+
+/**
+ * GET /api/v1/crm/reports/lead-performance response.
+ *
+ * `unassignedLeads` and `uncontactedLeads` are tenant-wide (scope-restricted) totals that
+ * belong to NOBODY — they are exactly the leads that fall through the gaps between reps,
+ * so they are surfaced next to the scoreboard rather than being invisible because no row
+ * owns them.
+ */
+export const LeadPerformanceReportDtoSchema = z
+  .object({
+    from: IsoDateSchema,
+    to: IsoDateSchema,
+    rows: z.array(LeadPerformanceRowSchema).describe("One row per staff user who can own leads. A rep with no activity is still present, all-zero."),
+    totalLeadsCreated: z.number().int().min(0),
+    totalConverted: z.number().int().min(0),
+    unassignedLeads: z.number().int().min(0).describe("Leads with no owner at all, as of now. Accountable to nobody."),
+    uncontactedLeads: z
+      .number()
+      .int()
+      .min(0)
+      .describe("Open leads created in the window that have never been contacted by anyone."),
+  })
+  .strict();
+export type LeadPerformanceReportDto = z.infer<typeof LeadPerformanceReportDtoSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────
 // Compile-time assertions — no secrets/PII leak into the staff-facing but

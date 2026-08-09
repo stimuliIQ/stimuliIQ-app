@@ -9,8 +9,9 @@ import { Label } from "./label";
  * text are wired together via generated/explicit ids and `aria-describedby` so screen
  * readers announce both the purpose and the validation state.
  *
- * `size`: "md" (default, `h-10` — unchanged, existing call sites are unaffected) or
- * "sm" (`h-8`, tighter `px-2.5`) — mirrors `Button`'s `sm/md/lg` size scale, added per
+ * `size`: "md" (default, density-aware — 40px comfortable, 32px under
+ * `data-density="compact"`) or "sm" (a fixed `h-8`, tighter `px-2.5`) — mirrors
+ * `Button`'s `sm/md/lg` size scale, added per
  * docs/specs/phase-10-ui-polish-visual-audit.md §2.4 for compact spreadsheet-style rows
  * (link lists, footer columns, CTA buttons) where the default height costs ~110px/row.
  *
@@ -21,7 +22,9 @@ export type InputSize = "sm" | "md";
 
 const INPUT_SIZE_CLASSES: Record<InputSize, string> = {
   sm: "h-8 px-2.5 py-1 text-sm",
-  md: "h-10 px-3 py-2 text-sm",
+  // Density-aware: 40px comfortable (the old `h-10`), 32px under
+  // `data-density="compact"`. See packages/ui/src/styles.css.
+  md: "h-[var(--density-control-height)] px-3 py-2 text-sm",
 };
 
 export interface InputProps

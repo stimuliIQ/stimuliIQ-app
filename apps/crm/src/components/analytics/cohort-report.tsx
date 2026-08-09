@@ -1,5 +1,5 @@
 // Cohort report — treats each batch as an intake "cohort" (real batch data:
-// enrolledCount/capacity/status), with an on-demand attendance drill-in per
+// enrolledCount/capacity/status) per
 // row. No dedicated `crm/reports/cohort` endpoint exists — see hooks/
 // use-extended-reports.ts file header. Phase 9 Completion T40.
 import * as React from "react";
@@ -8,7 +8,6 @@ import type { BatchSummary, MeResponse } from "@repo/types";
 import { CalendarCheck } from "lucide-react";
 
 import { useBatchesList } from "../../hooks/use-batches";
-import { useCohortAttendance } from "../../hooks/use-extended-reports";
 import { hasPermission } from "../../lib/permissions";
 import { buildCsv, downloadCsv } from "../../lib/csv-export";
 import { queryErrorMessage } from "../../lib/surface-error";
@@ -17,11 +16,9 @@ import { ReportPageShell } from "./report-page-shell";
 
 export function CohortReport({ me }: { me: MeResponse | undefined }): React.JSX.Element {
   const canView = hasPermission(me?.permissions, "reports.enrollment.view");
-  const canViewAttendance = hasPermission(me?.permissions, "reports.attendance.view");
   const [selectedBatchId, setSelectedBatchId] = React.useState<string | undefined>(undefined);
 
   const { data, isLoading, isError, error, refetch } = useBatchesList({ page: 1, pageSize: 100, includeDeleted: false });
-  const attendance = useCohortAttendance(canViewAttendance ? selectedBatchId : undefined);
 
   const columns: Array<DataTableColumn<BatchSummary>> = [
     { id: "name", header: "Cohort (batch)", cell: (row) => row.name },
@@ -47,7 +44,7 @@ export function CohortReport({ me }: { me: MeResponse | undefined }): React.JSX.
   }
 
   return (
-    <ReportPageShell title="Cohort Report" description="Batch-as-cohort snapshot with an on-demand attendance drill-in." canView={canView} data-testid="cohort-report">
+    <ReportPageShell title="Cohort Report" description="Batch-as-cohort snapshot of enrollment and fill rate." canView={canView} data-testid="cohort-report">
       <Button variant="secondary" onClick={exportCsv} disabled={(data?.items.length ?? 0) === 0} className="self-start" data-testid="cohort-report-export">
         Export CSV
       </Button>
@@ -69,23 +66,12 @@ export function CohortReport({ me }: { me: MeResponse | undefined }): React.JSX.
             rows={data?.items ?? []}
             getRowId={(row) => row.id}
             loading={isLoading}
-            onRowClick={canViewAttendance ? (row) => setSelectedBatchId(row.id === selectedBatchId ? undefined : row.id) : undefined}
+
             caption="Cohorts"
             emptyState={{ title: "No cohorts yet" }}
             data-testid="cohort-report-table"
           />
 
-          {selectedBatchId ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" data-testid="cohort-attendance-drilldown">
-              <KpiCard
-                label="Cohort attendance %"
-                value={attendance.data ? `${attendance.data.attendancePercent.toFixed(1)}%` : "—"}
-                icon={<CalendarCheck />}
-                loading={attendance.isLoading}
-              />
-              <KpiCard label="Present / total" value={attendance.data ? `${attendance.data.presentCount} / ${attendance.data.totalCount}` : "—"} loading={attendance.isLoading} />
-            </div>
-          ) : null}
         </>
       )}
     </ReportPageShell>

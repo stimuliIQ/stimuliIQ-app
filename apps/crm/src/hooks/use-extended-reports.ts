@@ -8,16 +8,14 @@
 //   - Branch comparison: fan-out `crm.reports.getRevenue`/`getEnrollmentTrend`
 //     per branch (both already accept an optional `branchId` narrowing filter).
 //   - Cohort (= batch, the standard EdTech "intake cohort" unit): the batches
-//     list already carries enrolledCount/capacity; per-cohort attendance % is
-//     fetched on demand (one row at a time) via `crm.reports.getAttendance`
 //     to avoid an N+1 fan-out across every batch.
 //   - Faculty performance: batch load + fill-rate per faculty, derived from
 //     the batches list grouped client-side by facultyId (real data, not an
-//     invented metric) — a true per-faculty attendance rollup would need a
+//     invented metric) — a truer per-faculty rollup would need a
 //     new backend aggregate and is out of scope here.
 // The refund report has a REAL backend list (`commerce.refunds.list`) — see
 // hooks/use-refunds.ts; this file only adds the aggregation on top.
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import type { BatchSummary, EnrollmentTrendQuery, RevenueReportQuery } from "@repo/types";
 
 import { apiClient } from "../lib/api-client";
@@ -85,13 +83,6 @@ export function useBranchComparisonReport(
 
 // ── Cohort (batch) report ───────────────────────────────────────────────
 
-export function useCohortAttendance(batchId: string | undefined) {
-  return useQuery({
-    queryKey: [...REPORTS_QUERY_KEY, "cohort-attendance", batchId ?? ""] as const,
-    queryFn: () => apiClient.crm.reports.getAttendance({ batchId }),
-    enabled: Boolean(batchId),
-  });
-}
 
 // ── Faculty performance (batch load + fill rate) ────────────────────────
 

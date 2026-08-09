@@ -108,7 +108,7 @@ export function BatchDirectory({ me }: BatchDirectoryProps): React.JSX.Element {
   const faculty = facultyData?.items ?? [];
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="batches-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="batches-directory">
       <PageHeader
         title="Batches"
         description="Manage cohorts, faculty assignment, and rosters."

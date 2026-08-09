@@ -1,5 +1,5 @@
 // Overview dashboard — role-aware KPI cards + charts (revenue/funnel/
-// enrollment/attendance) + operational lists (pending payments, open
+// enrollment) + operational lists (pending payments, open
 // tickets). Phase 9 Completion T37
 // (docs/plans/phase-9-completion.md). Replaces the P1 placeholder
 // (routes/dashboard-route.tsx). RBAC-aware: every section/query only renders
@@ -19,9 +19,9 @@ import {
   formatPaise,
 } from "@repo/ui";
 import type { MeResponse } from "@repo/types";
-import { CalendarClock, DollarSign, LifeBuoy, Percent, Receipt, UserPlus } from "lucide-react";
+import { DollarSign, LifeBuoy, Percent, Receipt, UserPlus } from "lucide-react";
 
-import { useAttendanceReport, useEnrollmentTrendReport, useFunnelReport, useRevenueReport } from "../../hooks/use-reports";
+import { useEnrollmentTrendReport, useFunnelReport, useRevenueReport } from "../../hooks/use-reports";
 import { usePaymentsList } from "../../hooks/use-payments";
 import { useTicketsList } from "../../hooks/use-tickets";
 import { hasPermission } from "../../lib/permissions";
@@ -37,7 +37,6 @@ export function OverviewDashboard({ me }: OverviewDashboardProps): React.JSX.Ele
   const canRevenue = hasPermission(me?.permissions, "reports.revenue.view");
   const canEnrollment = hasPermission(me?.permissions, "reports.enrollment.view");
   const canFunnel = hasPermission(me?.permissions, "reports.funnel.view");
-  const canAttendance = hasPermission(me?.permissions, "reports.attendance.view");
   const canPayments = hasPermission(me?.permissions, "payments.view");
   const canTickets = hasPermission(me?.permissions, "tickets.view");
 
@@ -46,15 +45,14 @@ export function OverviewDashboard({ me }: OverviewDashboardProps): React.JSX.Ele
   const revenue = useRevenueReport({ from: range.from, to: range.to }, canRevenue);
   const enrollment = useEnrollmentTrendReport({ from: range.from, to: range.to }, canEnrollment);
   const funnel = useFunnelReport({ from: range.from, to: range.to }, canFunnel);
-  const attendance = useAttendanceReport({}, canAttendance);
 
   const pendingPayments = usePaymentsList({ page: 1, pageSize: 5, status: "created" });
   const openTickets = useTicketsList({ page: 1, pageSize: 5, status: "open" });
 
-  const hasAnyAccess = canRevenue || canEnrollment || canFunnel || canAttendance || canPayments || canTickets;
+  const hasAnyAccess = canRevenue || canEnrollment || canFunnel || canPayments || canTickets;
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="overview-dashboard">
+    <div className="space-y-4 md:space-y-5" data-testid="overview-dashboard">
       <PageHeader
         title="Dashboard"
         description="A role-aware snapshot of the last 30 days, plus what needs your attention right now."
@@ -97,16 +95,6 @@ export function OverviewDashboard({ me }: OverviewDashboardProps): React.JSX.Ele
                 loading={funnel.isLoading}
                 error={funnel.isError ? "Couldn't load" : undefined}
                 data-testid="overview-kpi-funnel"
-              />
-            ) : null}
-            {canAttendance ? (
-              <KpiCard
-                label="Attendance %"
-                value={attendance.data ? `${attendance.data.attendancePercent.toFixed(1)}%` : "—"}
-                icon={<CalendarClock />}
-                loading={attendance.isLoading}
-                error={attendance.isError ? "Couldn't load" : undefined}
-                data-testid="overview-kpi-attendance"
               />
             ) : null}
           </div>

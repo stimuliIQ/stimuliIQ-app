@@ -115,6 +115,11 @@ const SOFT_DELETE_MODELS = new Set<string>([
   // index (user_id WHERE deleted_at IS NULL) allows re-enrolment. Deliberately NOT
   // in AUDITED_MODELS — a TOTP secret must never be snapshotted into audit_logs.
   "TwoFactorCredential",
+  // Student onboarding form. A deleted question must stop being asked without
+  // destroying the answers already given to it (those live in the submission's
+  // `answers` snapshot); a deleted submission must stay recoverable.
+  "OnboardingField",
+  "OnboardingSubmission",
 ]);
 
 function isSoftDeletable(model: string | undefined): boolean {

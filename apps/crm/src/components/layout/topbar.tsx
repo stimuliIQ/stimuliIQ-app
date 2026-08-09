@@ -5,7 +5,7 @@
 // `branches.view`. The notifications bell stays a disabled placeholder (the
 // notification center lives at the sidebar's Notifications route).
 import * as React from "react";
-import { Bell, Building2 } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { Select, SelectItem } from "@repo/ui";
 import type { MeResponse } from "@repo/types";
 
@@ -13,6 +13,7 @@ import { useBranchScope } from "../../app/branch-scope";
 import { ChangePasswordDialog } from "../account/change-password-dialog";
 import { AccountMenu } from "./account-menu";
 import { CommandPalette } from "./command-palette";
+import { NotificationsBell } from "./notifications-bell";
 
 interface TopbarProps {
   me: MeResponse | undefined;
@@ -58,16 +59,11 @@ export function Topbar({ me, onLogout, loggingOut }: TopbarProps): React.JSX.Ele
         </div>
       ) : null}
 
-      {/* Notifications placeholder — notification center is P6 engagement scope. */}
-      <button
-        type="button"
-        disabled
-        aria-label="Notifications (coming soon)"
-        data-testid="notifications-button"
-        className="rounded-md p-2 text-fg-subtle opacity-50"
-      >
-        <Bell className="size-4" aria-hidden="true" />
-      </button>
+      {/* Live notifications. Was a disabled placeholder until lead assignment gave the
+          CRM its first event a person genuinely needs to be TOLD about rather than go
+          looking for. Backed by /me/notifications, which every role already holds
+          `notifications.view` (own) for. */}
+      <NotificationsBell />
 
       <AccountMenu
         name={me?.user.name ?? "—"}

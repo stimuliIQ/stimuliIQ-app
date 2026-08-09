@@ -112,3 +112,38 @@ form errors announced.
 Same `@repo/ui`, three Tailwind presets layering tokens: `web` (spacious, larger type,
 optional brand gradients), `lms` (focused, calm, motivating accents), `crm` (compact density
 mode: smaller spacing scale, denser tables). One source of truth, three moods.
+
+### 12.1 Density
+Density is an **attribute, not a component prop**: `data-density="comfortable" | "compact"`
+on an ancestor. `:root` carries the comfortable values; `[data-density="compact"]`
+re-declares them. Both live in `packages/ui/src/styles.css`. The CRM sets `compact` in two
+places — the app shell root (`apps/crm/src/components/layout/app-shell.tsx`) and the
+signed-out auth layout — so every CRM surface is dense and `web`/`lms` inherit comfortable
+and render unchanged.
+
+| Token | Comfortable | Compact | Consumed by |
+|---|---|---|---|
+| `--density-control-height` | 2.5rem (40px) | 2rem (32px) | `Button` (`md`, `icon`), `Input` (`md`), `Select` trigger |
+| `--density-control-px` | 1rem | 0.75rem | `Button` (`md`) |
+| `--density-toolbar-height` | 2.25rem (36px) | 2rem (32px) | `DataFilterBar` search + save-view inputs |
+| `--density-card-padding` | 1.5rem | 1rem | `CardHeader` / `CardContent` / `CardFooter` |
+| `--density-row-height` | 2.5rem | 2rem | `DataTable` rows |
+| `--density-padding-x` / `-y` | 1rem / 0.75rem | 0.75rem / 0.5rem | `DataTable` cells |
+| `--density-gap` | 1rem | 0.5rem | list/stack gaps |
+| `--text-xs` … `--text-5xl` | marketing ramp | one step tighter | every `text-*` utility |
+
+Because the Tailwind preset maps `fontSize` onto the `--text-*` variables, re-declaring the
+ramp under `[data-density="compact"]` re-scales **all** type inside the CRM — `PageHeader`'s
+`text-2xl md:text-3xl` h1 renders at 18/20px there and 24/30px on the marketing site, from
+one class.
+
+Two rules keep this honest:
+
+1. **Comfortable values must equal whatever the component hardcoded before.** That is what
+   makes a density change provably a no-op for `web`/`lms`.
+2. **Don't add a "compact" prop or a forked component.** If a control looks wrong in the
+   CRM, it is missing a density token, not a variant. Hand-rolled `h-9`/`h-10` controls in
+   app code should reference the tokens too.
+
+`Button`'s `sm` (`h-8`) and `lg` (`h-12`) stay fixed — they are explicit author intent, not
+density. Under compact, `md` and `sm` converge at 32px by design.

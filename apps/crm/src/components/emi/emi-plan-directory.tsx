@@ -64,7 +64,7 @@ export function EmiPlanDirectory({ me }: { me: MeResponse | undefined }): React.
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="emi-plan-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="emi-plan-directory">
       <PageHeader
         title="Plans"
         description="EMI installment plans and dunning for part-paid orders."

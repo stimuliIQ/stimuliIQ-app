@@ -17,7 +17,7 @@
 // COUPON VALIDATE: never touches the `used` counter — that stays in CommerceService.
 //   The public validate path is read-only (preview only, per the spec).
 
-import { Injectable } from "@nestjs/common";
+import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { resolveTenantIdCached } from "../../common/tenant/tenant-id-cache";
@@ -647,6 +647,13 @@ export class PublicRepository {
         fbclid: data.fbclid,
         consent: data.consent as Prisma.InputJsonValue,
         ownerId: data.ownerId ?? null,
+        // createdById stays NULL by construction: this row came from the public site, not
+        // from a member of staff. That NULL is what the performance report reads as
+        // "inbound" rather than "created by nobody".
+        // assignedAt must be stamped here even though the assignment was automatic —
+        // without it, every website lead (i.e. most leads) would look permanently
+        // unassigned to the time-to-assignment metric.
+        assignedAt: data.ownerId ? new Date() : null,
         stage: "new",
       },
     });
@@ -679,14 +686,29 @@ export class PublicRepository {
         },
       });
 
-      // Assign 'student' role
+      // Assign 'student' role.
+      //
+      // Fails the whole transaction when the role is absent rather than creating the
+      // account without it. The old `if (role)` skipped silently, which is worse than a
+      // failed signup: the visitor gets a "welcome" account carrying NO role, therefore no
+      // RBAC grants, and discovers it only when the LMS shows them nothing — with no error
+      // anywhere to explain why. Being inside `$transaction` means the user row rolls back
+      // too, so a retry after an admin restores the role is clean.
+      //
+      // Not hypothetical: the "student" role was soft-deleted in production on 2026-07-29
+      // (see UNDELETABLE_ROLE_KEYS in admin/roles.service.ts, which now prevents it).
       const role = await tx.role.findUnique({
         where: { tenantId_key: { tenantId: data.tenantId, key: "student" } },
         select: { id: true },
       });
-      if (role) {
-        await tx.userRole.create({ data: { userId: user.id, roleId: role.id, branchId: null } });
+      if (!role) {
+        throw new ServiceUnavailableException({
+          code: "public.student_role_missing",
+          title: "Registration is temporarily unavailable",
+          detail: "We couldn't complete your registration right now. Please try again shortly or contact support.",
+        });
       }
+      await tx.userRole.create({ data: { userId: user.id, roleId: role.id, branchId: null } });
 
       // Create student profile
       const profile = await tx.studentProfile.create({

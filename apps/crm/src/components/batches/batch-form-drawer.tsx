@@ -4,12 +4,18 @@
 // branch and faculty pickers are <Select>s populated from
 // use-courses/use-branches/use-faculty (no business logic here — those
 // hooks own the data fetching, this component is pure form/presentation).
-// `schedule` is kept minimal for P1 (docs/03 §7.5): a single weekly block
-// (day + start/end time) rather than a full multi-block builder — still
-// validated against the shared BatchScheduleSchema array shape.
+// WEEKLY SCHEDULE: multiple days, one time range. `BatchScheduleSchema` has always been
+// an ARRAY of {day,startTime,endTime} blocks (max 14) — the P1 UI just never exposed more
+// than one, so "Mon/Wed/Fri 18:00–20:00" was three trips through the edit form. Picking N
+// days now emits N blocks sharing the chosen times. No contract, API or DB change: the
+// wire shape is what it always was.
+//
+// A per-day time range (Mon 18:00, Sat 10:00) is still not expressible here. That is the
+// deliberate next step, not an oversight — the storage already allows it, and the form
+// grows a repeater when someone actually needs it.
 import * as React from "react";
 import { useForm } from "react-hook-form";
-import { Button, Drawer, DrawerContent, DrawerBody, DrawerFooter, Input, Select, SelectItem, useToast } from "@repo/ui";
+import { Button, Checkbox, Drawer, DrawerContent, DrawerBody, DrawerFooter, Input, Select, SelectItem, useToast } from "@repo/ui";
 import {
   CreateBatchRequestSchema,
   UpdateBatchRequestSchema,
@@ -55,13 +61,15 @@ interface BatchFormDrawerProps {
   batch?: BatchDetail;
 }
 
-// RHF state shape — same fields as the wire schema, but `schedule` is
-// flattened to a single optional day/startTime/endTime block for the P1
-// "minimal structured fields" requirement; reassembled into the
-// BatchScheduleSchema array shape at submit time.
+/** New batches open in Active — see the create branch of the reset() below. */
+const DEFAULT_NEW_BATCH_STATUS: BatchStatus = "active";
+
+// RHF state shape — same fields as the wire schema, but `schedule` is flattened to a set
+// of days plus ONE shared time range; reassembled into the BatchScheduleSchema array at
+// submit time.
 type BatchFormValues = Omit<CreateBatchRequest, "schedule" | "endDate"> & {
   endDate?: string;
-  scheduleDay?: ScheduleBlock["day"];
+  scheduleDays?: ScheduleBlock["day"][];
   scheduleStart?: string;
   scheduleEnd?: string;
 };
@@ -82,6 +90,10 @@ export function BatchFormDrawer({ open, onOpenChange, batch }: BatchFormDrawerPr
   React.useEffect(() => {
     if (!open) return;
     if (isEdit && batch) {
+      // Times come from the first block. Blocks written by this form always share one
+      // range, so that is lossless for anything it produced; a batch given per-day times
+      // by some other means would be flattened to the first block's range on save, which
+      // is why the times are shown as a single pair rather than silently dropped.
       const firstBlock = batch.schedule[0];
       reset({
         programId: batch.programId,
@@ -93,25 +105,47 @@ export function BatchFormDrawer({ open, onOpenChange, batch }: BatchFormDrawerPr
         capacity: batch.capacity,
         mode: batch.mode,
         status: batch.status,
-        scheduleDay: firstBlock?.day,
+        scheduleDays: batch.schedule.map((block) => block.day),
         scheduleStart: firstBlock?.startTime,
         scheduleEnd: firstBlock?.endTime,
       });
     } else {
-      reset({ status: "planned" });
+      // Active, not Planned: in practice a batch is created when it is ready to take
+      // students, and "Planned" batches were being left un-flipped and quietly missing
+      // from anything that filters on active. Still fully editable in the field below.
+      reset({ status: DEFAULT_NEW_BATCH_STATUS, scheduleDays: [] });
     }
     // Intentionally reset only on open/identity change, not on every render.
   }, [open, isEdit, batch]);
 
   const isPending = createBatch.isPending || updateBatch.isPending;
 
+  const selectedDays = watch("scheduleDays") ?? [];
+  const toggleDay = (day: ScheduleBlock["day"], checked: boolean) => {
+    const next = checked ? [...selectedDays, day] : selectedDays.filter((d) => d !== day);
+    // `shouldDirty` so the drawer's unsaved-changes affordances treat a day toggle like
+    // any other edit — setValue() alone leaves the form pristine.
+    setValue("scheduleDays", next, { shouldDirty: true });
+  };
+
+  /**
+   * One block per selected day, all sharing the chosen time range.
+   *
+   * Emitted in DAYS order rather than click order, so "Fri then Mon" and "Mon then Fri"
+   * store identically and the schedule always reads Monday-first wherever it is displayed.
+   */
   const buildSchedule = (values: BatchFormValues): ScheduleBlock[] => {
-    if (!values.scheduleDay || !values.scheduleStart || !values.scheduleEnd) return [];
-    return [{ day: values.scheduleDay, startTime: values.scheduleStart, endTime: values.scheduleEnd }];
+    const days = values.scheduleDays ?? [];
+    if (days.length === 0 || !values.scheduleStart || !values.scheduleEnd) return [];
+    return DAYS.filter((d) => days.includes(d.value)).map((d) => ({
+      day: d.value,
+      startTime: values.scheduleStart!,
+      endTime: values.scheduleEnd!,
+    }));
   };
 
   const onSubmit = handleSubmit(async (values) => {
-    const { scheduleDay: _scheduleDay, scheduleStart: _scheduleStart, scheduleEnd: _scheduleEnd, endDate, ...rest } = values;
+    const { scheduleDays: _scheduleDays, scheduleStart: _scheduleStart, scheduleEnd: _scheduleEnd, endDate, ...rest } = values;
     const schedule = buildSchedule(values);
 
     try {
@@ -128,7 +162,7 @@ export function BatchFormDrawer({ open, onOpenChange, batch }: BatchFormDrawerPr
           ...rest,
           endDate: endDate || undefined,
           schedule,
-          status: rest.status ?? "planned",
+          status: rest.status ?? DEFAULT_NEW_BATCH_STATUS,
         });
         await createBatch.mutateAsync(body);
         toast({ title: "Batch created", variant: "success" });
@@ -272,19 +306,35 @@ export function BatchFormDrawer({ open, onOpenChange, batch }: BatchFormDrawerPr
 
             <fieldset className="flex flex-col gap-3 rounded-md border border-border p-3">
               <legend className="px-1 text-sm font-medium text-fg">Weekly schedule (optional)</legend>
-              <Select
-                label="Day"
-                placeholder="No fixed day"
-                value={watch("scheduleDay")}
-                onValueChange={(value) => setValue("scheduleDay", value as ScheduleBlock["day"])}
-                data-testid="batch-form-schedule-day"
-              >
-                {DAYS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </Select>
+              {/* A checkbox group, not a multi-select listbox: seven fixed options that
+                  are all worth seeing at once, and toggling three of them should not cost
+                  three open/close cycles. `role="group"` + the legend give the set one
+                  accessible name. */}
+              <div role="group" aria-labelledby="batch-form-schedule-days-label">
+                <p id="batch-form-schedule-days-label" className="mb-2 text-sm font-medium text-fg">
+                  Days
+                </p>
+                <div className="flex flex-wrap gap-x-4 gap-y-2" data-testid="batch-form-schedule-days">
+                  {/* Wrapping <label> rather than a `label` prop — Checkbox is a bare
+                      Radix root, and this is the pattern user-form-drawer's role
+                      checklist already uses. */}
+                  {DAYS.map((opt) => (
+                    <label key={opt.value} className="flex cursor-pointer items-center gap-2 text-sm text-fg">
+                      <Checkbox
+                        checked={selectedDays.includes(opt.value)}
+                        onCheckedChange={(checked) => toggleDay(opt.value, checked === true)}
+                        data-testid={`batch-form-schedule-day-${opt.value}`}
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-2 text-sm text-fg-muted">
+                  {selectedDays.length === 0
+                    ? "No fixed day — leave blank for an unscheduled batch."
+                    : "The times below apply to every selected day."}
+                </p>
+              </div>
               <div className="flex gap-3">
                 <Input
                   label="Start time"

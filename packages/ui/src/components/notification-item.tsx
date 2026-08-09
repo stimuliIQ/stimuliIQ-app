@@ -9,6 +9,7 @@ import {
   Calendar,
   Receipt,
   Check,
+  UserPlus,
 } from "lucide-react";
 
 import { cn } from "../lib/cn";
@@ -47,7 +48,12 @@ export type NotificationType =
   | "lead_confirmation"
   | "booking_confirmation"
   | "payment_receipt"
-  | "welcome";
+  | "welcome"
+  // The only STAFF-facing type: a lead was assigned to you. Mirrors the Prisma
+  // NotificationType enum and NotificationTypeSchema — this union must stay in step with
+  // both, or the CRM bell falls through to the generic icon for the one notification it
+  // exists to show.
+  | "lead_assigned";
 
 const typeIconMap: Record<NotificationType, React.ComponentType<{ className?: string; "aria-hidden"?: "true" | boolean }>> = {
   grade_ready: BookOpen,
@@ -59,6 +65,7 @@ const typeIconMap: Record<NotificationType, React.ComponentType<{ className?: st
   booking_confirmation: Calendar,
   payment_receipt: Receipt,
   welcome: Bell,
+  lead_assigned: UserPlus,
 };
 
 const typeLabelMap: Record<NotificationType, string> = {
@@ -71,6 +78,7 @@ const typeLabelMap: Record<NotificationType, string> = {
   booking_confirmation: "Booking confirmed",
   payment_receipt: "Payment receipt",
   welcome: "Welcome",
+  lead_assigned: "Lead assigned",
 };
 
 export interface NotificationItemProps {

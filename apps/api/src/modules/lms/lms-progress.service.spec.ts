@@ -1,6 +1,6 @@
 // apps/api/src/modules/lms/lms-progress.service.spec.ts
 //
-// Unit tests for the LMS progress + attendance module (Wave 4b).
+// Unit tests for the LMS progress module (Wave 4b).
 // (docs/04 §2.1 DoD rule 10, docs/plans/phase-3.md task #6 DoD).
 //
 // Test coverage required by the task DoD:
@@ -13,11 +13,10 @@
 //      f. BASE/non-audited client is used (not the audited client).
 //   2. Mark complete:
 //      a. Sets status=completed + completedAt + recalcs progress_pct.
-//      b. Creates recorded attendance row in the same transaction.
 //      c. Uses $transaction on the AUDITED client.
 //      d. Not enrolled → NotFoundException.
 //   3. Completion idempotency:
-//      a. Replaying complete on an already-completed lesson → no dup attendance.
+//      a. Replaying complete on an already-completed lesson is a no-op.
 //      b. progress_pct is not corrupted on replay.
 //      c. Returns 200 with the same state.
 //   4. Progress rollup math:
@@ -25,8 +24,6 @@
 //      b. 2 of 4 completed → 50%.
 //      c. 4 of 4 completed → 100%.
 //      d. Per-module math matches per-program math.
-//   5. Attendance read scoping:
-//      a. Only returns rows for the requesting student's own enrollments.
 //      b. Supplying another student's enrollmentId → empty result (no IDOR).
 
 import {
@@ -34,7 +31,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { LmsProgressService } from "./lms-progress.service";
-import type { LmsRepository, EnrollmentRow, LessonProgressRow, ProgressRollupRow, AttendanceRow, AttendanceSummaryRow } from "./lms.repository";
+import type { LmsRepository, EnrollmentRow, LessonProgressRow, ProgressRollupRow } from "./lms.repository";
 import type { PrismaService } from "../../prisma/prisma.service";
 import * as enrollmentGate from "./lms-enrollment-gate";
 import type { EnrollmentGateResult } from "./lms-enrollment-gate";
@@ -77,16 +74,11 @@ function makeRepo(): MockRepo {
     // Wave 4b methods
     upsertProgressPing: jest.fn(),
     markLessonCompleted: jest.fn(),
-    upsertRecordedAttendance: jest.fn(),
     recalcEnrollmentProgressPct: jest.fn(),
     getProgressRollup: jest.fn(),
-    listAttendanceForStudent: jest.fn(),
-    getAttendanceSummaries: jest.fn(),
-    // Phase-9-completion gap #6: CRM attendance editor.
     findFacultyProfileId: jest.fn(),
     findEnrollmentForStaff: jest.fn(),
     findLessonProgramId: jest.fn(),
-    upsertAttendanceForStaff: jest.fn(),
   } as unknown as MockRepo;
 }
 
@@ -332,7 +324,7 @@ describe("LmsProgressService.markComplete (completion flow)", () => {
     gateSpy.mockRestore();
   });
 
-  it("sets status=completed, creates recorded attendance, recalcs progress_pct — all in txn", async () => {
+  it("sets status=completed and recalcs progress_pct — all in txn", async () => {
     const enrollment = makeEnrollment({ progressPct: 10 });
     gateSpy.mockResolvedValue(makeGate(enrollment));
 
@@ -340,7 +332,6 @@ describe("LmsProgressService.markComplete (completion flow)", () => {
     repo.markLessonCompleted.mockResolvedValue(
       makeProgressRow({ status: "completed", completedAt: new Date("2026-02-01") }),
     );
-    repo.upsertRecordedAttendance.mockResolvedValue(undefined);
     repo.recalcEnrollmentProgressPct.mockResolvedValue({ progressPct: 50, justCompleted: false }); // 50% after completion
 
     const result = await service.markComplete(USER_ID, TENANT_ID, LESSON_ID);
@@ -351,7 +342,6 @@ describe("LmsProgressService.markComplete (completion flow)", () => {
 
     // All three operations must have been called.
     expect(repo.markLessonCompleted).toHaveBeenCalledTimes(1);
-    expect(repo.upsertRecordedAttendance).toHaveBeenCalledTimes(1);
     expect(repo.recalcEnrollmentProgressPct).toHaveBeenCalledTimes(1);
 
     // Must have been called inside a $transaction (audited client).
@@ -367,7 +357,6 @@ describe("LmsProgressService.markComplete (completion flow)", () => {
     repo.markLessonCompleted.mockResolvedValue(
       makeProgressRow({ status: "completed", completedAt: new Date("2026-02-01") }),
     );
-    repo.upsertRecordedAttendance.mockResolvedValue(undefined);
     repo.recalcEnrollmentProgressPct.mockResolvedValue({ progressPct: 100, justCompleted: true });
     certificatesService.autoIssueOnCompletion.mockResolvedValue({ issued: true });
 
@@ -384,7 +373,6 @@ describe("LmsProgressService.markComplete (completion flow)", () => {
     repo.markLessonCompleted.mockResolvedValue(
       makeProgressRow({ status: "completed", completedAt: new Date("2026-02-01") }),
     );
-    repo.upsertRecordedAttendance.mockResolvedValue(undefined);
     repo.recalcEnrollmentProgressPct.mockResolvedValue({ progressPct: 100, justCompleted: true });
     certificatesService.autoIssueOnCompletion.mockRejectedValue(new Error("pdf provider down"));
 
@@ -416,7 +404,6 @@ describe("LmsProgressService.markComplete (completion flow)", () => {
     const enrollment = makeEnrollment();
     gateSpy.mockResolvedValue(makeGate(enrollment));
     repo.markLessonCompleted.mockResolvedValue(makeProgressRow({ status: "completed" }));
-    repo.upsertRecordedAttendance.mockResolvedValue(undefined);
     repo.recalcEnrollmentProgressPct.mockResolvedValue({ progressPct: 100, justCompleted: true });
 
     await service.markComplete(USER_ID, TENANT_ID, LESSON_ID);
@@ -466,7 +453,6 @@ describe("LmsProgressService.markComplete — idempotency", () => {
       lastPositionS: 120,
     });
     repo.markLessonCompleted.mockResolvedValue(alreadyCompletedRow);
-    repo.upsertRecordedAttendance.mockResolvedValue(undefined);
     // Replay on an ALREADY-completed enrollment: pct stays 100 but there is NO
     // active→completed transition, so justCompleted is false.
     repo.recalcEnrollmentProgressPct.mockResolvedValue({ progressPct: 100, justCompleted: false });
@@ -476,8 +462,6 @@ describe("LmsProgressService.markComplete — idempotency", () => {
     expect(result.status).toBe("completed");
     expect(result.enrollmentProgressPct).toBe(100);
 
-    // upsertRecordedAttendance is called; the repo handles the no-dup logic internally.
-    expect(repo.upsertRecordedAttendance).toHaveBeenCalledTimes(1);
 
     // Security review Low-2: a replay at 100% (no transition) must NOT re-enter
     // certificate auto-issue — that would re-run the eligibility computation every time.
@@ -488,7 +472,6 @@ describe("LmsProgressService.markComplete — idempotency", () => {
     const enrollment = makeEnrollment({ progressPct: 100 });
     gateSpy.mockResolvedValue(makeGate(enrollment));
     repo.markLessonCompleted.mockResolvedValue(makeProgressRow({ status: "completed" }));
-    repo.upsertRecordedAttendance.mockResolvedValue(undefined);
     // On replay, recalc still returns 100 (formula is idempotent) with no new transition.
     repo.recalcEnrollmentProgressPct.mockResolvedValue({ progressPct: 100, justCompleted: false });
 
@@ -599,219 +582,5 @@ describe("LmsProgressService.getProgressRollup — rollup math", () => {
     expect(result.overallProgressPct).toBe(0);
     expect(result.overallLessonsCompleted).toBe(0);
     expect(result.overallLessonsTotal).toBe(0);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 5. Attendance read scoping (IDOR prevention)
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("LmsProgressService.listAttendance — enrollment scoping (IDOR)", () => {
-  let repo: MockRepo;
-  let prisma: ReturnType<typeof makePrisma>;
-  let service: LmsProgressService;
-
-  beforeEach(() => {
-    repo = makeRepo();
-    prisma = makePrisma();
-    service = new LmsProgressService(
-      repo as unknown as LmsRepository,
-      prisma as unknown as PrismaService,
-      makeEnrollmentScope() as unknown as EnrollmentScopeRepository,
-      makeCertificatesService() as unknown as CertificatesService,
-    );
-  });
-
-  const defaultQuery: import("./dto").ListMyAttendanceQuery = {
-    page: 1,
-    pageSize: 20,
-  };
-
-  it("returns only rows for the requesting student's own enrollments", async () => {
-    repo.findStudentProfileId.mockResolvedValue(STUDENT_ID);
-
-    const ownAttendance: AttendanceRow[] = [
-      {
-        id: "att-1",
-        enrollmentId: ENROLLMENT_ID,
-        programId: PROGRAM_ID,
-        programTitle: "Full-Stack Program",
-        lessonId: LESSON_ID,
-        lessonTitle: "Semantic HTML",
-        liveClassId: null,
-        status: "present",
-        source: "recorded",
-        markedAt: new Date("2026-02-01"),
-      },
-    ];
-
-    repo.listAttendanceForStudent.mockResolvedValue({ rows: ownAttendance, total: 1 });
-    repo.getAttendanceSummaries.mockResolvedValue([
-      { enrollmentId: ENROLLMENT_ID, programTitle: "Full-Stack Program", totalRecorded: 1, totalLessons: 9, attendancePct: 11 },
-    ] as AttendanceSummaryRow[]);
-
-    const result = await service.listAttendance(USER_ID, TENANT_ID, defaultQuery);
-
-    expect(result.data.items).toHaveLength(1);
-    expect(result.data.items[0]?.enrollmentId).toBe(ENROLLMENT_ID);
-    // listAttendanceForStudent was called with this student's ID (never with a client-supplied one).
-    expect(repo.listAttendanceForStudent).toHaveBeenCalledWith(
-      TENANT_ID,
-      STUDENT_ID,
-      expect.objectContaining({ page: 1, pageSize: 20 }),
-    );
-  });
-
-  it("enrollmentId filter does not belong to this student → empty result (IDOR prevention)", async () => {
-    repo.findStudentProfileId.mockResolvedValue(STUDENT_ID);
-    // The repo's listAttendanceForStudent returns empty when the enrollmentId doesn't match.
-    repo.listAttendanceForStudent.mockResolvedValue({ rows: [], total: 0 });
-    repo.getAttendanceSummaries.mockResolvedValue([]);
-
-    const result = await service.listAttendance(USER_ID, TENANT_ID, {
-      ...defaultQuery,
-      enrollmentId: "someone-elses-enrollment-id",
-    });
-
-    expect(result.data.items).toHaveLength(0);
-    expect(result.meta.total).toBe(0);
-    // No 403/404 — just empty (no existence disclosure).
-  });
-
-  it("no student profile → empty result (not an error)", async () => {
-    repo.findStudentProfileId.mockResolvedValue(null);
-
-    const result = await service.listAttendance(USER_ID, TENANT_ID, defaultQuery);
-
-    expect(result.data.items).toHaveLength(0);
-    expect(result.data.summaries).toHaveLength(0);
-    expect(repo.listAttendanceForStudent).not.toHaveBeenCalled();
-  });
-
-  it("summaries are always returned for all enrollments regardless of page filter", async () => {
-    repo.findStudentProfileId.mockResolvedValue(STUDENT_ID);
-    repo.listAttendanceForStudent.mockResolvedValue({ rows: [], total: 0 });
-    // Two enrollments in summaries even if this page is empty.
-    repo.getAttendanceSummaries.mockResolvedValue([
-      { enrollmentId: "enroll-1", programTitle: "Prog A", totalRecorded: 2, totalLessons: 5, attendancePct: 40 },
-      { enrollmentId: "enroll-2", programTitle: "Prog B", totalRecorded: 3, totalLessons: 6, attendancePct: 50 },
-    ] as AttendanceSummaryRow[]);
-
-    const result = await service.listAttendance(USER_ID, TENANT_ID, defaultQuery);
-
-    expect(result.data.summaries).toHaveLength(2);
-    expect(result.data.items).toHaveLength(0);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 6. setAttendance — CRM attendance editor (Phase-9-completion gap #6)
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("LmsProgressService.setAttendance (CRM attendance editor)", () => {
-  let repo: MockRepo;
-  let prisma: ReturnType<typeof makePrisma>;
-  let enrollmentScope: MockEnrollmentScope;
-  let service: LmsProgressService;
-  const FACULTY_PROFILE_ID = "faculty-profile-aaa";
-  const BATCH_ID = "batch-aaa";
-
-  beforeEach(() => {
-    repo = makeRepo();
-    prisma = makePrisma();
-    enrollmentScope = makeEnrollmentScope();
-    service = new LmsProgressService(
-      repo as unknown as LmsRepository,
-      prisma as unknown as PrismaService,
-      enrollmentScope as unknown as EnrollmentScopeRepository,
-      makeCertificatesService() as unknown as CertificatesService,
-    );
-  });
-
-  it("scope=all sets attendance for any enrollment in the tenant", async () => {
-    repo.findEnrollmentForStaff.mockResolvedValue({ id: ENROLLMENT_ID, batchId: BATCH_ID, studentId: STUDENT_ID, programId: PROGRAM_ID });
-    repo.findLessonProgramId.mockResolvedValue(PROGRAM_ID);
-    repo.upsertAttendanceForStaff.mockResolvedValue({
-      id: "att-new",
-      enrollmentId: ENROLLMENT_ID,
-      lessonId: LESSON_ID,
-      status: "present",
-      source: "recorded",
-      markedAt: new Date("2026-01-20T10:00:00Z"),
-    });
-
-    const result = await service.setAttendance(TENANT_ID, USER_ID, "all", {
-      enrollmentId: ENROLLMENT_ID,
-      lessonId: LESSON_ID,
-      status: "present",
-    });
-
-    expect(result.status).toBe("present");
-    expect(repo.upsertAttendanceForStaff).toHaveBeenCalledWith({
-      tenantId: TENANT_ID,
-      enrollmentId: ENROLLMENT_ID,
-      lessonId: LESSON_ID,
-      status: "present",
-    });
-    // scope=all never consults faculty-assignment resolution.
-    expect(enrollmentScope.resolveBatchIdsForFaculty).not.toHaveBeenCalled();
-  });
-
-  it("scope=assigned sets attendance only for a faculty member's own assigned batches", async () => {
-    repo.findEnrollmentForStaff.mockResolvedValue({ id: ENROLLMENT_ID, batchId: BATCH_ID, studentId: STUDENT_ID, programId: PROGRAM_ID });
-    repo.findFacultyProfileId.mockResolvedValue(FACULTY_PROFILE_ID);
-    enrollmentScope.resolveBatchIdsForFaculty.mockResolvedValue([BATCH_ID]);
-    repo.findLessonProgramId.mockResolvedValue(PROGRAM_ID);
-    repo.upsertAttendanceForStaff.mockResolvedValue({
-      id: "att-new",
-      enrollmentId: ENROLLMENT_ID,
-      lessonId: LESSON_ID,
-      status: "absent",
-      source: "recorded",
-      markedAt: new Date("2026-01-20T10:00:00Z"),
-    });
-
-    const result = await service.setAttendance(TENANT_ID, USER_ID, "assigned", {
-      enrollmentId: ENROLLMENT_ID,
-      lessonId: LESSON_ID,
-      status: "absent",
-    });
-
-    expect(result.status).toBe("absent");
-  });
-
-  it("scope=assigned — enrollment NOT in the faculty's assigned batches → 404 (IDOR, no existence disclosure)", async () => {
-    repo.findEnrollmentForStaff.mockResolvedValue({ id: ENROLLMENT_ID, batchId: "other-batch", studentId: STUDENT_ID, programId: PROGRAM_ID });
-    repo.findFacultyProfileId.mockResolvedValue(FACULTY_PROFILE_ID);
-    enrollmentScope.resolveBatchIdsForFaculty.mockResolvedValue([BATCH_ID]); // does not include "other-batch"
-
-    await expect(
-      service.setAttendance(TENANT_ID, USER_ID, "assigned", { enrollmentId: ENROLLMENT_ID, lessonId: LESSON_ID, status: "present" }),
-    ).rejects.toThrow(NotFoundException);
-    expect(repo.upsertAttendanceForStaff).not.toHaveBeenCalled();
-  });
-
-  it("unknown enrollment → 404", async () => {
-    repo.findEnrollmentForStaff.mockResolvedValue(null);
-    await expect(
-      service.setAttendance(TENANT_ID, USER_ID, "all", { enrollmentId: ENROLLMENT_ID, lessonId: LESSON_ID, status: "present" }),
-    ).rejects.toThrow(NotFoundException);
-  });
-
-  it("lessonId not belonging to the enrollment's program → 404 (defense-in-depth)", async () => {
-    repo.findEnrollmentForStaff.mockResolvedValue({ id: ENROLLMENT_ID, batchId: BATCH_ID, studentId: STUDENT_ID, programId: PROGRAM_ID });
-    repo.findLessonProgramId.mockResolvedValue("some-other-program");
-
-    await expect(
-      service.setAttendance(TENANT_ID, USER_ID, "all", { enrollmentId: ENROLLMENT_ID, lessonId: LESSON_ID, status: "present" }),
-    ).rejects.toThrow(NotFoundException);
-    expect(repo.upsertAttendanceForStaff).not.toHaveBeenCalled();
-  });
-
-  it("scope=branch (unresolvable for this model) fails closed with ForbiddenException", async () => {
-    repo.findEnrollmentForStaff.mockResolvedValue({ id: ENROLLMENT_ID, batchId: BATCH_ID, studentId: STUDENT_ID, programId: PROGRAM_ID });
-    await expect(
-      service.setAttendance(TENANT_ID, USER_ID, "branch", { enrollmentId: ENROLLMENT_ID, lessonId: LESSON_ID, status: "present" }),
-    ).rejects.toThrow(ForbiddenException);
   });
 });

@@ -111,7 +111,8 @@ function BlogPostFormDrawer({
                 <TabsContent value="write">
                   <Textarea
                     id="blog-post-body"
-                    aria-label="Body (HTML)"
+                    label="Body (HTML)"
+                    required
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
                     rows={10}
@@ -168,8 +169,8 @@ function CategoryQuickAdd({ canEdit }: { canEdit: boolean }): React.JSX.Element 
 
   return (
     <div className="flex items-end gap-2">
-      <Input label="New category name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Web Development" wrapperClassName="w-48" data-testid="blog-category-name-input" />
-      <Input label="Slug" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. web-development" wrapperClassName="w-40" data-testid="blog-category-slug-input" />
+      <Input label="New category name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Web Development" wrapperClassName="w-48" data-testid="blog-category-name-input" />
+      <Input label="Slug" required value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. web-development" wrapperClassName="w-40" data-testid="blog-category-slug-input" />
       <Button variant="secondary" size="sm" onClick={handleAdd} disabled={!name.trim() || !slug.trim()} loading={createCategory.isPending} data-testid="blog-category-add">
         Add category
       </Button>

@@ -54,6 +54,42 @@ export class AuthRepository {
     await this.prisma.client.user.update({ where: { id: userId }, data: { twoFaEnabled: enabled } });
   }
 
+  /**
+   * Explicit audit row for a 2FA state change that REMOVES the factor (self-service
+   * email-OTP recovery, or an admin clear).
+   *
+   * This has to be written by hand: `two_factor_credentials` is deliberately excluded
+   * from the Prisma audit extension (see soft-delete.extension.ts — a credential must
+   * never be before/after-snapshotted into audit_logs), so the automatic path that
+   * covers most models would leave a factor-removal completely untraced. The payload
+   * carries only the fact of the change and the stated reason — never the secret, never
+   * the backup codes, never the OTP.
+   *
+   * `actorId` is null for self-service recovery: there is no session at that point, and
+   * the subject IS the actor (entityId identifies them).
+   */
+  async recordTwoFactorAudit(args: {
+    tenantId: string;
+    actorId: string | null;
+    userId: string;
+    action: "two_factor.recovery_reset" | "two_factor.admin_clear";
+    reason?: string;
+    ip?: string;
+  }): Promise<void> {
+    await this.prisma.client.auditLog.create({
+      data: {
+        tenantId: args.tenantId,
+        actorId: args.actorId,
+        entity: "User",
+        entityId: args.userId,
+        action: args.action,
+        before: { twoFaEnabled: true },
+        after: { twoFaEnabled: false, ...(args.reason ? { reason: args.reason } : {}) },
+        ip: args.ip ?? null,
+      },
+    });
+  }
+
   /** T28 (password-reset, docs/plans/phase-9-completion.md): sets a new argon2 password hash. */
   async updatePasswordHash(userId: string, passwordHash: string): Promise<void> {
     await this.prisma.client.user.update({ where: { id: userId }, data: { passwordHash } });

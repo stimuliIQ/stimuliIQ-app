@@ -41,7 +41,6 @@ import { LmsController } from "./lms.controller";
 import { LessonsController } from "./lessons.controller";
 import { VideoWebhookController } from "./video-webhook.controller";
 import { LmsProgressController } from "./lms-progress.controller";
-import { AttendanceCrmController } from "./attendance-crm.controller";
 import { VideoLibraryController } from "./video-library.controller";
 import { LmsService } from "./lms.service";
 import { LmsRepository } from "./lms.repository";
@@ -87,10 +86,8 @@ function createVideoWebhookProcessorPort(sync: SyncVideoWebhookProcessorAdapter)
     LmsController,
     LessonsController,
     VideoWebhookController,
-    // Wave 4b: progress ping, mark-complete, progress rollup, attendance read.
+    // Wave 4b: progress ping, mark-complete, progress rollup.
     LmsProgressController,
-    // Phase-9-completion gap #6: CRM attendance editor (/crm/attendance, write).
-    AttendanceCrmController,
     // Phase-9 Completion T26: video-library ingest (/crm/videos*).
     VideoLibraryController,
   ],
@@ -98,7 +95,7 @@ function createVideoWebhookProcessorPort(sync: SyncVideoWebhookProcessorAdapter)
     LmsService,
     LmsRepository,
 
-    // Wave 4b: progress + attendance business logic.
+    // Wave 4b: progress business logic.
     LmsProgressService,
 
     // Phase-9 Completion T26: video-library ingest.

@@ -292,6 +292,7 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
                 {programId ? (
                   <Select
                     label="Batch"
+                    required
                     placeholder="Select a batch"
                     value={watch("batchId")}
                     onValueChange={(value) => setValue("batchId", value)}

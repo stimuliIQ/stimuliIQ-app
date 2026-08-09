@@ -11,7 +11,7 @@ import { LeadFormManager } from "./lead-form-manager";
 
 export function LandingPagesPage({ me }: { me: MeResponse | undefined }): React.JSX.Element {
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="landing-pages-page">
+    <div className="space-y-4 md:space-y-5" data-testid="landing-pages-page">
       <PageHeader
         title="Landing pages"
         description={

@@ -177,7 +177,7 @@ export function StudentImportPage({ me }: StudentImportPageProps): React.JSX.Ele
 
   if (!canCreate) {
     return (
-      <div className="space-y-6 md:space-y-8">
+      <div className="space-y-4 md:space-y-5">
         <PageHeader title="Import Students" description="Bulk-create student records from an Excel or CSV sheet." />
         <Alert tone="warning" title="No access" data-testid="student-import-no-access">
           You need the students.create permission to import students.
@@ -187,7 +187,7 @@ export function StudentImportPage({ me }: StudentImportPageProps): React.JSX.Ele
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="student-import-page">
+    <div className="space-y-4 md:space-y-5" data-testid="student-import-page">
       <PageHeader
         title="Import Students"
         description="Upload an Excel (.xlsx/.xls) or CSV sheet, review the parsed rows, pick the ones to import — every row is created through the same validated Add-student flow."

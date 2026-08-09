@@ -147,6 +147,17 @@ const ALLOWED_KEY_PREFIXES = [
   // served straight from the CDN URL minted by `mintCdnUrl(row.brochureKey)`, exactly like
   // the image namespaces above, so it belongs in PUBLIC_ASSET_PREFIXES too.
   "program_brochures/",
+  // Student onboarding form (stimuliiq.com/onboarding) — file answers, of which the
+  // payment receipt is the load-bearing one. Key shape:
+  // onboarding/{tenantId}/{uuid}-{sanitisedFilename}. Uploaded by an ANONYMOUS submitter
+  // through a captcha-gated signed PUT, so the tenant segment is what stops a submitted
+  // key from pointing at another tenant's object (onboarding.service.ts re-checks the
+  // `onboarding/{tenantId}/` prefix before trusting a key at submit time).
+  //
+  // Deliberately absent from PUBLIC_ASSET_PREFIXES below: a payment receipt carries an
+  // amount, a bank/UPI reference and often a name — it is delivered ONLY through a
+  // short-lived signed URL minted for a permissioned CRM user, exactly like careers/.
+  "onboarding/",
 ] as const;
 
 /**
@@ -161,9 +172,9 @@ const ALLOWED_KEY_PREFIXES = [
  * expose `submissions/` (student work), `exports/` (PII CSVs), `invoices/`, `receipts/`
  * (deterministic keys — not even guess-resistant) and `careers/` (applicant resumes).
  *
- * DELIBERATELY EXCLUDES `receipts/` and `careers/`: both appear in ALLOWED_KEY_PREFIXES
- * above but neither is ever minted as a CDN URL — they are delivered through short-lived
- * signed URLs, and both carry personal data.
+ * DELIBERATELY EXCLUDES `receipts/`, `careers/` and `onboarding/`: all three appear in
+ * ALLOWED_KEY_PREFIXES above but none is ever minted as a CDN URL — they are delivered
+ * through short-lived signed URLs, and all three carry personal data.
  */
 const PUBLIC_ASSET_PREFIXES = [
   "program_images/",
@@ -272,7 +283,8 @@ export type StorageKeyNamespace =
   | "program_images"
   | "program_brochures"
   | "marketing_images"
-  | "college_logos";
+  | "college_logos"
+  | "onboarding";
 
 export interface BuildKeyOptions {
   namespace: StorageKeyNamespace;
@@ -348,6 +360,16 @@ export function buildStorageKey(opts: BuildKeyOptions): string {
       // No scopeId: an anonymous applicant has no enrollment/lesson to scope to —
       // uniqueness comes from uniqueId (a fresh UUID per upload-url request).
       const safeFilename = filename ? sanitiseFilename(filename) : "resume";
+      return `${namespace}/${safeTenantId}/${safeUniqueId}-${safeFilename}`;
+    }
+
+    case "onboarding": {
+      // Same shape and same reasoning as `careers` above: an anonymous student filling
+      // the onboarding form has no enrollment yet (they are submitting the proof of
+      // payment that creates one), so the tenant segment plus a per-request UUID is the
+      // whole scoping story. The tenant segment is load-bearing — onboarding.service.ts
+      // re-checks this exact prefix before trusting a submitted key.
+      const safeFilename = filename ? sanitiseFilename(filename) : "upload";
       return `${namespace}/${safeTenantId}/${safeUniqueId}-${safeFilename}`;
     }
 

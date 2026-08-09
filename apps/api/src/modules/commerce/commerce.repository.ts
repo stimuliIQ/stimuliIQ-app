@@ -168,6 +168,63 @@ export class CommerceRepository {
   }
 
   /**
+   * OPEN (unpaid, `status=created`) orders this student already holds for this program —
+   * the duplicate-order guard's input (see `CommerceService.createOrder`).
+   *
+   * Deliberately EXCLUDES:
+   *   - soft-deleted rows: cancelling an unpaid order soft-deletes it (`cancelOrder` ->
+   *     `softDeleteUnpaidOrder`), and a cancelled order must not block a re-order.
+   *   - `paid`: already-paid orders are covered by `hasActiveEnrollment` below, which is
+   *     the accurate signal (a paid order whose enrollment was later removed should not
+   *     block re-enrolling).
+   *   - `failed` / `refunded`: terminal non-entitlements, so re-purchasing is legitimate.
+   *
+   * `batchId` lives in the order's `notes` JSON rather than a column (see `createOrder`'s
+   * comment), so it is projected out here — the caller compares batches, and should not
+   * have to know where the batch is stashed.
+   */
+  async findOpenOrdersForProgram(
+    tenantId: string,
+    studentId: string,
+    programId: string,
+  ): Promise<Array<{ id: string; batchId: string | null }>> {
+    const rows = await this.prisma.client.order.findMany({
+      where: {
+        tenantId,
+        studentId,
+        programId,
+        deletedAt: null,
+        status: "created",
+      },
+      select: { id: true, notes: true },
+    });
+    return rows.map((row) => {
+      const notes = row.notes as { batchId?: unknown } | null;
+      return {
+        id: row.id,
+        batchId: typeof notes?.batchId === "string" ? notes.batchId : null,
+      };
+    });
+  }
+
+  /**
+   * Does this student hold a LIVE enrollment in this batch?
+   *
+   * Deliberately checks the enrollment, not "is there a paid order": a soft-deleted
+   * enrollment must NOT count, because re-enrolling the same student into the same batch
+   * is a supported flow that hard-RESTORES the old row rather than duplicating it (see the
+   * `enrollments_active_student_batch_key` partial-unique and its integration coverage).
+   * Guarding on the paid order instead would break that restore path.
+   */
+  async hasActiveEnrollment(studentId: string, batchId: string): Promise<boolean> {
+    const row = await this.prisma.client.enrollment.findFirst({
+      where: { studentId, batchId, deletedAt: null },
+      select: { id: true },
+    });
+    return row !== null;
+  }
+
+  /**
    * `restrictToBranchIds`, when supplied (BranchMgr scope — P2 M-3 fix, Phase-7 Wave 2
    * security hardening batch B, item 4), is pushed straight into the WHERE clause here —
    * the same `student.enrollments.some(...)` fragment `listOrders` already applies —

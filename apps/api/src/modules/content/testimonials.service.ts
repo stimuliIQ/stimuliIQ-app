@@ -6,9 +6,9 @@
 // content (studentName/quote) is CRM-authored, trusted input — no backend sanitization
 // (ADR-0045, DOMPurify-at-render-sink).
 
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import type { CreateTestimonialRequest, ListTestimonialsQuery, PublicTestimonial, Testimonial, UpdateTestimonialRequest } from "@repo/types";
-import { TestimonialsRepository, type TestimonialRow } from "./testimonials.repository";
+import { TestimonialsRepository, type TestimonialRow, type PublishedTestimonialRow } from "./testimonials.repository";
 import { PaginatedResult } from "../../common/dto/paginated-result";
 import { requireScopeContext } from "../auth/lib/scope-context";
 import { TENANT_SLUG, mintCdnUrl } from "./content.util";
@@ -52,6 +52,18 @@ export class TestimonialsService {
     this.assertAllScope();
     const existing = await this.repository.findById(tenantId, id);
     if (!existing) throw new NotFoundException({ code: "content.not_found", title: "Testimonial not found" });
+    // Publishing is POST :id/publish, never a PATCH — see the publish-gate note in
+    // blog.service.ts's header. This USED to be a silent no-op (the `status` key was just
+    // dropped from the patch), which meant the CRM could send status:"published", get a
+    // 200 and a "Testimonial updated" toast, and leave the row a draft that never reached
+    // the site. Failing loudly is the fix: a caller that means to publish must say so.
+    if (body.status === "published") {
+      throw new BadRequestException({
+        code: "content.publish_requires_publish_endpoint",
+        title: "Use the publish endpoint",
+        detail: 'A testimonial cannot be published via PATCH. Call POST /crm/testimonials/{id}/publish instead.',
+      });
+    }
     await this.repository.update(id, {
       ...(body.programId !== undefined ? { programId: body.programId } : {}),
       ...(body.studentName !== undefined ? { studentName: body.studentName } : {}),
@@ -59,7 +71,9 @@ export class TestimonialsService {
       ...(body.quote !== undefined ? { quote: body.quote } : {}),
       ...(body.rating !== undefined ? { rating: body.rating } : {}),
       ...(body.order !== undefined ? { order: body.order } : {}),
-      ...(body.status !== undefined && body.status !== "published" ? { status: body.status } : {}),
+      // "published" is already rejected above, so this only ever carries draft/archived —
+      // i.e. UNPUBLISHING (hiding a live testimonial) is a normal patch, publishing is not.
+      ...(body.status !== undefined ? { status: body.status } : {}),
     });
     const updated = await this.repository.findById(tenantId, id);
     if (!updated) throw new NotFoundException({ code: "content.not_found", title: "Testimonial not found after update" });
@@ -105,6 +119,13 @@ function toDto(row: TestimonialRow): Testimonial {
   };
 }
 
-function toPublicDto(row: TestimonialRow): PublicTestimonial {
-  return { id: row.id, studentName: row.studentName, studentPhotoUrl: mintCdnUrl(row.studentPhotoKey), quote: row.quote, rating: row.rating };
+function toPublicDto(row: PublishedTestimonialRow): PublicTestimonial {
+  return {
+    id: row.id,
+    studentName: row.studentName,
+    studentPhotoUrl: mintCdnUrl(row.studentPhotoKey),
+    quote: row.quote,
+    rating: row.rating,
+    programTitle: row.programTitle,
+  };
 }

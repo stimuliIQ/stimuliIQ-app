@@ -93,7 +93,7 @@ export function RoleDirectory({ me }: RoleDirectoryProps): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="roles-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="roles-directory">
       <PageHeader
         title="Roles & permissions"
         description="Select a role to view and edit its permission matrix."

@@ -14,7 +14,6 @@
 //   client.lms.progress.ping(id, body)   — PUT /me/lessons/:id/progress
 //   client.lms.progress.complete(id)     — POST /me/lessons/:id/complete
 //   client.lms.progress.getRollup()      — GET /me/progress
-//   client.lms.attendance.list()         — GET /me/attendance
 //
 // Stream-url contract reminder (see lessons.api.ts for full rules):
 //   - `client.lms.lessons.getStreamUrl(id)` is the ONLY way to get a playable URL.
@@ -26,7 +25,6 @@ import { DashboardApi } from "./dashboard.api.js";
 import { LmsEnrollmentsApi } from "./enrollments.api.js";
 import { LessonsApi } from "./lessons.api.js";
 import { ProgressApi } from "./progress.api.js";
-import { AttendanceApi } from "./attendance.api.js";
 import { LmsLiveClassesApi } from "./live-classes.api.js";
 import { LmsTicketsApi } from "./tickets.api.js";
 import { BookmarksApi } from "./bookmarks.api.js";
@@ -41,7 +39,6 @@ export class LmsApi {
   readonly enrollments: LmsEnrollmentsApi;
   readonly lessons: LessonsApi;
   readonly progress: ProgressApi;
-  readonly attendance: AttendanceApi;
   // Phase 9 Completion (docs/plans/phase-9-completion.md T14) — own-scope live
   // classes, support tickets, bookmarks, lesson notes, global search, learning
   // path, referrals, EMI plans (read-only).
@@ -59,7 +56,6 @@ export class LmsApi {
     this.enrollments = new LmsEnrollmentsApi(client);
     this.lessons = new LessonsApi(client);
     this.progress = new ProgressApi(client);
-    this.attendance = new AttendanceApi(client);
     this.liveClasses = new LmsLiveClassesApi(client);
     this.tickets = new LmsTicketsApi(client);
     this.bookmarks = new BookmarksApi(client);
@@ -75,7 +71,6 @@ export * from "./dashboard.api.js";
 export * from "./enrollments.api.js";
 export * from "./lessons.api.js";
 export * from "./progress.api.js";
-export * from "./attendance.api.js";
 export * from "./live-classes.api.js";
 export * from "./tickets.api.js";
 export * from "./bookmarks.api.js";

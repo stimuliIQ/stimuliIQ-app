@@ -12,7 +12,7 @@ import { ContentPagesManager } from "./content-pages-manager";
 
 export function ContentCmsPage({ me }: { me: MeResponse | undefined }): React.JSX.Element {
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="content-cms-page">
+    <div className="space-y-4 md:space-y-5" data-testid="content-cms-page">
       <PageHeader
         title="Blog CMS"
         description={

@@ -5,7 +5,7 @@
 // `scopeContextStorage` ALS, matching leads.service.spec.ts's established pattern.
 //
 // Coverage (per the backend-builder DoD):
-//   - Scope filtering: branch (revenue), assigned (enrollment/attendance — IDOR->404),
+//   - Scope filtering: branch (revenue), assigned (enrollment — IDOR->404),
 //     own (funnel).
 //   - 422 INVALID_DATE_RANGE guard (service-layer, not the zod pipe).
 //   - Redis cache-aside: hit short-circuits the repository; miss populates the cache with
@@ -41,7 +41,6 @@ function mockRepo(): Mocked<AnalyticsRepository> {
     queryRevenue: jest.fn(),
     queryEnrollmentDaily: jest.fn(),
     queryFunnel: jest.fn(),
-    queryAttendanceByBatch: jest.fn(),
     queryEngagementByLesson: jest.fn(),
     queryGamificationByUser: jest.fn(),
     queryForumHealth: jest.fn(),
@@ -273,59 +272,6 @@ describe("AnalyticsService", () => {
       expect(result.totalLeads).toBe(10);
       expect(result.wonCount).toBe(3);
       expect(result.conversionRate).toBeCloseTo(0.3);
-    });
-  });
-
-  // ─── Attendance: assigned-scope IDOR -> 404 (AC-15) ─────────────────────────
-
-  describe("getAttendance", () => {
-    it("faculty requesting an unassigned batchId -> 404 (IDOR-safe, AC-15)", async () => {
-      repo.findFacultyProfileId.mockResolvedValue("faculty-1");
-      repo.findAssignedBatchIds.mockResolvedValue(["batch-assigned"]);
-
-      await expect(
-        runWithScope("assigned", () => service.getAttendance(TENANT_ID, { batchId: "batch-other" })),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it("faculty requesting their own assigned batch succeeds", async () => {
-      repo.findFacultyProfileId.mockResolvedValue("faculty-1");
-      repo.findAssignedBatchIds.mockResolvedValue(["batch-assigned"]);
-      repo.queryAttendanceByBatch.mockResolvedValue([
-        { batchId: "batch-assigned", presentCount: 18n, totalCount: 20n },
-      ]);
-
-      const result = await runWithScope("assigned", () =>
-        service.getAttendance(TENANT_ID, { batchId: "batch-assigned" }),
-      );
-
-      expect(result.batchId).toBe("batch-assigned");
-      expect(result.presentCount).toBe(18);
-      expect(result.totalCount).toBe(20);
-      expect(result.attendancePercent).toBeCloseTo(90);
-      expect(result.perBatch).toBeNull();
-    });
-
-    it("admin (all-scope) omitting batchId gets the all-batch aggregate with a perBatch breakdown (AC-16)", async () => {
-      repo.queryAttendanceByBatch.mockResolvedValue([
-        { batchId: "batch-1", presentCount: 10n, totalCount: 10n },
-        { batchId: "batch-2", presentCount: 0n, totalCount: 10n },
-      ]);
-      repo.listBatchNames.mockResolvedValue(new Map([["batch-1", "Batch One"], ["batch-2", "Batch Two"]]));
-
-      const result = await runWithScope("all", () => service.getAttendance(TENANT_ID, {}));
-
-      expect(result.batchId).toBeNull();
-      expect(result.presentCount).toBe(10);
-      expect(result.totalCount).toBe(20);
-      expect(result.perBatch).toHaveLength(2);
-    });
-
-    it("totalCount=0 -> attendancePercent=0, never NaN", async () => {
-      repo.queryAttendanceByBatch.mockResolvedValue([]);
-      const result = await runWithScope("all", () => service.getAttendance(TENANT_ID, {}));
-      expect(result.attendancePercent).toBe(0);
-      expect(Number.isNaN(result.attendancePercent)).toBe(false);
     });
   });
 

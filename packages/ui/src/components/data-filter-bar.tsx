@@ -164,8 +164,14 @@ export function DataFilterBar({
         </div>
       ) : null}
 
-      {/* Search + extra controls + save view */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Search + extra controls + save view.
+       *
+       * `items-end`, not `items-center`: the `children` slot is almost always labelled
+       * `Select`s, which are taller than the bare search input by exactly their label.
+       * Centering them left every control on a different baseline (visible on the leads
+       * pipeline: the search box floated mid-way up the Source/Stage dropdowns). Aligning
+       * to the bottom edge puts every control — search, selects, Save view — on one line. */}
+      <div className="flex flex-wrap items-end gap-2">
         {onSearchChange ? (
           <div className="relative flex-1 min-w-[12rem]">
             <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-fg-subtle" />
@@ -177,7 +183,7 @@ export function DataFilterBar({
               placeholder={searchPlaceholder}
               data-testid="data-filter-bar-search"
               className={cn(
-                "h-9 w-full rounded-md border border-border bg-bg pl-8 pr-3 text-sm text-fg",
+                "h-[var(--density-toolbar-height)] w-full rounded-md border border-border bg-bg pl-8 pr-3 text-sm text-fg",
                 "placeholder:text-fg-subtle",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
               )}
@@ -202,7 +208,7 @@ export function DataFilterBar({
                 placeholder="View name"
                 data-testid="data-filter-bar-view-name-input"
                 className={cn(
-                  "h-9 rounded-md border border-border bg-bg px-2 text-sm text-fg",
+                  "h-[var(--density-toolbar-height)] rounded-md border border-border bg-bg px-2 text-sm text-fg",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 )}
               />

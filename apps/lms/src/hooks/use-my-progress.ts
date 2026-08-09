@@ -2,7 +2,6 @@
 //
 // Fetches:
 //   GET /api/v1/me/progress     → MyProgressResponse (per-program/module rollup)
-//   GET /api/v1/me/attendance   → MyAttendanceResponse (recorded attendance list + summaries)
 //
 // Follows the exact TanStack Query key / loading-empty-error conventions from Wave 5a.
 // CLAUDE.md §3: "no business logic in components — use hooks/services".
@@ -10,7 +9,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { ApiError } from "@repo/api-client";
-import type { MyProgressResponse, MyAttendanceResponse } from "@repo/types";
+import type { MyProgressResponse } from "@repo/types";
 
 import { apiClient } from "../lib/api-client";
 
@@ -19,7 +18,6 @@ import { apiClient } from "../lib/api-client";
 // ---------------------------------------------------------------------------
 
 export const MY_PROGRESS_QUERY_KEY = ["lms", "progress", "rollup"] as const;
-export const MY_ATTENDANCE_QUERY_KEY = ["lms", "attendance", "list"] as const;
 
 // ---------------------------------------------------------------------------
 // useMyProgress
@@ -64,44 +62,3 @@ export function useMyProgress(): UseMyProgressResult {
   };
 }
 
-// ---------------------------------------------------------------------------
-// useMyAttendance
-// ---------------------------------------------------------------------------
-
-export interface UseMyAttendanceResult {
-  data: MyAttendanceResponse | undefined;
-  isLoading: boolean;
-  isSignedOut: boolean;
-  isError: boolean;
-  error: ApiError | null;
-  refetch: () => void;
-}
-
-/**
- * GET /api/v1/me/attendance — recorded attendance list + per-enrollment summaries.
- *
- * In P3, only source=recorded rows exist (created server-side on lesson completion).
- * Used to render the attendance section of the My Progress view (docs/02 §7.7).
- */
-export function useMyAttendance(): UseMyAttendanceResult {
-  const query = useQuery<MyAttendanceResponse, ApiError>({
-    queryKey: MY_ATTENDANCE_QUERY_KEY,
-    queryFn: () => apiClient.lms.attendance.list({ page: 1, pageSize: 50 }),
-    staleTime: 60_000,
-    retry: (failureCount, error) => {
-      if (error instanceof ApiError && error.isUnauthenticated) return false;
-      return failureCount < 2;
-    },
-  });
-
-  const isSignedOut = query.error instanceof ApiError && query.error.isUnauthenticated;
-
-  return {
-    data: query.data,
-    isLoading: query.isLoading,
-    isSignedOut,
-    isError: query.isError && !isSignedOut,
-    error: query.error ?? null,
-    refetch: () => void query.refetch(),
-  };
-}

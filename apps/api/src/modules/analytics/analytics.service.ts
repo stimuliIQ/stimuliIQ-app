@@ -26,8 +26,6 @@ import type {
   EnrollmentTrendDto,
   FunnelReportQuery,
   FunnelReportDto,
-  AttendanceReportQuery,
-  AttendanceReportDto,
   EngagementReportQuery,
   EngagementReportDto,
   CampaignPerformanceQuery,
@@ -38,8 +36,14 @@ import type {
   ForumHealthReportDto,
   ReportGranularity,
   LeadStage,
+  LeadPerformanceReportQuery,
+  LeadPerformanceReportDto,
 } from "@repo/types";
 import { AnalyticsRepository } from "./analytics.repository";
+// A VALUE import, unlike everything above — safe here because it comes from a sibling
+// API module compiled by the same tsconfig, not from the pure-ESM @repo/types package
+// (see the LeadStage note below for why that distinction matters to the unit suite).
+import { LEAD_OWNER_ROLE_KEYS } from "../leads/leads.repository";
 import { CampaignsService } from "../campaigns/campaigns.service";
 import { RedisService } from "../../redis/redis.service";
 import { requireScopeContext, type ScopeContext } from "../auth/lib/scope-context";
@@ -360,55 +364,6 @@ export class AnalyticsService {
     });
   }
 
-  // ─── WS-A4: Attendance ──────────────────────────────────────────────────────
-
-  async getAttendance(tenantId: string, query: AttendanceReportQuery): Promise<AttendanceReportDto> {
-    if (query.from && query.to) this.assertValidDateRange(query.from, query.to);
-    const scope = requireScopeContext();
-    const scopeBatchIds = await this.resolveAssignedBatchIds(tenantId, scope);
-    const batchIds = this.resolveIdFilter(scopeBatchIds, query.batchId);
-
-    const key = this.cacheKey("attendance", scope, {
-      batchId: query.batchId ?? null,
-      from: query.from ?? null,
-      to: query.to ?? null,
-    });
-    return this.withCache(key, async () => {
-      const rows = await this.repo.queryAttendanceByBatch(tenantId, batchIds, query.from ?? null, query.to ?? null);
-      const freshness = await this.repo.getFreshness("mv_attendance_daily");
-
-      const presentCount = rows.reduce((sum, r) => sum + Number(r.presentCount), 0);
-      const totalCount = rows.reduce((sum, r) => sum + Number(r.totalCount), 0);
-      const attendancePercent = totalCount > 0 ? (presentCount / totalCount) * 100 : 0;
-
-      let perBatch: AttendanceReportDto["perBatch"] = null;
-      if (!query.batchId) {
-        const batchNames = await this.repo.listBatchNames(rows.map((r) => r.batchId));
-        perBatch = rows.map((r) => {
-          const p = Number(r.presentCount);
-          const t = Number(r.totalCount);
-          return {
-            batchId: r.batchId,
-            batchName: batchNames.get(r.batchId) ?? "Unknown Batch",
-            presentCount: p,
-            totalCount: t,
-            attendancePercent: t > 0 ? (p / t) * 100 : 0,
-          };
-        });
-      }
-
-      return {
-        asOf: freshness.asOf.toISOString(),
-        stale: freshness.stale,
-        batchId: query.batchId ?? null,
-        presentCount,
-        totalCount,
-        attendancePercent,
-        perBatch,
-      };
-    });
-  }
-
   // ─── WS-A5: Course / video engagement ───────────────────────────────────────
 
   async getEngagement(tenantId: string, query: EngagementReportQuery): Promise<EngagementReportDto> {
@@ -591,5 +546,111 @@ export class AnalyticsService {
         resolutionRate: threadCount > 0 ? resolvedCount / threadCount : 0,
       };
     });
+  }
+
+  // ─── Lead performance by rep ────────────────────────────────────────────────
+
+  /**
+   * GET /crm/reports/lead-performance — the per-person scoreboard.
+   *
+   * Two things make this method different from every other report here:
+   *
+   * 1. NOT CACHED, and not read from a materialized view. `withCache` would hold a
+   *    5-minute-old scoreboard, and an MV would hold an even older one; both are the
+   *    wrong answer to "has this rep called anyone today". See the block comment above
+   *    the live-table queries in analytics.repository.ts.
+   *
+   * 2. Every rep in the pool gets a row, INCLUDING one with nothing but zeros. Omitting
+   *    inactive reps would make the report quietly flattering: the person who did no work
+   *    would vanish rather than appear with a zero, and a manager scanning the table would
+   *    never notice they were missing.
+   *
+   * Scope: `all` sees the whole tenant; `branch` sees the reps posted to their branches
+   * and those branches' leads; anything else is a 404 (never 403 — no existence
+   * disclosure, matching the other dashboards).
+   */
+  async getLeadPerformance(
+    tenantId: string,
+    query: LeadPerformanceReportQuery,
+  ): Promise<LeadPerformanceReportDto> {
+    this.assertValidDateRange(query.from, query.to);
+    const scope = requireScopeContext();
+
+    let branchIds: string[] | null;
+    switch (scope.scope) {
+      case "all":
+        branchIds = this.resolveIdFilter(null, query.branchId);
+        break;
+      case "branch": {
+        const callerBranchIds = await this.repo.listCallerBranchIds(scope.actorId);
+        branchIds = this.resolveIdFilter(callerBranchIds, query.branchId);
+        break;
+      }
+      default:
+        throw new NotFoundException({ code: "reports.scope_unresolvable", title: "Not found" });
+    }
+
+    // Inclusive of the full day at BOTH ends (AC-4 convention shared with the other
+    // dashboards): `to` is a date, so it must be widened to that date's last instant or
+    // every lead created after midnight on the final day would be silently excluded.
+    const from = new Date(`${query.from}T00:00:00.000Z`);
+    const to = new Date(`${query.to}T23:59:59.999Z`);
+    const now = new Date();
+
+    const staff = await this.repo.listLeadOwningStaff(tenantId, LEAD_OWNER_ROLE_KEYS, branchIds, query.userId);
+
+    // A requested userId that resolved to nobody is an out-of-scope or non-existent user:
+    // 404, consistent with resolveIdFilter's posture for branch/batch ids.
+    if (query.userId && staff.length === 0) {
+      throw new NotFoundException({ code: "reports.not_found", title: "Not found" });
+    }
+
+    const userIds = staff.map((s) => s.id);
+
+    const [created, assignedStats, avgResponse, activityCounts, workload, unowned] = await Promise.all([
+      this.repo.countLeadsCreatedByUser(tenantId, userIds, from, to, branchIds),
+      this.repo.countLeadsAssignedByOwner(tenantId, userIds, from, to, branchIds),
+      this.repo.avgFirstResponseMinutesByOwner(tenantId, userIds, from, to, branchIds),
+      this.repo.countActivitiesByUser(tenantId, userIds, from, to),
+      this.repo.countCurrentWorkloadByUser(tenantId, userIds, now, branchIds),
+      this.repo.countUnownedLeads(tenantId, from, to, branchIds),
+    ]);
+
+    const rows = staff.map((member) => {
+      const leadsAssigned = assignedStats.assigned.get(member.id) ?? 0;
+      const converted = assignedStats.converted.get(member.id) ?? 0;
+      const contacted = assignedStats.contacted.get(member.id) ?? 0;
+
+      return {
+        userId: member.id,
+        userName: member.name,
+        roleKeys: member.roleKeys,
+        leadsCreated: created.get(member.id) ?? 0,
+        leadsAssigned,
+        callsLogged: activityCounts.calls.get(member.id) ?? 0,
+        activitiesLogged: activityCounts.total.get(member.id) ?? 0,
+        followUpsCompleted: activityCounts.tasksCompleted.get(member.id) ?? 0,
+        converted,
+        // Guarded division — a rep with no leads has a 0 rate, never NaN (which would
+        // serialise as null and render as a blank cell that reads like "no data").
+        conversionRate: leadsAssigned > 0 ? converted / leadsAssigned : 0,
+        contactRate: leadsAssigned > 0 ? contacted / leadsAssigned : 0,
+        // null, not 0: "nobody has been contacted yet" must not render as an instant
+        // response time. The DTO documents this distinction.
+        avgFirstResponseMinutes: avgResponse.get(member.id) ?? null,
+        openLeads: workload.openLeads.get(member.id) ?? 0,
+        overdueFollowUps: workload.overdueFollowUps.get(member.id) ?? 0,
+      };
+    });
+
+    return {
+      from: query.from,
+      to: query.to,
+      rows,
+      totalLeadsCreated: rows.reduce((sum, r) => sum + r.leadsCreated, 0),
+      totalConverted: rows.reduce((sum, r) => sum + r.converted, 0),
+      unassignedLeads: unowned.unassigned,
+      uncontactedLeads: unowned.uncontacted,
+    };
   }
 }

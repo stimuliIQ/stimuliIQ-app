@@ -102,6 +102,7 @@ export class BatchesService {
       branchId: query.branchId,
       facultyId: query.facultyId ?? restriction.restrictToFacultyId,
       status: query.status,
+      enrollable: query.enrollable,
       includeDeleted: query.includeDeleted,
       page: query.page,
       pageSize: query.pageSize,

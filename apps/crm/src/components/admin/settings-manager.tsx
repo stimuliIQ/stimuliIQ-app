@@ -13,7 +13,7 @@ export function SettingsManager({ me }: { me: MeResponse | undefined }): React.J
   const canEdit = hasPermission(me?.permissions, "settings.edit");
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="settings-manager">
+    <div className="space-y-4 md:space-y-5" data-testid="settings-manager">
       <PageHeader
         title="Settings"
         description="Platform-wide and tenant-configurable settings, plus your own account security."

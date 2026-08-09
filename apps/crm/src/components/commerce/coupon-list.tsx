@@ -141,7 +141,7 @@ export function CouponList({ me }: CouponListProps): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="coupons-list">
+    <div className="space-y-4 md:space-y-5" data-testid="coupons-list">
       <PageHeader
         title="Coupons"
         description="Discount codes — percentage or flat, with usage caps and validity windows."

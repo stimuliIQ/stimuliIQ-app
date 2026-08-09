@@ -51,7 +51,7 @@ export function FeatureFlagsManager({ me }: { me: MeResponse | undefined }): Rea
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="feature-flags-manager">
+    <div className="space-y-4 md:space-y-5" data-testid="feature-flags-manager">
       <PageHeader
         title="Feature flags"
         description="Roll out new surfaces gradually. Never a substitute for server-side permission checks."

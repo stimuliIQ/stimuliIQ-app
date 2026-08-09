@@ -22,63 +22,6 @@ import { LeadFormConnected } from "../../leads/lead-form-connected";
 import type { PublicProgramSummary, PublicPartner, PublicTestimonial } from "@repo/types";
 import type { TestimonialSpotlightItem } from "../../home/testimonial-spotlight";
 
-const TESTIMONIALS: TestimonialSpotlightItem[] = [
-  {
-    id: "t1",
-    quote:
-      "The Clinical Research internship changed my career prospects completely. Within 3 months of finishing, I joined a research team at a Bangalore hospital.",
-    studentName: "Aditya R.",
-    college: "Government Medical College, Warangal",
-    program: "Clinical Research",
-    ratingStars: 5 as const,
-  },
-  {
-    id: "t2",
-    quote:
-      "The live sessions with practising clinicians made all the difference. I could ask questions about real cases and get answers that no textbook gives you.",
-    studentName: "Priya S.",
-    college: "Osmania Medical College, Hyderabad",
-    program: "Hospital Administration",
-    ratingStars: 5 as const,
-  },
-  {
-    id: "t3",
-    quote:
-      "The verifiable certificate was a major trust signal when I applied for postings. Interviewers could actually check it on the platform, and that set my application apart.",
-    studentName: "Rahul M.",
-    college: "Osmania University",
-    program: "Public Health & Data",
-    ratingStars: 5 as const,
-  },
-  {
-    id: "t4",
-    quote:
-      "I came in with only classroom theory. The case discussions forced me to actually reason through a patient's history instead of reciting it, and that shift showed up immediately in my clinical postings.",
-    studentName: "Sneha K.",
-    college: "Kasturba Medical College, Mangalore",
-    program: "Clinical Psychology",
-    ratingStars: 5 as const,
-  },
-  {
-    id: "t5",
-    quote:
-      "Being able to rewatch the recorded sessions during exam months was the reason I finished. I could keep up with the program without it competing with my college schedule.",
-    studentName: "Arjun V.",
-    college: "Bangalore Medical College & RI",
-    program: "Clinical Research",
-    ratingStars: 5 as const,
-  },
-  {
-    id: "t6",
-    quote:
-      "My mentor reviewed every case submission properly and told me what was weak rather than just marking it done. That feedback loop is what I actually paid for.",
-    studentName: "Fathima N.",
-    college: "Government Medical College, Kozhikode",
-    program: "Hospital Administration",
-    ratingStars: 5 as const,
-  },
-];
-
 const FAQ_ITEMS = [
   {
     id: "faq-1",
@@ -151,8 +94,12 @@ function toTestimonialItem(t: PublicTestimonial): TestimonialSpotlightItem {
     id: t.id,
     quote: t.quote,
     studentName: t.studentName,
+    // rating is stored 0-50 (x10 scale, see prisma model Testimonial) -> 0-5 stars.
     ratingStars: t.rating != null ? Math.round(t.rating / 10) : undefined,
     avatarSrc: t.studentPhotoUrl ?? undefined,
+    // `college` has no column on Testimonial yet, so the card's eyebrow stays empty for
+    // CRM-authored entries. Tracked in docs/phase-11-followups.md.
+    program: t.programTitle ?? undefined,
   };
 }
 
@@ -164,11 +111,12 @@ export function HomePageFallback({
   exploreCourses: PublicProgramSummary[];
   /** Live CRM college partners; falls back to a hardcoded showcase when empty. */
   colleges?: PublicPartner[];
-  /** Live CRM testimonials; falls back to the hardcoded set when empty. */
+  /** Live CRM testimonials. Empty ⇒ the testimonials section is omitted (no stand-in). */
   testimonials?: PublicTestimonial[];
 }) {
-  // Prefer CRM-managed testimonials; keep the hardcoded set as the resilience fallback.
-  const testimonialItems = testimonials.length > 0 ? testimonials.map(toTestimonialItem) : TESTIMONIALS;
+  // CRM-managed only. Empty (clean DB, nothing published yet, or a failed fetch) means the
+  // section below does not render at all — see the comment there.
+  const testimonialItems = testimonials.map(toTestimonialItem);
 
   return (
     <main id="main-content" className="flex flex-col" data-testid="homepage">
@@ -200,17 +148,26 @@ export function HomePageFallback({
       {/* The mentors teaser used to sit here. Removed from the homepage on request —
           mentors remain reachable via the "Mentors" nav link and /mentors. */}
 
-      <section aria-label="Student testimonials" data-testid="testimonials" className="section-band py-16 lg:py-20">
-        <div className="mx-auto max-w-screen-xl px-4 md:px-6">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold text-fg md:text-4xl">
-              What Our <span className="text-chart-3">Students</span> Say
-            </h2>
-            <p className="mt-3 text-lg text-fg-muted">Real stories from medical students who started their careers with Stimuli IQ.</p>
+      {/* Rendered ONLY when the CRM has published testimonials. There is deliberately no
+          hardcoded stand-in: this section is student endorsements on a healthcare-training
+          site, and inventing named students at named medical colleges to fill the space is
+          not a layout decision, it is fabricated social proof. An absent section is honest;
+          a populated fake one is not. /testimonials already behaved this way ("No
+          testimonials yet"), so the two surfaces now agree.
+          Add and PUBLISH entries at CRM → Marketing → Testimonials to bring it back. */}
+      {testimonialItems.length > 0 ? (
+        <section aria-label="Student testimonials" data-testid="testimonials" className="section-band py-16 lg:py-20">
+          <div className="mx-auto max-w-screen-xl px-4 md:px-6">
+            <div className="mb-12 text-center">
+              <h2 className="text-3xl font-bold text-fg md:text-4xl">
+                What Our <span className="text-chart-3">Students</span> Say
+              </h2>
+              <p className="mt-3 text-lg text-fg-muted">Real stories from medical students who started their careers with Stimuli IQ.</p>
+            </div>
+            <TestimonialSpotlight items={testimonialItems} />
           </div>
-          <TestimonialSpotlight items={testimonialItems} />
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       <PartnerColleges colleges={colleges} />
 

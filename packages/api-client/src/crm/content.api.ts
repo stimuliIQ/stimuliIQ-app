@@ -105,6 +105,15 @@ export class TestimonialsApi {
   async update(id: string, body: UpdateTestimonialRequest, idempotencyKey: string = crypto.randomUUID()): Promise<Testimonial> {
     return this.client.request<Testimonial>("PATCH", `/api/v1/crm/testimonials/${id}`, { body, idempotencyKey });
   }
+  /**
+   * Publish — the ONLY way to make a testimonial visible on the marketing site.
+   * `update({ status: "published" })` is rejected by the API on purpose (publish gate).
+   * This endpoint existed server-side from the start but had no SDK method, which is why
+   * the CRM's status dropdown could never actually publish anything.
+   */
+  async publish(id: string, idempotencyKey: string = crypto.randomUUID()): Promise<Testimonial> {
+    return this.client.request<Testimonial>("POST", `/api/v1/crm/testimonials/${id}/publish`, { idempotencyKey });
+  }
   async remove(id: string, idempotencyKey: string = crypto.randomUUID()): Promise<{ deleted: true }> {
     return this.client.request<{ deleted: true }>("DELETE", `/api/v1/crm/testimonials/${id}`, { idempotencyKey });
   }

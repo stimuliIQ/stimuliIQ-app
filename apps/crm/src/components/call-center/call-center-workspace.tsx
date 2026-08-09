@@ -1,11 +1,12 @@
-// Call Center — one screen for phone-support staff: type whatever the caller
+// Search Engine (formerly "Call Center"; the route, filenames and test ids still
+// say call-center) — one screen for phone-support staff: type whatever the caller
 // gives you (name / phone / email) and their full record is one click away.
 //
 // Result cards are deliberately rich (top-tier support-desk pattern): identity
 // + status chips + the key profile facts + a computed "Next step" line derived
 // from the unified lifecycle stage, so the agent knows what to do for this
 // caller without opening anything. Clicking the card opens the full drawer:
-//   - students → Student 360 (profile / enrollments / payments / attendance /
+//   - students → Student 360 (profile / enrollments / payments /
 //     certificates / tickets / timeline + credential actions)
 //   - leads    → lead drawer (stage moves, follow-ups, bookings, CONVERT)
 //
@@ -176,9 +177,9 @@ export function CallCenterWorkspace({ me }: CallCenterWorkspaceProps): React.JSX
   const isLoading = searching && (studentsQuery.isLoading || leadsQuery.isLoading);
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="call-center-workspace">
+    <div className="space-y-4 md:space-y-5" data-testid="call-center-workspace">
       <PageHeader
-        title="Call Center"
+        title="Search Engine"
         description="Search by name, phone, or email — status, details, and the next step for every caller, one click from their full record."
       />
 

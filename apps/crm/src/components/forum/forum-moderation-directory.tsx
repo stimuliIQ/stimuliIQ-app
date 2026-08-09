@@ -222,7 +222,7 @@ export function ForumModerationDirectory({
     : [];
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="forum-moderation-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="forum-moderation-directory">
       <PageHeader
         title="Forum moderation"
         description={

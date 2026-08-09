@@ -59,3 +59,20 @@ export function publicPageDisplayUrl(slug: string): string {
 export function landingPageUrl(slug: string): string {
   return `${WEB_APP_URL}/lp/${slug}`;
 }
+
+/** Student onboarding form (apps/web /onboarding) — the link staff share with students
+ *  after they pay. Built against the web origin like every other outward link here, so it
+ *  resolves to localhost:3000 in dev and the real site in production. */
+export function onboardingFormUrl(): string {
+  return `${WEB_APP_URL}/onboarding`;
+}
+
+/** Host + path, no protocol — e.g. "stimuliiq.com/onboarding" — for showing staff the
+ *  exact link to hand out. */
+export function onboardingFormDisplayUrl(): string {
+  try {
+    return `${new URL(WEB_APP_URL).host}/onboarding`;
+  } catch {
+    return "/onboarding";
+  }
+}

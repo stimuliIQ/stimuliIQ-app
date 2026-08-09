@@ -63,7 +63,7 @@ export function JobOpeningsFields({ control, register, errors, watch, setValue }
         </div>
       ))}
 
-      <Input label="Empty-state message" {...register("emptyStateMessage")} error={errors.emptyStateMessage?.message} data-testid="job-openings-empty-message" />
+      <Input label="Empty-state message" required {...register("emptyStateMessage")} error={errors.emptyStateMessage?.message} data-testid="job-openings-empty-message" />
     </div>
   );
 }

@@ -20,6 +20,7 @@ import * as argon2 from "argon2";
 import type { StaffUser, CreateStaffUserRequest, ListStaffUsersQuery, UpdateStaffUserRequest } from "@repo/types";
 import { UsersAdminRepository, type StaffUserRow } from "./users.repository";
 import { AuthRepository } from "../auth/auth.repository";
+import { TwoFactorStore } from "../auth/lib/two-factor-store";
 import { ARGON2_HASH_OPTIONS } from "../auth/lib/argon2-params";
 import { PaginatedResult } from "../../common/dto/paginated-result";
 
@@ -52,6 +53,7 @@ export class UsersAdminService {
   constructor(
     private readonly repository: UsersAdminRepository,
     private readonly authRepository: AuthRepository,
+    private readonly twoFactorStore: TwoFactorStore,
   ) {}
 
   async list(tenantId: string, query: ListStaffUsersQuery): Promise<PaginatedResult<StaffUser>> {
@@ -181,6 +183,60 @@ export class UsersAdminService {
       ip,
     });
     return toDto(updated);
+  }
+
+  /**
+   * Admin rescue path — clears 2FA for a user who has lost BOTH their authenticator and
+   * access to their inbox (the self-service email-OTP flow covers everyone else; see
+   * TwoFactorRecoveryService).
+   *
+   * Gated on `twofa.reset` at the controller, deliberately SEPARATE from the own-scope
+   * `twofa.manage` every role already holds — bundling them would have handed every
+   * student the ability to strip a colleague's second factor.
+   *
+   * Self-clearing is blocked for the same reason deactivate() blocks self-deactivation,
+   * and then some: an admin who can silently drop their own second factor turns a
+   * hijacked admin session into a permanent 2FA bypass with no second party involved.
+   * An admin who genuinely lost their device uses the email-OTP flow, or another admin.
+   *
+   * Idempotent: clearing a user who has no 2FA returns `cleared: false` rather than
+   * erroring — the desired end state ("this user is not blocked by 2FA") already holds.
+   */
+  async clearTwoFactor(
+    tenantId: string,
+    actorId: string,
+    id: string,
+    reason: string,
+    ip?: string,
+  ): Promise<{ cleared: boolean }> {
+    const existing = await this.repository.findById(tenantId, id);
+    if (!existing) throw new NotFoundException({ code: "users.not_found", title: "User not found" });
+    if (id === actorId) {
+      throw new ForbiddenException({
+        code: "users.cannot_clear_own_two_factor",
+        title: "You cannot clear your own two-factor authentication",
+        detail: "Use the recovery link on the sign-in page, or ask another admin.",
+      });
+    }
+
+    const target = await this.authRepository.findUserById(id);
+    if (!target?.twoFaEnabled) return { cleared: false };
+
+    await this.twoFactorStore.deactivate(id);
+    await this.authRepository.setTwoFaEnabled(id, false);
+    // The target's live sessions predate the factor removal — end them so the account
+    // is re-authenticated from scratch under its new (weaker) posture.
+    await this.authRepository.revokeAllSessionsForUser(id);
+    await this.authRepository.recordTwoFactorAudit({
+      tenantId,
+      actorId,
+      userId: id,
+      action: "two_factor.admin_clear",
+      reason,
+      ip,
+    });
+
+    return { cleared: true };
   }
 
   /** Every requested roleId must exist in this tenant and must not be the student role. */

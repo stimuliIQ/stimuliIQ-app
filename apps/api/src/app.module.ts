@@ -64,6 +64,7 @@ import { LessonNotesModule } from "./modules/lesson-notes/lesson-notes.module";
 import { SearchModule } from "./modules/search/search.module";
 import { BulkActionsModule } from "./modules/bulk-actions/bulk-actions.module";
 import { GrowthModule } from "./modules/growth/growth.module";
+import { OnboardingModule } from "./modules/onboarding/onboarding.module";
 
 @Module({
   imports: [
@@ -157,6 +158,10 @@ import { GrowthModule } from "./modules/growth/growth.module";
     // Phase-9 Completion T30: per-city SEO data + bundles/tracks pricing — public
     // read endpoints derived from existing Program/Branch data (no new schema).
     GrowthModule,
+    // Student onboarding form (stimuliiq.com/onboarding): a CRM-authored question set
+    // (staff add/edit/reorder fields — no deploy) and the anonymous submissions it
+    // collects, surfaced in the CRM under Onboarding.
+    OnboardingModule,
   ],
   providers: [
     AuditContextMiddleware,
@@ -216,6 +221,12 @@ export class AppModule implements NestModule {
         // Phase-9-completion gap #3: anonymous resume-upload-url mint — same posture
         // as public/careers/apply (no browser session pre-auth; captcha + rate-limit).
         "public/careers/resume-upload-url",
+        // Student onboarding form (stimuliiq.com/onboarding): anonymous submit + the
+        // signed-upload mint for its file answers (the payment receipt). Same posture as
+        // public/careers/* — no browser session exists, so captcha + per-IP rate limiting
+        // are the gate. GET public/onboarding/form needs no exclusion (safe method).
+        "public/onboarding/submit",
+        "public/onboarding/upload-url",
         // Phase-9-completion gap #1: anonymous landing-page render + lead-form config
         // read are GET-only (no CSRF exclusion needed — CsrfMiddleware only guards
         // unsafe methods), included here only as a documentation anchor.
@@ -244,6 +255,12 @@ export class AppModule implements NestModule {
         // pre-session — CSRF only protects routes a browser ALREADY has a session
         // cookie for; IP-rate-limited instead, same as /auth/login).
         "auth/2fa/login-verify",
+        // 2FA recovery ("lost my authenticator") — same pre-session posture as the two
+        // password-reset routes above: the caller cannot complete a login, so no CSRF
+        // cookie exists to check. Both are IP-rate-limited (AuthIpRateLimitGuard) AND
+        // per-email rate-limited inside TwoFactorRecoveryService.
+        "auth/2fa/recovery/request",
+        "auth/2fa/recovery/confirm",
       )
       .forRoutes("*");
   }

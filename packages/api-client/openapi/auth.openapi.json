@@ -1564,6 +1564,14 @@
             "type": "integer",
             "minimum": 0
           },
+          "compareAtPricePaise": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Struck-through 'was' price in paise. Null/omitted = show a single price."
+          },
           "emi": {
             "type": "array",
             "items": {
@@ -1639,10 +1647,43 @@
             "maxLength": 1024,
             "description": "S3/R2 object key from POST /crm/courses/image-upload-url. The API mints a public CDN URL from it — the raw key is never returned. Used as the course card + OG image."
           },
+          "brochureKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "S3/R2 object key from POST /crm/courses/brochure-upload-url (PDF). The API mints a public asset URL from it — the raw key is never returned. Surfaced as the 'Download brochure' button on the public course page."
+          },
           "scholarshipAvailable": {
             "type": "boolean",
             "default": false,
             "description": "When true the website shows a 'Scholarship available' badge on the course."
+          },
+          "badgeColor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "description": "Badge background as #RRGGBB. Text colour is derived from it at render time."
+          },
+          "badgeLabel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 24,
+            "description": "Badge text, e.g. 'Hot' or 'Limited seats'."
+          },
+          "badgeEnabled": {
+            "type": "boolean",
+            "default": false,
+            "description": "When true the badge renders on the public course card. Requires a colour and a label."
+          },
+          "enrollmentEnabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "When true the website shows the 'Enroll Now' CTA and self-serve checkout is open. When false only 'Book Free Slot' is offered and the API rejects new orders for this program. Defaults true so an existing sellable program stays sellable."
           }
         },
         "required": [
@@ -1699,6 +1740,14 @@
           "pricePaise": {
             "type": "integer",
             "minimum": 0
+          },
+          "compareAtPricePaise": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Struck-through 'was' price in paise. Null/omitted = show a single price."
           },
           "emi": {
             "type": "array",
@@ -1769,10 +1818,46 @@
             "maxLength": 1024,
             "description": "Set to a new key to replace the image, or null to clear it."
           },
+          "brochureKey": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Set to a new key to replace the brochure, or null to remove it."
+          },
           "scholarshipAvailable": {
             "type": "boolean",
             "default": false,
             "description": "When true the website shows a 'Scholarship available' badge on the course."
+          },
+          "badgeColor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "description": "Badge background as #RRGGBB. Text colour is derived from it at render time."
+          },
+          "badgeLabel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 24,
+            "description": "Badge text, e.g. 'Hot' or 'Limited seats'."
+          },
+          "badgeEnabled": {
+            "type": "boolean",
+            "default": false,
+            "description": "When true the badge renders on the public course card. Requires a colour and a label."
+          },
+          "enrollmentEnabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "When true the website shows the 'Enroll Now' CTA and self-serve checkout is open. When false only 'Book Free Slot' is offered and the API rejects new orders for this program. Defaults true so an existing sellable program stays sellable."
           }
         },
         "additionalProperties": false
@@ -1820,6 +1905,12 @@
           "pricePaise": {
             "type": "integer"
           },
+          "compareAtPricePaise": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -1831,6 +1922,25 @@
           "isPublic": {
             "type": "boolean",
             "description": "Marketing visibility flag. Program appears on the public site only when status='published' AND isPublic=true."
+          },
+          "order": {
+            "type": "integer",
+            "description": "Staff-curated display order (ascending). Set only via POST /crm/courses/reorder."
+          },
+          "badgeColor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "badgeLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "badgeEnabled": {
+            "type": "boolean"
           },
           "createdAt": {
             "type": "string",
@@ -1846,8 +1956,13 @@
           "mode",
           "durationWeeks",
           "pricePaise",
+          "compareAtPricePaise",
           "status",
           "isPublic",
+          "order",
+          "badgeColor",
+          "badgeLabel",
+          "badgeEnabled",
           "createdAt"
         ]
       },
@@ -1889,6 +2004,12 @@
           "pricePaise": {
             "type": "integer"
           },
+          "compareAtPricePaise": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -1900,6 +2021,25 @@
           "isPublic": {
             "type": "boolean",
             "description": "Marketing visibility flag. Program appears on the public site only when status='published' AND isPublic=true."
+          },
+          "order": {
+            "type": "integer",
+            "description": "Staff-curated display order (ascending). Set only via POST /crm/courses/reorder."
+          },
+          "badgeColor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "badgeLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "badgeEnabled": {
+            "type": "boolean"
           },
           "createdAt": {
             "type": "string",
@@ -1975,7 +2115,17 @@
             ],
             "format": "uri"
           },
+          "brochureUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          },
           "scholarshipAvailable": {
+            "type": "boolean"
+          },
+          "enrollmentEnabled": {
             "type": "boolean"
           },
           "deletedAt": {
@@ -1999,8 +2149,13 @@
           "mode",
           "durationWeeks",
           "pricePaise",
+          "compareAtPricePaise",
           "status",
           "isPublic",
+          "order",
+          "badgeColor",
+          "badgeLabel",
+          "badgeEnabled",
           "createdAt",
           "emi",
           "summary",
@@ -2008,7 +2163,9 @@
           "cardSummary",
           "outcomes",
           "ogImageUrl",
+          "brochureUrl",
           "scholarshipAvailable",
+          "enrollmentEnabled",
           "deletedAt",
           "updatedAt"
         ]
@@ -9196,293 +9353,6 @@
           "error"
         ]
       },
-      "MyAttendanceResponse": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "format": "uuid",
-                  "description": "Attendance row id."
-                },
-                "enrollmentId": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "programId": {
-                  "type": "string",
-                  "format": "uuid",
-                  "description": "Denormalized from enrollment for grouping in the UI."
-                },
-                "programTitle": {
-                  "type": "string"
-                },
-                "lessonId": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "format": "uuid",
-                  "description": "The recorded lesson this row covers. Always populated in P3. Null for live-class rows (deferred — not present in P3 responses)."
-                },
-                "lessonTitle": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "description": "Denormalized lesson title. Null if lessonId is null."
-                },
-                "liveClassId": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "format": "uuid",
-                  "description": "The live_class id this row covers. Always null in P3 (live attendance deferred). Will be populated in a future phase when LiveClassProvider is implemented."
-                },
-                "status": {
-                  "type": "string",
-                  "enum": [
-                    "present",
-                    "absent"
-                  ],
-                  "description": "present = lesson completed or live class joined; absent = missed. In P3 recorded completion always creates status=present."
-                },
-                "source": {
-                  "type": "string",
-                  "enum": [
-                    "live",
-                    "recorded"
-                  ],
-                  "description": "recorded = triggered by recorded lesson completion. live = triggered by live class join (deferred, not in P3)."
-                },
-                "markedAt": {
-                  "type": "string",
-                  "format": "date-time",
-                  "description": "When this attendance row was created/marked."
-                }
-              },
-              "required": [
-                "id",
-                "enrollmentId",
-                "programId",
-                "programTitle",
-                "lessonId",
-                "lessonTitle",
-                "liveClassId",
-                "status",
-                "source",
-                "markedAt"
-              ]
-            }
-          },
-          "summaries": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "enrollmentId": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "programTitle": {
-                  "type": "string"
-                },
-                "totalRecorded": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "description": "Total recorded attendance rows (= completed lessons)."
-                },
-                "totalLessons": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "description": "Total lessons in the program (denominator for %)."
-                },
-                "attendancePct": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 100,
-                  "description": "totalRecorded / totalLessons × 100. Rounded to nearest integer."
-                }
-              },
-              "required": [
-                "enrollmentId",
-                "programTitle",
-                "totalRecorded",
-                "totalLessons",
-                "attendancePct"
-              ]
-            },
-            "description": "Per-enrollment attendance summaries for quick % display. Covers all active enrollments regardless of the current page filter."
-          }
-        },
-        "required": [
-          "items",
-          "summaries"
-        ]
-      },
-      "MyAttendanceEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MyAttendanceResponse"
-              },
-              {
-                "type": [
-                  "object",
-                  "null"
-                ]
-              }
-            ]
-          },
-          "meta": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "additionalProperties": {}
-          },
-          "error": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ProblemDetails"
-              },
-              {
-                "type": [
-                  "object",
-                  "null"
-                ]
-              }
-            ]
-          }
-        },
-        "required": [
-          "data",
-          "meta",
-          "error"
-        ]
-      },
-      "SetAttendanceRequest": {
-        "type": "object",
-        "properties": {
-          "enrollmentId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "lessonId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "present",
-              "absent"
-            ]
-          }
-        },
-        "required": [
-          "enrollmentId",
-          "lessonId",
-          "status"
-        ],
-        "additionalProperties": false
-      },
-      "AttendanceRecord": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "enrollmentId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "lessonId": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "uuid"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "present",
-              "absent"
-            ]
-          },
-          "source": {
-            "type": "string",
-            "enum": [
-              "live",
-              "recorded"
-            ]
-          },
-          "markedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "id",
-          "enrollmentId",
-          "lessonId",
-          "status",
-          "source",
-          "markedAt"
-        ]
-      },
-      "AttendanceRecordEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AttendanceRecord"
-              },
-              {
-                "type": [
-                  "object",
-                  "null"
-                ]
-              }
-            ]
-          },
-          "meta": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "additionalProperties": {}
-          },
-          "error": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ProblemDetails"
-              },
-              {
-                "type": [
-                  "object",
-                  "null"
-                ]
-              }
-            ]
-          }
-        },
-        "required": [
-          "data",
-          "meta",
-          "error"
-        ]
-      },
       "ResourceDownloadResponse": {
         "type": "object",
         "properties": {
@@ -14130,6 +14000,14 @@
             "minimum": 0,
             "description": "Program price in integer paise."
           },
+          "compareAtPricePaise": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Struck-through 'was' price in paise. Null = single price."
+          },
           "emiDisplay": {
             "type": [
               "string",
@@ -14163,6 +14041,25 @@
           "scholarshipAvailable": {
             "type": "boolean",
             "description": "Show the 'Scholarship available' badge."
+          },
+          "enrollmentEnabled": {
+            "type": "boolean",
+            "description": "Whether the 'Enroll Now' CTA / checkout is open."
+          },
+          "badgeColor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "description": "Badge background hex, or null when no badge is visible."
+          },
+          "badgeLabel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Badge chip text, or null when no badge is visible."
           }
         },
         "required": [
@@ -14175,11 +14072,15 @@
           "durationWeeks",
           "cardSummary",
           "pricePaise",
+          "compareAtPricePaise",
           "emiDisplay",
           "ratingAvg",
           "ratingCount",
           "ogImageUrl",
-          "scholarshipAvailable"
+          "scholarshipAvailable",
+          "enrollmentEnabled",
+          "badgeColor",
+          "badgeLabel"
         ]
       },
       "PublicProgramDetail": {
@@ -14239,6 +14140,14 @@
             "minimum": 0,
             "description": "Program price in integer paise."
           },
+          "compareAtPricePaise": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Struck-through 'was' price in paise. Null = single price."
+          },
           "emiDisplay": {
             "type": [
               "string",
@@ -14272,6 +14181,25 @@
           "scholarshipAvailable": {
             "type": "boolean",
             "description": "Show the 'Scholarship available' badge."
+          },
+          "enrollmentEnabled": {
+            "type": "boolean",
+            "description": "Whether the 'Enroll Now' CTA / checkout is open."
+          },
+          "badgeColor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "description": "Badge background hex, or null when no badge is visible."
+          },
+          "badgeLabel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Badge chip text, or null when no badge is visible."
           },
           "seoTitle": {
             "type": [
@@ -14493,6 +14421,27 @@
                   "type": "integer",
                   "minimum": 0,
                   "description": "Program price in integer paise."
+                },
+                "compareAtPricePaise": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "description": "Struck-through 'was' price in paise. Null = single price."
+                },
+                "badgeColor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^#[0-9a-fA-F]{6}$"
+                },
+                "badgeLabel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 }
               },
               "required": [
@@ -14500,9 +14449,20 @@
                 "slug",
                 "title",
                 "cardSummary",
-                "pricePaise"
+                "pricePaise",
+                "compareAtPricePaise",
+                "badgeColor",
+                "badgeLabel"
               ]
             }
+          },
+          "brochureUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "Public URL of the course brochure PDF."
           }
         },
         "required": [
@@ -14515,18 +14475,23 @@
           "durationWeeks",
           "cardSummary",
           "pricePaise",
+          "compareAtPricePaise",
           "emiDisplay",
           "ratingAvg",
           "ratingCount",
           "ogImageUrl",
           "scholarshipAvailable",
+          "enrollmentEnabled",
+          "badgeColor",
+          "badgeLabel",
           "seoTitle",
           "seoDescription",
           "outcomes",
           "curriculumOutline",
           "mentorBios",
           "reviewsSummary",
-          "relatedPrograms"
+          "relatedPrograms",
+          "brochureUrl"
         ]
       },
       "PublicProgramSummaryListEnvelope": {
@@ -19707,133 +19672,6 @@
           "error"
         ]
       },
-      "AttendanceReportDto": {
-        "type": "object",
-        "properties": {
-          "asOf": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Timestamp of the last successful materialized-view refresh."
-          },
-          "stale": {
-            "type": "boolean",
-            "description": "True when the last refresh attempt failed and this is a last-known-good snapshot."
-          },
-          "batchId": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "uuid"
-          },
-          "presentCount": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "totalCount": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "attendancePercent": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 100,
-            "description": "0 when totalCount=0 (never NaN)."
-          },
-          "perBatch": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "type": "object",
-              "properties": {
-                "batchId": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "batchName": {
-                  "type": "string"
-                },
-                "presentCount": {
-                  "type": "integer",
-                  "minimum": 0
-                },
-                "totalCount": {
-                  "type": "integer",
-                  "minimum": 0
-                },
-                "attendancePercent": {
-                  "type": "number",
-                  "minimum": 0,
-                  "maximum": 100
-                }
-              },
-              "required": [
-                "batchId",
-                "batchName",
-                "presentCount",
-                "totalCount",
-                "attendancePercent"
-              ],
-              "additionalProperties": false
-            }
-          }
-        },
-        "required": [
-          "asOf",
-          "stale",
-          "batchId",
-          "presentCount",
-          "totalCount",
-          "attendancePercent",
-          "perBatch"
-        ],
-        "additionalProperties": false
-      },
-      "AttendanceReportEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AttendanceReportDto"
-              },
-              {
-                "type": [
-                  "object",
-                  "null"
-                ]
-              }
-            ]
-          },
-          "meta": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "additionalProperties": {}
-          },
-          "error": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ProblemDetails"
-              },
-              {
-                "type": [
-                  "object",
-                  "null"
-                ]
-              }
-            ]
-          }
-        },
-        "required": [
-          "data",
-          "meta",
-          "error"
-        ]
-      },
       "EngagementReportDto": {
         "type": "object",
         "properties": {
@@ -20464,48 +20302,6 @@
               "type": {
                 "type": "string",
                 "enum": [
-                  "attendance"
-                ]
-              },
-              "format": {
-                "type": "string",
-                "enum": [
-                  "csv",
-                  "pdf"
-                ]
-              },
-              "params": {
-                "type": "object",
-                "properties": {
-                  "batchId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "from": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  },
-                  "to": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "type",
-              "format",
-              "params"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
                   "engagement"
                 ]
               },
@@ -20908,7 +20704,6 @@
               "revenue",
               "enrollments",
               "funnel",
-              "attendance",
               "engagement",
               "campaigns",
               "gamification",
@@ -21293,64 +21088,6 @@
               "type": {
                 "type": "string",
                 "enum": [
-                  "attendance"
-                ]
-              },
-              "format": {
-                "type": "string",
-                "enum": [
-                  "csv",
-                  "pdf"
-                ]
-              },
-              "frequency": {
-                "type": "string",
-                "enum": [
-                  "daily",
-                  "weekly",
-                  "monthly"
-                ]
-              },
-              "recipientEmail": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "format": "email"
-              },
-              "params": {
-                "type": "object",
-                "properties": {
-                  "batchId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "from": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  },
-                  "to": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "type",
-              "format",
-              "frequency",
-              "params"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
                   "engagement"
                 ]
               },
@@ -21594,7 +21331,6 @@
               "revenue",
               "enrollments",
               "funnel",
-              "attendance",
               "engagement",
               "campaigns",
               "gamification",
@@ -25784,6 +25520,12 @@
             ],
             "minimum": 0,
             "maximum": 50
+          },
+          "programTitle": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -25791,7 +25533,8 @@
           "studentName",
           "studentPhotoUrl",
           "quote",
-          "rating"
+          "rating",
+          "programTitle"
         ]
       },
       "PublicTestimonialListEnvelope": {
@@ -28091,6 +27834,12 @@
                                         ],
                                         "minimum": 0,
                                         "maximum": 50
+                                      },
+                                      "programTitle": {
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
                                       }
                                     },
                                     "required": [
@@ -28098,7 +27847,8 @@
                                       "studentName",
                                       "studentPhotoUrl",
                                       "quote",
-                                      "rating"
+                                      "rating",
+                                      "programTitle"
                                     ]
                                   }
                                 }
@@ -28166,7 +27916,7 @@
                                     "limit": {
                                       "type": "integer",
                                       "minimum": 1,
-                                      "maximum": 24,
+                                      "maximum": 60,
                                       "default": 12
                                     },
                                     "sort": {
@@ -28380,6 +28130,14 @@
                                         "minimum": 0,
                                         "description": "Program price in integer paise."
                                       },
+                                      "compareAtPricePaise": {
+                                        "type": [
+                                          "integer",
+                                          "null"
+                                        ],
+                                        "minimum": 0,
+                                        "description": "Struck-through 'was' price in paise. Null = single price."
+                                      },
                                       "emiDisplay": {
                                         "type": [
                                           "string",
@@ -28413,6 +28171,25 @@
                                       "scholarshipAvailable": {
                                         "type": "boolean",
                                         "description": "Show the 'Scholarship available' badge."
+                                      },
+                                      "enrollmentEnabled": {
+                                        "type": "boolean",
+                                        "description": "Whether the 'Enroll Now' CTA / checkout is open."
+                                      },
+                                      "badgeColor": {
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ],
+                                        "pattern": "^#[0-9a-fA-F]{6}$",
+                                        "description": "Badge background hex, or null when no badge is visible."
+                                      },
+                                      "badgeLabel": {
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ],
+                                        "description": "Badge chip text, or null when no badge is visible."
                                       }
                                     },
                                     "required": [
@@ -28425,11 +28202,15 @@
                                       "durationWeeks",
                                       "cardSummary",
                                       "pricePaise",
+                                      "compareAtPricePaise",
                                       "emiDisplay",
                                       "ratingAvg",
                                       "ratingCount",
                                       "ogImageUrl",
-                                      "scholarshipAvailable"
+                                      "scholarshipAvailable",
+                                      "enrollmentEnabled",
+                                      "badgeColor",
+                                      "badgeLabel"
                                     ]
                                   }
                                 }
@@ -29921,7 +29702,7 @@
                                 "limit": {
                                   "type": "integer",
                                   "minimum": 1,
-                                  "maximum": 24,
+                                  "maximum": 60,
                                   "default": 12
                                 },
                                 "sort": {
@@ -31392,7 +31173,7 @@
                                 "limit": {
                                   "type": "integer",
                                   "minimum": 1,
-                                  "maximum": 24,
+                                  "maximum": 60,
                                   "default": 12
                                 },
                                 "sort": {
@@ -32761,7 +32542,7 @@
                                 "limit": {
                                   "type": "integer",
                                   "minimum": 1,
-                                  "maximum": 24,
+                                  "maximum": 60,
                                   "default": 12
                                 },
                                 "sort": {
@@ -34078,6 +33859,12 @@
                                     ],
                                     "minimum": 0,
                                     "maximum": 50
+                                  },
+                                  "programTitle": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -34085,7 +33872,8 @@
                                   "studentName",
                                   "studentPhotoUrl",
                                   "quote",
-                                  "rating"
+                                  "rating",
+                                  "programTitle"
                                 ]
                               }
                             }
@@ -34153,7 +33941,7 @@
                                 "limit": {
                                   "type": "integer",
                                   "minimum": 1,
-                                  "maximum": 24,
+                                  "maximum": 60,
                                   "default": 12
                                 },
                                 "sort": {
@@ -34367,6 +34155,14 @@
                                     "minimum": 0,
                                     "description": "Program price in integer paise."
                                   },
+                                  "compareAtPricePaise": {
+                                    "type": [
+                                      "integer",
+                                      "null"
+                                    ],
+                                    "minimum": 0,
+                                    "description": "Struck-through 'was' price in paise. Null = single price."
+                                  },
                                   "emiDisplay": {
                                     "type": [
                                       "string",
@@ -34400,6 +34196,25 @@
                                   "scholarshipAvailable": {
                                     "type": "boolean",
                                     "description": "Show the 'Scholarship available' badge."
+                                  },
+                                  "enrollmentEnabled": {
+                                    "type": "boolean",
+                                    "description": "Whether the 'Enroll Now' CTA / checkout is open."
+                                  },
+                                  "badgeColor": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "pattern": "^#[0-9a-fA-F]{6}$",
+                                    "description": "Badge background hex, or null when no badge is visible."
+                                  },
+                                  "badgeLabel": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "description": "Badge chip text, or null when no badge is visible."
                                   }
                                 },
                                 "required": [
@@ -34412,11 +34227,15 @@
                                   "durationWeeks",
                                   "cardSummary",
                                   "pricePaise",
+                                  "compareAtPricePaise",
                                   "emiDisplay",
                                   "ratingAvg",
                                   "ratingCount",
                                   "ogImageUrl",
-                                  "scholarshipAvailable"
+                                  "scholarshipAvailable",
+                                  "enrollmentEnabled",
+                                  "badgeColor",
+                                  "badgeLabel"
                                 ]
                               }
                             }
@@ -35932,7 +35751,7 @@
                                 "limit": {
                                   "type": "integer",
                                   "minimum": 1,
-                                  "maximum": 24,
+                                  "maximum": 60,
                                   "default": 12
                                 },
                                 "sort": {
@@ -40909,6 +40728,240 @@
         ],
         "additionalProperties": false
       },
+      "TwoFactorRecoveryRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Current password — recovery must never be reachable with inbox access alone."
+          },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "lms",
+              "crm"
+            ]
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "TwoFactorRecoveryRequestResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Generic confirmation — never reveals whether the account exists or has 2FA enrolled."
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "TwoFactorRecoveryRequestEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TwoFactorRecoveryRequestResponse"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "meta": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {}
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProblemDetails"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "error"
+        ]
+      },
+      "TwoFactorRecoveryConfirm": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "TwoFactorRecoveryConfirmResponse": {
+        "type": "object",
+        "properties": {
+          "reset": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "description": "2FA is now off for this account; sign in with your password and re-enrol."
+          }
+        },
+        "required": [
+          "reset"
+        ]
+      },
+      "TwoFactorRecoveryConfirmEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TwoFactorRecoveryConfirmResponse"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "meta": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {}
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProblemDetails"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "error"
+        ]
+      },
+      "AdminClearTwoFactorRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500,
+            "description": "Why this reset was performed — recorded in the audit log."
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "AdminClearTwoFactorResponse": {
+        "type": "object",
+        "properties": {
+          "cleared": {
+            "type": "boolean",
+            "description": "False when the target had no 2FA enrolled — the call is idempotent, not an error."
+          }
+        },
+        "required": [
+          "cleared"
+        ]
+      },
+      "AdminClearTwoFactorEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdminClearTwoFactorResponse"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "meta": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {}
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProblemDetails"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "error"
+        ]
+      },
       "BulkAssignLeadsRequest": {
         "type": "object",
         "properties": {
@@ -41371,6 +41424,14 @@
                   "minimum": 0,
                   "description": "Program price in integer paise."
                 },
+                "compareAtPricePaise": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "description": "Struck-through 'was' price in paise. Null = single price."
+                },
                 "emiDisplay": {
                   "type": [
                     "string",
@@ -41404,6 +41465,25 @@
                 "scholarshipAvailable": {
                   "type": "boolean",
                   "description": "Show the 'Scholarship available' badge."
+                },
+                "enrollmentEnabled": {
+                  "type": "boolean",
+                  "description": "Whether the 'Enroll Now' CTA / checkout is open."
+                },
+                "badgeColor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "Badge background hex, or null when no badge is visible."
+                },
+                "badgeLabel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Badge chip text, or null when no badge is visible."
                 }
               },
               "required": [
@@ -41416,11 +41496,15 @@
                 "durationWeeks",
                 "cardSummary",
                 "pricePaise",
+                "compareAtPricePaise",
                 "emiDisplay",
                 "ratingAvg",
                 "ratingCount",
                 "ogImageUrl",
-                "scholarshipAvailable"
+                "scholarshipAvailable",
+                "enrollmentEnabled",
+                "badgeColor",
+                "badgeLabel"
               ]
             }
           }
@@ -41559,6 +41643,14 @@
                         "minimum": 0,
                         "description": "Program price in integer paise."
                       },
+                      "compareAtPricePaise": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "minimum": 0,
+                        "description": "Struck-through 'was' price in paise. Null = single price."
+                      },
                       "emiDisplay": {
                         "type": [
                           "string",
@@ -41592,6 +41684,25 @@
                       "scholarshipAvailable": {
                         "type": "boolean",
                         "description": "Show the 'Scholarship available' badge."
+                      },
+                      "enrollmentEnabled": {
+                        "type": "boolean",
+                        "description": "Whether the 'Enroll Now' CTA / checkout is open."
+                      },
+                      "badgeColor": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "pattern": "^#[0-9a-fA-F]{6}$",
+                        "description": "Badge background hex, or null when no badge is visible."
+                      },
+                      "badgeLabel": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "Badge chip text, or null when no badge is visible."
                       }
                     },
                     "required": [
@@ -41604,11 +41715,15 @@
                       "durationWeeks",
                       "cardSummary",
                       "pricePaise",
+                      "compareAtPricePaise",
                       "emiDisplay",
                       "ratingAvg",
                       "ratingCount",
                       "ogImageUrl",
-                      "scholarshipAvailable"
+                      "scholarshipAvailable",
+                      "enrollmentEnabled",
+                      "badgeColor",
+                      "badgeLabel"
                     ]
                   }
                 }
@@ -52942,127 +53057,6 @@
         }
       }
     },
-    "/api/v1/crm/attendance": {
-      "patch": {
-        "summary": "Set/correct a student's attendance for a (enrollment, lesson) pair",
-        "description": "Closes the CRM attendance roster's read-only gap. Faculty (scope: assigned) may correct attendance for enrollments in their own assigned batches; admin/super_admin (scope: all) may correct any. Writes to the SAME dedup key as the student self-service completion path — a staff correction supersedes, never duplicates, the auto-recorded row. AUDITED. Permission: attendance.edit (scope: assigned|all).",
-        "tags": [
-          "crm",
-          "attendance"
-        ],
-        "security": [
-          {
-            "cookieAuth": [],
-            "csrfHeader": []
-          }
-        ],
-        "x-required-permission": "attendance.edit (scope: assigned|all)",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Idempotency key for this mutation. Generate one via crypto.randomUUID(). The backend stores this and returns a cached response on replay, preventing double-mutations (docs/04 §2.6). Required on all unsafe commerce + leads mutations."
-            },
-            "required": true,
-            "description": "Idempotency key for this mutation. Generate one via crypto.randomUUID(). The backend stores this and returns a cached response on replay, preventing double-mutations (docs/04 §2.6). Required on all unsafe commerce + leads mutations.",
-            "name": "Idempotency-Key",
-            "in": "header"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SetAttendanceRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Attendance set.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AttendanceRecordEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthenticated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden (RBAC/scope denied).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict (e.g. refresh reuse detected).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable (e.g. OTP expired/invalid).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Rate limited.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/me/dashboard": {
       "get": {
         "summary": "Get the authenticated student's learning dashboard",
@@ -59030,104 +59024,6 @@
         }
       }
     },
-    "/api/v1/me/attendance": {
-      "get": {
-        "summary": "Get the student's attendance records (recorded lessons in P3)",
-        "description": "Read-only list of the student's own attendance records. In P3, only `source=recorded` rows exist (created server-side when a lesson is completed via POST /me/lessons/:id/complete). Live attendance (source=live) is deferred to a later phase; liveClassId is always null in P3. The client NEVER posts attendance directly — it is always a server-side side-effect of lesson completion or (future) live class join. Returns a paginated list plus per-enrollment attendance summary stats. Permission: attendance.view (scope:own).",
-        "tags": [
-          "lms",
-          "attendance"
-        ],
-        "security": [
-          {
-            "cookieAuth": []
-          }
-        ],
-        "x-required-permission": "attendance.view (scope: own — read-only; written server-side on lesson completion)",
-        "responses": {
-          "200": {
-            "description": "Attendance list + per-enrollment summaries.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MyAttendanceEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthenticated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden (RBAC/scope denied).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict (e.g. refresh reuse detected).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable (e.g. OTP expired/invalid).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Rate limited.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/public/programs": {
       "get": {
         "summary": "List public programs (SEO catalog — published + is_public only)",
@@ -64567,133 +64463,6 @@
         }
       }
     },
-    "/api/v1/crm/reports/attendance": {
-      "get": {
-        "summary": "Attendance dashboard",
-        "description": "AC-14: attendancePercent = COUNT(status='present')/COUNT(*) for the batch's enrollments. AC-15: Faculty MUST supply an assigned batchId — an unassigned batchId returns 404 (IDOR-safe, not 403). AC-16: Admin/Owner omitting batchId gets the all-batch tenant aggregate.",
-        "tags": [
-          "crm",
-          "reports"
-        ],
-        "security": [
-          {
-            "cookieAuth": []
-          }
-        ],
-        "x-required-permission": "reports.attendance.view (scope: all|branch|assigned)",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "required": false,
-            "name": "batchId",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-            },
-            "required": false,
-            "name": "from",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-            },
-            "required": false,
-            "name": "to",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Attendance report.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AttendanceReportEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthenticated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden (RBAC/scope denied).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict (e.g. refresh reuse detected).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable (e.g. OTP expired/invalid).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Rate limited.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/crm/reports/engagement": {
       "get": {
         "summary": "Course / video engagement dashboard",
@@ -65281,7 +65050,6 @@
                 "revenue",
                 "enrollments",
                 "funnel",
-                "attendance",
                 "engagement",
                 "campaigns",
                 "gamification",
@@ -65672,7 +65440,6 @@
                 "revenue",
                 "enrollments",
                 "funnel",
-                "attendance",
                 "engagement",
                 "campaigns",
                 "gamification",
@@ -82990,6 +82757,327 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthSessionEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (RBAC/scope denied).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict (e.g. refresh reuse detected).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable (e.g. OTP expired/invalid).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/2fa/recovery/request": {
+      "post": {
+        "summary": "Request an emailed 2FA recovery code (lost authenticator)",
+        "description": "UNAUTHENTICATED. ALWAYS returns 200 with the same generic message — a nonexistent email, a wrong password, an account without 2FA, and a rate-limited caller are all indistinguishable. The current password is required so recovery is never reachable with inbox access alone.",
+        "tags": [
+          "auth",
+          "2fa"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TwoFactorRecoveryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Generic acknowledgement (never confirms the account exists).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TwoFactorRecoveryRequestEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (RBAC/scope denied).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict (e.g. refresh reuse detected).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable (e.g. OTP expired/invalid).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/2fa/recovery/confirm": {
+      "post": {
+        "summary": "Confirm the emailed recovery code — disables 2FA and revokes all sessions",
+        "description": "UNAUTHENTICATED. Re-verifies the password alongside the single-use, attempt-capped code. No session is issued: the user signs in with their password and re-enrols. 422 RECOVERY_CODE_INVALID covers bad credentials, no enrolment, and a wrong/expired/replayed code alike.",
+        "tags": [
+          "auth",
+          "2fa"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TwoFactorRecoveryConfirm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "2FA disabled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TwoFactorRecoveryConfirmEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (RBAC/scope denied).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict (e.g. refresh reuse detected).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable (e.g. OTP expired/invalid).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/crm/admin/users/{id}/two-factor/clear": {
+      "post": {
+        "summary": "Admin rescue — clear another user's 2FA",
+        "description": "For a user who has lost BOTH their authenticator and inbox access. Requires `twofa.reset` (super_admin/admin only — NOT the own-scope `twofa.manage` every role holds). Self-clearing is forbidden. Audit-logged with the mandatory reason; idempotent (`cleared: false` when the target had no 2FA).",
+        "tags": [
+          "admin",
+          "2fa"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "x-required-permission": "twofa.reset (scope: all)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminClearTwoFactorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "2FA cleared (or already absent).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminClearTwoFactorEnvelope"
                 }
               }
             }

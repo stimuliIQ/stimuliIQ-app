@@ -90,7 +90,7 @@ export function ReferralDirectory({ me }: { me: MeResponse | undefined }): React
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="referral-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="referral-directory">
       <PageHeader
         title="Referrals"
         description="Affiliate/referral program oversight — approve conversions and rewards."

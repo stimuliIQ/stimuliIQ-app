@@ -10,11 +10,11 @@
 //   GET /crm/reports/revenue       reports.revenue.view       (all|branch)
 //   GET /crm/reports/enrollments   reports.enrollment.view    (all|branch|assigned)
 //   GET /crm/reports/funnel        reports.funnel.view        (all|branch|own)
-//   GET /crm/reports/attendance    reports.attendance.view    (all|branch|assigned)
 //   GET /crm/reports/engagement    reports.engagement.view    (all|branch|assigned)
 //   GET /crm/reports/campaigns     reports.campaigns.view     (all — reuses campaigns.view grants)
 //   GET /crm/reports/gamification  reports.gamification.view  (all|assigned)
 //   GET /crm/reports/forum-health  reports.forum.view         (all|assigned)
+//   GET /crm/reports/lead-performance  reports.lead_performance.view  (all|branch)
 //
 // Health/readiness endpoints and reports/exports (CSV/PDF, schedules) are explicitly OUT
 // of this controller's scope — separate tasks (docs/plans/phase-7.md #8, #9).
@@ -27,8 +27,6 @@ import type {
   EnrollmentTrendDto,
   FunnelReportQuery,
   FunnelReportDto,
-  AttendanceReportQuery,
-  AttendanceReportDto,
   EngagementReportQuery,
   EngagementReportDto,
   CampaignPerformanceQuery,
@@ -37,16 +35,18 @@ import type {
   GamificationParticipationDto,
   ForumHealthReportQuery,
   ForumHealthReportDto,
+  LeadPerformanceReportQuery,
+  LeadPerformanceReportDto,
 } from "@repo/types";
 import {
   RevenueReportQuerySchema,
   EnrollmentTrendQuerySchema,
   FunnelReportQuerySchema,
-  AttendanceReportQuerySchema,
   EngagementReportQuerySchema,
   CampaignPerformanceQuerySchema,
   GamificationParticipationQuerySchema,
   ForumHealthReportQuerySchema,
+  LeadPerformanceReportQuerySchema,
 } from "@repo/types";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
@@ -93,16 +93,6 @@ export class AnalyticsController {
     return this.service.getFunnel(user.tenantId, query);
   }
 
-  /** GET /api/v1/crm/reports/attendance — AC-14..AC-16. */
-  @Get("attendance")
-  @RequirePermission("reports.attendance.view")
-  async getAttendance(
-    @CurrentUser() user: RequestUser,
-    @Query(new ZodValidationPipe(AttendanceReportQuerySchema)) query: AttendanceReportQuery,
-  ): Promise<AttendanceReportDto> {
-    return this.service.getAttendance(user.tenantId, query);
-  }
-
   /** GET /api/v1/crm/reports/engagement — AC-17..AC-19. */
   @Get("engagement")
   @RequirePermission("reports.engagement.view")
@@ -131,6 +121,24 @@ export class AnalyticsController {
     @Query(new ZodValidationPipe(GamificationParticipationQuerySchema)) query: GamificationParticipationQuery,
   ): Promise<GamificationParticipationDto> {
     return this.service.getGamificationParticipation(user.tenantId, query);
+  }
+
+  /**
+   * GET /api/v1/crm/reports/lead-performance — per-rep lead scoreboard.
+   *
+   * Separate permission (`reports.lead_performance.view`) rather than folding into
+   * `reports.funnel.view`: the funnel report is about the BUSINESS and is safe for anyone
+   * who works leads, while this one names individuals and their output. Whether a
+   * counsellor may see their colleagues' numbers is a management decision, so it gets its
+   * own grant to turn on or off — seeded to super_admin/admin/branch_manager/marketing.
+   */
+  @Get("lead-performance")
+  @RequirePermission("reports.lead_performance.view")
+  async getLeadPerformance(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(LeadPerformanceReportQuerySchema)) query: LeadPerformanceReportQuery,
+  ): Promise<LeadPerformanceReportDto> {
+    return this.service.getLeadPerformance(user.tenantId, query);
   }
 
   /** GET /api/v1/crm/reports/forum-health — AC-26..AC-27. */

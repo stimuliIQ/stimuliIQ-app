@@ -85,7 +85,7 @@ export function RefundList({ me }: RefundListProps): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="refunds-list">
+    <div className="space-y-4 md:space-y-5" data-testid="refunds-list">
       <PageHeader
         title="Refunds"
         description="Request, approve, and track refunds against captured payments."

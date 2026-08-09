@@ -30,6 +30,7 @@ import { adminBranchesRoute } from "./routes/admin-branches-route";
 import { adminUsersRoute } from "./routes/admin-users-route";
 import { adminAuditRoute } from "./routes/admin-audit-route";
 import { adminSettingsRoute } from "./routes/admin-settings-route";
+import { accountTwoFactorRoute } from "./routes/account-two-factor-route";
 import { adminFeatureFlagsRoute } from "./routes/admin-feature-flags-route";
 import { commerceOrdersRoute } from "./routes/commerce-orders-route";
 import { commercePaymentsRoute } from "./routes/commerce-payments-route";
@@ -45,7 +46,6 @@ import { leadsContactMessagesRoute } from "./routes/leads-contact-messages-route
 import { academicsAssignmentsRoute } from "./routes/academics-assignments-route";
 import { academicsProjectsRoute } from "./routes/academics-projects-route";
 import { academicsAssessmentsRoute } from "./routes/academics-assessments-route";
-import { academicsAttendanceRoute } from "./routes/academics-attendance-route";
 import { contentCertificatesRoute } from "./routes/content-certificates-route";
 import { contentVideosRoute } from "./routes/content-videos-route";
 import { contentResourcesRoute } from "./routes/content-resources-route";
@@ -65,7 +65,7 @@ import { analyticsOverviewRoute } from "./routes/analytics-overview-route";
 import { analyticsRevenueRoute } from "./routes/analytics-revenue-route";
 import { analyticsEnrollmentRoute } from "./routes/analytics-enrollment-route";
 import { analyticsFunnelRoute } from "./routes/analytics-funnel-route";
-import { analyticsAttendanceRoute } from "./routes/analytics-attendance-route";
+import { analyticsLeadPerformanceRoute } from "./routes/analytics-lead-performance-route";
 import { analyticsEngagementRoute } from "./routes/analytics-engagement-route";
 import { analyticsCampaignsRoute } from "./routes/analytics-campaigns-route";
 import { analyticsGamificationRoute } from "./routes/analytics-gamification-route";
@@ -82,6 +82,9 @@ import { forgotPasswordRoute } from "./routes/forgot-password-route";
 import { resetPasswordRoute } from "./routes/reset-password-route";
 import { callCenterRoute } from "./routes/call-center-route";
 import { leadsImportRoute } from "./routes/leads-import-route";
+// Student onboarding form (stimuliiq.com/onboarding) — submissions + the CRM-authored
+// question set that drives the public form.
+import { onboardingRoute } from "./routes/onboarding-route";
 
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
@@ -100,6 +103,7 @@ const routeTree = rootRoute.addChildren([
   adminAuditRoute,
   adminSettingsRoute,
   adminFeatureFlagsRoute,
+  accountTwoFactorRoute,
   commerceOrdersRoute,
   commercePaymentsRoute,
   commerceInvoicesRoute,
@@ -116,7 +120,6 @@ const routeTree = rootRoute.addChildren([
   academicsAssignmentsRoute,
   academicsProjectsRoute,
   academicsAssessmentsRoute,
-  academicsAttendanceRoute,
   contentCertificatesRoute,
   contentVideosRoute,
   contentResourcesRoute,
@@ -136,7 +139,7 @@ const routeTree = rootRoute.addChildren([
   analyticsRevenueRoute,
   analyticsEnrollmentRoute,
   analyticsFunnelRoute,
-  analyticsAttendanceRoute,
+  analyticsLeadPerformanceRoute,
   analyticsEngagementRoute,
   analyticsCampaignsRoute,
   analyticsGamificationRoute,
@@ -149,6 +152,7 @@ const routeTree = rootRoute.addChildren([
   analyticsSchedulesRoute,
   mentorsRoute,
   mentorDashboardRoute,
+  onboardingRoute,
 ]);
 
 export const router = createRouter({ routeTree });

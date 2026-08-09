@@ -56,6 +56,7 @@ export function VideoCaptionDrawer({ open, onOpenChange, video }: VideoCaptionDr
               <div key={index} className="flex items-end gap-2 rounded-md border border-border p-2.5">
                 <Input
                   label="Language"
+                  required
                   placeholder="e.g. en"
                   value={caption.language}
                   onChange={(e) => updateCaption(index, { language: e.target.value })}
@@ -72,6 +73,7 @@ export function VideoCaptionDrawer({ open, onOpenChange, video }: VideoCaptionDr
                 />
                 <Input
                   label="VTT URL"
+                  required
                   placeholder="https://…"
                   value={caption.url}
                   onChange={(e) => updateCaption(index, { url: e.target.value })}

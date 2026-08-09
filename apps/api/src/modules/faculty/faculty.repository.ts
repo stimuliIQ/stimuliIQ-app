@@ -16,7 +16,7 @@
 //   - "own"      -> faculty role is seeded `faculty.view`/`faculty.edit` at scope=own —
 //                    filtered to the caller's own `faculty_profiles.userId = actorId`.
 
-import { Injectable } from "@nestjs/common";
+import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 
@@ -197,7 +197,14 @@ export class FacultyRepository {
         select: { id: true },
       });
       if (!facultyRole) {
-        throw new Error("[faculty] expected the 'faculty' role to exist (seeded by db-architect)");
+        // Same reasoning as students.repository.ts's student-role guard: a bare Error
+        // reaches the CRM as an unactionable "Internal server error".
+        throw new ServiceUnavailableException({
+          code: "faculty.faculty_role_missing",
+          title: "The Faculty role is missing",
+          detail:
+            'This tenant has no active "faculty" role, so a faculty account cannot be created. Restore it under Admin → Roles, then try again.',
+        });
       }
 
       const user = await tx.user.create({

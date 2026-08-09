@@ -39,6 +39,7 @@ import { PublicRepository } from "./public.repository";
 import { PublicBookingRateLimiter } from "../leads/lib/public-booking-rate-limiter";
 import { LeadsRepository } from "../leads/leads.repository";
 import { VideoProviderModule } from "../lms/providers/video/video-provider.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 
 @Module({
   imports: [
@@ -52,6 +53,10 @@ import { VideoProviderModule } from "../lms/providers/video/video-provider.modul
     // lesson preview mints signed playback URLs through the same provider seam the
     // enrolled LMS path uses (no second, weaker media path).
     VideoProviderModule,
+    // NotificationsModule exports NotificationsService — PublicFunnelService rings the
+    // bell of whichever rep the round-robin just handed an inbound website lead to.
+    // Staff-facing only; no public visitor is ever notified through this seam.
+    NotificationsModule,
   ],
   controllers: [
     PublicCatalogController,

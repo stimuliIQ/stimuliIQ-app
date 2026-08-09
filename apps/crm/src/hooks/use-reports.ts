@@ -16,13 +16,13 @@
 // hides what the API would forbid/require, it never invents its own rule.
 import { useQuery } from "@tanstack/react-query";
 import type {
-  AttendanceReportQuery,
   CampaignPerformanceQuery,
   EngagementReportQuery,
   EnrollmentTrendQuery,
   ForumHealthReportQuery,
   FunnelReportQuery,
   GamificationParticipationQuery,
+  LeadPerformanceReportQuery,
   RevenueReportQuery,
 } from "@repo/types";
 
@@ -60,14 +60,6 @@ export function useFunnelReport(query: FunnelReportQuery, enabled = true) {
   });
 }
 
-export function useAttendanceReport(query: AttendanceReportQuery = {}, enabled = true) {
-  return useQuery({
-    queryKey: [...REPORTS_QUERY_KEY, "attendance", query] as const,
-    queryFn: () => apiClient.crm.reports.getAttendance(query),
-    enabled,
-    staleTime: REPORT_STALE_TIME_MS,
-  });
-}
 
 /** `programId` is mandatory server-side — pass `enabled=false` (or omit `programId`) until one is chosen. */
 export function useEngagementReport(query: EngagementReportQuery | undefined, enabled = true) {
@@ -110,5 +102,23 @@ export function useForumHealthReport(query: ForumHealthReportQuery = {}, enabled
     queryFn: () => apiClient.crm.reports.getForumHealth(query),
     enabled,
     staleTime: REPORT_STALE_TIME_MS,
+  });
+}
+
+/**
+ * Per-rep lead performance.
+ *
+ * The ONE report here that is NOT materialized-view-backed, so it does not inherit
+ * REPORT_STALE_TIME_MS: a 5-minute stale window is right for numbers that physically
+ * cannot change faster than the MV refresh, and wrong for "how many calls has this rep
+ * logged today", which changes the moment somebody hangs up. A short window keeps a
+ * manager refreshing the page from being told yesterday's answer.
+ */
+export function useLeadPerformanceReport(query: LeadPerformanceReportQuery, enabled = true) {
+  return useQuery({
+    queryKey: [...REPORTS_QUERY_KEY, "lead-performance", query] as const,
+    queryFn: () => apiClient.crm.reports.getLeadPerformance(query),
+    enabled,
+    staleTime: 30 * 1000,
   });
 }

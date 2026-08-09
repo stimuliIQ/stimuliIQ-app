@@ -1,8 +1,8 @@
 // apps/api/src/modules/lms/lms-progress.service.ts
 //
-// Business logic for the LMS progress + attendance surface (docs/04 §2.1).
-// Wave 4b: progress ping, mark-complete (with completion rollup + recorded attendance),
-// and the student's progress/attendance read views.
+// Business logic for the LMS progress surface (docs/04 §2.1).
+// Wave 4b: progress ping, mark-complete (with completion rollup), and the student's
+// progress read view.
 //
 // ─── LAYERING ─────────────────────────────────────────────────────────────────
 //   This service lives in the same LmsModule (cohesive, bounded) as LmsService.
@@ -25,10 +25,7 @@
 // ─── IDEMPOTENCY CONTRACT (completion) ────────────────────────────────────────
 //   - State-check idempotency: if lesson_progress.status is already "completed",
 //     the completion transaction does NOT re-set completedAt, does NOT re-create
-//     attendance (already exists), and returns the existing state.
-//   - Attendance partial-unique index: UNIQUE(enrollment_id, lesson_id) WHERE
-//     source='recorded' (db-architect enforced) means even a concurrent second
-//     completion cannot create a duplicate attendance row (the repo catches P2002
+//     the existing state.
 //     and treats it as a no-op).
 //   - The Idempotency-Key header (from docs/04 §2.14) is the belt-and-suspenders
 //     layer at the HTTP boundary — the real idempotency lives in the DB.
@@ -48,17 +45,13 @@ import {
 import type {
   ProgressResponse,
   MyProgressResponse,
-  MyAttendanceItem,
-  AttendanceSummary,
-  AttendanceRecord,
-  SetAttendanceRequest,
 } from "@repo/types";
 import { resolveEnrollmentForLesson } from "./lms-enrollment-gate";
 import { LmsRepository } from "./lms.repository";
 import { PrismaService } from "../../prisma/prisma.service";
 import { EnrollmentScopeRepository } from "../common-scope/enrollment-scope.repository";
 import { CertificatesService } from "../certificates/certificates.service";
-import type { ListMyAttendanceQuery, UpdateProgressRequest } from "./dto";
+import type { UpdateProgressRequest } from "./dto";
 
 @Injectable()
 export class LmsProgressService {
@@ -166,13 +159,10 @@ export class LmsProgressService {
    *   - Gate via resolveEnrollmentForLesson (same gate as ping).
    *   - Inside ONE $transaction (audited client):
    *       1. Upsert lesson_progress → status=completed + completed_at.
-   *       2. Upsert recorded attendance (idempotent, partial-unique enforced by DB).
    *       3. Recalculate enrollment.progress_pct.
    *   - The transaction uses PrismaService.client (audited) so the completion
    *     transition writes exactly ONE audit row for LessonProgress.
    *   - Idempotent: replaying on an already-completed lesson is a no-op.
-   *     The attendance repo method checks for an existing row before creating,
-   *     and catches P2002 for concurrent race conditions.
    *
    * Permission: progress.edit (own).
    */
@@ -197,7 +187,7 @@ export class LmsProgressService {
     const enrollment = gate.enrollment;
 
     // ONE $transaction on the AUDITED client (completion = meaningful audit event).
-    // This ensures: progress row + attendance row + enrollment.progress_pct are committed
+    // This ensures: progress row + enrollment.progress_pct are committed
     // atomically, and exactly one audit row is written for the LessonProgress mutation.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma extended client $transaction typing (pattern from commerce.repository.ts)
     const { progress, newProgressPct, justCompleted } = await (this.prisma.client as any).$transaction(async (tx: any) => {
@@ -208,14 +198,8 @@ export class LmsProgressService {
         lessonId,
       });
 
-      // 2. Upsert recorded attendance (idempotent: no dup per partial-unique).
-      await this.repo.upsertRecordedAttendance(tx, {
-        tenantId,
-        enrollmentId: enrollment.id,
-        lessonId,
-      });
 
-      // 3. Recalculate and persist enrollment.progress_pct.
+      // 2. Recalculate and persist enrollment.progress_pct.
       const { progressPct, justCompleted } = await this.repo.recalcEnrollmentProgressPct(tx, {
         enrollmentId: enrollment.id,
         programId: enrollment.programId,
@@ -327,146 +311,4 @@ export class LmsProgressService {
     };
   }
 
-  // ─── ATTENDANCE (READ) ────────────────────────────────────────────────────
-
-  /**
-   * GET /api/v1/me/attendance — student's recorded attendance (paginated).
-   *
-   * Read-only. Attendance is always created server-side as a side-effect of
-   * lesson completion (or future live class join). The client never POSTs attendance.
-   *
-   * Enrollment-scoped: only returns rows belonging to this student's enrollments.
-   * IDOR: if `enrollmentId` filter is supplied and does not belong to this student,
-   * the query returns an empty result (no 403 disclosure of existence).
-   *
-   * Permission: attendance.view (own).
-   */
-  async listAttendance(
-    userId: string,
-    tenantId: string,
-    query: ListMyAttendanceQuery,
-  ): Promise<{ data: { items: MyAttendanceItem[]; summaries: AttendanceSummary[] }; meta: { page: number; pageSize: number; total: number; hasMore: boolean } }> {
-    const studentId = await this.repo.findStudentProfileId(tenantId, userId);
-    if (!studentId) {
-      return {
-        data: { items: [], summaries: [] },
-        meta: { page: query.page, pageSize: query.pageSize, total: 0, hasMore: false },
-      };
-    }
-
-    const [{ rows, total }, summaries] = await Promise.all([
-      this.repo.listAttendanceForStudent(tenantId, studentId, {
-        enrollmentId: query.enrollmentId,
-        source: query.source,
-        status: query.status,
-        page: query.page,
-        pageSize: query.pageSize,
-      }),
-      this.repo.getAttendanceSummaries(tenantId, studentId),
-    ]);
-
-    const items: MyAttendanceItem[] = rows.map((row) => ({
-      id: row.id,
-      enrollmentId: row.enrollmentId,
-      programId: row.programId,
-      programTitle: row.programTitle,
-      lessonId: row.lessonId,
-      lessonTitle: row.lessonTitle,
-      liveClassId: row.liveClassId,
-      status: row.status,
-      source: row.source,
-      markedAt: row.markedAt.toISOString(),
-    }));
-
-    const summaryDtos: AttendanceSummary[] = summaries.map((s) => ({
-      enrollmentId: s.enrollmentId,
-      programTitle: s.programTitle,
-      totalRecorded: s.totalRecorded,
-      totalLessons: s.totalLessons,
-      attendancePct: s.attendancePct,
-    }));
-
-    return {
-      data: { items, summaries: summaryDtos },
-      meta: {
-        page: query.page,
-        pageSize: query.pageSize,
-        total,
-        hasMore: query.page * query.pageSize < total,
-      },
-    };
-  }
-
-  // ─── ATTENDANCE (CRM WRITE — Phase-9-completion gap #6) ──────────────────
-
-  /**
-   * PATCH /api/v1/crm/attendance — staff sets/corrects a student's attendance for a
-   * (enrollment, lesson) pair. Closes the "attendance is read-only" gap flagged in
-   * apps/crm/src/components/attendance/batch-attendance-roster.tsx.
-   *
-   * SCOPE:
-   *   - scope=all (admin/super_admin): any enrollment in the tenant.
-   *   - scope=assigned (faculty): only enrollments in batches they teach
-   *     (EnrollmentScopeRepository.resolveBatchIdsForFaculty) — IDOR → 404 otherwise
-   *     (no existence disclosure, matches certificates.service.ts's identical pattern).
-   *
-   * Also verifies the lessonId belongs to the enrollment's program (defense-in-depth
-   * — rejects a lessonId from an unrelated program even though the FK alone would
-   * allow it). AUDITED (Attendance is in AUDITED_MODELS — the repository write itself
-   * triggers the audit_logs row via the Prisma extension).
-   */
-  async setAttendance(
-    tenantId: string,
-    actorId: string,
-    scope: "all" | "assigned" | "branch",
-    body: SetAttendanceRequest,
-  ): Promise<AttendanceRecord> {
-    const enrollment = await this.repo.findEnrollmentForStaff(tenantId, body.enrollmentId);
-    if (!enrollment) {
-      throw new NotFoundException({ code: "lms.enrollment_not_found", title: "Enrollment not found" });
-    }
-
-    if (scope === "assigned") {
-      const facultyProfileId = await this.repo.findFacultyProfileId(tenantId, actorId);
-      if (!facultyProfileId) {
-        throw new NotFoundException({ code: "lms.enrollment_not_found", title: "Enrollment not found" });
-      }
-      const assignedBatchIds = await this.enrollmentScope.resolveBatchIdsForFaculty(tenantId, facultyProfileId);
-      if (!assignedBatchIds.includes(enrollment.batchId)) {
-        // IDOR → 404 (no existence disclosure), mirrors certificates.service.ts.
-        throw new NotFoundException({ code: "lms.enrollment_not_found", title: "Enrollment not found" });
-      }
-    } else if (scope !== "all") {
-      throw new ForbiddenException({
-        code: "attendance.scope_unresolvable",
-        title: "Scope not supported",
-        detail: `The "${scope}" data-scope is not resolvable for the attendance editor.`,
-      });
-    }
-
-    const lessonProgramId = await this.repo.findLessonProgramId(tenantId, body.lessonId);
-    if (!lessonProgramId || lessonProgramId !== enrollment.programId) {
-      throw new NotFoundException({ code: "lms.lesson_not_found", title: "Lesson not found for this enrollment's program" });
-    }
-
-    const row = await this.repo.upsertAttendanceForStaff({
-      tenantId,
-      enrollmentId: body.enrollmentId,
-      lessonId: body.lessonId,
-      status: body.status,
-    });
-
-    this.logger.log(
-      `[attendance.edit] actor=${actorId} enrollmentId=${body.enrollmentId} lessonId=${body.lessonId} status=${body.status}`,
-    );
-
-    return {
-      id: row.id,
-      enrollmentId: row.enrollmentId,
-      lessonId: row.lessonId,
-      status: row.status,
-      source: row.source,
-      markedAt: row.markedAt.toISOString(),
-    };
-  }
 }

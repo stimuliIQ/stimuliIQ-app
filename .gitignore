@@ -59,3 +59,8 @@ scripts/.dev-*.log
 # Authorised signature scans must never sit in a browsable docs folder — the only
 # place a signature belongs is apps/api/assets/certificate/ (private, never served).
 docs/**/*signature*
+
+# Local .env backups (contain live secrets — never commit)
+.env.bak-*
+.env.*.bak
+.env.save*

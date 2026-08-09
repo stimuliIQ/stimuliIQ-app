@@ -118,7 +118,7 @@ export function AssessmentDirectory({ me }: AssessmentDirectoryProps): React.JSX
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="assessments-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="assessments-directory">
       <PageHeader
         title="Assessments"
         description="Author MCQ and descriptive assessments. Grade descriptive attempts manually."

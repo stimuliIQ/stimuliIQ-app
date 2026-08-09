@@ -101,7 +101,7 @@ export function PaymentLedger({ me }: PaymentLedgerProps): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="payments-ledger">
+    <div className="space-y-4 md:space-y-5" data-testid="payments-ledger">
       <PageHeader
         title="Payments"
         description="The authoritative payment ledger — Razorpay-captured and manually recorded payments."

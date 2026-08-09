@@ -180,7 +180,7 @@ export function ProjectDirectory({ me }: ProjectDirectoryProps): React.JSX.Eleme
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="projects-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="projects-directory">
       <PageHeader
         title="Projects"
         description="Multi-milestone project review pipeline. Faculty review each milestone in their assigned batches."

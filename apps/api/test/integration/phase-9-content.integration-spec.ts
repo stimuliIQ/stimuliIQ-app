@@ -80,6 +80,8 @@ describeIfAvailable("Phase-9 Headless Content — integration + RBAC + draft/pub
 
   const fixtureUserIds: string[] = [];
   const fixtureBlogPostIds: string[] = [];
+  const fixtureTestimonialIds: string[] = [];
+  const fixtureProgramIds: string[] = [];
   const fixtureNewsletterIds: string[] = [];
   const fixtureContactIds: string[] = [];
   const fixtureCareerIds: string[] = [];
@@ -139,6 +141,8 @@ describeIfAvailable("Phase-9 Headless Content — integration + RBAC + draft/pub
   afterAll(async () => {
     if (prisma) {
       await prisma.blogPost.deleteMany({ where: { id: { in: fixtureBlogPostIds } } }).catch(() => {});
+      await prisma.testimonial.deleteMany({ where: { id: { in: fixtureTestimonialIds } } }).catch(() => {});
+      await prisma.program.deleteMany({ where: { id: { in: fixtureProgramIds } } }).catch(() => {});
       await prisma.newsletterSubscription.deleteMany({ where: { id: { in: fixtureNewsletterIds } } }).catch(() => {});
       await prisma.contactSubmission.deleteMany({ where: { id: { in: fixtureContactIds } } }).catch(() => {});
       await prisma.careerApplication.deleteMany({ where: { id: { in: fixtureCareerIds } } }).catch(() => {});
@@ -245,6 +249,116 @@ describeIfAvailable("Phase-9 Headless Content — integration + RBAC + draft/pub
     it("non-content.* role (counsellor) cannot delete", async () => {
       const res = await request(httpServer)
         .delete(`/api/v1/crm/blog/posts/${postId}`)
+        .set("Cookie", cookieHeader(counsellorCookies))
+        .set("X-CSRF-Token", csrfCounsellor);
+      expect(res.status).toBe(403);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Testimonials: the CRM "Show on website" toggle, end to end
+  // ═══════════════════════════════════════════════════════════════════════
+  //
+  // This block exists because the exact journey it covers was BROKEN and untested:
+  // TestimonialsService.update() silently dropped `status: "published"` from the patch and
+  // returned 200, and the SDK had no `publish()` method at all — so the CRM could never
+  // publish a testimonial, and the homepage's "What Our Students Say" section could never
+  // show real content. Blog had this coverage; testimonials never did.
+  //
+  // Note the deliberate divergence from blog above: blog's PATCH ignores a publish attempt
+  // and returns 200, testimonials' PATCH now REJECTS it (400). Silence is what let the bug
+  // hide for so long, so this surface fails loudly instead.
+
+  describe("Testimonials: draft -> publish -> unpublish drives homepage visibility", () => {
+    let testimonialId: string;
+    let programId: string;
+    const studentName = `Integration Student ${suffix}`;
+
+    beforeAll(async () => {
+      // A real linked program, so the joined `programTitle` on the public DTO is exercised
+      // against the actual SQL join rather than a mock.
+      const program = await prisma.program.create({
+        data: {
+          tenantId,
+          slug: `p9-testimonial-program-${suffix}`,
+          title: "Neurology Workshop",
+          domain: "neurology",
+          pricePaise: 699900,
+          status: "draft",
+        },
+      });
+      programId = program.id;
+      fixtureProgramIds.push(program.id);
+    });
+
+    it("content_editor creates a testimonial — it lands as a draft even when the body says published", async () => {
+      const res = await request(httpServer)
+        .post("/api/v1/crm/testimonials")
+        .set("Cookie", cookieHeader(contentEditorCookies))
+        .set("X-CSRF-Token", csrfContentEditor)
+        .send({ programId, studentName, quote: "The case discussions changed how I reason.", rating: 50, status: "published", order: 0 });
+      expect(res.status).toBe(201);
+      expect(res.body.data.status).toBe("draft"); // publish gate
+      testimonialId = res.body.data.id;
+      fixtureTestimonialIds.push(testimonialId);
+    });
+
+    it("a draft testimonial is NOT visible on the public surface — the homepage section stays empty", async () => {
+      const publicList = await request(httpServer).get("/api/v1/public/testimonials");
+      expect(publicList.status).toBe(200);
+      expect(publicList.body.data.some((t: { studentName: string }) => t.studentName === studentName)).toBe(false);
+    });
+
+    it("PATCH status='published' is REJECTED (400) rather than silently ignored — the bug this fixes", async () => {
+      const res = await request(httpServer)
+        .patch(`/api/v1/crm/testimonials/${testimonialId}`)
+        .set("Cookie", cookieHeader(contentEditorCookies))
+        .set("X-CSRF-Token", csrfContentEditor)
+        .send({ status: "published" });
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe("content.publish_requires_publish_endpoint");
+
+      // And it really is still a draft — not a 400 masking a partial write.
+      const row = await prisma.testimonial.findUnique({ where: { id: testimonialId } });
+      expect(row?.status).toBe("draft");
+    });
+
+    it("POST :id/publish makes it live, and the public DTO carries the joined program title", async () => {
+      const publishRes = await request(httpServer)
+        .post(`/api/v1/crm/testimonials/${testimonialId}/publish`)
+        .set("Cookie", cookieHeader(contentEditorCookies))
+        .set("X-CSRF-Token", csrfContentEditor);
+      expect(publishRes.status).toBe(200);
+      expect(publishRes.body.data.status).toBe("published");
+
+      const publicList = await request(httpServer).get("/api/v1/public/testimonials");
+      const mine = publicList.body.data.find((t: { studentName: string }) => t.studentName === studentName);
+      expect(mine).toBeDefined();
+      expect(mine.quote).toBe("The case discussions changed how I reason.");
+      expect(mine.rating).toBe(50);
+      expect(mine.programTitle).toBe("Neurology Workshop"); // joined server-side
+      // Internal fields must never reach a marketing page.
+      expect(mine).not.toHaveProperty("status");
+      expect(mine).not.toHaveProperty("programId");
+      expect(mine).not.toHaveProperty("tenantId");
+    });
+
+    it("PATCH status='draft' unpublishes it — turning the toggle back off hides it again", async () => {
+      const res = await request(httpServer)
+        .patch(`/api/v1/crm/testimonials/${testimonialId}`)
+        .set("Cookie", cookieHeader(contentEditorCookies))
+        .set("X-CSRF-Token", csrfContentEditor)
+        .send({ status: "draft" });
+      expect(res.status).toBe(200);
+      expect(res.body.data.status).toBe("draft");
+
+      const publicList = await request(httpServer).get("/api/v1/public/testimonials");
+      expect(publicList.body.data.some((t: { studentName: string }) => t.studentName === studentName)).toBe(false);
+    });
+
+    it("non-content.* role (counsellor) cannot publish", async () => {
+      const res = await request(httpServer)
+        .post(`/api/v1/crm/testimonials/${testimonialId}/publish`)
         .set("Cookie", cookieHeader(counsellorCookies))
         .set("X-CSRF-Token", csrfCounsellor);
       expect(res.status).toBe(403);

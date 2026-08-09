@@ -140,43 +140,6 @@ export function ReportParamsFields({ type, params, onChange, idPrefix }: ReportP
     );
   }
 
-  if (type === "attendance") {
-    return (
-      <>
-        <Select
-          label="Batch"
-          placeholder="All batches"
-          value={params.batchId}
-          onValueChange={(value) => onChange({ batchId: value === "__all__" ? undefined : value })}
-          data-testid={`${idPrefix}-batch`}
-        >
-          <SelectItem value="__all__">All batches</SelectItem>
-          {(batches?.items ?? []).map((batch) => (
-            <SelectItem key={batch.id} value={batch.id}>
-              {batch.name}
-            </SelectItem>
-          ))}
-        </Select>
-        <Input
-          label="From"
-          type="date"
-          helperText="Optional — leave blank for all-time."
-          value={params.from ?? ""}
-          onChange={(event) => onChange({ from: event.target.value })}
-          data-testid={`${idPrefix}-from`}
-        />
-        <Input
-          label="To"
-          type="date"
-          helperText="Optional — leave blank for all-time."
-          value={params.to ?? ""}
-          onChange={(event) => onChange({ to: event.target.value })}
-          data-testid={`${idPrefix}-to`}
-        />
-      </>
-    );
-  }
-
   if (OPTIONAL_BATCH_ONLY_TYPES.has(type)) {
     return (
       <Select

@@ -21,8 +21,6 @@ export function buildExportParams(type: ExportEntityType, params: ReportParamsBa
       };
     case "funnel":
       return { from: params.from, to: params.to, branchId: params.branchId || undefined };
-    case "attendance":
-      return { batchId: params.batchId || undefined, from: params.from || undefined, to: params.to || undefined };
     case "engagement":
       return { programId: params.programId, batchId: params.batchId || undefined };
     case "campaigns":

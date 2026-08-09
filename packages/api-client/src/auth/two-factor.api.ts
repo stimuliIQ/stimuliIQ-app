@@ -10,6 +10,8 @@
 //   POST /api/v1/auth/2fa/disable       → disable()
 //   POST /api/v1/auth/2fa/login-verify  → loginVerify() — UNAUTHENTICATED, second step
 //                                          of a 2FA login (mirrors AuthApi.login()).
+//   POST /api/v1/auth/2fa/recovery/request → requestRecovery() — UNAUTHENTICATED
+//   POST /api/v1/auth/2fa/recovery/confirm → confirmRecovery() — UNAUTHENTICATED
 
 import type {
   TotpStatusResponse,
@@ -18,6 +20,10 @@ import type {
   TotpVerifyEnrollResponse,
   TotpDisableRequest,
   TwoFactorLoginVerifyRequest,
+  TwoFactorRecoveryRequest,
+  TwoFactorRecoveryRequestResponse,
+  TwoFactorRecoveryConfirm,
+  TwoFactorRecoveryConfirmResponse,
   AuthSessionData,
 } from "@repo/types";
 import type { ApiClient } from "../http/client.js";
@@ -57,5 +63,31 @@ export class TwoFactorApi {
     });
     this.client.setCsrfToken(data.csrfToken);
     return data;
+  }
+
+  /**
+   * POST /api/v1/auth/2fa/recovery/request — mails a single-use recovery code to a user
+   * who has lost their authenticator. UNAUTHENTICATED.
+   *
+   * ALWAYS resolves with the same generic message — never treat a success here as proof
+   * that the account exists, that the password was right, or that 2FA was enrolled.
+   */
+  async requestRecovery(body: TwoFactorRecoveryRequest): Promise<TwoFactorRecoveryRequestResponse> {
+    return this.client.request<TwoFactorRecoveryRequestResponse>("POST", "/api/v1/auth/2fa/recovery/request", {
+      body,
+      skipAuthRefresh: true,
+    });
+  }
+
+  /**
+   * POST /api/v1/auth/2fa/recovery/confirm — consumes the emailed code and turns 2FA
+   * OFF. UNAUTHENTICATED, and deliberately does NOT establish a session: the caller
+   * signs in with their password afterwards and re-enrols.
+   */
+  async confirmRecovery(body: TwoFactorRecoveryConfirm): Promise<TwoFactorRecoveryConfirmResponse> {
+    return this.client.request<TwoFactorRecoveryConfirmResponse>("POST", "/api/v1/auth/2fa/recovery/confirm", {
+      body,
+      skipAuthRefresh: true,
+    });
   }
 }

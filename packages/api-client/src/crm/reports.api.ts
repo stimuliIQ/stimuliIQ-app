@@ -8,6 +8,10 @@
 // (@repo/types ReportFreshnessSchema) — render a "data as of HH:MM" /
 // staleness indicator, never present a response as if it were live.
 //
+// ONE EXCEPTION: getLeadPerformance() is computed live off the write-path tables and
+// therefore returns NO asOf/stale pair. Do not render a freshness indicator for it —
+// there is no snapshot behind it to be stale.
+//
 // SCOPE: none of these methods accept a tenant/scope selector — the backend
 // resolves all|branch|assigned|own from the caller's session
 // (CLAUDE.md §3.5). An out-of-scope `branchId`/`batchId`/`campaignId` filter
@@ -23,8 +27,6 @@ import type {
   EnrollmentTrendDto,
   FunnelReportQuery,
   FunnelReportDto,
-  AttendanceReportQuery,
-  AttendanceReportDto,
   EngagementReportQuery,
   EngagementReportDto,
   CampaignPerformanceQuery,
@@ -33,6 +35,8 @@ import type {
   GamificationParticipationDto,
   ForumHealthReportQuery,
   ForumHealthReportDto,
+  LeadPerformanceReportQuery,
+  LeadPerformanceReportDto,
 } from "@repo/types";
 import type { ApiClient } from "../http/client.js";
 import { toQueryString } from "../http/query.js";
@@ -74,18 +78,6 @@ export class ReportsApi {
     );
   }
 
-  /**
-   * GET /api/v1/crm/reports/attendance
-   * Faculty MUST pass an assigned `batchId` (unassigned → 404, AC-15).
-   * Admin/Owner may omit `batchId` for the tenant-wide aggregate (AC-16).
-   * Permissions: reports.attendance.view (scope: all|branch|assigned).
-   */
-  async getAttendance(query: AttendanceReportQuery = {}): Promise<AttendanceReportDto> {
-    return this.client.request<AttendanceReportDto>(
-      "GET",
-      `/api/v1/crm/reports/attendance${toQueryString(query)}`,
-    );
-  }
 
   /**
    * GET /api/v1/crm/reports/engagement
@@ -137,6 +129,21 @@ export class ReportsApi {
     return this.client.request<ForumHealthReportDto>(
       "GET",
       `/api/v1/crm/reports/forum-health${toQueryString(query)}`,
+    );
+  }
+
+  /**
+   * GET /api/v1/crm/reports/lead-performance
+   * Permissions: reports.lead_performance.view (scope: all|branch).
+   *
+   * Unlike the other reports on this client, the response carries no `asOf`/`stale`
+   * freshness pair — it is computed live rather than off a materialized view, so there is
+   * no snapshot for it to be stale against.
+   */
+  async getLeadPerformance(query: LeadPerformanceReportQuery): Promise<LeadPerformanceReportDto> {
+    return this.client.request<LeadPerformanceReportDto>(
+      "GET",
+      `/api/v1/crm/reports/lead-performance${toQueryString(query)}`,
     );
   }
 }

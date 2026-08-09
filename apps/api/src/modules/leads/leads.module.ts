@@ -18,6 +18,7 @@ import { AuthModule } from "../auth/auth.module";
 import { CommerceModule } from "../commerce/commerce.module";
 import { StudentsModule } from "../students/students.module";
 import { CaptchaProviderModule } from "../captcha/providers/captcha/captcha-provider.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 import { LeadsController } from "./leads.controller";
 import { LeadsService } from "./leads.service";
 import { LeadsRepository } from "./leads.repository";
@@ -30,7 +31,10 @@ import { BookingsRepository } from "./bookings.repository";
 import { PublicBookingRateLimiter } from "./lib/public-booking-rate-limiter";
 
 @Module({
-  imports: [AuthModule, CommerceModule, StudentsModule, CaptchaProviderModule],
+  // NotificationsModule: LeadsService rings the new owner's bell on assignment
+  // (NotificationsService.notifyLeadAssigned). Notifications has no dependency back on
+  // leads, so this stays a one-way edge — no circular-module forwardRef needed.
+  imports: [AuthModule, CommerceModule, StudentsModule, CaptchaProviderModule, NotificationsModule],
   controllers: [LeadsController, ActivitiesController, BookingsController, PublicBookingsController],
   providers: [
     LeadsService,

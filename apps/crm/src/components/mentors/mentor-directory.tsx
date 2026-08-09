@@ -92,7 +92,7 @@ export function MentorDirectory({ me }: MentorDirectoryProps): React.JSX.Element
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="mentor-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="mentor-directory">
       <PageHeader
         title="Mentors"
         description="Externally-hired subject experts who lead batches to completion — search, filter, and manage hiring records."

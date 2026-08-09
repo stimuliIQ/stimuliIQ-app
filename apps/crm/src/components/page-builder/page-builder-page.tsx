@@ -20,7 +20,7 @@ export function PageBuilderPage({ me }: { me: MeResponse | undefined }): React.J
 
   if (!canView) {
     return (
-      <div className="space-y-6 md:space-y-8" data-testid="page-builder-page">
+      <div className="space-y-4 md:space-y-5" data-testid="page-builder-page">
         <PageHeader title="Page builder" />
         <EmptyState
           icon={<ShieldAlert />}

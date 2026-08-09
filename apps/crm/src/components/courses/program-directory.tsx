@@ -199,7 +199,7 @@ export function ProgramDirectory({ me }: ProgramDirectoryProps): React.JSX.Eleme
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="programs-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="programs-directory">
       <PageHeader
         title="Courses"
         description="Programs, curriculum, and publish status."

@@ -317,7 +317,7 @@ export function CertificateDirectory({ me }: CertificateDirectoryProps): React.J
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="certificates-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="certificates-directory">
       <PageHeader
         title="Certificates"
         description="Eligibility breakdown per enrollment. Issue, revoke, and reissue certificates."

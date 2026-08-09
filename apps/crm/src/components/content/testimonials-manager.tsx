@@ -4,16 +4,13 @@
 // needs beyond that display-focused shape. Phase 9 Completion T22/T40.
 import * as React from "react";
 import { Star, Trash2 } from "lucide-react";
-import { Button, ConfirmDialog, DataTable, type DataTableColumn, Drawer, DrawerContent, DrawerBody, DrawerFooter, EmptyState, Input, PageHeader, Select, SelectItem, StatusChip, TestimonialInput, type TestimonialFormValues, useToast } from "@repo/ui";
+import { Button, ConfirmDialog, DataTable, type DataTableColumn, Drawer, DrawerContent, DrawerBody, DrawerFooter, EmptyState, Input, PageHeader, Select, SelectItem, StatusChip, Switch, TestimonialInput, type TestimonialFormValues, useToast } from "@repo/ui";
 import type { ContentStatus, MeResponse, Testimonial } from "@repo/types";
 
-import { useCreateTestimonial, useDeleteTestimonial, useTestimonialsList, useUpdateTestimonial } from "../../hooks/use-content";
+import { useCreateTestimonial, useDeleteTestimonial, usePublishTestimonial, useTestimonialsList, useUpdateTestimonial } from "../../hooks/use-content";
 import { useProgramsList } from "../../hooks/use-courses";
 import { hasPermission } from "../../lib/permissions";
 import { surfaceError } from "../../lib/surface-error";
-
-const STATUS_OPTIONS: ContentStatus[] = ["draft", "published", "archived"];
-const STATUS_TONE = { draft: "neutral", published: "success", archived: "danger" } as const;
 
 function TestimonialFormDrawer({
   open,
@@ -27,12 +24,17 @@ function TestimonialFormDrawer({
   const { toast } = useToast();
   const createTestimonial = useCreateTestimonial();
   const updateTestimonial = useUpdateTestimonial();
+  const publishTestimonial = usePublishTestimonial();
   const { data: programs } = useProgramsList({ page: 1, pageSize: 200, includeDeleted: false });
   const isEdit = Boolean(testimonial);
 
   const [form, setForm] = React.useState<TestimonialFormValues>({ quote: "", ratingStars: 5, studentName: "" });
   const [programId, setProgramId] = React.useState<string | undefined>(undefined);
-  const [status, setStatus] = React.useState<ContentStatus>("draft");
+  // One boolean, not the three-way ContentStatus. `draft` and `archived` are both simply
+  // "not on the site" for a testimonial — the public read filters on status="published"
+  // and nothing else — so a tri-state picker only ever asked staff to pick between two
+  // synonyms for hidden. Off writes `draft`; an existing `archived` row shows as off.
+  const [onWebsite, setOnWebsite] = React.useState(false);
   const [order, setOrder] = React.useState(0);
 
   React.useEffect(() => {
@@ -43,29 +45,48 @@ function TestimonialFormDrawer({
       studentName: testimonial?.studentName ?? "",
     });
     setProgramId(testimonial?.programId ?? undefined);
-    setStatus(testimonial?.status ?? "draft");
+    setOnWebsite(testimonial?.status === "published");
     setOrder(testimonial?.order ?? 0);
   }, [open, testimonial]);
 
-  const isPending = createTestimonial.isPending || updateTestimonial.isPending;
+  const isPending = createTestimonial.isPending || updateTestimonial.isPending || publishTestimonial.isPending;
 
   async function handleSubmit() {
-    const body = {
+    // Publishing is a dedicated endpoint, not a status field: the API rejects
+    // `status:"published"` on create/PATCH (publish gate). So every save writes the
+    // content with a NOT-published status first, then publishes as a second call when the
+    // toggle is on. Turning the toggle OFF is just a patch to `draft`.
+    const base = {
       programId: programId ?? null,
       studentName: form.studentName,
       quote: form.quote,
       rating: Math.round(form.ratingStars * 10),
-      status,
       order,
     };
     try {
+      let id: string;
       if (isEdit && testimonial) {
-        await updateTestimonial.mutateAsync({ id: testimonial.id, body });
-        toast({ title: "Testimonial updated", variant: "success" });
+        await updateTestimonial.mutateAsync({
+          id: testimonial.id,
+          body: { ...base, ...(onWebsite ? {} : { status: "draft" as ContentStatus }) },
+        });
+        id = testimonial.id;
       } else {
-        await createTestimonial.mutateAsync(body);
-        toast({ title: "Testimonial created", variant: "success" });
+        const created = await createTestimonial.mutateAsync({ ...base, status: "draft", order });
+        id = created.id;
       }
+
+      if (onWebsite) {
+        await publishTestimonial.mutateAsync(id);
+      }
+
+      toast({
+        title: isEdit ? "Testimonial updated" : "Testimonial created",
+        description: onWebsite
+          ? "It's live in the \"What Our Students Say\" section."
+          : "Hidden from the website until you turn on \"Show on website\".",
+        variant: "success",
+      });
       onOpenChange(false);
     } catch (error) {
       surfaceError(toast, error, "Couldn't save this testimonial");
@@ -76,7 +97,15 @@ function TestimonialFormDrawer({
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent title={isEdit ? "Edit testimonial" : "New testimonial"} size="md" data-testid="testimonial-form-drawer">
         <DrawerBody className="flex flex-col gap-4">
-          <TestimonialInput value={form} onChange={setForm} data-testid="testimonial-core-input" />
+          {/* showCollegeProgram={false}: those two free-text inputs had nowhere to go —
+              `Testimonial` has no `college` column, and the program is captured properly
+              by the picker below — so whatever staff typed there was discarded on save. */}
+          <TestimonialInput
+            value={form}
+            onChange={setForm}
+            showCollegeProgram={false}
+            data-testid="testimonial-core-input"
+          />
           <Select label="Program (optional)" placeholder="No program" value={programId} onValueChange={setProgramId} data-testid="testimonial-program-select">
             {(programs?.items ?? []).map((p) => (
               <SelectItem key={p.id} value={p.id}>
@@ -84,14 +113,25 @@ function TestimonialFormDrawer({
               </SelectItem>
             ))}
           </Select>
-          <div className="flex gap-3">
-            <Select label="Status" placeholder="Select status" value={status} onValueChange={(v) => setStatus(v as ContentStatus)} wrapperClassName="flex-1" data-testid="testimonial-status-select">
-              {STATUS_OPTIONS.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {s}
-                </SelectItem>
-              ))}
-            </Select>
+          <div className="flex items-end gap-3">
+            <div className="flex flex-1 items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2">
+              <div>
+                <p id="testimonial-on-website-label" className="text-sm font-medium text-fg">
+                  Show on website
+                </p>
+                <p className="text-xs text-fg-muted">
+                  {onWebsite
+                    ? "Appears in “What Our Students Say” on the homepage."
+                    : "Hidden from the public site."}
+                </p>
+              </div>
+              <Switch
+                checked={onWebsite}
+                onCheckedChange={setOnWebsite}
+                aria-labelledby="testimonial-on-website-label"
+                data-testid="testimonial-on-website-switch"
+              />
+            </div>
             <Input label="Display order" type="number" min={0} value={order} onChange={(e) => setOrder(Number(e.target.value))} placeholder="e.g. 1" wrapperClassName="w-32" data-testid="testimonial-order-input" />
           </div>
         </DrawerBody>
@@ -138,7 +178,19 @@ export function TestimonialsManager({ me }: { me: MeResponse | undefined }): Rea
     { id: "studentName", header: "Student", cell: (row) => row.studentName },
     { id: "quote", header: "Quote", cell: (row) => <span className="line-clamp-1">{row.quote}</span> },
     { id: "rating", header: "Rating", cell: (row) => (row.rating ? `${(row.rating / 10).toFixed(1)} ★` : "—") },
-    { id: "status", header: "Status", cell: (row) => <StatusChip tone={STATUS_TONE[row.status]} label={row.status} size="sm" /> },
+    {
+      id: "status",
+      header: "On website",
+      // Mirrors the drawer's toggle rather than echoing the raw ContentStatus: what staff
+      // need at a glance is "is this visible to visitors", and draft/archived answer that
+      // identically.
+      cell: (row) =>
+        row.status === "published" ? (
+          <StatusChip tone="success" label="Live" size="sm" />
+        ) : (
+          <StatusChip tone="neutral" label="Hidden" size="sm" />
+        ),
+    },
     {
       id: "actions",
       header: "Actions",
@@ -171,13 +223,13 @@ export function TestimonialsManager({ me }: { me: MeResponse | undefined }): Rea
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="testimonials-manager">
+    <div className="space-y-4 md:space-y-5" data-testid="testimonials-manager">
       <PageHeader
         title="Testimonials"
         description={
           <>
-            Student testimonials shown in the &quot;What Our Students Say&quot; section on the homepage. Add, edit, or
-            remove a testimonial here — the public site pulls the published ones automatically.
+            Student testimonials shown in the &quot;What Our Students Say&quot; section on the homepage. Turn on
+            &quot;Show on website&quot; to publish one — the section is hidden entirely while none are live.
           </>
         }
       />

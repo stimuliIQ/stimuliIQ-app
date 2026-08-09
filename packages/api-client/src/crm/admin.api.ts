@@ -18,6 +18,8 @@ import type {
   ListStaffUsersQuery,
   CreateStaffUserRequest,
   UpdateStaffUserRequest,
+  AdminClearTwoFactorRequest,
+  AdminClearTwoFactorResponse,
 } from "@repo/types";
 import type { ApiClient } from "../http/client.js";
 import { toQueryString } from "../http/query.js";
@@ -142,5 +144,22 @@ export class StaffUsersApi {
   /** DELETE /api/v1/crm/admin/users/:id — deactivates the account (blocks login), never a hard delete. */
   async deactivate(id: string, idempotencyKey: string = crypto.randomUUID()): Promise<StaffUser> {
     return this.client.request<StaffUser>("DELETE", `/api/v1/crm/admin/users/${id}`, { idempotencyKey });
+  }
+
+  /**
+   * POST /api/v1/crm/admin/users/:id/two-factor/clear — admin rescue for a user who has
+   * lost both their authenticator and inbox access. Requires `twofa.reset` (super_admin/
+   * admin only). `reason` is mandatory and is recorded in the audit log.
+   */
+  async clearTwoFactor(
+    id: string,
+    body: AdminClearTwoFactorRequest,
+    idempotencyKey: string = crypto.randomUUID(),
+  ): Promise<AdminClearTwoFactorResponse> {
+    return this.client.request<AdminClearTwoFactorResponse>(
+      "POST",
+      `/api/v1/crm/admin/users/${id}/two-factor/clear`,
+      { body, idempotencyKey },
+    );
   }
 }

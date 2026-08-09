@@ -10,7 +10,6 @@ import { Link } from "@tanstack/react-router";
 import {
   BarChart3,
   BookOpenCheck,
-  CalendarCheck,
   DollarSign,
   GitCompare,
   MessagesSquare,
@@ -22,7 +21,7 @@ import {
   Users,
 } from "lucide-react";
 
-import { useAttendanceReport, useFunnelReport, useRevenueReport, useEnrollmentTrendReport } from "../../hooks/use-reports";
+import { useFunnelReport, useRevenueReport, useEnrollmentTrendReport } from "../../hooks/use-reports";
 import { hasPermission } from "../../lib/permissions";
 import { defaultDateRange } from "../../lib/report-dates";
 
@@ -43,12 +42,11 @@ const TILES: DashboardTile[] = [
   { key: "revenue", to: "/analytics/revenue", title: "Revenue", description: "Captured payments reconciled to the ledger.", icon: <DollarSign />, permission: "reports.revenue.view" },
   { key: "enrollment", to: "/analytics/enrollment", title: "Enrollment trend", description: "New enrollments over time.", icon: <UserPlus />, permission: "reports.enrollment.view" },
   { key: "funnel", to: "/analytics/funnel", title: "Lead funnel", description: "Stage counts + win-rate conversion.", icon: <Percent />, permission: "reports.funnel.view" },
-  { key: "attendance", to: "/analytics/attendance", title: "Attendance", description: "Present/total across batches.", icon: <CalendarCheck />, permission: "reports.attendance.view" },
   { key: "engagement", to: "/analytics/engagement", title: "Course / video engagement", description: "Per-lesson completion + drop-off.", icon: <BookOpenCheck />, permission: "reports.engagement.view" },
   { key: "campaigns", to: "/analytics/campaigns", title: "Campaign performance", description: "Sent/delivered/read/failed by campaign.", icon: <Megaphone />, permission: "reports.campaigns.view" },
   { key: "gamification", to: "/analytics/gamification", title: "Gamification participation", description: "Active earners, XP, badges (staff view).", icon: <Trophy />, permission: "reports.gamification.view" },
   { key: "forum-health", to: "/analytics/forum-health", title: "Forum health", description: "Threads, posts, reply + resolution rate.", icon: <MessagesSquare />, permission: "reports.forum.view" },
-  { key: "cohort", to: "/analytics/cohort", title: "Cohort report", description: "Batch-as-cohort snapshot with attendance drill-in.", icon: <Users />, permission: "reports.enrollment.view" },
+  { key: "cohort", to: "/analytics/cohort", title: "Cohort report", description: "Batch-as-cohort snapshot of enrollment and fill rate.", icon: <Users />, permission: "reports.enrollment.view" },
   { key: "branch-comparison", to: "/analytics/branch-comparison", title: "Branch comparison", description: "Revenue and enrollments per branch.", icon: <GitCompare />, permission: "reports.revenue.view" },
   { key: "faculty-performance", to: "/analytics/faculty-performance", title: "Faculty performance", description: "Batch load and fill-rate per faculty.", icon: <UserPlus />, permission: "faculty.view" },
   { key: "refunds", to: "/analytics/refunds", title: "Refund report", description: "Refund volume and reasons.", icon: <Receipt />, permission: "refunds.view" },
@@ -58,19 +56,17 @@ export function AnalyticsOverview({ me }: AnalyticsOverviewProps): React.JSX.Ele
   const canRevenue = hasPermission(me?.permissions, "reports.revenue.view");
   const canEnrollment = hasPermission(me?.permissions, "reports.enrollment.view");
   const canFunnel = hasPermission(me?.permissions, "reports.funnel.view");
-  const canAttendance = hasPermission(me?.permissions, "reports.attendance.view");
 
   const range = React.useMemo(() => defaultDateRange(30), []);
 
   const revenue = useRevenueReport({ from: range.from, to: range.to }, canRevenue);
   const enrollment = useEnrollmentTrendReport({ from: range.from, to: range.to }, canEnrollment);
   const funnel = useFunnelReport({ from: range.from, to: range.to }, canFunnel);
-  const attendance = useAttendanceReport({}, canAttendance);
 
   const visibleTiles = TILES.filter((tile) => hasPermission(me?.permissions, tile.permission));
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="analytics-overview">
+    <div className="space-y-4 md:space-y-5" data-testid="analytics-overview">
       <PageHeader
         title="Analytics"
         description="KPI snapshot for the last 30 days, and links into every detailed dashboard you have access to."
@@ -114,16 +110,6 @@ export function AnalyticsOverview({ me }: AnalyticsOverviewProps): React.JSX.Ele
                 loading={funnel.isLoading}
                 error={funnel.isError ? "Couldn't load" : undefined}
                 data-testid="overview-funnel-kpi"
-              />
-            ) : null}
-            {canAttendance ? (
-              <KpiCard
-                label="Attendance %"
-                value={attendance.data ? `${attendance.data.attendancePercent.toFixed(1)}%` : "—"}
-                icon={<CalendarCheck />}
-                loading={attendance.isLoading}
-                error={attendance.isError ? "Couldn't load" : undefined}
-                data-testid="overview-attendance-kpi"
               />
             ) : null}
           </div>

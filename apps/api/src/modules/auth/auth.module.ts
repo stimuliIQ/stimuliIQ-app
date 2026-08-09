@@ -27,6 +27,12 @@ import { TwoFactorStore } from "./lib/two-factor-store";
 import { PasswordResetController } from "./password-reset.controller";
 import { PasswordResetService } from "./password-reset.service";
 import { PasswordResetStore } from "./lib/password-reset-store";
+// 2FA recovery: the "lost my authenticator" path — unauthenticated email-OTP reset.
+// (The admin rescue path lives in AdminModule, which consumes TwoFactorStore via this
+// module's exports.)
+import { TwoFactorRecoveryController } from "./two-factor-recovery.controller";
+import { TwoFactorRecoveryService } from "./two-factor-recovery.service";
+import { TwoFactorRecoveryStore } from "./lib/two-factor-recovery-store";
 
 @Module({
   imports: [
@@ -38,7 +44,14 @@ import { PasswordResetStore } from "./lib/password-reset-store";
     // itself sends no mail (TOTP is app-based, not email-based).
     MailProviderModule,
   ],
-  controllers: [AuthController, MeController, TwoFactorController, TwoFactorLoginController, PasswordResetController],
+  controllers: [
+    AuthController,
+    MeController,
+    TwoFactorController,
+    TwoFactorLoginController,
+    TwoFactorRecoveryController,
+    PasswordResetController,
+  ],
   providers: [
     AuthService,
     AuthRepository,
@@ -51,6 +64,8 @@ import { PasswordResetStore } from "./lib/password-reset-store";
     ScopeInterceptor,
     TwoFactorService,
     TwoFactorStore,
+    TwoFactorRecoveryService,
+    TwoFactorRecoveryStore,
     PasswordResetService,
     PasswordResetStore,
   ],
@@ -61,6 +76,9 @@ import { PasswordResetStore } from "./lib/password-reset-store";
     PermissionsGuard,
     AuthIpRateLimitGuard,
     OtpStore,
+    // AdminModule's UsersAdminService injects this for the `twofa.reset` admin rescue
+    // path (clearing a user's 2FA credential when they've lost device AND inbox).
+    TwoFactorStore,
     // Re-export the whole module (NOT just the SMS_PROVIDER token — Nest requires
     // re-exporting the providing module itself for a token that isn't declared in
     // THIS module's own `providers` array) so DispatchModule (and any future

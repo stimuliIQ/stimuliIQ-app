@@ -21,7 +21,6 @@ export const REPORT_EXPORT_TYPES: ExportTypeInfo[] = [
   { value: "revenue", label: "Revenue report", group: "report", pdfAllowed: true },
   { value: "enrollments", label: "Enrollment trend", group: "report", pdfAllowed: true },
   { value: "funnel", label: "Lead funnel", group: "report", pdfAllowed: true },
-  { value: "attendance", label: "Attendance", group: "report", pdfAllowed: true },
   { value: "engagement", label: "Course / video engagement", group: "report", pdfAllowed: true },
   { value: "campaigns", label: "Campaign performance", group: "report", pdfAllowed: true },
   { value: "gamification", label: "Gamification participation", group: "report", pdfAllowed: true },

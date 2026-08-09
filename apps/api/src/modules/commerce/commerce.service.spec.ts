@@ -205,6 +205,10 @@ describe("CommerceService", () => {
       findBatchNamesByIds: jest.fn().mockResolvedValue(new Map()),
       countBatchEnrollments: jest.fn(),
       findStudentById: jest.fn(),
+      // Defaults: no open order, no live enrollment — the duplicate-order guard is a no-op
+      // for tests that predate it. Cases exercising the guard override these per-test.
+      findOpenOrdersForProgram: jest.fn().mockResolvedValue([]),
+      hasActiveEnrollment: jest.fn().mockResolvedValue(false),
       findPaymentByProviderPaymentId: jest.fn(),
       findPaymentById: jest.fn(),
       findPaymentByProviderOrderId: jest.fn(),
@@ -527,6 +531,133 @@ describe("CommerceService", () => {
       );
 
       expect(repository.createOrder).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ─── 2b. DUPLICATE-ORDER GUARD ────────────────────────────────────────────
+  //
+  // Regression: "Add program" clicked twice created two identical open orders for the
+  // same student/program/batch (production, 2026-08-06 — 30 seconds apart, ₹6,999 each).
+  // The idempotency key does NOT cover this: a second deliberate click mints a fresh key,
+  // so `findOrderByIdempotencyKey` misses and the create sailed through.
+
+  describe("duplicate-order guard on createOrder", () => {
+    /** Wire up the happy path so only the live-orders lookup decides the outcome. */
+    function arrangeValidOrderRequest(): void {
+      repository.findOrderByIdempotencyKey.mockResolvedValue(null);
+      repository.findProgramById.mockResolvedValue({
+        id: PROGRAM_ID,
+        title: "Neurology Workshop",
+        pricePaise: 699900,
+        currency: "INR",
+        status: "published",
+      });
+      repository.findBatchById.mockResolvedValue({
+        id: BATCH_ID,
+        name: "Neuro Batch AUG",
+        programId: PROGRAM_ID,
+        capacity: 44,
+        status: "active",
+        branchId: "b1",
+      });
+      repository.countBatchEnrollments.mockResolvedValue(0);
+      repository.findStudentById.mockResolvedValue({ id: STUDENT_ID, userId: "u1" });
+      repository.createOrder.mockResolvedValue({ id: ORDER_ID });
+      repository.findOrderById.mockResolvedValue(makeMockOrderRow());
+    }
+
+    it("rejects a second OPEN order for the same student + program + batch (409)", async () => {
+      arrangeValidOrderRequest();
+      repository.findOpenOrdersForProgram.mockResolvedValue([
+        { id: "order-open", batchId: BATCH_ID },
+      ]);
+
+      await expect(
+        withScope("all", () =>
+          service.createOrder(TENANT_ID, ACTOR_ID, "a-fresh-key", {
+            studentId: STUDENT_ID,
+            programId: PROGRAM_ID,
+            batchId: BATCH_ID,
+          }),
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
+
+      expect(repository.createOrder).not.toHaveBeenCalled();
+    });
+
+    it("ALLOWS an open order on a DIFFERENT batch of the same program (batch switch)", async () => {
+      arrangeValidOrderRequest();
+      repository.findOpenOrdersForProgram.mockResolvedValue([
+        { id: "order-open", batchId: "some-other-batch" },
+      ]);
+
+      await withScope("all", () =>
+        service.createOrder(TENANT_ID, ACTOR_ID, "another-fresh-key", {
+          studentId: STUDENT_ID,
+          programId: PROGRAM_ID,
+          batchId: BATCH_ID,
+        }),
+      );
+
+      // Guard is scoped to the exact duplicate; lining up a move to another cohort while
+      // the first order is still open is a real workflow and must not be blocked.
+      expect(repository.createOrder).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects a new order when the student already has a LIVE enrollment in that batch (409)", async () => {
+      arrangeValidOrderRequest();
+      repository.hasActiveEnrollment.mockResolvedValue(true);
+
+      await expect(
+        withScope("all", () =>
+          service.createOrder(TENANT_ID, ACTOR_ID, "key-3", {
+            studentId: STUDENT_ID,
+            programId: PROGRAM_ID,
+            batchId: BATCH_ID,
+          }),
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(repository.createOrder).not.toHaveBeenCalled();
+    });
+
+    it("ALLOWS re-enrolling when the previous enrollment was soft-deleted (hard-restore path)", async () => {
+      arrangeValidOrderRequest();
+      // hasActiveEnrollment already filters `deletedAt: null`, so a soft-deleted
+      // enrollment reads as false — the restore flow must stay open.
+      repository.hasActiveEnrollment.mockResolvedValue(false);
+
+      await withScope("all", () =>
+        service.createOrder(TENANT_ID, ACTOR_ID, "key-4", {
+          studentId: STUDENT_ID,
+          programId: PROGRAM_ID,
+          batchId: BATCH_ID,
+        }),
+      );
+
+      expect(repository.createOrder).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not burn a coupon redemption when it rejects a duplicate", async () => {
+      arrangeValidOrderRequest();
+      repository.findCouponByCode.mockResolvedValue(makeMockCouponRow({ type: "pct", value: 20 }));
+      repository.findOpenOrdersForProgram.mockResolvedValue([
+        { id: "order-open", batchId: BATCH_ID },
+      ]);
+
+      await expect(
+        withScope("all", () =>
+          service.createOrder(TENANT_ID, ACTOR_ID, "key-5", {
+            studentId: STUDENT_ID,
+            programId: PROGRAM_ID,
+            batchId: BATCH_ID,
+            couponCode: "SUMMER20",
+          }),
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
+
+      // The guard runs BEFORE the coupon `used` increment — a rejected duplicate must not
+      // consume one of a limited-use coupon's redemptions.
+      expect(repository.incrementCouponUsed).not.toHaveBeenCalled();
     });
   });
 

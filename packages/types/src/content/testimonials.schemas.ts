@@ -61,5 +61,16 @@ export const PublicTestimonialSchema = z.object({
   studentPhotoUrl: z.string().url().nullable(),
   quote: z.string(),
   rating: z.number().int().min(0).max(50).nullable(),
+  /**
+   * Title of the linked `Program`, joined server-side — the "which track did they train
+   * on" line under the student's name on a testimonial card. Null when the testimonial
+   * isn't linked to a program (`programId` is optional in the CRM form), in which case
+   * the card simply omits that line.
+   *
+   * The public DTO exposes the TITLE, not the `programId` the CRM DTO carries: the id is
+   * an internal handle of no use to a marketing page, and shipping it would invite the
+   * web app to fetch the program separately just to render one string.
+   */
+  programTitle: z.string().nullable(),
 });
 export type PublicTestimonial = z.infer<typeof PublicTestimonialSchema>;

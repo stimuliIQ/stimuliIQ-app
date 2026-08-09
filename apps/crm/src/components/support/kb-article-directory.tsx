@@ -96,7 +96,7 @@ export function KbArticleDirectory({ me }: { me: MeResponse | undefined }): Reac
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="kb-article-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="kb-article-directory">
       <PageHeader
         title="Knowledge base"
         description="Self-service articles surfaced to students and agents."

@@ -48,6 +48,8 @@ import {
   Calendar,
   UserCog,
   Headset,
+  ClipboardList,
+  KeyRound,
 } from "lucide-react";
 
 export interface NavLeaf {
@@ -102,19 +104,27 @@ export const NAV_SECTIONS: NavSection[] = [
     // three tabs of one "My Work" cockpit (/leads/counselling); their per-lead
     // equivalents remain inside the lead-detail drawer. /leads/tasks and
     // /leads/bookings redirect into the cockpit for old bookmarks.
+    //
+    // Contact Messages was dropped from this list once it became the second tab of
+    // Pipeline (components/leads/pipeline-workspace.tsx) — a nav leaf AND a tab for
+    // the same queue is two doors into one room. The /leads/contact-messages route
+    // still EXISTS and is reachable by URL, so old bookmarks keep working; to
+    // resurface it here, re-add
+    //   { label: "Contact Messages", to: "/leads/contact-messages", permission: "content.view" }
+    // (same convention as the Analytics list slimmed above).
     children: [
       { label: "Pipeline", to: "/leads", permission: "leads.view" },
       { label: "My Work", to: "/leads/counselling", permission: "leads.view" },
       // Bulk intake: Excel/CSV upload → validated preview → per-row selection →
       // created via the same POST /crm/leads contract (server validates each row).
       { label: "Import", to: "/leads/import", permission: "leads.create" },
-      { label: "Contact Messages", to: "/leads/contact-messages", permission: "content.view" },
     ],
   },
   {
     // Phone-support cockpit: one search box across students AND leads, opening
     // the full 360 drawers (profile/enrollments/payments/tickets/credentials).
-    label: "Call Center",
+    // Label only — the route stays /call-center so existing bookmarks keep working.
+    label: "Search Engine",
     icon: Headset,
     to: "/call-center",
     permission: "students.view",
@@ -133,6 +143,18 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    // Student onboarding form (stimuliiq.com/onboarding) — the post-payment intake that
+    // turns a paid enquiry into a student record. Top-level rather than a Students child
+    // because it is its own daily queue with its own permission set, and because the
+    // second half of the screen (the CRM-authored question set) is not about any one
+    // student at all. Gated on `onboarding.view`; the Form-fields tab inside additionally
+    // checks `onboarding.fields.manage`.
+    label: "Onboarding",
+    icon: ClipboardList,
+    to: "/onboarding",
+    permission: "onboarding.view",
+  },
+  {
     label: "Academics",
     icon: GraduationCap,
     children: [
@@ -140,7 +162,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Faculty", to: "/faculty", permission: "faculty.view" },
       { label: "Mentors", to: "/mentors", permission: "mentors.view" },
       { label: "Batches", to: "/batches", permission: "batches.view" },
-      { label: "Attendance", to: "/academics/attendance", permission: "reports.attendance.view" },
       { label: "Assignments", to: "/academics/assignments", permission: "assignments.view" },
       { label: "Projects", to: "/academics/projects", permission: "assignments.view" },
       { label: "Assessments", to: "/academics/assessments", permission: "assessments.view" },
@@ -224,6 +245,13 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Revenue", to: "/analytics/revenue", permission: "reports.revenue.view" },
       { label: "Enrollment Trend", to: "/analytics/enrollment", permission: "reports.enrollment.view" },
       { label: "Lead Funnel", to: "/analytics/funnel", permission: "reports.funnel.view" },
+      // Sits next to the funnel because it answers the follow-up question: the funnel
+      // says how many converted, this says who converted them.
+      {
+        label: "Team Performance",
+        to: "/analytics/lead-performance",
+        permission: "reports.lead_performance.view",
+      },
       { label: "Campaign Performance", to: "/analytics/campaigns", permission: "reports.campaigns.view" },
       { label: "Exports", to: "/analytics/exports", permission: "reports.export" },
     ],
@@ -240,6 +268,20 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Settings", to: "/admin/settings", permission: "settings.view" },
       { label: "Feature Flags", to: "/admin/feature-flags", permission: "flags.view" },
     ],
+  },
+  {
+    // LAST ITEM, deliberately: this is the only nav entry that is about the signed-in
+    // person rather than the business, so it sits below the operational sections rather
+    // than inside Admin (where it would read as an admin-only tool — every role holds
+    // `twofa.manage` at own-scope and every role should be able to enrol).
+    //
+    // The same TwoFactorPanel also still renders as a tab inside Admin ▸ Settings; this
+    // promotes it to a directly-linkable page so enrolling doesn't require knowing it is
+    // buried three clicks deep behind a settings tab.
+    label: "Two-Factor Auth",
+    icon: KeyRound,
+    to: "/account/two-factor",
+    permission: "twofa.manage",
   },
 ];
 

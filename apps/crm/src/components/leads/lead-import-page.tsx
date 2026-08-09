@@ -171,7 +171,7 @@ export function LeadImportPage({ me }: LeadImportPageProps): React.JSX.Element {
 
   if (!canCreate) {
     return (
-      <div className="space-y-6 md:space-y-8">
+      <div className="space-y-4 md:space-y-5">
         <PageHeader title="Import Leads" description="Bulk-create leads from an Excel or CSV sheet." />
         <Alert tone="warning" title="No access" data-testid="lead-import-no-access">
           You need the leads.create permission to import leads.
@@ -181,7 +181,7 @@ export function LeadImportPage({ me }: LeadImportPageProps): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="lead-import-page">
+    <div className="space-y-4 md:space-y-5" data-testid="lead-import-page">
       <PageHeader
         title="Import Leads"
         description="Upload an Excel (.xlsx/.xls) or CSV sheet, review the parsed rows, pick the ones to import, and optionally start them at a stage."

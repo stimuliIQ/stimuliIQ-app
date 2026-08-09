@@ -198,11 +198,6 @@ import {
   ProgressResponseSchema,
   MyProgressResponseSchema,
 } from "../lms/progress.schemas.js";
-import {
-  MyAttendanceResponseSchema,
-  SetAttendanceRequestSchema,
-  AttendanceRecordSchema,
-} from "../lms/attendance.schemas.js";
 
 export const registry = new OpenAPIRegistry();
 
@@ -2132,30 +2127,6 @@ const ProgressEnvelope = envelopeOf("Progress", ProgressResponse);
 const MyProgressResponse = registry.register("MyProgressResponse", MyProgressResponseSchema);
 const MyProgressEnvelope = envelopeOf("MyProgress", MyProgressResponse);
 
-const MyAttendanceResponse = registry.register("MyAttendanceResponse", MyAttendanceResponseSchema);
-const MyAttendanceEnvelope = envelopeOf("MyAttendance", MyAttendanceResponse);
-
-const SetAttendanceRequest = registry.register("SetAttendanceRequest", SetAttendanceRequestSchema);
-const AttendanceRecord = registry.register("AttendanceRecord", AttendanceRecordSchema);
-const AttendanceRecordEnvelope = envelopeOf("AttendanceRecord", AttendanceRecord);
-
-registry.registerPath({
-  method: "patch",
-  path: "/api/v1/crm/attendance",
-  summary: "Set/correct a student's attendance for a (enrollment, lesson) pair",
-  description:
-    "Closes the CRM attendance roster's read-only gap. Faculty (scope: assigned) may " +
-    "correct attendance for enrollments in their own assigned batches; admin/super_admin " +
-    "(scope: all) may correct any. Writes to the SAME dedup key as the student " +
-    "self-service completion path — a staff correction supersedes, never duplicates, " +
-    "the auto-recorded row. AUDITED. Permission: attendance.edit (scope: assigned|all).",
-  tags: ["crm", "attendance"],
-  security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("attendance.edit (scope: assigned|all)"),
-  request: { body: { content: { "application/json": { schema: SetAttendanceRequest } } }, headers: idempotencyKeyHeader },
-  responses: { 200: { description: "Attendance set.", content: { "application/json": { schema: AttendanceRecordEnvelope } } }, ...errorResponses },
-});
-
 // ── LMS path registrations ────────────────────────────────────────────────
 
 // ---- Dashboard ----
@@ -3286,29 +3257,6 @@ registry.registerPath({
     200: { description: "Verification result (valid or revoked).", content: { "application/json": { schema: VerifyResultEnvelope } } },
     404: { description: "Certificate not found, invalid, or tampered cert_uid.", content: { "application/json": { schema: ErrorEnvelope } } },
     429: { description: "Rate limit exceeded.", content: { "application/json": { schema: ErrorEnvelope } } },
-  },
-});
-
-// ---- Attendance (read-only student view) ----
-
-registry.registerPath({
-  method: "get",
-  path: "/api/v1/me/attendance",
-  summary: "Get the student's attendance records (recorded lessons in P3)",
-  description:
-    "Read-only list of the student's own attendance records. In P3, only `source=recorded` " +
-    "rows exist (created server-side when a lesson is completed via POST /me/lessons/:id/complete). " +
-    "Live attendance (source=live) is deferred to a later phase; liveClassId is always null in P3. " +
-    "The client NEVER posts attendance directly — it is always a server-side side-effect of " +
-    "lesson completion or (future) live class join. " +
-    "Returns a paginated list plus per-enrollment attendance summary stats. " +
-    "Permission: attendance.view (scope:own).",
-  tags: ["lms", "attendance"],
-  security: [{ cookieAuth: [] }],
-  ...requiredPermission("attendance.view (scope: own — read-only; written server-side on lesson completion)"),
-  responses: {
-    200: { description: "Attendance list + per-enrollment summaries.", content: { "application/json": { schema: MyAttendanceEnvelope } } },
-    ...errorResponses,
   },
 });
 
@@ -4515,8 +4463,6 @@ import {
   EnrollmentTrendDtoSchema,
   FunnelReportQuerySchema,
   FunnelReportDtoSchema,
-  AttendanceReportQuerySchema,
-  AttendanceReportDtoSchema,
   EngagementReportQuerySchema,
   EngagementReportDtoSchema,
   CampaignPerformanceQuerySchema,
@@ -4545,8 +4491,6 @@ const EnrollmentTrendReport = registry.register("EnrollmentTrendDto", Enrollment
 const EnrollmentTrendEnvelope = envelopeOf("EnrollmentTrendReport", EnrollmentTrendReport);
 const FunnelReport = registry.register("FunnelReportDto", FunnelReportDtoSchema);
 const FunnelReportEnvelope = envelopeOf("FunnelReport", FunnelReport);
-const AttendanceReport = registry.register("AttendanceReportDto", AttendanceReportDtoSchema);
-const AttendanceReportEnvelope = envelopeOf("AttendanceReport", AttendanceReport);
 const EngagementReport = registry.register("EngagementReportDto", EngagementReportDtoSchema);
 const EngagementReportEnvelope = envelopeOf("EngagementReport", EngagementReport);
 const CampaignPerformanceReport = registry.register("CampaignPerformanceDto", CampaignPerformanceDtoSchema);
@@ -4619,23 +4563,6 @@ registry.registerPath({
   },
 });
 
-registry.registerPath({
-  method: "get",
-  path: "/api/v1/crm/reports/attendance",
-  summary: "Attendance dashboard",
-  description:
-    "AC-14: attendancePercent = COUNT(status='present')/COUNT(*) for the batch's enrollments. " +
-    "AC-15: Faculty MUST supply an assigned batchId — an unassigned batchId returns 404 " +
-    "(IDOR-safe, not 403). AC-16: Admin/Owner omitting batchId gets the all-batch tenant aggregate.",
-  tags: ["crm", "reports"],
-  security: [{ cookieAuth: [] }],
-  ...requiredPermission("reports.attendance.view (scope: all|branch|assigned)"),
-  request: { query: AttendanceReportQuerySchema },
-  responses: {
-    200: { description: "Attendance report.", content: { "application/json": { schema: AttendanceReportEnvelope } } },
-    ...errorResponses,
-  },
-});
 
 registry.registerPath({
   method: "get",
@@ -5945,6 +5872,14 @@ import {
   TotpStatusResponseSchema,
   TwoFactorLoginVerifyRequestSchema,
 } from "../auth/two-factor.schemas.js";
+import {
+  TwoFactorRecoveryRequestSchema,
+  TwoFactorRecoveryRequestResponseSchema,
+  TwoFactorRecoveryConfirmSchema,
+  TwoFactorRecoveryConfirmResponseSchema,
+  AdminClearTwoFactorRequestSchema,
+  AdminClearTwoFactorResponseSchema,
+} from "../auth/two-factor-recovery.schemas.js";
 
 const TotpEnrollResponse = registry.register("TotpEnrollResponse", TotpEnrollResponseSchema);
 const TotpEnrollEnvelope = envelopeOf("TotpEnroll", TotpEnrollResponse);
@@ -5966,6 +5901,22 @@ registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/enroll", summary
 registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/enroll/verify", summary: "Confirm the first TOTP code — enables 2FA, returns one-time backup codes", tags: ["auth", "2fa"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("twofa.manage (scope: own)"), request: { body: { content: { "application/json": { schema: TotpVerifyEnrollRequest } } } }, responses: { 200: { description: "2FA enabled + backup codes (shown once).", content: { "application/json": { schema: TotpVerifyEnrollEnvelope } } }, ...errorResponses } });
 registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/disable", summary: "Disable 2FA — requires a current TOTP code or an unused backup code", tags: ["auth", "2fa"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("twofa.manage (scope: own)"), request: { body: { content: { "application/json": { schema: TotpDisableRequest } } } }, responses: { 200: { description: "2FA disabled.", content: { "application/json": { schema: TotpDisableResponseEnvelope } } }, ...errorResponses } });
 registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/login-verify", summary: "Second step of a 2FA login — verifies credentials + TOTP/backup code, sets session cookies", description: "UNAUTHENTICATED (no session exists yet — same posture as POST /auth/login). Rate-limited by IP.", tags: ["auth", "2fa"], request: { body: { content: { "application/json": { schema: TwoFactorLoginVerifyRequest } } } }, responses: { 200: { description: "Session established.", content: { "application/json": { schema: AuthSessionEnvelope } } }, ...errorResponses } });
+
+// 2FA recovery — the "lost my authenticator" path. Both routes UNAUTHENTICATED and
+// CSRF-excluded (no session exists), IP-rate-limited + per-email rate-limited.
+const TwoFactorRecoveryRequest = registry.register("TwoFactorRecoveryRequest", TwoFactorRecoveryRequestSchema);
+const TwoFactorRecoveryRequestResponse = registry.register("TwoFactorRecoveryRequestResponse", TwoFactorRecoveryRequestResponseSchema);
+const TwoFactorRecoveryRequestEnvelope = envelopeOf("TwoFactorRecoveryRequest", TwoFactorRecoveryRequestResponse);
+const TwoFactorRecoveryConfirm = registry.register("TwoFactorRecoveryConfirm", TwoFactorRecoveryConfirmSchema);
+const TwoFactorRecoveryConfirmResponse = registry.register("TwoFactorRecoveryConfirmResponse", TwoFactorRecoveryConfirmResponseSchema);
+const TwoFactorRecoveryConfirmEnvelope = envelopeOf("TwoFactorRecoveryConfirm", TwoFactorRecoveryConfirmResponse);
+const AdminClearTwoFactorRequest = registry.register("AdminClearTwoFactorRequest", AdminClearTwoFactorRequestSchema);
+const AdminClearTwoFactorResponse = registry.register("AdminClearTwoFactorResponse", AdminClearTwoFactorResponseSchema);
+const AdminClearTwoFactorEnvelope = envelopeOf("AdminClearTwoFactor", AdminClearTwoFactorResponse);
+
+registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/recovery/request", summary: "Request an emailed 2FA recovery code (lost authenticator)", description: "UNAUTHENTICATED. ALWAYS returns 200 with the same generic message — a nonexistent email, a wrong password, an account without 2FA, and a rate-limited caller are all indistinguishable. The current password is required so recovery is never reachable with inbox access alone.", tags: ["auth", "2fa"], request: { body: { content: { "application/json": { schema: TwoFactorRecoveryRequest } } } }, responses: { 200: { description: "Generic acknowledgement (never confirms the account exists).", content: { "application/json": { schema: TwoFactorRecoveryRequestEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/recovery/confirm", summary: "Confirm the emailed recovery code — disables 2FA and revokes all sessions", description: "UNAUTHENTICATED. Re-verifies the password alongside the single-use, attempt-capped code. No session is issued: the user signs in with their password and re-enrols. 422 RECOVERY_CODE_INVALID covers bad credentials, no enrolment, and a wrong/expired/replayed code alike.", tags: ["auth", "2fa"], request: { body: { content: { "application/json": { schema: TwoFactorRecoveryConfirm } } } }, responses: { 200: { description: "2FA disabled.", content: { "application/json": { schema: TwoFactorRecoveryConfirmEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/crm/admin/users/{id}/two-factor/clear", summary: "Admin rescue — clear another user's 2FA", description: "For a user who has lost BOTH their authenticator and inbox access. Requires `twofa.reset` (super_admin/admin only — NOT the own-scope `twofa.manage` every role holds). Self-clearing is forbidden. Audit-logged with the mandatory reason; idempotent (`cleared: false` when the target had no 2FA).", tags: ["admin", "2fa"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("twofa.reset (scope: all)"), request: { params: z.object({ id: z.string().uuid() }), body: { content: { "application/json": { schema: AdminClearTwoFactorRequest } } } }, responses: { 200: { description: "2FA cleared (or already absent).", content: { "application/json": { schema: AdminClearTwoFactorEnvelope } } }, ...errorResponses } });
 
 // ─────────────────────────────────────────────────────────────────────────
 // Wave-2 follow-up promotion (docs/plans/phase-9-completion.md T30 follow-up,

@@ -164,7 +164,7 @@ export function AssignmentDirectory({
   const selectedAssignment = data?.items.find((a) => a.id === selectedAssignmentId);
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="assignments-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="assignments-directory">
       <PageHeader
         title={title}
         description={description}

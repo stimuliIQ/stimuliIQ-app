@@ -207,7 +207,7 @@ export function StudentDirectory({ me, initialStatus }: StudentDirectoryProps): 
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="students-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="students-directory">
       <PageHeader
         title="Students"
         description="One list for the whole lifecycle — use the toggle to see admissions in progress, active students, or those who completed their program."

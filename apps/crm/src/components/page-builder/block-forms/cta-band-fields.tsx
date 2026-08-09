@@ -79,9 +79,9 @@ export function CtaBandFields({ control, register, errors, watch, setValue }: Bl
         </div>
         {leadForm ? (
           <div className="flex flex-col gap-2">
-            <Input label="Source tag" helperText={'Internal attribution tag, e.g. "homepage_cta".'} {...register("leadForm.source")} error={errors.leadForm?.source?.message} data-testid="cta-band-lead-form-source" />
-            <Input label="Form heading" {...register("leadForm.heading")} error={errors.leadForm?.heading?.message} data-testid="cta-band-lead-form-heading" />
-            <Input label="Form subheading" {...register("leadForm.subheading")} error={errors.leadForm?.subheading?.message} data-testid="cta-band-lead-form-subheading" />
+            <Input label="Source tag" required helperText={'Internal attribution tag, e.g. "homepage_cta".'} {...register("leadForm.source")} error={errors.leadForm?.source?.message} data-testid="cta-band-lead-form-source" />
+            <Input label="Form heading" required {...register("leadForm.heading")} error={errors.leadForm?.heading?.message} data-testid="cta-band-lead-form-heading" />
+            <Input label="Form subheading" required {...register("leadForm.subheading")} error={errors.leadForm?.subheading?.message} data-testid="cta-band-lead-form-subheading" />
             <div className="flex flex-col gap-1.5">
               <p className="text-sm font-medium text-fg">Fields collected</p>
               <div className="flex gap-4">
@@ -102,7 +102,7 @@ export function CtaBandFields({ control, register, errors, watch, setValue }: Bl
                 </p>
               ) : null}
             </div>
-            <Input label="Submit button label" {...register("leadForm.submitLabel")} error={errors.leadForm?.submitLabel?.message} data-testid="cta-band-lead-form-submit-label" />
+            <Input label="Submit button label" required {...register("leadForm.submitLabel")} error={errors.leadForm?.submitLabel?.message} data-testid="cta-band-lead-form-submit-label" />
           </div>
         ) : null}
       </fieldset>

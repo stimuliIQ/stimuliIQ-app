@@ -31,7 +31,7 @@ export function SiteSettingsPage({ me }: { me: MeResponse | undefined }): React.
 
   if (!canView) {
     return (
-      <div className="space-y-6 md:space-y-8" data-testid="site-settings-page">
+      <div className="space-y-4 md:space-y-5" data-testid="site-settings-page">
         <PageHeader title="Site settings" />
         <EmptyState
           icon={<ShieldAlert />}
@@ -44,7 +44,7 @@ export function SiteSettingsPage({ me }: { me: MeResponse | undefined }): React.
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="site-settings-page">
+    <div className="space-y-4 md:space-y-5" data-testid="site-settings-page">
       <PageHeader
         title="Site settings"
         description={

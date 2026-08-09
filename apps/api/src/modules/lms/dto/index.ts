@@ -77,11 +77,4 @@ export {
 } from "@repo/types";
 
 export {
-  // Attendance (wave 4b — exported here for seam sharing)
-  ListMyAttendanceQuerySchema,
-  type ListMyAttendanceQuery,
-  MyAttendanceItemSchema,
-  type MyAttendanceItem,
-  MyAttendanceResponseSchema,
-  type MyAttendanceResponse,
 } from "@repo/types";

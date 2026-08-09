@@ -14,7 +14,8 @@
 //
 // The old /leads/tasks and /leads/bookings routes now redirect here (their
 // per-lead equivalents also live inside the lead-detail drawer). Nav goes from
-// five Leads items to three (Pipeline · My Work · Contact Messages).
+// five Leads items to three (Pipeline · My Work · Import) — Contact Messages later
+// became a tab of Pipeline rather than its own leaf (see pipeline-workspace.tsx).
 import * as React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui";
 import type { MeResponse } from "@repo/types";

@@ -60,12 +60,6 @@ export interface FunnelStageRow {
   count: bigint;
 }
 
-export interface AttendanceBatchRow {
-  batchId: string;
-  presentCount: bigint;
-  totalCount: bigint;
-}
-
 export interface EngagementLessonRow {
   lessonId: string;
   completedCount: bigint;
@@ -93,6 +87,8 @@ const ANALYTICS_MATERIALIZED_VIEWS = [
   "mv_revenue_daily",
   "mv_enrollment_daily",
   "mv_lead_funnel_daily",
+  // Retired with the attendance feature; the view still EXISTS in the DB (tables were
+  // kept), and this list mirrors `analytics_mv_refresh_log`, so it stays listed here.
   "mv_attendance_daily",
   "mv_course_engagement_daily",
   "mv_campaign_performance_daily",
@@ -386,36 +382,6 @@ export class AnalyticsRepository {
     `;
   }
 
-  /**
-   * mv_attendance_daily rows grouped by batch, tenant-scoped, optionally batch-restricted
-   * and date-restricted. `from`/`to` are optional (AttendanceReportQuerySchema — all-time
-   * aggregate when omitted).
-   */
-  async queryAttendanceByBatch(
-    tenantId: string,
-    batchIds: string[] | null,
-    from: string | null,
-    to: string | null,
-  ): Promise<AttendanceBatchRow[]> {
-    if (batchIds !== null && batchIds.length === 0) return [];
-    const batchFilter =
-      batchIds !== null
-        ? Prisma.sql`AND batch_id = ANY(ARRAY[${Prisma.join(batchIds.map((id) => Prisma.sql`${id}::uuid`))}]::uuid[])`
-        : Prisma.empty;
-    const fromFilter = from !== null ? Prisma.sql`AND day >= ${from}::date` : Prisma.empty;
-    const toFilter = to !== null ? Prisma.sql`AND day <= ${to}::date` : Prisma.empty;
-    return this.prisma.client.$queryRaw<AttendanceBatchRow[]>`
-      SELECT batch_id AS "batchId",
-             SUM(present_count)::bigint AS "presentCount",
-             SUM(total_count)::bigint AS "totalCount"
-      FROM mv_attendance_daily
-      WHERE tenant_id = ${tenantId}::uuid
-        ${batchFilter}
-        ${fromFilter}
-        ${toFilter}
-      GROUP BY batch_id
-    `;
-  }
 
   /**
    * mv_course_engagement_daily rows grouped by lesson, tenant + program scoped, optionally
@@ -485,4 +451,298 @@ export class AnalyticsRepository {
     `;
     return rows[0] ?? zero;
   }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Lead performance by rep — the ONE report in this repository that reads LIVE
+  // TABLES rather than a materialized view.
+  //
+  // LOCK-D1 says dashboards read MVs, never the write path. That rule exists so a
+  // heavy multi-month aggregate cannot contend with transactional traffic. It is
+  // deliberately not applied here, because the question this report answers — "has
+  // this rep called anyone today?" — is worthless at MV-refresh latency: a manager
+  // acting on a stale answer pulls up a rep for work they have already done.
+  //
+  // The cost is bounded and known: each query below is a single `groupBy` over an
+  // index built for exactly this access path (leads_tenant_id_created_by_id_created_at_idx,
+  // leads_tenant_id_owner_id_assigned_at_idx, activities(user_id, due_at)), restricted
+  // to a staff-sized id list. This is not a full-table scan wearing a report's clothes.
+  //
+  // BRANCH SCOPE CAVEAT (documented, not a bug): `leads` carries branch_id, `activities`
+  // does not. For a branch-scoped caller the LEAD metrics are branch-filtered, while the
+  // ACTIVITY metrics count everything the branch's staff logged — including work on a
+  // lead outside their branch. Filtering activities through their parent lead's branch
+  // would silently drop every student-attached activity, which understates real work by
+  // more than the current over-count. Surfaced in the report's UI copy.
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /** Active staff in this tenant holding a lead-owning role, optionally narrowed to branches/one user. */
+  async listLeadOwningStaff(
+    tenantId: string,
+    roleKeys: readonly string[],
+    branchIds: string[] | null,
+    userId?: string,
+  ): Promise<Array<{ id: string; name: string; roleKeys: string[] }>> {
+    if (branchIds !== null && branchIds.length === 0) return [];
+
+    const rows = await this.prisma.client.userRole.findMany({
+      where: {
+        role: { tenantId, key: { in: [...roleKeys] }, deletedAt: null },
+        user: { tenantId, deletedAt: null, status: "active", ...(userId ? { id: userId } : {}) },
+        // A branch-scoped manager sees the reps posted to their branch(es). A user_role
+        // row with a NULL branchId is tenant-wide staff and is excluded from a branch
+        // view — they are not that manager's team.
+        ...(branchIds !== null ? { branchId: { in: branchIds } } : {}),
+      },
+      select: { userId: true, user: { select: { name: true } }, role: { select: { key: true } } },
+    });
+
+    const byUser = new Map<string, { name: string; roleKeys: Set<string> }>();
+    for (const row of rows) {
+      const existing = byUser.get(row.userId);
+      if (existing) {
+        existing.roleKeys.add(row.role.key);
+        continue;
+      }
+      byUser.set(row.userId, { name: row.user.name, roleKeys: new Set([row.role.key]) });
+    }
+    return [...byUser.entries()]
+      .map(([id, u]) => ({ id, name: u.name, roleKeys: [...u.roleKeys].sort() }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /** Leads keyed in by each staff user within [from, to]. */
+  async countLeadsCreatedByUser(
+    tenantId: string,
+    userIds: string[],
+    from: Date,
+    to: Date,
+    branchIds: string[] | null,
+  ): Promise<Map<string, number>> {
+    if (userIds.length === 0) return new Map();
+    const rows = await this.prisma.client.lead.groupBy({
+      by: ["createdById"],
+      where: {
+        tenantId,
+        deletedAt: null,
+        createdById: { in: userIds },
+        createdAt: { gte: from, lte: to },
+        ...(branchIds !== null ? { branchId: { in: branchIds } } : {}),
+      },
+      _count: { _all: true },
+    });
+    return toCountMap(rows.map((r) => ({ key: r.createdById, count: r._count._all })));
+  }
+
+  /**
+   * Leads that BECAME each user's within [from, to], plus how many of those have ever
+   * been contacted and how many converted. One groupBy per fact rather than three passes
+   * over a fetched row set — the counts never need the rows themselves.
+   */
+  async countLeadsAssignedByOwner(
+    tenantId: string,
+    userIds: string[],
+    from: Date,
+    to: Date,
+    branchIds: string[] | null,
+  ): Promise<{ assigned: Map<string, number>; contacted: Map<string, number>; converted: Map<string, number> }> {
+    if (userIds.length === 0) return { assigned: new Map(), contacted: new Map(), converted: new Map() };
+
+    const baseWhere = {
+      tenantId,
+      deletedAt: null,
+      ownerId: { in: userIds },
+      assignedAt: { gte: from, lte: to },
+      ...(branchIds !== null ? { branchId: { in: branchIds } } : {}),
+    };
+
+    const [assigned, contacted, converted] = await Promise.all([
+      this.prisma.client.lead.groupBy({ by: ["ownerId"], where: baseWhere, _count: { _all: true } }),
+      this.prisma.client.lead.groupBy({
+        by: ["ownerId"],
+        where: { ...baseWhere, firstContactedAt: { not: null } },
+        _count: { _all: true },
+      }),
+      this.prisma.client.lead.groupBy({
+        by: ["ownerId"],
+        where: { ...baseWhere, convertedStudentId: { not: null } },
+        _count: { _all: true },
+      }),
+    ]);
+
+    return {
+      assigned: toCountMap(assigned.map((r) => ({ key: r.ownerId, count: r._count._all }))),
+      contacted: toCountMap(contacted.map((r) => ({ key: r.ownerId, count: r._count._all }))),
+      converted: toCountMap(converted.map((r) => ({ key: r.ownerId, count: r._count._all }))),
+    };
+  }
+
+  /**
+   * Mean minutes from assignment to first contact, per owner, over leads assigned in the
+   * window that HAVE been contacted.
+   *
+   * Raw SQL because this is an average of a timestamp DIFFERENCE — Prisma's `_avg` only
+   * aggregates a stored numeric column, and there is no stored "response minutes" column
+   * to average (adding one would mean maintaining a derived value on every write, which
+   * is a worse trade than one parameterised query here).
+   */
+  async avgFirstResponseMinutesByOwner(
+    tenantId: string,
+    userIds: string[],
+    from: Date,
+    to: Date,
+    branchIds: string[] | null,
+  ): Promise<Map<string, number>> {
+    if (userIds.length === 0) return new Map();
+    if (branchIds !== null && branchIds.length === 0) return new Map();
+
+    const branchFilter =
+      branchIds !== null
+        ? Prisma.sql`AND branch_id = ANY(ARRAY[${Prisma.join(branchIds.map((id) => Prisma.sql`${id}::uuid`))}]::uuid[])`
+        : Prisma.empty;
+
+    const rows = await this.prisma.client.$queryRaw<Array<{ ownerId: string; avgMinutes: number }>>`
+      SELECT owner_id AS "ownerId",
+             AVG(EXTRACT(EPOCH FROM (first_contacted_at - assigned_at)) / 60.0)::float8 AS "avgMinutes"
+      FROM leads
+      WHERE tenant_id = ${tenantId}::uuid
+        AND deleted_at IS NULL
+        AND owner_id = ANY(ARRAY[${Prisma.join(userIds.map((id) => Prisma.sql`${id}::uuid`))}]::uuid[])
+        AND assigned_at BETWEEN ${from} AND ${to}
+        AND first_contacted_at IS NOT NULL
+        -- Guard against a lead contacted BEFORE it was (re)assigned: reassigning a lead
+        -- that someone already called would otherwise contribute a negative response
+        -- time and drag the new owner's average below zero.
+        AND first_contacted_at >= assigned_at
+        ${branchFilter}
+      GROUP BY owner_id
+    `;
+
+    const map = new Map<string, number>();
+    for (const row of rows) {
+      if (row.ownerId && row.avgMinutes !== null) map.set(row.ownerId, Math.round(row.avgMinutes));
+    }
+    return map;
+  }
+
+  /** Activity counts per user in [from, to]: total, calls only, and tasks completed. */
+  async countActivitiesByUser(
+    tenantId: string,
+    userIds: string[],
+    from: Date,
+    to: Date,
+  ): Promise<{ total: Map<string, number>; calls: Map<string, number>; tasksCompleted: Map<string, number> }> {
+    if (userIds.length === 0) return { total: new Map(), calls: new Map(), tasksCompleted: new Map() };
+
+    const baseWhere = { tenantId, deletedAt: null, userId: { in: userIds } };
+
+    const [total, calls, tasksCompleted] = await Promise.all([
+      this.prisma.client.activity.groupBy({
+        by: ["userId"],
+        where: { ...baseWhere, createdAt: { gte: from, lte: to } },
+        _count: { _all: true },
+      }),
+      this.prisma.client.activity.groupBy({
+        by: ["userId"],
+        where: { ...baseWhere, type: "call", createdAt: { gte: from, lte: to } },
+        _count: { _all: true },
+      }),
+      // Windowed on doneAt, NOT createdAt: a task raised last month and finished this
+      // week is this week's work.
+      this.prisma.client.activity.groupBy({
+        by: ["userId"],
+        where: { ...baseWhere, type: "task", doneAt: { gte: from, lte: to } },
+        _count: { _all: true },
+      }),
+    ]);
+
+    return {
+      total: toCountMap(total.map((r) => ({ key: r.userId, count: r._count._all }))),
+      calls: toCountMap(calls.map((r) => ({ key: r.userId, count: r._count._all }))),
+      tasksCompleted: toCountMap(tasksCompleted.map((r) => ({ key: r.userId, count: r._count._all }))),
+    };
+  }
+
+  /** As-of-NOW desk snapshot: open owned leads and overdue pending tasks. Ignores [from,to] by design. */
+  async countCurrentWorkloadByUser(
+    tenantId: string,
+    userIds: string[],
+    now: Date,
+    branchIds: string[] | null,
+  ): Promise<{ openLeads: Map<string, number>; overdueFollowUps: Map<string, number> }> {
+    if (userIds.length === 0) return { openLeads: new Map(), overdueFollowUps: new Map() };
+
+    const [openLeads, overdue] = await Promise.all([
+      this.prisma.client.lead.groupBy({
+        by: ["ownerId"],
+        where: {
+          tenantId,
+          deletedAt: null,
+          ownerId: { in: userIds },
+          stage: { notIn: ["won", "lost"] },
+          ...(branchIds !== null ? { branchId: { in: branchIds } } : {}),
+        },
+        _count: { _all: true },
+      }),
+      this.prisma.client.activity.groupBy({
+        by: ["userId"],
+        where: {
+          tenantId,
+          deletedAt: null,
+          userId: { in: userIds },
+          type: "task",
+          doneAt: null,
+          dueAt: { lt: now },
+        },
+        _count: { _all: true },
+      }),
+    ]);
+
+    return {
+      openLeads: toCountMap(openLeads.map((r) => ({ key: r.ownerId, count: r._count._all }))),
+      overdueFollowUps: toCountMap(overdue.map((r) => ({ key: r.userId, count: r._count._all }))),
+    };
+  }
+
+  /**
+   * The two totals that belong to nobody: leads with no owner at all (as of now) and
+   * leads created in the window that no one has ever contacted. Counted tenant-wide
+   * (scope-restricted) rather than per-rep precisely because no rep's row would carry
+   * them, which is how they stay invisible today.
+   */
+  async countUnownedLeads(
+    tenantId: string,
+    from: Date,
+    to: Date,
+    branchIds: string[] | null,
+  ): Promise<{ unassigned: number; uncontacted: number }> {
+    if (branchIds !== null && branchIds.length === 0) return { unassigned: 0, uncontacted: 0 };
+    const branchWhere = branchIds !== null ? { branchId: { in: branchIds } } : {};
+
+    const [unassigned, uncontacted] = await Promise.all([
+      this.prisma.client.lead.count({
+        where: { tenantId, deletedAt: null, ownerId: null, stage: { notIn: ["won", "lost"] }, ...branchWhere },
+      }),
+      this.prisma.client.lead.count({
+        where: {
+          tenantId,
+          deletedAt: null,
+          firstContactedAt: null,
+          stage: { notIn: ["won", "lost"] },
+          createdAt: { gte: from, lte: to },
+          ...branchWhere,
+        },
+      }),
+    ]);
+
+    return { unassigned, uncontacted };
+  }
+}
+
+/** Collapses a groupBy result into a lookup, dropping the null-key bucket Prisma includes for nullable group columns. */
+function toCountMap(rows: Array<{ key: string | null; count: number }>): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const row of rows) {
+    if (row.key) map.set(row.key, row.count);
+  }
+  return map;
 }

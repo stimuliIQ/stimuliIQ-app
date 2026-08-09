@@ -195,7 +195,7 @@ export function NotificationAdmin({ me }: NotificationAdminProps): React.JSX.Ele
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="notification-admin">
+    <div className="space-y-4 md:space-y-5" data-testid="notification-admin">
       <PageHeader
         title="Notifications"
         description="Manage campaign templates for email, WhatsApp, and SMS sends."

@@ -25,7 +25,7 @@ export function ReportPageShell({
   "data-testid": testId,
 }: ReportPageShellProps): React.JSX.Element {
   return (
-    <div className="space-y-6 md:space-y-8" data-testid={testId}>
+    <div className="space-y-4 md:space-y-5" data-testid={testId}>
       <PageHeader title={title} description={description} />
       {canView ? (
         children

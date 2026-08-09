@@ -178,6 +178,11 @@ const DEFAULT_PREFS_MATRIX: NotificationPrefMatrix = {
   booking_confirmation: { ...DEFAULT_CHANNEL_PREFS },
   payment_receipt: { ...DEFAULT_CHANNEL_PREFS, email: true },
   welcome: { ...DEFAULT_CHANNEL_PREFS },
+  // The ONLY type that defaults email to false. A bulk assign of 50 leads would
+  // otherwise send 50 emails to one rep — the fastest way to make them mute the sender
+  // and stop reading the ones that matter. The bell carries it instead; a rep who wants
+  // email can opt in per-type from their notification preferences.
+  lead_assigned: { ...DEFAULT_CHANNEL_PREFS, email: false },
 };
 
 // ─── Notification signing (AC-21, AC-24, AC-77) ───────────────────────────────
@@ -756,6 +761,44 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     } catch (err) {
       this.logger.warn(`[NotificationsService] lead_confirmation email dispatch failed: ${String(err)}`);
     }
+  }
+
+  /**
+   * Notify a STAFF member that a lead has just been assigned to them.
+   *
+   * The only staff-facing notification in this service — everything else here targets a
+   * student. Called from LeadsService (manual + bulk assign, CRM lead create) and from
+   * PublicFunnelService (inbound website lead picked up by the round-robin).
+   *
+   * In-app is the whole delivery story by design (DEFAULT_PREFS_MATRIX sets email/sms/
+   * whatsapp false for this type): a manager can bulk-assign 50 leads in one click, and
+   * 50 emails would teach the rep to filter the sender. The bell badge conveys the same
+   * information at zero marginal cost per lead. A rep who wants email can still opt in
+   * from their notification preferences — the prefs matrix is per type, so turning this
+   * one on does not touch any other.
+   *
+   * `leadPhone` is included so the notification is directly actionable — the rep can call
+   * without first opening the lead. This is staff-to-staff delivery of a lead the
+   * recipient is now the owner of, so it discloses nothing they cannot already read.
+   */
+  async notifyLeadAssigned(
+    ownerUserId: string,
+    tenantId: string,
+    payload: {
+      leadId: string;
+      leadName: string;
+      leadPhone: string;
+      leadSource: string;
+      assignedByName: string;
+    },
+  ): Promise<void> {
+    await this.notify(ownerUserId, tenantId, "lead_assigned", {
+      leadId: payload.leadId,
+      leadName: payload.leadName,
+      leadPhone: payload.leadPhone,
+      leadSource: payload.leadSource,
+      assignedByName: payload.assignedByName,
+    });
   }
 
   // ─── READ ENDPOINTS ──────────────────────────────────────────────────────

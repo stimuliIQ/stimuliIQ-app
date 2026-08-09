@@ -80,7 +80,7 @@ export function FacultyDirectory({ me }: FacultyDirectoryProps): React.JSX.Eleme
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="faculty-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="faculty-directory">
       <PageHeader
         title="Faculty"
         description="Search, filter, and manage faculty profiles."

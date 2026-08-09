@@ -74,7 +74,7 @@ export function BranchDirectory({ me }: BranchDirectoryProps): React.JSX.Element
   }
 
   return (
-    <div className="space-y-6 md:space-y-8" data-testid="branches-directory">
+    <div className="space-y-4 md:space-y-5" data-testid="branches-directory">
       <PageHeader
         title="Branches"
         description="Manage branch locations used across batches and faculty."

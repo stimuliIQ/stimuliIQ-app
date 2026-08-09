@@ -45,6 +45,12 @@ export const NotificationTypeSchema = z.enum([
   "booking_confirmation",
   "payment_receipt",
   "welcome",
+  /**
+   * STAFF-facing (every other type in this enum targets a student): a lead has just
+   * been assigned to you. Defaults to in-app only — a rep can pick up 30 leads in a
+   * bulk assign, and 30 emails would train them to ignore the channel.
+   */
+  "lead_assigned",
 ]);
 export type NotificationType = z.infer<typeof NotificationTypeSchema>;
 
@@ -107,6 +113,7 @@ export const NotificationDtoSchema = z
      *   payment_receipt:       { orderId, amountPaise, currency }
      *   welcome:               { userName }
      *   live_reminder:         { eventTitle, startsAt }
+     *   lead_assigned:         { leadId, leadName, leadPhone, leadSource, assignedByName }
      * MUST NOT carry: email, phone, providerKey, rawSecret, dltTemplateId.
      */
     payload: z.record(z.string(), z.unknown()).describe("Typed notification payload — keyed by type."),
@@ -259,6 +266,7 @@ export const NotificationPrefMatrixSchema = z
     booking_confirmation: ChannelPrefsSchema.optional(),
     payment_receipt: ChannelPrefsSchema.optional(),
     welcome: ChannelPrefsSchema.optional(),
+    lead_assigned: ChannelPrefsSchema.optional(),
   })
   .strict();
 export type NotificationPrefMatrix = z.infer<typeof NotificationPrefMatrixSchema>;
