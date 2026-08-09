@@ -34,6 +34,7 @@
     "db:seed:onboarding": "ts-node --project prisma/tsconfig.seed.json prisma/seed-onboarding.ts",
     "db:seed:twofa-reset": "ts-node --project prisma/tsconfig.seed.json prisma/seed-two-factor-reset.ts",
     "db:seed:user-delete": "ts-node --project prisma/tsconfig.seed.json prisma/seed-user-delete.ts",
+    "db:seed:attempts-grade": "ts-node --project prisma/tsconfig.seed.json prisma/seed-attempts-grade.ts",
     "db:seed:lead-performance": "ts-node --project prisma/tsconfig.seed.json prisma/seed-lead-performance.ts",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",

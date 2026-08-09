@@ -989,11 +989,19 @@ describeIfAvailable(
         // Registration issues a session (200 or 201 depending on implementation)
         expect([200, 201]).toContain(res.status);
 
-        // Tokens must be present (as cookies)
-        const accessToken = extractCookie(res, "access_token");
-        const csrfToken = extractCookie(res, "csrf_token");
+        // Tokens must be present (as cookies) in the AUDIENCE-PREFIXED "lms" slot.
+        // Registration creates a STUDENT session, and public.controller.ts writes it via
+        // setAuthCookies(res, tokens, "lms") so it can coexist with a staff CRM session in the
+        // same browser — the names are `lms_access_token` / `lms_csrf_token`, NOT the legacy
+        // bare ones. extractCookie() matches on a `${name}=` prefix, so asserting the bare name
+        // here silently read `undefined` and looked like "registration issues no session".
+        const accessToken = extractCookie(res, "lms_access_token");
+        const csrfToken = extractCookie(res, "lms_csrf_token");
         expect(accessToken).toBeTruthy();
         expect(csrfToken).toBeTruthy();
+        // Pin the slot itself: a regression that reverted to the unprefixed cookie would
+        // otherwise pass the two assertions above only if it ALSO kept the prefixed ones.
+        expect(extractCookie(res, "access_token")).toBeUndefined();
 
         // Verify user + student_profile created in DB
         const user = await prisma.user.findFirst({ where: { tenantId, email: regEmail } });

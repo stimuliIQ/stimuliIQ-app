@@ -45,7 +45,12 @@ if (envFile.available) {
   process.env.MAIL_PROVIDER = "noop";
   process.env.WHATSAPP_PROVIDER = "noop";
   process.env.CAPTCHA_PROVIDER = "noop";
-  process.env.PAYMENT_PROVIDER = "noop";
+  // "disabled", not "noop": the payment enum is ["razorpay", "disabled"] — unlike the
+  // providers above, which do accept "noop". `disabled` binds NoopPaymentProvider without the
+  // production boot-throw for missing RAZORPAY_* keys, which is exactly what this suite wants.
+  // An invalid value here is not a soft fallback: validateEnv() throws during DI resolution, so
+  // the whole suite fails to boot and every test in it reports as a failure.
+  process.env.PAYMENT_PROVIDER = "disabled";
 }
 
 const describeIfAvailable = envFile.available ? describe : describe.skip;

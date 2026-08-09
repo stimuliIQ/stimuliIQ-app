@@ -252,7 +252,17 @@ describeIfAvailable("Phase-9 Tickets/Support-desk — integration + RBAC scope i
         .set("X-CSRF-Token", csrfStudentA)
         .send({ body: "Any update?", isInternal: true }); // attempted escalation
       expect(res.status).toBe(201);
-      expect(res.body.data.isInternal).toBe(false);
+
+      // This route returns the whole TicketDetail, not the created message (deliberate — the
+      // LMS caches the response under the detail key, and returning a bare message crashed the
+      // thread on the next render). So the flag lives on the message inside the thread;
+      // `data.isInternal` is undefined, and asserting it was a vacuous `undefined !== true`
+      // check that would have passed even if the escalation had worked.
+      const posted = (res.body.data.messages as Array<{ body: string; isInternal: boolean }>).find(
+        (m) => m.body === "Any update?",
+      );
+      expect(posted).toBeDefined();
+      expect(posted!.isInternal).toBe(false);
     });
 
     it("staff adds an internal note; the student NEVER sees it on their own GET, but staff does", async () => {

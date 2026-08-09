@@ -487,15 +487,18 @@ describeIfAvailable("Phase-10 Page Builder + SiteSetting — integration + RBAC 
       expect(res.status).toBe(403);
     });
 
-    it("super_admin lists exactly the 7 seeded site settings (P10-2: stats.headline was REMOVED)", async () => {
+    it("super_admin lists exactly the 8 seeded site settings (P10-2: stats.headline was REMOVED)", async () => {
       const res = await request(httpServer).get("/api/v1/crm/site-settings").set("Cookie", cookieHeader(superAdminCookies));
       expect(res.status).toBe(200);
       const keys = res.body.data.map((s: { key: string }) => s.key);
+      // 8, not 7: `announcement.bar` (the CRM-toggleable strip above the site header) was added
+      // after this assertion was written. The exact count is asserted on purpose — it is what
+      // catches a setting appearing that no one declared — so it has to move with the seed.
       expect(keys).toEqual(
-        expect.arrayContaining(["nav.primary_links", "footer.columns", "footer.legal_links", "footer.copyright_text", "seo.defaults", "contact.details", "contact.whatsapp"]),
+        expect.arrayContaining(["nav.primary_links", "footer.columns", "footer.legal_links", "footer.copyright_text", "seo.defaults", "contact.details", "contact.whatsapp", "announcement.bar"]),
       );
       expect(keys).not.toContain("stats.headline");
-      expect(res.body.data.length).toBe(7);
+      expect(res.body.data.length).toBe(8);
     });
 
     it("GET /crm/site-settings/:key 404s for an unknown key", async () => {
@@ -540,7 +543,7 @@ describeIfAvailable("Phase-10 Page Builder + SiteSetting — integration + RBAC 
       expect(auditRow).not.toBeNull();
     });
 
-    it("GET /public/site-settings is anonymous and returns exactly the 7 keys (never stats.headline — P10-2), reflecting the just-updated value", async () => {
+    it("GET /public/site-settings is anonymous and returns exactly the 8 keys (never stats.headline — P10-2), reflecting the just-updated value", async () => {
       const res = await request(httpServer).get("/api/v1/public/site-settings");
       expect(res.status).toBe(200);
       // NOTE: jest's toHaveProperty() treats a dotted string as a NESTED keypath, not a
@@ -548,10 +551,10 @@ describeIfAvailable("Phase-10 Page Builder + SiteSetting — integration + RBAC 
       // check membership directly rather than via toHaveProperty().
       const keys = Object.keys(res.body.data);
       expect(keys).toEqual(
-        expect.arrayContaining(["nav.primary_links", "footer.columns", "footer.legal_links", "footer.copyright_text", "seo.defaults", "contact.details", "contact.whatsapp"]),
+        expect.arrayContaining(["nav.primary_links", "footer.columns", "footer.legal_links", "footer.copyright_text", "seo.defaults", "contact.details", "contact.whatsapp", "announcement.bar"]),
       );
       expect(keys).not.toContain("stats.headline");
-      expect(keys).toHaveLength(7);
+      expect(keys).toHaveLength(8);
       expect(res.body.data["contact.details"].contactText).toBe("Updated by integration test.");
     });
   });

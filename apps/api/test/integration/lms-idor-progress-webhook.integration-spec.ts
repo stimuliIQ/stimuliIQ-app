@@ -32,13 +32,21 @@
 //     AC-2f  Video not ready (processing) → 409                            → status gate
 //     AC-2g  Audio log row written after successful mint                   → audit
 //
-//   AC-3: Progress / rollup / attendance idempotency + resume
-//     AC-3a  POST complete twice (same key) → single attendance row         → idempotent
+//   AC-3: Progress / rollup idempotency + resume
+//     AC-3a  POST complete twice (same key) → stable rollup, no drift      → idempotent
 //     AC-3b  POST complete again (no key) → still idempotent               → idempotent
 //     AC-3c  PUT progress persists lastPositionS within ±2s                → resume
 //     AC-3d  Status transitions: not_started → in_progress → completed     → FSM
 //     AC-3e  GET /me/progress rollup is integer, sums correctly            → math
-//     AC-3f  GET /me/attendance shows one row per completed lesson         → attendance
+//
+//     ATTENDANCE COVERAGE WAS REMOVED, not lost. Recorded attendance was retired with the
+//     feature itself: lesson completion no longer writes an Attendance row and
+//     GET /me/attendance no longer exists (the write path, the repo's
+//     upsertRecordedAttendance, the CRM attendance editor and its DTOs were all deleted;
+//     analytics.repository.ts still lists mv_attendance_daily and documents it as retired,
+//     because the tables and views were deliberately kept). The three assertions here
+//     outlived that removal and asserted a row nothing writes. Live-class attendance is a
+//     separate surface and is still covered by phase-9-live-classes.
 //
 //   AC-4: Transcode webhook
 //     AC-4a  Missing/invalid HMAC → 401 (fail-closed)                     → security
@@ -549,19 +557,9 @@ describeIfAvailable(
         expect(pct2).toBe(pct1);
         expect(Number.isInteger(pct1)).toBe(true);
         expect(Number.isInteger(pct2)).toBe(true);
-
-        // Verify attendance — must have exactly one recorded row for this lesson.
-        const attendanceRows = await prisma.attendance.findMany({
-          where: {
-            enrollmentId: fx.enrollmentBId,
-            lessonId: fx.lessonP2AId,
-            source: "recorded",
-          },
-        });
-        expect(attendanceRows).toHaveLength(1);
       });
 
-      it("AC-3b: POST complete again WITHOUT Idempotency-Key → still idempotent (no extra attendance row)", async () => {
+      it("AC-3b: POST complete again WITHOUT Idempotency-Key → still idempotent", async () => {
         // Ensure the lesson is already completed (from AC-3a test above).
         // POST without key.
         const res = await postAs(
@@ -572,16 +570,6 @@ describeIfAvailable(
         expect(res.status).toBe(200);
         const body = res.body.data ?? res.body;
         expect(body.status).toBe("completed");
-
-        // Still only one attendance row.
-        const attendanceRows = await prisma.attendance.findMany({
-          where: {
-            enrollmentId: fx.enrollmentBId,
-            lessonId: fx.lessonP2AId,
-            source: "recorded",
-          },
-        });
-        expect(attendanceRows).toHaveLength(1);
       });
 
       it("AC-3e: GET /me/progress rollup has integer percentages that sum correctly", async () => {
@@ -611,21 +599,6 @@ describeIfAvailable(
 
         // Overall rollup must also be integer.
         expect(Number.isInteger(body.overallProgressPct)).toBe(true);
-      });
-
-      it("AC-3f: GET /me/attendance shows one recorded row for the completed P2 lesson", async () => {
-        const res = await getAs(tokenB, "/api/v1/me/attendance");
-        expect(res.status).toBe(200);
-        const body = res.body.data ?? res.body;
-        const items = body.data?.items ?? body.items ?? [];
-
-        const p2LessonAttendance = items.filter(
-          (item: Record<string, unknown>) =>
-            item["lessonId"] === fx.lessonP2AId && item["source"] === "recorded",
-        );
-        // There should be exactly one recorded attendance row.
-        expect(p2LessonAttendance).toHaveLength(1);
-        expect(p2LessonAttendance[0]["status"]).toBe("present");
       });
 
       it("AC-3d: lesson-detail progress snapshot shows status=completed after mark-complete", async () => {

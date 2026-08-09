@@ -307,26 +307,22 @@ describeIfAvailable("RBAC matrix — generated from the live Nest router", () =>
       expect({ permissionKeysMissingFromCatalog: unseeded }).toEqual({ permissionKeysMissingFromCatalog: [] });
     });
 
-    it("F-1 REGRESSION: prisma/seed.ts defines attempts.grade", () => {
-      // PUT /crm/attempts/:id/grade requires @RequirePermission("attempts.grade")
-      // (assessments-crm.controller.ts:153) — the endpoint that lets faculty grade a
-      // DESCRIPTIVE assessment attempt. `prisma/seed.ts` never defines that key: the P4
-      // catalog block seeds attempts.take and attempts.view, and stops there.
+    it("prisma/seed.ts defines AND grants attempts.grade (F-1, fixed — kept as a guard)", () => {
+      // Deliberately reads the seed SOURCE, not the live catalog. The two DB-backed checks
+      // around it cannot see this class of bug: integration specs upsert their own permission
+      // fixtures (p4-learning-depth-journey creates attempts.grade because the route it
+      // exercises needs it), so the key exists in any DB this suite has touched while
+      // `pnpm db:seed` — all a real deployment runs — did not create it. That was F-1:
+      // PUT /crm/attempts/:id/grade 403'd for EVERY role including super_admin, making
+      // descriptive-attempt grading dead in production. Fail-closed, so a functional gap
+      // rather than a hole.
       //
-      // A permission that is not in the catalog cannot be granted to any role, so no user can
-      // ever hold it, so the route is 403 for EVERYONE — including super_admin. Descriptive-
-      // assessment grading is a dead feature in any real deployment, and the CRM's "Grade
-      // descriptive attempt" drawer can never succeed.
-      //
-      // It is fail-CLOSED, so it is not a security hole — it is a functional one. The whole
-      // integration suite is green today only because p4-learning-depth-journey creates the
-      // missing permission as its own fixture.
-      //
-      // Fix: add { key: "attempts.grade", label: "Grade Assessment Attempt" } to the P4 block
-      // in prisma/seed.ts and grant it to faculty (scope=assigned) + admin/super_admin (all),
-      // alongside the existing submissions.grade grant. Then delete this test.
+      // Now fixed in the P4 catalog + the faculty assigned-scope grant (super_admin/admin
+      // arrive via the catch-all). Both halves are asserted because the catalog entry alone
+      // would leave the key granted to nobody — equally dead.
       const seedSource = readFileSync(require.resolve("../../../../prisma/seed.ts"), "utf8");
-      expect(seedSource).toContain("attempts.grade");
+      expect(seedSource).toContain('{ key: "attempts.grade"');
+      expect(seedSource).toMatch(/facultyP4AssignedGrants[\s\S]*?"attempts\.grade"[\s\S]*?\]/);
     });
 
     it("no route requires a permission that the seed grants to nobody (dead endpoint check)", async () => {
@@ -400,6 +396,11 @@ describeIfAvailable("RBAC matrix — generated from the live Nest router", () =>
         "/api/v1/auth/otp",
         "/api/v1/auth/password-reset",
         "/api/v1/auth/2fa/login-verify",
+        // 2FA recovery (request + confirm) — necessarily anonymous, for the same reason
+        // password-reset above is: the caller is locked OUT of their second factor, so there is
+        // no session to authenticate with. Possession of the emailed OTP is the credential.
+        // Both carry AuthIpRateLimitGuard, so the surface is rate-limited rather than open.
+        "/api/v1/auth/2fa/recovery",
         "/api/v1/public/",
         "/api/v1/verify/",
         "/api/v1/health",
@@ -463,6 +464,15 @@ describeIfAvailable("RBAC matrix — generated from the live Nest router", () =>
       "PATCH /api/v1/crm/courses/:id",
       "PATCH /api/v1/crm/courses/:id/modules/:moduleId",
       "PATCH /api/v1/crm/courses/:id/modules/:moduleId/lessons/:lessonId",
+      // Lesson resources are the SAME F-2 family: they deliberately reuse courses.view /
+      // courses.edit rather than minting new keys, so they inherit the same unresolvable
+      // `assigned`/`branch`/`own` scopes and hit the same fail-closed guard
+      // (courses.service.ts assertResolvableScope). Not a new defect — the routes were added
+      // after this list was written. Only these two appear: the sibling POSTs are rejected by
+      // ZodValidationPipe on the probe's empty `{}` body before the scope guard ever runs, so
+      // they never surface as a 403 here.
+      "GET /api/v1/crm/courses/lessons/:lessonId/resources",
+      "DELETE /api/v1/crm/courses/lessons/resources/:resourceId",
       // Same family, and here the denial is unambiguously CORRECT: the `student` role holds
       // enrollments.view at scope=own so it can read its OWN enrollments via /me/enrollments.
       // The CRM list route reuses the same permission KEY, so the permission layer alone would

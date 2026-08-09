@@ -193,6 +193,14 @@ const P4_PERMISSIONS: Array<{ key: string; label: string }> = [
   // attempts
   { key: "attempts.take",      label: "Take Assessment Attempt" },
   { key: "attempts.view",      label: "View Assessment Attempts" },
+  // attempts.grade gates PUT /crm/attempts/:id/grade (assessments-crm.controller.ts) — the
+  // route that grades a DESCRIPTIVE attempt, which cannot be auto-scored. It was missing from
+  // this catalog while the route shipped, and a key absent here can be granted to nobody, so
+  // the endpoint 403'd for EVERY role including super_admin: descriptive grading was dead in
+  // any real deployment, and the CRM's grade drawer could never succeed. Fail-closed, so a
+  // functional gap rather than a hole. Granted below beside submissions.grade, whose reviewer
+  // surface it mirrors.
+  { key: "attempts.grade",     label: "Grade Assessment Attempt" },
   // certificates
   { key: "certificates.recommend", label: "Recommend Certificate" },
   { key: "certificates.issue",     label: "Issue Certificate" },
@@ -1150,6 +1158,8 @@ async function main(): Promise<void> {
   //   assessments.create — author new assessments on their modules
   //   assessments.edit   — edit own-authored assessments
   //   attempts.view      — see student attempt results for their assigned batches
+  //   attempts.grade     — grade a DESCRIPTIVE attempt (no auto-score possible), the same
+  //                        reviewer act as submissions.grade and scoped identically
   //   certificates.recommend — flag a student as eligible for a certificate
   const facultyP4AssignedGrants: string[] = [
     "assignments.view",
@@ -1163,6 +1173,7 @@ async function main(): Promise<void> {
     "assessments.create",
     "assessments.edit",
     "attempts.view",
+    "attempts.grade",
     "certificates.recommend",
   ];
   await Promise.all(
