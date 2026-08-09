@@ -134,6 +134,19 @@ export class ActivitiesService {
       dueAt: body.dueAt ? new Date(body.dueAt) : undefined,
     });
 
+    // Stamp the parent lead's contact timestamps. This is the ONLY place
+    // `firstContactedAt` is ever written, which is what makes first-response-time a real
+    // measurement rather than an estimate: it is set by the act of logging contact, not
+    // by anyone remembering to record it separately.
+    //
+    // A `task` is excluded from counting as CONTACT — scheduling a callback for Friday is
+    // not talking to the lead, and letting it stamp first contact would let a rep book a
+    // reminder and score a perfect response time without ever picking up the phone. It
+    // still moves `lastActivityAt`, since it is genuine activity on the record.
+    if (body.leadId) {
+      await this.leadsRepository.touchLeadContact(body.leadId, new Date(), body.type !== "task");
+    }
+
     const row = await this.repository.findById(tenantId, created.id);
     if (!row) throw new NotFoundException({ code: "activities.not_found", title: "Activity not found after creation" });
     return toDetail(row);

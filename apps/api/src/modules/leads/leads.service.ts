@@ -18,8 +18,15 @@
 // returns `null` -> 404 (never 403 — no existence disclosure, same posture as students
 // module).
 
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
-import type { LeadDetail, LeadSummary, ConvertLeadResponse } from "@repo/types";
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
+import type { AssignableUser, LeadDetail, LeadSummary, ConvertLeadResponse } from "@repo/types";
 import { resolveLifecycleStage } from "@repo/types";
 import { LeadsRepository, type LeadRow, type LeadScopeWhere } from "./leads.repository";
 import { ActivitiesRepository } from "./activities.repository";
@@ -27,6 +34,7 @@ import { PaginatedResult } from "../../common/dto/paginated-result";
 import { requireScopeContext, type ScopeContext } from "../auth/lib/scope-context";
 import { StudentsRepository } from "../students/students.repository";
 import { CommerceService } from "../commerce/commerce.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import type {
   CreateLeadRequest,
   UpdateLeadRequest,
@@ -61,11 +69,14 @@ const DEFAULT_FOLLOW_UP_SLA_HOURS = 24;
 
 @Injectable()
 export class LeadsService {
+  private readonly logger = new Logger(LeadsService.name);
+
   constructor(
     private readonly repository: LeadsRepository,
     private readonly studentsRepository: StudentsRepository,
     private readonly commerceService: CommerceService,
     private readonly activitiesRepository: ActivitiesRepository,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /**
@@ -120,7 +131,12 @@ export class LeadsService {
     const { rows, total } = await this.repository.list({
       tenantId,
       stage: query.stage,
-      ownerId: query.ownerId,
+      // `mine=true` is resolved HERE from the session, never from a client-supplied id —
+      // that is what makes it impossible to ask for someone else's desk by spoofing it.
+      // The DTO guarantees mine/ownerId/unassigned are mutually exclusive.
+      ownerId: query.mine ? scope.actorId : query.ownerId,
+      unassigned: query.unassigned,
+      createdById: query.createdById,
       source: query.source,
       branchId: query.branchId,
       programInterestId: query.programInterestId,
@@ -164,7 +180,7 @@ export class LeadsService {
    * can never see it (round-robin-picked owners are already validated by construction,
    * so this check only applies to the caller-supplied path).
    */
-  async create(tenantId: string, body: CreateLeadRequest): Promise<LeadDetail> {
+  async create(tenantId: string, actorId: string, body: CreateLeadRequest): Promise<LeadDetail> {
     if (body.ownerId) {
       await this.assertOwnerInTenant(tenantId, body.ownerId);
     }
@@ -179,6 +195,11 @@ export class LeadsService {
       source: body.source,
       branchId: body.branchId,
       ownerId,
+      createdById: actorId,
+      // Only a HAND-PICKED owner has a human assigner. A round-robin pick leaves
+      // assignedById null, which is what lets the report tell "the system gave you this"
+      // apart from "a manager gave you this".
+      assignedById: body.ownerId ? actorId : null,
       utm: body.utm,
       score: body.score,
       slaDueAt: body.slaDueAt ? new Date(body.slaDueAt) : undefined,
@@ -186,7 +207,54 @@ export class LeadsService {
 
     const row = await this.repository.findById(tenantId, created.id);
     if (!row) throw new NotFoundException({ code: "leads.not_found", title: "Lead not found after creation" });
+
+    // Tell the new owner they have work — unless they assigned it to themselves, in
+    // which case a notification is just noise about something they just did.
+    if (ownerId && ownerId !== actorId) {
+      await this.notifyAssignee(tenantId, ownerId, row);
+    }
+
     return toDetail(row);
+  }
+
+  /**
+   * GET /crm/leads/assignable-users — the owner picker's data source.
+   *
+   * Gated on `leads.view` (not `users.view`, which is admin-only) precisely so the people
+   * who actually assign leads — counsellors and marketing reps — can populate the picker.
+   * That is a deliberate, narrow widening of who can enumerate staff names: the payload is
+   * name + email + role + open-lead count for LEAD-OWNING roles only. It exposes no
+   * credential state, no admin/finance staff, and nothing about anyone deactivated.
+   */
+  async listAssignableUsers(tenantId: string, search?: string): Promise<AssignableUser[]> {
+    requireScopeContext(); // fail-closed: never serve this outside an authenticated, scoped request.
+    return this.repository.listAssignableUsers(tenantId, search);
+  }
+
+  /**
+   * Fire-and-report notification to a lead's new owner. Never throws into the caller:
+   * an assignment that succeeded must not be reported as a failure because the bell
+   * did not ring — the ownership write is the contract, the notification is a courtesy.
+   */
+  private async notifyAssignee(tenantId: string, ownerId: string, lead: LeadRow): Promise<void> {
+    try {
+      await this.notifications.notifyLeadAssigned(ownerId, tenantId, {
+        leadId: lead.id,
+        leadName: lead.name,
+        leadPhone: lead.phone,
+        leadSource: lead.source,
+        // The re-fetched row already carries the resolved assigner, so "who gave me this"
+        // is read from the same row that was just written rather than re-derived here.
+        // A null assignedById means round-robin chose it — nobody to name.
+        assignedByName: lead.assignedById ? (lead.assignedByName ?? "A colleague") : "Auto-assignment",
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Lead ${lead.id} assigned to ${ownerId} but the notification failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   async update(tenantId: string, id: string, body: UpdateLeadRequest): Promise<LeadDetail> {
@@ -288,7 +356,7 @@ export class LeadsService {
       await this.assertOwnerInTenant(tenantId, body.ownerId);
     }
 
-    await this.repository.assignOwner(id, body.ownerId);
+    await this.repository.assignOwner(id, body.ownerId, scope.actorId);
 
     // DEFECT FIX (QA leads.service.ts assignOwner): the post-write re-fetch must NOT
     // re-apply `scopeWhere`. For an own-scope actor scopeWhere is `ownerId = me`; when the
@@ -299,6 +367,16 @@ export class LeadsService {
     // re-fetch by tenant + id only.
     const updated = await this.repository.findById(tenantId, id, {});
     if (!updated) throw new NotFoundException({ code: "leads.not_found", title: "Lead not found after owner assignment" });
+
+    // Notify only on a REAL handover to someone else. Three cases stay silent:
+    //   - unassign (ownerId null) — nobody to tell;
+    //   - a no-op re-save of the same owner — they already know;
+    //   - claiming a lead for yourself — you are the one who just clicked it.
+    const isNewOwner = body.ownerId !== null && body.ownerId !== existing.ownerId;
+    if (isNewOwner && body.ownerId !== scope.actorId) {
+      await this.notifyAssignee(tenantId, body.ownerId!, updated);
+    }
+
     return toDetail(updated);
   }
 
@@ -447,6 +525,13 @@ function toSummary(row: LeadRow): LeadSummary {
     branchName: row.branchName,
     ownerId: row.ownerId,
     ownerName: row.ownerName,
+    createdById: row.createdById,
+    createdByName: row.createdByName,
+    assignedById: row.assignedById,
+    assignedByName: row.assignedByName,
+    assignedAt: row.assignedAt ? row.assignedAt.toISOString() : null,
+    firstContactedAt: row.firstContactedAt ? row.firstContactedAt.toISOString() : null,
+    lastActivityAt: row.lastActivityAt ? row.lastActivityAt.toISOString() : null,
     score: row.score,
     slaDueAt: row.slaDueAt ? row.slaDueAt.toISOString() : null,
     convertedStudentId: row.convertedStudentId,

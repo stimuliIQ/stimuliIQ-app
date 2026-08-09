@@ -20,7 +20,7 @@ import {
   UseInterceptors,
   UsePipes,
 } from "@nestjs/common";
-import type { LeadDetail, LeadSummary, ConvertLeadResponse } from "@repo/types";
+import type { AssignableUser, LeadDetail, LeadSummary, ConvertLeadResponse } from "@repo/types";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
 import { ScopeInterceptor } from "../auth/interceptors/scope.interceptor";
@@ -43,6 +43,8 @@ import {
   type AssignLeadOwnerRequest,
   ConvertLeadRequestSchema,
   type ConvertLeadRequest,
+  ListAssignableUsersQuerySchema,
+  type ListAssignableUsersQuery,
 } from "./dto";
 
 @Controller("crm/leads")
@@ -60,6 +62,22 @@ export class LeadsController {
     return this.leadsService.list(user.tenantId, query);
   }
 
+  /**
+   * GET /api/v1/crm/leads/assignable-users — owner-picker data source.
+   *
+   * MUST stay declared ABOVE `@Get(":id")`: Nest matches routes in declaration order, so
+   * below it this path would be swallowed by the `:id` param route and rejected by its
+   * ParseUUIDPipe as a malformed uuid (400), never reaching this handler.
+   */
+  @Get("assignable-users")
+  @RequirePermission("leads.view")
+  async listAssignableUsers(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(ListAssignableUsersQuerySchema)) query: ListAssignableUsersQuery,
+  ): Promise<AssignableUser[]> {
+    return this.leadsService.listAssignableUsers(user.tenantId, query.search);
+  }
+
   @Get(":id")
   @RequirePermission("leads.view")
   async getById(@CurrentUser() user: RequestUser, @Param("id", new ParseUUIDPipe()) id: string): Promise<LeadDetail> {
@@ -71,7 +89,7 @@ export class LeadsController {
   @RequirePermission("leads.create")
   @UsePipes(new ZodValidationPipe(CreateLeadRequestSchema))
   async create(@CurrentUser() user: RequestUser, @Body() body: CreateLeadRequest): Promise<LeadDetail> {
-    return this.leadsService.create(user.tenantId, body);
+    return this.leadsService.create(user.tenantId, user.id, body);
   }
 
   @Patch(":id")

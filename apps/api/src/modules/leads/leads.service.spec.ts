@@ -12,6 +12,7 @@ import { LeadsRepository, type LeadRow } from "./leads.repository";
 import { ActivitiesRepository } from "./activities.repository";
 import { StudentsRepository } from "../students/students.repository";
 import { CommerceService } from "../commerce/commerce.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { scopeContextStorage, type ScopeContext } from "../auth/lib/scope-context";
 
 type Mocked<T> = { [K in keyof T]: T[K] extends (...args: never[]) => unknown ? jest.Mock : T[K] };
@@ -31,6 +32,9 @@ function mockLeadsRepository(): Mocked<LeadsRepository> {
     restore: jest.fn(),
     pickRoundRobinOwner: jest.fn(),
     isActiveUserInTenant: jest.fn(),
+    listAssignableUsers: jest.fn(),
+    countOpenLeadsByOwner: jest.fn(),
+    touchLeadContact: jest.fn(),
   } as unknown as Mocked<LeadsRepository>;
 }
 
@@ -54,6 +58,16 @@ function mockActivitiesRepository(): Mocked<ActivitiesRepository> {
   return { create: jest.fn() } as unknown as Mocked<ActivitiesRepository>;
 }
 
+/**
+ * Assignment notifications are a side effect of the ownership write, never a
+ * precondition for it — the service swallows failures here on purpose (a lead that
+ * changed hands must not report failure because the bell did not ring), so the mock
+ * resolves by default and individual tests override it to assert the failure path.
+ */
+function mockNotificationsService(): Mocked<NotificationsService> {
+  return { notifyLeadAssigned: jest.fn().mockResolvedValue(undefined) } as unknown as Mocked<NotificationsService>;
+}
+
 const ROW: LeadRow = {
   id: "lead-1",
   tenantId: "tenant-1",
@@ -68,6 +82,13 @@ const ROW: LeadRow = {
   branchName: "Branch A",
   ownerId: "actor-1",
   ownerName: "Counsellor One",
+  createdById: null,
+  createdByName: null,
+  assignedById: null,
+  assignedByName: null,
+  assignedAt: null,
+  firstContactedAt: null,
+  lastActivityAt: null,
   score: null,
   slaDueAt: null,
   convertedStudentId: null,
@@ -94,17 +115,20 @@ describe("LeadsService", () => {
   let studentsRepo: Mocked<StudentsRepository>;
   let commerce: Mocked<CommerceService>;
   let activitiesRepo: Mocked<ActivitiesRepository>;
+  let notifications: Mocked<NotificationsService>;
 
   beforeEach(() => {
     repo = mockLeadsRepository();
     studentsRepo = mockStudentsRepository();
     commerce = mockCommerceService();
     activitiesRepo = mockActivitiesRepository();
+    notifications = mockNotificationsService();
     service = new LeadsService(
       repo as unknown as LeadsRepository,
       studentsRepo as unknown as StudentsRepository,
       commerce as unknown as CommerceService,
       activitiesRepo as unknown as ActivitiesRepository,
+      notifications as unknown as NotificationsService,
     );
   });
 
@@ -192,7 +216,7 @@ describe("LeadsService", () => {
       repo.create.mockResolvedValue({ id: "new-lead" });
       repo.findById.mockResolvedValue({ ...ROW, id: "new-lead" });
 
-      await service.create("tenant-1", {
+      await service.create("tenant-1", "actor-1", {
         name: "New Lead",
         phone: "+919999999998",
         source: "website",
@@ -209,7 +233,7 @@ describe("LeadsService", () => {
       repo.isActiveUserInTenant.mockResolvedValue(false);
 
       await expect(
-        service.create("tenant-1", {
+        service.create("tenant-1", "actor-1", {
           name: "New Lead",
           phone: "+919999999998",
           source: "website",
@@ -224,7 +248,7 @@ describe("LeadsService", () => {
       repo.create.mockResolvedValue({ id: "new-lead" });
       repo.findById.mockResolvedValue({ ...ROW, id: "new-lead" });
 
-      await service.create("tenant-1", { name: "New Lead", phone: "+919999999998", source: "website" });
+      await service.create("tenant-1", "actor-1", { name: "New Lead", phone: "+919999999998", source: "website" });
 
       expect(repo.pickRoundRobinOwner).toHaveBeenCalledWith("tenant-1");
       expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ ownerId: "rr-counsellor" }));
@@ -235,9 +259,78 @@ describe("LeadsService", () => {
       repo.create.mockResolvedValue({ id: "new-lead" });
       repo.findById.mockResolvedValue({ ...ROW, id: "new-lead", ownerId: null });
 
-      await service.create("tenant-1", { name: "New Lead", phone: "+919999999998", source: "website" });
+      await service.create("tenant-1", "actor-1", { name: "New Lead", phone: "+919999999998", source: "website" });
 
       expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ ownerId: null }));
+    });
+
+    it("records the actor as createdById, and as assignedById ONLY when they picked the owner by hand", async () => {
+      repo.isActiveUserInTenant.mockResolvedValue(true);
+      repo.create.mockResolvedValue({ id: "new-lead" });
+      repo.findById.mockResolvedValue({ ...ROW, id: "new-lead" });
+
+      await service.create("tenant-1", "actor-1", {
+        name: "New Lead",
+        phone: "+919999999998",
+        source: "website",
+        ownerId: "explicit-owner",
+      });
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ createdById: "actor-1", assignedById: "actor-1" }),
+      );
+    });
+
+    it("leaves assignedById null for a round-robin pick — nobody made that call", async () => {
+      repo.pickRoundRobinOwner.mockResolvedValue("rr-counsellor");
+      repo.create.mockResolvedValue({ id: "new-lead" });
+      repo.findById.mockResolvedValue({ ...ROW, id: "new-lead", ownerId: "rr-counsellor" });
+
+      await service.create("tenant-1", "actor-1", { name: "New Lead", phone: "+919999999998", source: "website" });
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ createdById: "actor-1", assignedById: null }),
+      );
+    });
+
+    it("notifies the round-robin-assigned owner", async () => {
+      repo.pickRoundRobinOwner.mockResolvedValue("rr-counsellor");
+      repo.create.mockResolvedValue({ id: "new-lead" });
+      repo.findById.mockResolvedValue({ ...ROW, id: "new-lead", ownerId: "rr-counsellor", assignedById: null });
+
+      await service.create("tenant-1", "actor-1", { name: "New Lead", phone: "+919999999998", source: "website" });
+
+      expect(notifications.notifyLeadAssigned).toHaveBeenCalledWith(
+        "rr-counsellor",
+        "tenant-1",
+        // A null assignedById on the row means the system chose — the copy says so
+        // rather than naming whoever happened to key the lead in.
+        expect.objectContaining({ assignedByName: "Auto-assignment" }),
+      );
+    });
+  });
+
+  describe("owner filters", () => {
+    it("resolves `mine` from the SESSION, never from a client-supplied id", async () => {
+      repo.list.mockResolvedValue({ rows: [ROW], total: 1 });
+
+      await runWithScope(
+        "all",
+        () => service.list("tenant-1", { page: 1, pageSize: 20, mine: true }),
+        "marketing-user",
+      );
+
+      expect(repo.list).toHaveBeenCalledWith(expect.objectContaining({ ownerId: "marketing-user" }));
+    });
+
+    it("passes `unassigned` straight through as its own filter", async () => {
+      repo.list.mockResolvedValue({ rows: [], total: 0 });
+
+      await runWithScope("all", () => service.list("tenant-1", { page: 1, pageSize: 20, unassigned: true }));
+
+      expect(repo.list).toHaveBeenCalledWith(
+        expect.objectContaining({ unassigned: true, ownerId: undefined }),
+      );
     });
   });
 
@@ -339,7 +432,9 @@ describe("LeadsService", () => {
       );
 
       expect(repo.isActiveUserInTenant).toHaveBeenCalledWith("tenant-1", "new-owner");
-      expect(repo.assignOwner).toHaveBeenCalledWith(ROW.id, "new-owner");
+      // The third argument is the ACTOR — who made the handover, recorded on the row so
+      // the performance report can distinguish a manual assignment from a round-robin one.
+      expect(repo.assignOwner).toHaveBeenCalledWith(ROW.id, "new-owner", "actor-1");
       expect(result.ownerId).toBe("new-owner");
     });
 
@@ -349,7 +444,67 @@ describe("LeadsService", () => {
       await runWithScope("branch", () => service.assignOwner("tenant-1", ROW.id, { ownerId: null }));
 
       expect(repo.isActiveUserInTenant).not.toHaveBeenCalled();
-      expect(repo.assignOwner).toHaveBeenCalledWith(ROW.id, null);
+      expect(repo.assignOwner).toHaveBeenCalledWith(ROW.id, null, "actor-1");
+    });
+
+    it("notifies the NEW owner that a lead has landed on their desk", async () => {
+      repo.isActiveUserInTenant.mockResolvedValue(true);
+      const updated = { ...ROW, ownerId: "new-owner", assignedById: "actor-1", assignedByName: "Manager One" };
+      repo.findById.mockResolvedValueOnce(ROW).mockResolvedValueOnce(updated);
+
+      await runWithScope("branch", () => service.assignOwner("tenant-1", ROW.id, { ownerId: "new-owner" }));
+
+      expect(notifications.notifyLeadAssigned).toHaveBeenCalledWith(
+        "new-owner",
+        "tenant-1",
+        expect.objectContaining({ leadId: ROW.id, leadName: ROW.name, assignedByName: "Manager One" }),
+      );
+    });
+
+    it("does NOT notify when a user claims a lead for themselves", async () => {
+      repo.isActiveUserInTenant.mockResolvedValue(true);
+      repo.findById
+        .mockResolvedValueOnce({ ...ROW, ownerId: null })
+        .mockResolvedValueOnce({ ...ROW, ownerId: "actor-1" });
+
+      await runWithScope("branch", () => service.assignOwner("tenant-1", ROW.id, { ownerId: "actor-1" }));
+
+      // You do not need telling about something you just did.
+      expect(notifications.notifyLeadAssigned).not.toHaveBeenCalled();
+    });
+
+    it("does NOT notify when the owner is unchanged (a no-op re-save)", async () => {
+      repo.isActiveUserInTenant.mockResolvedValue(true);
+      // ROW.ownerId is already "actor-1"; re-saving it must not fire a second notification.
+      repo.findById
+        .mockResolvedValueOnce({ ...ROW, ownerId: "existing-owner" })
+        .mockResolvedValueOnce({ ...ROW, ownerId: "existing-owner" });
+
+      await runWithScope("branch", () => service.assignOwner("tenant-1", ROW.id, { ownerId: "existing-owner" }));
+
+      expect(notifications.notifyLeadAssigned).not.toHaveBeenCalled();
+    });
+
+    it("does NOT notify on unassign — there is nobody to tell", async () => {
+      repo.findById.mockResolvedValueOnce(ROW).mockResolvedValueOnce({ ...ROW, ownerId: null });
+
+      await runWithScope("branch", () => service.assignOwner("tenant-1", ROW.id, { ownerId: null }));
+
+      expect(notifications.notifyLeadAssigned).not.toHaveBeenCalled();
+    });
+
+    it("still succeeds when the notification fails — the ownership write is the contract", async () => {
+      repo.isActiveUserInTenant.mockResolvedValue(true);
+      repo.findById.mockResolvedValueOnce(ROW).mockResolvedValueOnce({ ...ROW, ownerId: "new-owner" });
+      notifications.notifyLeadAssigned.mockRejectedValue(new Error("redis down"));
+
+      const result = await runWithScope("branch", () =>
+        service.assignOwner("tenant-1", ROW.id, { ownerId: "new-owner" }),
+      );
+
+      // A silent bell must never look like a failed reassignment — the lead DID change hands.
+      expect(result.ownerId).toBe("new-owner");
+      expect(repo.assignOwner).toHaveBeenCalled();
     });
 
     // P2 M-5 fix (Phase-7 Wave 2 security hardening batch B, item 4).

@@ -36,6 +36,9 @@ function mockLeadsRepository(): Mocked<LeadsRepository> {
     softDelete: jest.fn(),
     restore: jest.fn(),
     pickRoundRobinOwner: jest.fn(),
+    // Logging an activity stamps the parent lead's first/last contact timestamps —
+    // the write that makes first-response-time measurable at all.
+    touchLeadContact: jest.fn(),
   } as unknown as Mocked<LeadsRepository>;
 }
 

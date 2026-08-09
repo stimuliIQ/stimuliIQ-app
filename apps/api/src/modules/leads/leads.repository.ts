@@ -32,7 +32,14 @@ export type LeadScopeWhere = Prisma.LeadWhereInput;
 export interface ListLeadsFilters {
   tenantId: string;
   stage?: LeadStage;
+  /**
+   * Already RESOLVED by LeadsService — `mine=true` arrives here as the caller's own id.
+   * This repository never reads the session.
+   */
   ownerId?: string;
+  /** Owner IS NULL. Distinct from `ownerId: undefined`, which means "don't filter on owner". */
+  unassigned?: boolean;
+  createdById?: string;
   source?: string;
   branchId?: string;
   programInterestId?: string;
@@ -43,6 +50,26 @@ export interface ListLeadsFilters {
   pageSize: number;
   scopeWhere: LeadScopeWhere;
 }
+
+/** A staff user a lead can be handed to — see AssignableUserSchema in @repo/types. */
+export interface AssignableUserRow {
+  id: string;
+  name: string;
+  email: string | null;
+  roleKeys: string[];
+  openLeadCount: number;
+}
+
+/**
+ * Role keys whose holders take ownership of leads.
+ *
+ * `counsellor` was the original round-robin pool. `marketing` joined it because marketing
+ * staff work leads directly here, not just generate them — they hold the same
+ * leads.create/edit/convert grants as a counsellor, differing only in data scope (`all`
+ * vs `own`). Anything broader would start auto-dropping leads into admin/owner queues,
+ * where they die quietly.
+ */
+export const LEAD_OWNER_ROLE_KEYS = ["counsellor", "marketing"] as const;
 
 export interface LeadRow {
   id: string;
@@ -58,6 +85,13 @@ export interface LeadRow {
   branchName: string | null;
   ownerId: string | null;
   ownerName: string | null;
+  createdById: string | null;
+  createdByName: string | null;
+  assignedById: string | null;
+  assignedByName: string | null;
+  assignedAt: Date | null;
+  firstContactedAt: Date | null;
+  lastActivityAt: Date | null;
   score: number | null;
   slaDueAt: Date | null;
   convertedStudentId: string | null;
@@ -77,6 +111,9 @@ const LEAD_INCLUDE = {
   programInterest: { select: { title: true } },
   branch: { select: { name: true } },
   owner: { select: { name: true } },
+  // Names only — the pipeline shows "assigned by Priya", never her contact details.
+  createdBy: { select: { name: true } },
+  assignedBy: { select: { name: true } },
   _count: { select: { activities: true, bookings: true } },
 } satisfies Prisma.LeadInclude;
 
@@ -97,6 +134,13 @@ function toLeadRow(row: LeadWithRelations): LeadRow {
     branchName: row.branch?.name ?? null,
     ownerId: row.ownerId,
     ownerName: row.owner?.name ?? null,
+    createdById: row.createdById,
+    createdByName: row.createdBy?.name ?? null,
+    assignedById: row.assignedById,
+    assignedByName: row.assignedBy?.name ?? null,
+    assignedAt: row.assignedAt,
+    firstContactedAt: row.firstContactedAt,
+    lastActivityAt: row.lastActivityAt,
     score: row.score,
     slaDueAt: row.slaDueAt,
     convertedStudentId: row.convertedStudentId,
@@ -124,6 +168,10 @@ export class LeadsRepository {
       ...filters.scopeWhere,
       ...(filters.stage ? { stage: filters.stage } : {}),
       ...(filters.ownerId ? { ownerId: filters.ownerId } : {}),
+      // `unassigned` and `ownerId` are mutually exclusive at the DTO boundary, so these
+      // two spreads can never both apply and clobber each other.
+      ...(filters.unassigned ? { ownerId: null } : {}),
+      ...(filters.createdById ? { createdById: filters.createdById } : {}),
       ...(filters.source ? { source: filters.source } : {}),
       ...(filters.branchId ? { branchId: filters.branchId } : {}),
       ...(filters.programInterestId ? { programInterestId: filters.programInterestId } : {}),
@@ -218,6 +266,10 @@ export class LeadsRepository {
     source: string;
     branchId?: string;
     ownerId?: string | null;
+    /** Staff user who keyed this in. Omitted for public/web lead capture — see below. */
+    createdById?: string | null;
+    /** Staff user who chose the owner. Omitted when round-robin picked it. */
+    assignedById?: string | null;
     utm?: unknown;
     score?: number;
     slaDueAt?: Date;
@@ -232,6 +284,12 @@ export class LeadsRepository {
         source: data.source,
         branchId: data.branchId,
         ownerId: data.ownerId ?? null,
+        createdById: data.createdById ?? null,
+        assignedById: data.assignedById ?? null,
+        // A lead born with an owner was assigned at birth. Leaving assignedAt null here
+        // would make every round-robin lead look permanently "never assigned" in the
+        // report, which is exactly the number the report exists to measure.
+        assignedAt: data.ownerId ? new Date() : null,
         utm: data.utm as Prisma.InputJsonValue | undefined,
         score: data.score,
         slaDueAt: data.slaDueAt,
@@ -278,8 +336,125 @@ export class LeadsRepository {
     });
   }
 
-  async assignOwner(id: string, ownerId: string | null): Promise<void> {
-    await this.prisma.client.lead.update({ where: { id }, data: { ownerId } });
+  /**
+   * Sets the owner AND the provenance of that decision in one write.
+   *
+   * `assignedAt` is cleared on unassign (ownerId=null) rather than left pointing at the
+   * previous handover — a lead sitting in the unassigned queue has not "been assigned
+   * since <date>", it has no assignment at all, and leaving a stale timestamp would make
+   * time-to-assignment silently under-report.
+   */
+  async assignOwner(id: string, ownerId: string | null, assignedById: string | null): Promise<void> {
+    await this.prisma.client.lead.update({
+      where: { id },
+      data: {
+        ownerId,
+        assignedById: ownerId ? assignedById : null,
+        assignedAt: ownerId ? new Date() : null,
+      },
+    });
+  }
+
+  /**
+   * Stamps contact timestamps after an activity is logged against a lead.
+   *
+   * `firstContactedAt` is WRITE-ONCE — the `firstContactedAt: null` predicate in the
+   * where clause means a second call is a no-op rather than an overwrite. Doing this as a
+   * conditional UPDATE instead of read-then-write keeps it atomic: two reps logging a
+   * call on the same lead concurrently cannot both pass a JS-side null check and race to
+   * write two different "first" contacts.
+   *
+   * `lastActivityAt` is updated unconditionally in a second statement, since it must move
+   * on every activity, including ones that don't qualify as first contact.
+   */
+  async touchLeadContact(id: string, contactedAt: Date, countsAsContact: boolean): Promise<void> {
+    if (countsAsContact) {
+      await this.prisma.client.lead.updateMany({
+        where: { id, firstContactedAt: null },
+        data: { firstContactedAt: contactedAt },
+      });
+    }
+    await this.prisma.client.lead.update({ where: { id }, data: { lastActivityAt: contactedAt } });
+  }
+
+  /**
+   * The staff users a lead can be handed to: active, non-deleted users in this tenant
+   * holding a lead-owning role (see LEAD_OWNER_ROLE_KEYS), each with their current open
+   * lead count so the assigner can see who is already buried.
+   *
+   * Two queries, not a correlated subquery per user: one to resolve the pool, one
+   * `groupBy` for the counts. The pool is bounded by headcount (tens, not thousands), so
+   * this is materially cheaper than a per-row count and needs no pagination.
+   */
+  async listAssignableUsers(tenantId: string, search?: string): Promise<AssignableUserRow[]> {
+    const userRoles = await this.prisma.client.userRole.findMany({
+      where: {
+        role: { tenantId, key: { in: [...LEAD_OWNER_ROLE_KEYS] }, deletedAt: null },
+        user: {
+          tenantId,
+          deletedAt: null,
+          status: "active",
+          ...(search
+            ? {
+                OR: [
+                  { name: { contains: search, mode: "insensitive" as const } },
+                  { email: { contains: search, mode: "insensitive" as const } },
+                ],
+              }
+            : {}),
+        },
+      },
+      select: { userId: true, user: { select: { name: true, email: true } }, role: { select: { key: true } } },
+    });
+
+    if (userRoles.length === 0) return [];
+
+    // A user holding BOTH counsellor and marketing appears once, with both role keys.
+    const byUser = new Map<string, { name: string; email: string | null; roleKeys: Set<string> }>();
+    for (const row of userRoles) {
+      const existing = byUser.get(row.userId);
+      if (existing) {
+        existing.roleKeys.add(row.role.key);
+        continue;
+      }
+      byUser.set(row.userId, {
+        name: row.user.name,
+        email: row.user.email,
+        roleKeys: new Set([row.role.key]),
+      });
+    }
+
+    const openCounts = await this.countOpenLeadsByOwner(tenantId, [...byUser.keys()]);
+
+    return [...byUser.entries()]
+      .map(([id, user]) => ({
+        id,
+        name: user.name,
+        email: user.email,
+        roleKeys: [...user.roleKeys].sort(),
+        openLeadCount: openCounts.get(id) ?? 0,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /** Open (not won/lost, not deleted) owned-lead counts, keyed by owner id. Shared by the picker and the round-robin. */
+  async countOpenLeadsByOwner(tenantId: string, ownerIds: string[]): Promise<Map<string, number>> {
+    if (ownerIds.length === 0) return new Map();
+    const rows = await this.prisma.client.lead.groupBy({
+      by: ["ownerId"],
+      where: {
+        tenantId,
+        deletedAt: null,
+        ownerId: { in: ownerIds },
+        stage: { notIn: ["won", "lost"] },
+      },
+      _count: { _all: true },
+    });
+    const counts = new Map<string, number>(ownerIds.map((id) => [id, 0]));
+    for (const row of rows) {
+      if (row.ownerId) counts.set(row.ownerId, row._count._all);
+    }
+    return counts;
   }
 
   async setConverted(id: string, studentId: string): Promise<void> {
@@ -299,42 +474,37 @@ export class LeadsRepository {
 
   /**
    * Simple round-robin assignment (docs/plans/phase-2.md "Risks #4" — "keep it simple"):
-   * picks the counsellor with the fewest currently-open (non-won/lost) owned leads in
-   * this tenant, among users holding the `counsellor` role. Returns `null` if there are
-   * no counsellor users to assign to (lead is created unassigned).
+   * picks the lead-owning staff member with the fewest currently-open (non-won/lost)
+   * owned leads in this tenant. Returns `null` when the tenant has nobody who can own a
+   * lead, in which case the lead is created unassigned and lands in the Unassigned queue.
+   *
+   * The pool is LEAD_OWNER_ROLE_KEYS (counsellor + marketing) — widened from
+   * counsellor-only in the lead-ownership pass, because marketing staff work leads here
+   * rather than only sourcing them.
+   *
+   * Ties are broken by user id (`sort()` below), NOT by insertion order, so the pick is
+   * deterministic: on a fresh tenant where everyone has zero leads, an arbitrary-order
+   * result would make the assignment untestable and hard to reason about in support.
    */
   async pickRoundRobinOwner(tenantId: string): Promise<string | null> {
-    const counsellors = await this.prisma.client.userRole.findMany({
-      where: { role: { tenantId, key: "counsellor", deletedAt: null }, user: { deletedAt: null, status: "active" } },
+    const owners = await this.prisma.client.userRole.findMany({
+      where: {
+        role: { tenantId, key: { in: [...LEAD_OWNER_ROLE_KEYS] }, deletedAt: null },
+        user: { tenantId, deletedAt: null, status: "active" },
+      },
       select: { userId: true },
       distinct: ["userId"],
     });
-    const counsellorIds = counsellors.map((c) => c.userId);
-    if (counsellorIds.length === 0) {
+    const ownerIds = owners.map((o) => o.userId).sort();
+    if (ownerIds.length === 0) {
       return null;
     }
 
-    const loadCounts = await this.prisma.client.lead.groupBy({
-      by: ["ownerId"],
-      where: {
-        tenantId,
-        deletedAt: null,
-        ownerId: { in: counsellorIds },
-        stage: { notIn: ["won", "lost"] },
-      },
-      _count: { _all: true },
-    });
+    const loadMap = await this.countOpenLeadsByOwner(tenantId, ownerIds);
 
-    const loadMap = new Map<string, number>(counsellorIds.map((id) => [id, 0]));
-    for (const row of loadCounts) {
-      if (row.ownerId) {
-        loadMap.set(row.ownerId, row._count._all);
-      }
-    }
-
-    let pick = counsellorIds[0]!;
+    let pick = ownerIds[0]!;
     let minLoad = loadMap.get(pick) ?? 0;
-    for (const id of counsellorIds) {
+    for (const id of ownerIds) {
       const load = loadMap.get(id) ?? 0;
       if (load < minLoad) {
         minLoad = load;

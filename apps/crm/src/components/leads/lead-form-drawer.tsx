@@ -24,6 +24,7 @@ import { useAllBranches } from "../../hooks/use-branches";
 import { surfaceError } from "../../lib/surface-error";
 import { phoneFieldProps, isCompleteLocalPhone, toE164Phone } from "../../lib/phone-field";
 import { PHONE_LENGTH_MESSAGE } from "@repo/ui";
+import { OwnerSelect } from "./owner-select";
 
 interface LeadFormDrawerProps {
   open: boolean;
@@ -162,13 +163,20 @@ export function LeadFormDrawer({ open, onOpenChange }: LeadFormDrawerProps): Rea
                 </SelectItem>
               ))}
             </Select>
-            <Input
-              label="Owner (user id)"
-              placeholder="Paste the user ID"
-              helperText="Optional — paste a user id to assign directly, or leave blank for the backend's round-robin assignment. Reassign later from the lead detail."
-              {...register("ownerId")}
+            {/* Leaving this on "Unassigned" is the normal path, not a gap: the backend
+                round-robins to whoever has the fewest open leads, which balances the
+                team better than a human picking a familiar name. Choose explicitly only
+                when this lead should go to a specific person. */}
+            <OwnerSelect
+              label="Owner"
+              value={watch("ownerId") ?? null}
+              onChange={(value) => setValue("ownerId", value ?? undefined)}
               data-testid="lead-form-owner"
             />
+            <p className="-mt-2 text-xs text-fg-muted">
+              Leave as Unassigned to auto-assign to whoever currently has the fewest open leads. Whoever it lands on is
+              notified in the CRM.
+            </p>
             <fieldset className="flex flex-col gap-3 rounded-md border border-border p-3">
               <legend className="px-1 text-sm font-medium text-fg">UTM (optional)</legend>
               <Input

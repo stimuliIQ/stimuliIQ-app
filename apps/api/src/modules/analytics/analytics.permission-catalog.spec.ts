@@ -36,10 +36,11 @@ const EXPECTED_KEYS = [
   "reports.revenue.view",
   "reports.enrollment.view",
   "reports.funnel.view",
-  "reports.attendance.view",
   "reports.engagement.view",
   "reports.campaigns.view",
   "reports.gamification.view",
+  // Declared BEFORE forum-health in the controller, and this list asserts file order.
+  "reports.lead_performance.view",
   "reports.forum.view",
 ] as const;
 

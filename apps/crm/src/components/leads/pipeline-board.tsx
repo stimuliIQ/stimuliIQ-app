@@ -30,7 +30,6 @@ import {
   DataTable,
   type DataTableColumn,
   EmptyState,
-  Input,
   KanbanBoard,
   PageHeader,
   Select,
@@ -54,11 +53,19 @@ import { surfaceError } from "../../lib/surface-error";
 import { LEAD_STAGE_COLUMNS, LeadStageChip, canMoveLeadStage } from "./lead-stage-chip";
 import { LeadFormDrawer } from "./lead-form-drawer";
 import { LeadDetailDrawer } from "./lead-detail-drawer";
+import { OwnerSelect } from "./owner-select";
 
 const PIPELINE_PAGE_SIZE = 200;
 
 interface PipelineBoardProps {
   me: MeResponse | undefined;
+  /**
+   * Seeds the owner filter from the `?owner=mine` deep link (notification bell). Read
+   * ONCE as the initial state rather than kept in sync with the URL: once the board is
+   * open, the filter dropdown is the source of truth, and re-syncing would snap the
+   * user's manual choice back to "mine" on every re-render.
+   */
+  initialOwnerFilter?: "mine";
 }
 
 /**
@@ -83,7 +90,33 @@ const LEAD_SOURCE_LABELS: Record<string, string> = Object.fromEntries(
   LEAD_SOURCE_OPTIONS.map((o) => [o.value, o.label]),
 );
 
-export function PipelineBoard({ me }: PipelineBoardProps): React.JSX.Element {
+/** The owner filter's three mutually exclusive shapes — see the state declaration below. */
+type OwnerFilter =
+  | { kind: "any" }
+  | { kind: "mine" }
+  | { kind: "unassigned" }
+  | { kind: "user"; id: string };
+
+/**
+ * Projects the owner filter into the exact query fields the API accepts. Keeping this as
+ * one function is what guarantees only ONE of mine/unassigned/ownerId is ever sent — the
+ * DTO returns 422 if more than one is present.
+ */
+function ownerFilterToQuery(filter: OwnerFilter): { mine?: boolean; unassigned?: boolean; ownerId?: string } {
+  switch (filter.kind) {
+    case "mine":
+      return { mine: true };
+    case "unassigned":
+      return { unassigned: true };
+    case "user":
+      return { ownerId: filter.id };
+    case "any":
+    default:
+      return {};
+  }
+}
+
+export function PipelineBoard({ me, initialOwnerFilter }: PipelineBoardProps): React.JSX.Element {
   const canCreate = hasPermission(me?.permissions, "leads.create");
   const canBulkEdit = hasPermission(me?.permissions, "bulk.leads");
 
@@ -95,12 +128,24 @@ export function PipelineBoard({ me }: PipelineBoardProps): React.JSX.Element {
   const [search, setSearch] = React.useState("");
   const [source, setSource] = React.useState("");
   const [stage, setStage] = React.useState<LeadSummary["stage"] | undefined>(undefined);
+  /**
+   * The owner filter is ONE piece of state with three mutually exclusive shapes, not
+   * three independent booleans — the API rejects combining them (422), and modelling
+   * them separately would let the UI build a request the server refuses.
+   *   { kind: "any" }              — no owner filter
+   *   { kind: "mine" }             — server resolves "me" from the session
+   *   { kind: "unassigned" }       — leads nobody owns
+   *   { kind: "user", id }         — one specific rep
+   */
+  const [ownerFilter, setOwnerFilter] = React.useState<OwnerFilter>(
+    initialOwnerFilter === "mine" ? { kind: "mine" } : { kind: "any" },
+  );
   const [page, setPage] = React.useState(1);
   const [createOpen, setCreateOpen] = React.useState(false);
   const [selectedLeadId, setSelectedLeadId] = React.useState<string | null>(null);
   const [selectedIds, setSelectedIds] = React.useState<ReadonlySet<string>>(new Set());
   const [activeViewId, setActiveViewId] = React.useState<string | null>(null);
-  const [bulkOwnerInput, setBulkOwnerInput] = React.useState("");
+  const [bulkOwnerId, setBulkOwnerId] = React.useState<string | null>(null);
 
   const { toast } = useToast();
   const moveStage = useMoveLeadStage();
@@ -116,7 +161,9 @@ export function PipelineBoard({ me }: PipelineBoardProps): React.JSX.Element {
 
   React.useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, debouncedSource, stage]);
+  }, [debouncedSearch, debouncedSource, stage, ownerFilter]);
+
+  const ownerQuery = ownerFilterToQuery(ownerFilter);
 
   // Kanban: fetch all stages (no stage filter), capped page.
   const kanbanQuery = {
@@ -124,6 +171,7 @@ export function PipelineBoard({ me }: PipelineBoardProps): React.JSX.Element {
     pageSize: PIPELINE_PAGE_SIZE,
     search: debouncedSearch || undefined,
     source: debouncedSource || undefined,
+    ...ownerQuery,
   };
   const kanban = useLeadsList(kanbanQuery);
 
@@ -134,6 +182,7 @@ export function PipelineBoard({ me }: PipelineBoardProps): React.JSX.Element {
     search: debouncedSearch || undefined,
     source: debouncedSource || undefined,
     stage,
+    ...ownerQuery,
   };
   const table = useLeadsList(tableQuery);
 
@@ -154,15 +203,27 @@ export function PipelineBoard({ me }: PipelineBoardProps): React.JSX.Element {
     if (!viewId) return;
     const view = savedViews?.find((v) => v.id === viewId);
     if (!view) return;
-    const filters = view.filters as Partial<{ search: string; source: string; stage: LeadSummary["stage"] }>;
+    const filters = view.filters as Partial<{
+      search: string;
+      source: string;
+      stage: LeadSummary["stage"];
+      ownerFilter: OwnerFilter;
+    }>;
     setSearch(filters.search ?? "");
     setSource(filters.source ?? "");
     setStage(filters.stage);
+    // Views saved before the owner filter existed have no `ownerFilter` key — fall back
+    // to "any" rather than leaving the previous selection silently applied.
+    setOwnerFilter(filters.ownerFilter ?? { kind: "any" });
   }
 
   async function handleSaveView(name: string) {
     try {
-      await createSavedView.mutateAsync({ module: "leads", name, filters: { search, source, stage } });
+      // `ownerFilter` is stored as the discriminated union, not as the flattened query
+      // fields. A saved "Assigned to me" view therefore stays personal to whoever opens
+      // it (the server resolves "me" per request) instead of freezing one person's id
+      // into a view a colleague might later load.
+      await createSavedView.mutateAsync({ module: "leads", name, filters: { search, source, stage, ownerFilter } });
       toast({ title: "View saved", variant: "success" });
     } catch (error) {
       surfaceError(toast, error, "Couldn't save this view");
@@ -171,14 +232,16 @@ export function PipelineBoard({ me }: PipelineBoardProps): React.JSX.Element {
 
   async function handleBulkAssign() {
     try {
-      const result = await bulkAssign.mutateAsync({ ids: Array.from(selectedIds), ownerId: bulkOwnerInput.trim() || null });
+      const result = await bulkAssign.mutateAsync({ ids: Array.from(selectedIds), ownerId: bulkOwnerId });
       toast({
         title: "Bulk assign complete",
-        description: `${result.successCount} of ${result.results.length} leads updated.`,
+        description: `${result.successCount} of ${result.results.length} leads updated.${
+          bulkOwnerId ? " They've been notified in the CRM." : ""
+        }`,
         variant: result.failureCount === 0 ? "success" : "default",
       });
       setSelectedIds(new Set());
-      setBulkOwnerInput("");
+      setBulkOwnerId(null);
     } catch (error) {
       surfaceError(toast, error, "Couldn't bulk-assign these leads");
     }
@@ -230,7 +293,36 @@ export function PipelineBoard({ me }: PipelineBoardProps): React.JSX.Element {
     },
     { id: "stage", header: "Stage", cell: (row) => <LeadStageChip stage={row.stage} /> },
     { id: "source", header: "Source", cell: (row) => LEAD_SOURCE_LABELS[row.source] ?? row.source },
-    { id: "ownerName", header: "Owner", cell: (row) => row.ownerName ?? "Unassigned" },
+    {
+      id: "ownerName",
+      header: "Owner",
+      // Unassigned is called out in warning colour rather than rendered as plain text:
+      // a lead nobody owns is a problem to fix, not a neutral state to scroll past.
+      cell: (row) =>
+        row.ownerName ? (
+          <div className="space-y-0.5">
+            <div>{row.ownerName}</div>
+            {row.assignedByName ? (
+              <div className="text-xs text-fg-muted">by {row.assignedByName}</div>
+            ) : row.assignedAt ? (
+              <div className="text-xs text-fg-muted">auto-assigned</div>
+            ) : null}
+          </div>
+        ) : (
+          <span className="font-medium text-warning">Unassigned</span>
+        ),
+    },
+    {
+      id: "firstContactedAt",
+      header: "Contacted",
+      // The column that turns "we have 400 leads" into "nobody has called these 60".
+      cell: (row) =>
+        row.firstContactedAt ? (
+          new Date(row.firstContactedAt).toLocaleDateString()
+        ) : (
+          <span className="font-medium text-warning">Not yet</span>
+        ),
+    },
     {
       id: "slaDueAt",
       header: "SLA",
@@ -326,6 +418,20 @@ export function PipelineBoard({ me }: PipelineBoardProps): React.JSX.Element {
             </SelectItem>
           ))}
         </Select>
+        {/* The filter that makes tenant-wide `all` scope usable: a marketing user sees
+            every lead by permission, and without this has no way to find their own. */}
+        <OwnerSelect
+          label="Owner"
+          mode="filter"
+          value={ownerFilter.kind === "user" ? ownerFilter.id : null}
+          mineSelected={ownerFilter.kind === "mine"}
+          unassignedSelected={ownerFilter.kind === "unassigned"}
+          onSelectMine={() => setOwnerFilter({ kind: "mine" })}
+          onSelectUnassigned={() => setOwnerFilter({ kind: "unassigned" })}
+          onChange={(id) => setOwnerFilter(id ? { kind: "user", id } : { kind: "any" })}
+          wrapperClassName="w-64"
+          data-testid="pipeline-owner-filter"
+        />
         {view === "table" ? (
           <Select
             label="Stage"
@@ -348,16 +454,15 @@ export function PipelineBoard({ me }: PipelineBoardProps): React.JSX.Element {
       {view === "table" && canBulkEdit && selectedIds.size > 0 ? (
         <div className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-surface p-3" data-testid="pipeline-bulk-toolbar">
           <span className="text-sm font-medium text-fg">{selectedIds.size} selected</span>
-          <Input
-            label="Owner user id"
-            placeholder="UUID or blank to unassign"
-            value={bulkOwnerInput}
-            onChange={(e) => setBulkOwnerInput(e.target.value)}
+          <OwnerSelect
+            label="Assign to"
+            value={bulkOwnerId}
+            onChange={setBulkOwnerId}
             wrapperClassName="w-64"
-            data-testid="pipeline-bulk-owner-input"
+            data-testid="pipeline-bulk-owner-select"
           />
           <Button size="sm" variant="secondary" onClick={handleBulkAssign} loading={bulkAssign.isPending} data-testid="pipeline-bulk-assign">
-            Assign owner
+            {bulkOwnerId ? `Assign ${selectedIds.size}` : `Unassign ${selectedIds.size}`}
           </Button>
           <Select
             placeholder="Move stage…"
@@ -402,9 +507,16 @@ export function PipelineBoard({ me }: PipelineBoardProps): React.JSX.Element {
                 {lead.programInterestTitle ?? lead.courseInterest ?? "No program interest"}
               </span>
               <div className="flex items-center justify-between gap-2 text-xs text-fg-subtle">
-                <span>{lead.ownerName ?? "Unassigned"}</span>
+                <span className={lead.ownerName ? undefined : "font-medium text-warning"}>
+                  {lead.ownerName ?? "Unassigned"}
+                </span>
                 <span>{lead.source}</span>
               </div>
+              {/* An owned but never-contacted lead is the failure mode this whole pass
+                  exists to make visible — it looks fine on a board until you ask. */}
+              {lead.ownerName && !lead.firstContactedAt ? (
+                <span className="text-xs font-medium text-warning">Not contacted yet</span>
+              ) : null}
               {/* self-start: the card is a flex column (align-items:stretch), which
                   would otherwise stretch this inline-flex chip into a full-width pill. */}
               {lead.slaDueAt ? <SlaChip size="sm" dueAt={new Date(lead.slaDueAt)} className="self-start" /> : null}

@@ -22,7 +22,6 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
-  Input,
   useToast,
   type ActivityItem,
 } from "@repo/ui";
@@ -40,6 +39,8 @@ import { BookingStatusChip } from "./booking-status-chip";
 import { LogActivityForm } from "./log-activity-form";
 import { TaskList } from "./task-list";
 import { ConvertLeadDialog } from "./convert-lead-dialog";
+import { OwnerSelect } from "./owner-select";
+import { LeadAssignmentProvenance } from "./lead-assignment-provenance";
 
 interface LeadDetailDrawerProps {
   leadId: string | null;
@@ -64,7 +65,7 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
   const [convertOpen, setConvertOpen] = React.useState(false);
-  const [ownerInput, setOwnerInput] = React.useState("");
+  const [ownerId, setOwnerId] = React.useState<string | null>(null);
   // Follow-up scheduler: choosing "Follow-up" reveals a date/time picker instead of
   // moving immediately, so the callback is always scheduled (surfaces on the tasks/SLA queue).
   const [followUpAt, setFollowUpAt] = React.useState("");
@@ -78,9 +79,11 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
   const canDelete = hasPermission(me?.permissions, "leads.delete");
   const canConvert = hasPermission(me?.permissions, "leads.convert");
 
+  // Seed the picker from the lead's current owner so it opens showing the truth, and
+  // re-seed when the drawer is pointed at a different lead.
   React.useEffect(() => {
-    setOwnerInput(lead?.ownerId ?? "");
-  }, [lead?.ownerId]);
+    setOwnerId(lead?.ownerId ?? null);
+  }, [lead?.id, lead?.ownerId]);
 
   function handleStageSelect(stage: LeadStage) {
     if (!lead) return;
@@ -122,8 +125,12 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
   async function handleReassign() {
     if (!lead) return;
     try {
-      await assignOwner.mutateAsync({ id: lead.id, body: { ownerId: ownerInput.trim() || null } });
-      toast({ title: ownerInput.trim() ? "Owner reassigned" : "Owner unassigned", variant: "success" });
+      await assignOwner.mutateAsync({ id: lead.id, body: { ownerId } });
+      toast({
+        title: ownerId ? "Owner reassigned" : "Owner unassigned",
+        description: ownerId ? "They've been notified in the CRM." : undefined,
+        variant: "success",
+      });
     } catch (error) {
       surfaceError(toast, error, "Couldn't reassign the owner");
     }
@@ -376,17 +383,23 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
                           <UserCog className="size-4" aria-hidden="true" />
                           Owner
                         </span>
-                        <p className="text-xs text-fg-muted">Current: {lead.ownerName ?? "Unassigned"}</p>
-                        <div className="flex gap-2">
-                          <Input
-                            aria-label="Owner user id"
-                            placeholder="User id, or leave blank to unassign"
-                            value={ownerInput}
-                            onChange={(event) => setOwnerInput(event.target.value)}
+                        <LeadAssignmentProvenance lead={lead} />
+                        <div className="flex items-end gap-2">
+                          <OwnerSelect
+                            label="Reassign to"
+                            value={ownerId}
+                            onChange={setOwnerId}
                             wrapperClassName="flex-1"
-                            data-testid="lead-detail-owner-input"
+                            data-testid="lead-detail-owner-select"
                           />
-                          <Button onClick={handleReassign} loading={assignOwner.isPending} data-testid="lead-detail-reassign-submit">
+                          <Button
+                            onClick={handleReassign}
+                            loading={assignOwner.isPending}
+                            // A no-op save would fire a "reassigned" toast and, worse, a
+                            // notification to someone who already owns the lead.
+                            disabled={ownerId === lead.ownerId}
+                            data-testid="lead-detail-reassign-submit"
+                          >
                             Reassign
                           </Button>
                         </div>
