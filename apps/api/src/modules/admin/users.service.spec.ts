@@ -9,6 +9,7 @@ import { BadRequestException, ConflictException, ForbiddenException, NotFoundExc
 import { UsersAdminService } from "./users.service";
 import { UsersAdminRepository, type StaffUserRow } from "./users.repository";
 import { AuthRepository } from "../auth/auth.repository";
+import { TwoFactorStore } from "../auth/lib/two-factor-store";
 
 type Mocked<T> = { [K in keyof T]: T[K] extends (...args: never[]) => unknown ? jest.Mock : T[K] };
 
@@ -28,7 +29,16 @@ function mockRepository(): Mocked<UsersAdminRepository> {
 function mockAuthRepository(): Mocked<AuthRepository> {
   return {
     revokeAllSessionsForUser: jest.fn(),
+    findUserById: jest.fn(),
+    setTwoFaEnabled: jest.fn(),
+    recordTwoFactorAudit: jest.fn(),
   } as unknown as Mocked<AuthRepository>;
+}
+
+function mockTwoFactorStore(): Mocked<TwoFactorStore> {
+  return {
+    deactivate: jest.fn(),
+  } as unknown as Mocked<TwoFactorStore>;
 }
 
 const COUNSELLOR_ROLE = { id: "role-counsellor", key: "counsellor", name: "Counsellor" };
@@ -51,11 +61,17 @@ describe("UsersAdminService", () => {
   let service: UsersAdminService;
   let repo: Mocked<UsersAdminRepository>;
   let authRepo: Mocked<AuthRepository>;
+  let twoFactorStore: Mocked<TwoFactorStore>;
 
   beforeEach(() => {
     repo = mockRepository();
     authRepo = mockAuthRepository();
-    service = new UsersAdminService(repo as unknown as UsersAdminRepository, authRepo as unknown as AuthRepository);
+    twoFactorStore = mockTwoFactorStore();
+    service = new UsersAdminService(
+      repo as unknown as UsersAdminRepository,
+      authRepo as unknown as AuthRepository,
+      twoFactorStore as unknown as TwoFactorStore,
+    );
   });
 
   describe("create", () => {
@@ -159,6 +175,50 @@ describe("UsersAdminService", () => {
       expect(authRepo.revokeAllSessionsForUser).toHaveBeenCalledWith("user-1");
       expect(repo.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "delete", userId: "user-1" }));
       expect(result.status).toBe("deactivated");
+    });
+  });
+
+  describe("clearTwoFactor", () => {
+    const REASON = "Verified over a video call — lost phone, no inbox access.";
+
+    it("403s on clearing your OWN 2FA — an admin whose session is hijacked must not be able to silently drop their own second factor", async () => {
+      repo.findById.mockResolvedValue({ ...STAFF_ROW, id: ACTOR });
+      await expect(service.clearTwoFactor(TENANT, ACTOR, ACTOR, REASON)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(twoFactorStore.deactivate).not.toHaveBeenCalled();
+      expect(authRepo.setTwoFaEnabled).not.toHaveBeenCalled();
+    });
+
+    it("404s for a user outside the tenant", async () => {
+      repo.findById.mockResolvedValue(null);
+      await expect(service.clearTwoFactor(TENANT, ACTOR, "ghost", REASON)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("clears the credential, flips the flag, revokes sessions, and audits with the reason", async () => {
+      repo.findById.mockResolvedValue(STAFF_ROW);
+      authRepo.findUserById.mockResolvedValue({ id: "user-1", twoFaEnabled: true });
+
+      const result = await service.clearTwoFactor(TENANT, ACTOR, "user-1", REASON, "1.2.3.4");
+
+      expect(result).toEqual({ cleared: true });
+      expect(twoFactorStore.deactivate).toHaveBeenCalledWith("user-1");
+      expect(authRepo.setTwoFaEnabled).toHaveBeenCalledWith("user-1", false);
+      // A factor just disappeared — pre-existing sessions must not outlive it.
+      expect(authRepo.revokeAllSessionsForUser).toHaveBeenCalledWith("user-1");
+      expect(authRepo.recordTwoFactorAudit).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "two_factor.admin_clear", userId: "user-1", actorId: ACTOR, reason: REASON }),
+      );
+    });
+
+    it("is idempotent when the target has no 2FA — reports cleared:false and touches nothing", async () => {
+      repo.findById.mockResolvedValue(STAFF_ROW);
+      authRepo.findUserById.mockResolvedValue({ id: "user-1", twoFaEnabled: false });
+
+      const result = await service.clearTwoFactor(TENANT, ACTOR, "user-1", REASON);
+
+      expect(result).toEqual({ cleared: false });
+      expect(twoFactorStore.deactivate).not.toHaveBeenCalled();
+      expect(authRepo.revokeAllSessionsForUser).not.toHaveBeenCalled();
+      expect(authRepo.recordTwoFactorAudit).not.toHaveBeenCalled();
     });
   });
 

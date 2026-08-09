@@ -29,6 +29,9 @@ import {
   type CreateStaffUserRequest,
   UpdateStaffUserRequestSchema,
   type UpdateStaffUserRequest,
+  AdminClearTwoFactorRequestSchema,
+  type AdminClearTwoFactorRequest,
+  type AdminClearTwoFactorResponse,
 } from "@repo/types";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
@@ -84,6 +87,23 @@ export class UsersAdminController {
     @Req() req: Request,
   ): Promise<StaffUser> {
     return this.usersService.update(user.tenantId, user.id, id, body, req.ip);
+  }
+
+  /**
+   * Admin 2FA rescue — for a user who lost both their authenticator and their inbox.
+   * `twofa.reset`, NOT the own-scope `twofa.manage` every role holds (see
+   * UsersAdminService.clearTwoFactor). Audit-logged with the mandatory reason.
+   */
+  @Post(":id/two-factor/clear")
+  @HttpCode(200)
+  @RequirePermission("twofa.reset")
+  async clearTwoFactor(
+    @CurrentUser() user: RequestUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body(new ZodValidationPipe(AdminClearTwoFactorRequestSchema)) body: AdminClearTwoFactorRequest,
+    @Req() req: Request,
+  ): Promise<AdminClearTwoFactorResponse> {
+    return this.usersService.clearTwoFactor(user.tenantId, user.id, id, body.reason, req.ip);
   }
 
   /** DELETE = deactivate (blocks login, revokes sessions) — never a hard row delete. */
