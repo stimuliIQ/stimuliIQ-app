@@ -9,6 +9,7 @@ import {
   Calendar,
   Receipt,
   Check,
+  Undo2,
   UserPlus,
 } from "lucide-react";
 
@@ -41,6 +42,9 @@ import { cn } from "../lib/cn";
 
 export type NotificationType =
   | "grade_ready"
+  // A reviewer sent a submission BACK for changes. Distinct from grade_ready because the
+  // student has to act, not just read.
+  | "submission_returned"
   | "certificate_ready"
   | "live_reminder"
   | "forum_reply"
@@ -57,6 +61,7 @@ export type NotificationType =
 
 const typeIconMap: Record<NotificationType, React.ComponentType<{ className?: string; "aria-hidden"?: "true" | boolean }>> = {
   grade_ready: BookOpen,
+  submission_returned: Undo2,
   certificate_ready: Award,
   live_reminder: Calendar,
   forum_reply: MessageSquare,
@@ -70,6 +75,7 @@ const typeIconMap: Record<NotificationType, React.ComponentType<{ className?: st
 
 const typeLabelMap: Record<NotificationType, string> = {
   grade_ready: "Grade ready",
+  submission_returned: "Changes needed",
   certificate_ready: "Certificate ready",
   live_reminder: "Live class reminder",
   forum_reply: "Forum reply",

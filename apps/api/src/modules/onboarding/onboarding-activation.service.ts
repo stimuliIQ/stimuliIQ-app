@@ -25,10 +25,30 @@
 //     attaching a student profile to a staff login;
 //   - otherwise create the student.
 //
-// FAILURE POSTURE. Enrollment is the commit point. If credential emailing fails afterwards
-// it is logged and swallowed — the student IS enrolled, and failing the whole approval
-// (leaving a submission "pending" while its student sits enrolled) would be worse and
-// harder to reason about than a missing email that can be re-sent.
+// THE MONEY LEG. The receipt the student uploaded is proof of a payment the system has no
+// record of, so approving optionally records it — and once money is recorded the rest of
+// commerce follows for free. When `recordPayment` is set and the program has a price, this
+// service does NOT enrol by hand; it drives the ORDINARY offline-payment lifecycle:
+//   CommerceService.createOrder        → an order at the program's list price
+//   CommerceService.recordManualPayment→ captures it, enrols, raises a GST invoice, and
+//                                        sends ONE email: invoice + LMS credentials
+// That is deliberately the same code path a walk-in cash payment takes, so an onboarding
+// student is indistinguishable from any other paying student in the ledger — and the
+// combined "receipt + credentials" email already built for that path is reused verbatim
+// rather than a second, drifting copy living here.
+//
+// The amount is ALWAYS the program's list price, read server-side. The client never sends
+// an amount (CLAUDE.md §3.6) — it only says whether to run this leg at all.
+//
+// FAILURE POSTURE. Enrollment is the commit point, and the student getting access outranks
+// the paperwork. So:
+//   - if the money leg throws (draft program, batch full, storage down mid-invoice), it is
+//     logged and we fall through to the plain enrol + welcome-email path — the student is
+//     never left un-enrolled because an invoice failed. Any order created before the
+//     failure stays open and visible under Finance for staff to settle or cancel.
+//   - if credential emailing fails afterwards it is logged and swallowed — the student IS
+//     enrolled, and failing the whole approval (leaving a submission on hold while its
+//     student sits enrolled) would be worse than a missing email that can be re-sent.
 
 import { BadRequestException, Injectable, Logger, UnprocessableEntityException } from "@nestjs/common";
 import type { OnboardingActivationResult } from "@repo/types";
@@ -36,6 +56,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { StudentsRepository } from "../students/students.repository";
 import { EnrollmentsRepository } from "../enrollments/enrollments.repository";
 import { LmsAccountProvisioningService } from "../students/lms-account-provisioning.service";
+import { CommerceService } from "../commerce/commerce.service";
 
 export interface ActivationInput {
   tenantId: string;
@@ -48,6 +69,20 @@ export interface ActivationInput {
   programId: string | null;
   /** Free-text college answer, when one of the questions carries it. */
   college: string | null;
+  /** The reviewer — stamped on the order/payment rows the money leg creates. */
+  actorId: string;
+  /**
+   * Record the offline payment (order + captured manual payment + GST invoice) at the
+   * program's list price. Silently ignored when the program is missing or free.
+   */
+  recordPayment: boolean;
+  /** The submission this approval came from — the idempotency key for the order/payment. */
+  submissionId: string;
+  /**
+   * What the payment row records as its reference: the uploaded receipt's filename when the
+   * form captured one, so the ledger entry points at the actual evidence.
+   */
+  paymentReference: string | null;
 }
 
 @Injectable()
@@ -59,6 +94,7 @@ export class OnboardingActivationService {
     private readonly students: StudentsRepository,
     private readonly enrollments: EnrollmentsRepository,
     private readonly lmsProvisioning: LmsAccountProvisioningService,
+    private readonly commerce: CommerceService,
   ) {}
 
   async activate(input: ActivationInput): Promise<OnboardingActivationResult> {
@@ -99,12 +135,41 @@ export class OnboardingActivationService {
       });
     }
 
-    const { studentProfileId, created } = await this.resolveStudent(tenantId, {
+    const { studentProfileId, created, hasLogin } = await this.resolveStudent(tenantId, {
       email,
       fullName: input.fullName,
       phone: input.phone,
       college: input.college,
     });
+
+    // Money leg first when asked for: it enrols, invoices AND emails in one lifecycle, so
+    // running the plain path afterwards would double everything. Returns null when it was
+    // skipped (free program) or failed — both fall through to the plain path below.
+    if (input.recordPayment) {
+      const invoiced = await this.tryRecordOfflinePayment({
+        tenantId,
+        actorId: input.actorId,
+        studentProfileId,
+        programId: batch.programId,
+        batchId: batch.id,
+        submissionId: input.submissionId,
+        reference: input.paymentReference,
+      });
+      if (invoiced) {
+        return {
+          studentProfileId,
+          enrollmentId: invoiced.enrollmentId,
+          batchName: batch.name,
+          studentCreated: created,
+          // recordManualPayment provisions quietly and embeds the credentials in the
+          // invoice email — so "were credentials sent?" is exactly "was this account
+          // without a login when we started?".
+          credentialsEmailed: !hasLogin,
+          invoiceNumber: invoiced.invoiceNumber,
+          amountPaise: invoiced.amountPaise,
+        };
+      }
+    }
 
     // Enrollment + `lead → active` promotion, one transaction (enrollOrRestore's contract).
     const enrollment = await this.enrollments.enrollOrRestore(tenantId, {
@@ -129,7 +194,88 @@ export class OnboardingActivationService {
       batchName: batch.name,
       studentCreated: created,
       credentialsEmailed,
+      invoiceNumber: null,
+      amountPaise: null,
     };
+  }
+
+  /**
+   * Run the ordinary offline-payment lifecycle for this approval: order at the program's
+   * list price → captured manual payment → enrollment → GST invoice → one email carrying
+   * the invoice AND the student's LMS credentials.
+   *
+   * Returns null — never throws — when there is nothing to invoice or the leg failed. The
+   * caller then enrols the student the plain way, because access must not depend on
+   * paperwork (see FAILURE POSTURE in the file header).
+   *
+   * Idempotency is keyed off the SUBMISSION, not a random uuid: approving is already
+   * guarded against replay by `submissions.student_profile_id`, but a retried request that
+   * got past that guard must not mint a second order for the same intake.
+   */
+  private async tryRecordOfflinePayment(args: {
+    tenantId: string;
+    actorId: string;
+    studentProfileId: string;
+    programId: string;
+    batchId: string;
+    submissionId: string;
+    reference: string | null;
+  }): Promise<{ enrollmentId: string; invoiceNumber: string | null; amountPaise: number } | null> {
+    const program = await this.prisma.client.program.findFirst({
+      where: { id: args.programId, tenantId: args.tenantId, deletedAt: null },
+      select: { pricePaise: true },
+    });
+    // A free/unpriced program has nothing to invoice, and a ₹0 invoice is noise in the
+    // ledger. Not an error — scholarship seats are a real thing.
+    if (!program || program.pricePaise <= 0) return null;
+
+    try {
+      const order = await this.commerce.createOrder(
+        args.tenantId,
+        args.actorId,
+        `onboarding-order-${args.submissionId}`,
+        { studentId: args.studentProfileId, programId: args.programId, batchId: args.batchId },
+      );
+
+      await this.commerce.recordManualPayment(args.tenantId, args.actorId, `onboarding-payment-${args.submissionId}`, {
+        orderId: order.id,
+        // The ORDER's amount, not the program's — createOrder is what applies coupons and
+        // is the authority on what is owed; recordManualPayment rejects any mismatch.
+        amountPaise: order.amountPaise,
+        method: "offline",
+        reference: args.reference ?? `Onboarding ${args.submissionId}`,
+        notes: "Recorded automatically when the onboarding submission was approved.",
+      });
+
+      const [enrollment, invoice] = await Promise.all([
+        this.prisma.client.enrollment.findFirst({
+          where: { studentId: args.studentProfileId, batchId: args.batchId, deletedAt: null },
+          select: { id: true },
+        }),
+        this.prisma.client.invoice.findFirst({ where: { orderId: order.id }, select: { number: true } }),
+      ]);
+
+      // recordManualPayment creates the enrollment inside its transaction, so a miss here
+      // means something is genuinely wrong with the assumption above rather than a race.
+      if (!enrollment) {
+        this.logger.error(
+          `[Onboarding] Payment recorded for submission=${args.submissionId} but no enrollment was found — falling back.`,
+        );
+        return null;
+      }
+
+      return { enrollmentId: enrollment.id, invoiceNumber: invoice?.number ?? null, amountPaise: order.amountPaise };
+    } catch (err) {
+      // Draft program, batch at capacity, duplicate open order, storage down mid-invoice —
+      // all end here. Loud log (staff will want to invoice manually), null return, and the
+      // caller enrols the student anyway.
+      this.logger.error(
+        `[Onboarding] Offline payment/invoice failed for submission=${args.submissionId} — enrolling without an invoice: ${
+          err instanceof Error ? err.message : "unknown error"
+        }`,
+      );
+      return null;
+    }
   }
 
   /**
@@ -139,16 +285,22 @@ export class OnboardingActivationService {
    * a student who already exists — converted from a lead, or self-registered — is reused
    * rather than duplicated. A soft-deleted student profile is restored rather than
    * re-created, because the unique email constraint would reject a second user row anyway.
+   *
+   * `hasLogin` reports whether the account already had a password. It is read HERE, before
+   * anything provisions, because that is the only moment the answer is still knowable — the
+   * money leg provisions silently inside commerce, and afterwards every account looks alike.
    */
   private async resolveStudent(
     tenantId: string,
     person: { email: string; fullName: string | null; phone: string | null; college: string | null },
-  ): Promise<{ studentProfileId: string; created: boolean }> {
+  ): Promise<{ studentProfileId: string; created: boolean; hasLogin: boolean }> {
     const existingUser = await this.prisma.client.user.findFirst({
       where: { tenantId, email: person.email },
       select: {
         id: true,
         deletedAt: true,
+        // Empty string = provisioned-but-never-set (students.repository.createStudentWithUser).
+        passwordHash: true,
         // `deletedAt: undefined` opts out of the soft-delete extension's auto-filter so a
         // previously-removed profile is FOUND and restored, instead of falling through to
         // a create that the unique email constraint would then reject with a raw 500.
@@ -177,7 +329,7 @@ export class OnboardingActivationService {
       // Backfill only what is genuinely missing — never overwrite a name/phone/college a
       // staff member has since curated in the CRM with whatever was typed into a form.
       await this.backfillMissingDetails(existingUser.id, profile.id, person);
-      return { studentProfileId: profile.id, created: false };
+      return { studentProfileId: profile.id, created: false, hasLogin: existingUser.passwordHash !== "" };
     }
 
     const created = await this.students.createStudentWithUser({
@@ -194,7 +346,8 @@ export class OnboardingActivationService {
       // exactly one owner rather than two places that could disagree.
       status: "lead",
     });
-    return { studentProfileId: created.id, created: true };
+    // Brand new: created with an empty passwordHash, so it has no login yet by definition.
+    return { studentProfileId: created.id, created: true, hasLogin: false };
   }
 
   /** Fills blank name/phone/college from the submission. Never overwrites existing values. */

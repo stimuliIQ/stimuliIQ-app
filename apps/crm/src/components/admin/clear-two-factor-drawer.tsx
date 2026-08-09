@@ -24,13 +24,22 @@ export function ClearTwoFactorDrawer({ user, onOpenChange }: ClearTwoFactorDrawe
   const { toast } = useToast();
   const clear = useClearStaffUserTwoFactor();
   const [reason, setReason] = React.useState("");
-  // Reset-on-target-change via the render-phase `key` idiom rather than an effect: the
+  // Reset-on-target-change via the render-phase update idiom rather than an effect: the
   // reason must never carry over from one user to the next (a justification written for
-  // Priya must not silently end up in Ravi's audit row), and doing it here means the
-  // stale value is never rendered even for a frame.
+  // Priya must not silently end up in Ravi's audit row), and doing it here means the stale
+  // value is never rendered even for a frame.
+  //
+  // The comparison MUST be null-normalised on both sides. `user?.id` is `undefined` when no
+  // user is selected while `lastUserId` initialises to `null`, so comparing them directly
+  // made the condition permanently true: React re-runs the component after a render-phase
+  // update, the condition still held, and it threw "Too many re-renders" after 25 passes —
+  // crashing Admin ▸ Users on load, since this drawer always renders with `user={null}`.
+  // Render-phase updates get no eager-bailout, so "same value" does not save you here; the
+  // condition itself has to converge.
+  const currentUserId = user?.id ?? null;
   const [lastUserId, setLastUserId] = React.useState<string | null>(null);
-  if (user?.id !== lastUserId) {
-    setLastUserId(user?.id ?? null);
+  if (currentUserId !== lastUserId) {
+    setLastUserId(currentUserId);
     setReason("");
   }
 

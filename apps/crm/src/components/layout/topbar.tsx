@@ -68,6 +68,7 @@ export function Topbar({ me, onLogout, loggingOut }: TopbarProps): React.JSX.Ele
       <AccountMenu
         name={me?.user.name ?? "—"}
         roles={me?.roles.join(", ") ?? ""}
+        avatarUrl={me?.user.avatar ?? null}
         loggingOut={loggingOut}
         onChangePassword={() => setChangePasswordOpen(true)}
         onLogout={onLogout}

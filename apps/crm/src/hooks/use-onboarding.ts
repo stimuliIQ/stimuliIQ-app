@@ -6,15 +6,19 @@
 // a paginated submissions list the user is halfway through reading, and vice versa.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  ApproveOnboardingSubmissionRequest,
   CreateOnboardingFieldRequest,
   ListOnboardingFieldsQuery,
   ListOnboardingSubmissionsQuery,
+  RejectOnboardingSubmissionRequest,
   ReorderOnboardingFieldsRequest,
   UpdateOnboardingFieldRequest,
   UpdateOnboardingSubmissionRequest,
 } from "@repo/types";
 
 import { apiClient } from "../lib/api-client";
+import { STUDENTS_QUERY_KEY } from "./use-students";
+import { ENROLLMENTS_QUERY_KEY } from "./use-enrollments";
 
 export const ONBOARDING_FIELDS_QUERY_KEY = ["onboarding", "fields"] as const;
 export const ONBOARDING_SUBMISSIONS_QUERY_KEY = ["onboarding", "submissions"] as const;
@@ -108,6 +112,56 @@ export function useDeleteOnboardingSubmission() {
   const invalidate = useInvalidateSubmissions();
   return useMutation({
     mutationFn: (id: string) => apiClient.crm.onboarding.submissions.remove(id),
+    onSuccess: invalidate,
+  });
+}
+
+// ── The two decisions ─────────────────────────────────────────────────────
+
+/**
+ * The batches this submission can be approved into — the open cohorts of the program the
+ * student picked, resolved server-side so the dialog can never offer a finished cohort or
+ * one from the wrong program.
+ *
+ * Fetched only when the Accept dialog is actually open: it is a per-submission query and
+ * loading it for every row the user merely glances at would be a request per click.
+ */
+export function useOnboardingApprovableBatches(id: string | null) {
+  return useQuery({
+    queryKey: [...ONBOARDING_SUBMISSIONS_QUERY_KEY, "batches", id] as const,
+    queryFn: () => apiClient.crm.onboarding.submissions.listBatches(id as string),
+    enabled: Boolean(id),
+  });
+}
+
+/**
+ * Accept: creates or matches the student, enrols them, optionally records the offline
+ * payment (invoice) and emails them. Invalidates far more than the submissions list because
+ * a successful approval also changes Students, Enrollments and — when it invoiced — the
+ * commerce ledger; leaving those stale would show a freshly enrolled student as absent.
+ */
+export function useApproveOnboardingSubmission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: ApproveOnboardingSubmissionRequest }) =>
+      apiClient.crm.onboarding.submissions.approve(id, body),
+    onSuccess: () => {
+      // `["commerce"]` is the shared prefix of orders/payments/invoices (use-orders.ts et al),
+      // so one entry refreshes the whole ledger the invoice just landed in.
+      const affected = [ONBOARDING_SUBMISSIONS_QUERY_KEY, STUDENTS_QUERY_KEY, ENROLLMENTS_QUERY_KEY, ["commerce"]];
+      for (const key of affected) {
+        void queryClient.invalidateQueries({ queryKey: key });
+      }
+    },
+  });
+}
+
+/** Reject: records the decision and emails the student to contact support. */
+export function useRejectOnboardingSubmission() {
+  const invalidate = useInvalidateSubmissions();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: RejectOnboardingSubmissionRequest }) =>
+      apiClient.crm.onboarding.submissions.reject(id, body),
     onSuccess: invalidate,
   });
 }

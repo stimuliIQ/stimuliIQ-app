@@ -37,6 +37,13 @@ import { UuidSchema, IsoDateTimeSchema } from "../common/primitives.js";
  */
 export const NotificationTypeSchema = z.enum([
   "grade_ready",
+  /**
+   * The counterpart to `grade_ready`: a reviewer sent the student's submission BACK for
+   * changes rather than grading it. Its own type because the required action is the
+   * opposite — "your grade is ready" tells someone who must redo the work that they are
+   * finished. Carries the reviewer's reason, which is the whole point of the message.
+   */
+  "submission_returned",
   "certificate_ready",
   "live_reminder",
   "forum_reply",
@@ -258,6 +265,7 @@ export type ChannelPrefs = z.infer<typeof ChannelPrefsSchema>;
 export const NotificationPrefMatrixSchema = z
   .object({
     grade_ready: ChannelPrefsSchema.optional(),
+    submission_returned: ChannelPrefsSchema.optional(),
     certificate_ready: ChannelPrefsSchema.optional(),
     live_reminder: ChannelPrefsSchema.optional(),
     forum_reply: ChannelPrefsSchema.optional(),

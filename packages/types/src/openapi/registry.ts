@@ -5659,32 +5659,13 @@ registry.registerPath({ method: "get", path: "/api/v1/crm/career-applications", 
 registry.registerPath({ method: "get", path: "/api/v1/crm/career-applications/{id}", summary: "Get a career application incl. signed resume download URL", tags: ["crm", "careers"], security: [{ cookieAuth: [] }], ...requiredPermission("content.view"), request: { params: z.object({ id: z.string().uuid() }) }, responses: { 200: { description: "Application detail.", content: { "application/json": { schema: CareerApplicationDetailEnvelope } } }, ...errorResponses } });
 registry.registerPath({ method: "patch", path: "/api/v1/crm/career-applications/{id}", summary: "Update a career application's status", tags: ["crm", "careers"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("content.manage"), request: { params: z.object({ id: z.string().uuid() }), body: { content: { "application/json": { schema: UpdateCareerApplicationStatusRequest } } }, headers: idempotencyKeyHeader }, responses: { 200: { description: "Application updated.", content: { "application/json": { schema: CareerApplicationDetailEnvelope } } }, ...errorResponses } });
 
-// ── Feature flags + Settings (T9/T23) ────────────────────────────────────
+// ── Settings ─────────────────────────────────────────────────────────────
 
-import {
-  SetFeatureFlagRequestSchema,
-  ListFeatureFlagsQuerySchema,
-  FeatureFlagSchema,
-  EvaluateFeatureFlagsQuerySchema,
-  EvaluatedFeatureFlagsSchema,
-} from "../platform/feature-flags.schemas.js";
 import {
   SetSettingRequestSchema,
   ListSettingsQuerySchema,
   SettingSchema,
 } from "../platform/settings.schemas.js";
-
-const SetFeatureFlagRequest = registry.register("SetFeatureFlagRequest", SetFeatureFlagRequestSchema);
-const FeatureFlag = registry.register("FeatureFlag", FeatureFlagSchema);
-const FeatureFlagEnvelope = envelopeOf("FeatureFlag", FeatureFlag);
-const FeatureFlagListEnvelope = paginatedEnvelopeOf("FeatureFlag", FeatureFlag);
-const EvaluatedFeatureFlags = registry.register("EvaluatedFeatureFlags", EvaluatedFeatureFlagsSchema);
-const EvaluatedFeatureFlagsEnvelope = envelopeOf("EvaluatedFeatureFlags", EvaluatedFeatureFlags);
-
-registry.registerPath({ method: "get", path: "/api/v1/crm/feature-flags", summary: "List feature flags (admin)", tags: ["crm", "flags"], security: [{ cookieAuth: [] }], ...requiredPermission("flags.view"), request: { query: ListFeatureFlagsQuerySchema }, responses: { 200: { description: "Flag list.", content: { "application/json": { schema: FeatureFlagListEnvelope } } }, ...errorResponses } });
-registry.registerPath({ method: "get", path: "/api/v1/crm/feature-flags/{key}", summary: "Get a single feature flag by key", tags: ["crm", "flags"], security: [{ cookieAuth: [] }], ...requiredPermission("flags.view"), request: { params: z.object({ key: z.string().min(1) }) }, responses: { 200: { description: "Flag detail.", content: { "application/json": { schema: FeatureFlagEnvelope } } }, ...errorResponses } });
-registry.registerPath({ method: "put", path: "/api/v1/crm/feature-flags/{key}", summary: "Create or update a feature flag by key", tags: ["crm", "flags"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("flags.manage"), request: { params: z.object({ key: z.string().min(1) }), body: { content: { "application/json": { schema: SetFeatureFlagRequest } } }, headers: idempotencyKeyHeader }, responses: { 200: { description: "Flag set.", content: { "application/json": { schema: FeatureFlagEnvelope } } }, ...errorResponses } });
-registry.registerPath({ method: "get", path: "/api/v1/feature-flags/evaluate", summary: "Evaluate flags for the current caller (cached, any authenticated surface)", tags: ["flags"], security: [{ cookieAuth: [] }], request: { query: EvaluateFeatureFlagsQuerySchema }, responses: { 200: { description: "Evaluated flags.", content: { "application/json": { schema: EvaluatedFeatureFlagsEnvelope } } }, ...errorResponses } });
 
 const SetSettingRequest = registry.register("SetSettingRequest", SetSettingRequestSchema);
 const Setting = registry.register("Setting", SettingSchema);

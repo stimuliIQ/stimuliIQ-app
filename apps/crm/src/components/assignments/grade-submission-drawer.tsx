@@ -1,10 +1,22 @@
-// Grade submission drawer — RubricGrader + feedback → status=graded.
+// Review drawer — the two decisions a reviewer can make on a submission.
+//
+//   Grade      RubricGrader + feedback → status=graded. The accept path, final.
+//   Send back  reason → status=returned. The student is emailed what to change and
+//              resubmits; nothing is scored.
+//
+// Send back exists because review had only one outcome before it: work that needed another
+// attempt had to be graded low — permanent, with no route back — or left pending forever.
+// `SubmissionStatus.returned` had been in the schema since Phase 4 with nothing to write it.
+//
+// It is deliberately NOT called "reject". A student who reads "rejected" stops; one who
+// reads "needs changes" fixes it and resubmits, which is the entire point of the action.
+//
 // Shows DOMPurify-sanitized student submission text/link + signed file download
 // links (AC-J8: student-submitted content must be sanitized before render).
 // Supports optimistic grade with rollback on error (CLAUDE.md rules).
-// Permission: submissions.grade (scope: assigned — faculty only).
+// Permission: submissions.grade (scope: assigned — faculty only) for BOTH decisions.
 import * as React from "react";
-import { Download, ExternalLink, FileText } from "lucide-react";
+import { Download, ExternalLink, FileText, Undo2 } from "lucide-react";
 import {
   Alert,
   Button,
@@ -16,11 +28,12 @@ import {
   type RubricCriterion,
   type RubricValue,
   Skeleton,
+  Textarea,
   EmptyState,
   useToast,
 } from "@repo/ui";
 
-import { useSubmissionDetail, useGradeSubmission } from "../../hooks/use-assignments";
+import { useSubmissionDetail, useGradeSubmission, useReturnSubmission } from "../../hooks/use-assignments";
 import { AssignmentStatusChip } from "./assignment-status-chip";
 import { sanitizeHtml } from "../../lib/sanitize";
 
@@ -55,6 +68,17 @@ export function GradeSubmissionDrawer({
   } = useSubmissionDetail(submissionId ?? undefined);
 
   const gradeSubmission = useGradeSubmission(assignmentId);
+  const returnSubmission = useReturnSubmission(assignmentId);
+
+  /** null = grading (the default view); "return" = the send-back reason is being written. */
+  const [mode, setMode] = React.useState<null | "return">(null);
+  const [returnReason, setReturnReason] = React.useState("");
+
+  React.useEffect(() => {
+    if (open) return;
+    setMode(null);
+    setReturnReason("");
+  }, [open]);
 
   // Scale default criteria to the assignment's maxScore
   const scaledCriteria: RubricCriterion[] = React.useMemo(() => {
@@ -117,6 +141,33 @@ export function GradeSubmissionDrawer({
             ? error.message
             : undefined;
       toast({ title: "Couldn't grade submission", description, variant: "destructive" });
+    }
+  };
+
+  /** Mirrors ReturnSubmissionRequestSchema so the button disables before a round-trip. */
+  const REASON_MIN_LENGTH = 10;
+  const trimmedReason = returnReason.trim();
+  const reasonTooShort = trimmedReason.length < REASON_MIN_LENGTH;
+
+  const handleReturn = async () => {
+    if (!submissionId || reasonTooShort) return;
+    try {
+      await returnSubmission.mutateAsync({ id: submissionId, reason: trimmedReason });
+      toast({
+        title: "Sent back to the student",
+        description: "They've been emailed what to change and can resubmit.",
+        variant: "success",
+      });
+      onOpenChange(false);
+    } catch (error) {
+      const description =
+        error && typeof error === "object" && "problem" in error
+          ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
+            (error as { problem: { detail?: string; title?: string } }).problem.title)
+          : error instanceof Error
+            ? error.message
+            : undefined;
+      toast({ title: "Couldn't send this back", description, variant: "destructive" });
     }
   };
 
@@ -241,43 +292,109 @@ export function GradeSubmissionDrawer({
                 </Alert>
               ) : null}
 
-              {/* Rubric grader */}
-              <div className="border-t border-border pt-4">
-                <p className="mb-3 text-sm font-medium text-fg">Rubric grading</p>
-                <RubricGrader
-                  criteria={scaledCriteria}
-                  value={rubricValue}
-                  onChange={setRubricValue}
-                  feedbackLabel="Feedback for student"
-                  data-testid="grade-rubric-grader"
-                />
-              </div>
+              {/* Already sent back and awaiting the student's next attempt. */}
+              {submission.status === "returned" ? (
+                <Alert tone="warning" title="Sent back for changes">
+                  The student has been asked to revise this and hasn&apos;t resubmitted yet. Grade it only if
+                  you&apos;ve decided to accept it as it stands.
+                </Alert>
+              ) : null}
 
-              {/* Score preview */}
-              <div className="flex items-center justify-between rounded-md border border-border bg-surface px-4 py-2">
-                <span className="text-sm text-fg-muted">Total score</span>
-                <span className="font-mono text-lg font-semibold text-fg" aria-live="polite" aria-atomic="true">
-                  {computedScore}
-                  <span className="text-sm font-normal text-fg-muted">/{maxScore}</span>
-                </span>
-              </div>
+              {mode === "return" ? (
+                <div
+                  className="flex flex-col gap-3 border-t border-border pt-4"
+                  data-testid="return-submission-panel"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-fg">Send back for changes</p>
+                    <p className="mt-0.5 text-sm text-fg-muted">
+                      Nothing is scored. The student is emailed what to change and can submit again.
+                    </p>
+                  </div>
+                  <Textarea
+                    label="What needs to change"
+                    required
+                    rows={4}
+                    value={returnReason}
+                    onChange={(e) => setReturnReason(e.target.value)}
+                    placeholder="e.g. The differential diagnosis section is missing — add it and include your references."
+                    helperText="The student is shown this text word for word. Be specific enough that they can act on it without asking."
+                    data-testid="return-reason-input"
+                  />
+                </div>
+              ) : (
+                <>
+                  {/* Rubric grader */}
+                  <div className="border-t border-border pt-4">
+                    <p className="mb-3 text-sm font-medium text-fg">Rubric grading</p>
+                    <RubricGrader
+                      criteria={scaledCriteria}
+                      value={rubricValue}
+                      onChange={setRubricValue}
+                      feedbackLabel="Feedback for student"
+                      data-testid="grade-rubric-grader"
+                    />
+                  </div>
+
+                  {/* Score preview */}
+                  <div className="flex items-center justify-between rounded-md border border-border bg-surface px-4 py-2">
+                    <span className="text-sm text-fg-muted">Total score</span>
+                    <span className="font-mono text-lg font-semibold text-fg" aria-live="polite" aria-atomic="true">
+                      {computedScore}
+                      <span className="text-sm font-normal text-fg-muted">/{maxScore}</span>
+                    </span>
+                  </div>
+                </>
+              )}
             </DrawerBody>
 
             <DrawerFooter>
-              <Button
-                variant="secondary"
-                onClick={() => onOpenChange(false)}
-                data-testid="grade-submission-cancel"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => void handleGrade()}
-                loading={isPending}
-                data-testid="grade-submission-submit"
-              >
-                {submission.status === "graded" ? "Update grade" : "Submit grade"}
-              </Button>
+              {mode === "return" ? (
+                <>
+                  <Button variant="secondary" onClick={() => setMode(null)} data-testid="return-submission-cancel">
+                    Back
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => void handleReturn()}
+                    loading={returnSubmission.isPending}
+                    disabled={reasonTooShort}
+                    data-testid="return-submission-confirm"
+                  >
+                    Send back &amp; notify
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => onOpenChange(false)}
+                    data-testid="grade-submission-cancel"
+                  >
+                    Cancel
+                  </Button>
+                  {/* Only work still awaiting review can be sent back — the API refuses the
+                      rest, so the button isn't offered for an already-graded or already-
+                      returned attempt. */}
+                  {submission.status === "submitted" ? (
+                    <Button
+                      variant="secondary"
+                      onClick={() => setMode("return")}
+                      data-testid="return-submission-open"
+                    >
+                      <Undo2 className="size-4" aria-hidden="true" />
+                      Send back
+                    </Button>
+                  ) : null}
+                  <Button
+                    onClick={() => void handleGrade()}
+                    loading={isPending}
+                    data-testid="grade-submission-submit"
+                  >
+                    {submission.status === "graded" ? "Update grade" : "Submit grade"}
+                  </Button>
+                </>
+              )}
             </DrawerFooter>
           </>
         )}

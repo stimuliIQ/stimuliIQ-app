@@ -32,6 +32,7 @@ import {
   AdminClearTwoFactorRequestSchema,
   type AdminClearTwoFactorRequest,
   type AdminClearTwoFactorResponse,
+  type DeleteStaffUserResponse,
 } from "@repo/types";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
@@ -115,5 +116,25 @@ export class UsersAdminController {
     @Req() req: Request,
   ): Promise<StaffUser> {
     return this.usersService.deactivate(user.tenantId, user.id, id, req.ip);
+  }
+
+  /**
+   * Remove the account from the CRM for good — a different act from deactivating it, on its
+   * own path and its own permission.
+   *
+   * `users.remove` is seeded for super_admin ALONE, while `users.delete` (deactivate above)
+   * is also held by admin. That split is the whole point: an admin can stop someone signing
+   * in, but only a super admin can take an account out of the product. Reusing `users.delete`
+   * here would silently hand every admin the stronger power.
+   */
+  @Delete(":id/permanent")
+  @RequirePermission("users.remove")
+  async remove(
+    @CurrentUser() user: RequestUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Req() req: Request,
+  ): Promise<DeleteStaffUserResponse> {
+    await this.usersService.remove(user.tenantId, user.id, id, req.ip);
+    return { deleted: true };
   }
 }

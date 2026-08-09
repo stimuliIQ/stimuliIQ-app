@@ -235,3 +235,18 @@ export const UpdateStaffUserRequestSchema = z
   })
   .strict();
 export type UpdateStaffUserRequest = z.infer<typeof UpdateStaffUserRequestSchema>;
+
+/**
+ * `DELETE /crm/admin/users/:id/permanent` — removes the account from the CRM.
+ *
+ * A DIFFERENT act from `DELETE /crm/admin/users/:id`, which despite the verb only
+ * deactivates (blocks the login, keeps the row visible in the list). This one takes the
+ * account out of the product: it is gated on `users.remove`, seeded for **super_admin
+ * alone**, where deactivate's `users.delete` is also held by admin.
+ *
+ * The row itself is soft-deleted rather than wiped — audit entries, lead ownership and
+ * onboarding reviews all reference the user id, so the history survives the account. Adding
+ * the same email again later restores that row instead of creating a second one.
+ */
+export const DeleteStaffUserResponseSchema = z.object({ deleted: z.literal(true) });
+export type DeleteStaffUserResponse = z.infer<typeof DeleteStaffUserResponseSchema>;

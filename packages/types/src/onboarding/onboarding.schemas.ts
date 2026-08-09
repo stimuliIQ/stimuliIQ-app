@@ -322,12 +322,14 @@ export const OnboardingAnswerSchema = z.object({
 export type OnboardingAnswer = z.infer<typeof OnboardingAnswerSchema>;
 
 /**
- * Triage state.
+ * Triage state. **`hold` is the arrival state** — a submission sits on hold until a named
+ * staff member accepts or rejects it, which are the only two decisions the CRM offers.
  *
- * `pending` is set by the SYSTEM on arrival and means "nobody has looked yet". The other
- * three are decisions a named staff member made. That asymmetry is why `pending` is absent
- * from `OnboardingReviewDecisionSchema` below: letting someone move a submission back to
- * "untouched" would erase the fact that a human already ruled on it.
+ * `pending` is the LEGACY arrival value (the DB default is now `hold`, migration
+ * `onboarding_default_hold`, which also moved every existing row). It stays in the enum
+ * because dropping a Postgres enum value is not a safe forward-only migration, and because
+ * old rows read from a backup must still parse. Nothing writes it any more; treat it as a
+ * synonym of `hold` when rendering.
  */
 export const OnboardingSubmissionStatusSchema = z.enum(["pending", "approved", "rejected", "hold"]);
 export type OnboardingSubmissionStatus = z.infer<typeof OnboardingSubmissionStatusSchema>;
@@ -344,6 +346,16 @@ export const OnboardingSubmissionSummarySchema = z.object({
   phone: z.string().nullable(),
   programId: UuidSchema.nullable(),
   programTitle: z.string().nullable(),
+  /**
+   * List price of the program the student picked, in integer paise (CLAUDE.md §3.6).
+   *
+   * Carried on the submission so the approve dialog can say exactly what invoice approving
+   * will raise, without a second round-trip to the catalog. Null when the form captured no
+   * program; `0` for a free/scholarship program — and a zero price is what makes approval
+   * skip the money leg entirely (see `ApproveOnboardingSubmissionRequestSchema`).
+   */
+  programPricePaise: z.number().int().min(0).nullable(),
+  programCurrency: z.string().nullable(),
   status: OnboardingSubmissionStatusSchema,
   /** True when at least one `file` answer is attached (e.g. the payment receipt). */
   hasAttachment: z.boolean(),
@@ -382,12 +394,17 @@ export const ListOnboardingSubmissionsQuerySchema = z
 export type ListOnboardingSubmissionsQuery = z.infer<typeof ListOnboardingSubmissionsQuerySchema>;
 
 /**
- * `PATCH /crm/onboarding/submissions/:id` — notes and the two SIDE-EFFECT-FREE decisions.
+ * `PATCH /crm/onboarding/submissions/:id` — notes, plus `rejected`/`hold`.
  *
  * `approved` is absent on purpose. Approving is not a status write: it creates or matches a
- * student, enrols them into a batch and emails their login. That needs a batch id and its
- * own confirmation, so it lives at `POST .../approve` where the consequences are explicit.
- * A generic PATCH that could silently enrol someone would be a trap.
+ * student, enrols them into a batch, invoices them and emails their login. That needs a
+ * batch id and its own confirmation, so it lives at `POST .../approve` where the
+ * consequences are explicit. A generic PATCH that could silently enrol someone would be a
+ * trap.
+ *
+ * `rejected` is NOT side-effect-free either: the transition emails the student to say the
+ * application was not accepted and points them at support. That effect lives in the service
+ * (not only in `POST .../reject`) so both routes to the same status behave identically.
  */
 export const UpdateOnboardingSubmissionRequestSchema = z
   .object({
@@ -426,6 +443,19 @@ export type OnboardingApprovableBatch = z.infer<typeof OnboardingApprovableBatch
 export const ApproveOnboardingSubmissionRequestSchema = z
   .object({
     batchId: UuidSchema,
+    /**
+     * Record the money the student already paid offline, so approving also raises a real
+     * GST invoice and emails it WITH their login (one message, not two).
+     *
+     * The amount is never sent by the client — it is always the program's list price,
+     * server-side (CLAUDE.md §3.6: the server owns money). This flag only says *whether*
+     * to run the money leg, which is the one thing the reviewer knows and the server
+     * cannot: a scholarship or already-invoiced seat gets `false` and is simply enrolled.
+     *
+     * Ignored (treated as `false`) when the program is free or the submission carries no
+     * program — there is nothing to invoice, and a ₹0 invoice is noise in the ledger.
+     */
+    recordPayment: z.boolean().default(true),
     reviewNotes: z.string().max(2000).nullable().optional(),
   })
   .strict();
@@ -451,6 +481,15 @@ export const OnboardingActivationResultSchema = z.object({
   studentCreated: z.boolean(),
   /** True when LMS credentials were emailed (false if the student already had a login). */
   credentialsEmailed: z.boolean(),
+  /**
+   * The invoice raised for the offline payment, or null when the money leg did not run
+   * (`recordPayment: false`, a free program, or a failure — approval never fails because
+   * the invoice did; the student is enrolled either way and staff can invoice from
+   * Finance). Non-null implies the credentials rode inside the invoice email.
+   */
+  invoiceNumber: z.string().nullable(),
+  /** Amount invoiced, integer paise. Null whenever `invoiceNumber` is. */
+  amountPaise: z.number().int().min(0).nullable(),
 });
 export type OnboardingActivationResult = z.infer<typeof OnboardingActivationResultSchema>;
 

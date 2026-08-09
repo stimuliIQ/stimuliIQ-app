@@ -50,7 +50,8 @@ export interface OnboardingSubmissionRow {
   /** Set only by a successful approval — also the idempotency guard against re-activating. */
   studentProfileId: string | null;
   createdAt: Date;
-  program: { title: string } | null;
+  /** `pricePaise`/`currency` ride along so the approve dialog knows what it will invoice. */
+  program: { title: string; pricePaise: number; currency: string } | null;
   reviewedBy: { name: string } | null;
 }
 
@@ -67,7 +68,7 @@ const SUBMISSION_SELECT = {
   reviewedAt: true,
   studentProfileId: true,
   createdAt: true,
-  program: { select: { title: true } },
+  program: { select: { title: true, pricePaise: true, currency: true } },
   reviewedBy: { select: { name: true } },
 } satisfies Prisma.OnboardingSubmissionSelect;
 

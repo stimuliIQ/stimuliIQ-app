@@ -42,18 +42,18 @@ import { hasPermission } from "../../lib/permissions";
 import { onboardingFormDisplayUrl, onboardingFormUrl } from "../../lib/public-urls";
 import { surfaceError } from "../../lib/surface-error";
 import { OnboardingFieldDrawer } from "./onboarding-field-drawer";
-import { OnboardingSubmissionDrawer, submissionStatusTone } from "./onboarding-submission-drawer";
+import { OnboardingSubmissionDrawer, submissionStatusLabel, submissionStatusTone } from "./onboarding-submission-drawer";
 
 const PAGE_SIZE = 25;
 
+// The three states a reviewer recognises. `pending` is deliberately absent: it is the
+// legacy arrival value (the DB default is `hold` since the `onboarding_default_hold`
+// migration moved every row) and offering two filters that both mean "nobody has decided"
+// is the confusion that migration removed.
 const STATUS_FILTERS: Array<{ value: OnboardingSubmissionStatus | "all"; label: string }> = [
   { value: "all", label: "All statuses" },
-  // Mirrors OnboardingSubmissionStatus after the approval-workflow migration
-  // (new|in_review|verified -> pending|hold|approved). These filters were left on the old
-  // values, which no longer exist in the enum — the list could never filter by status.
-  { value: "pending", label: "Pending" },
   { value: "hold", label: "On hold" },
-  { value: "approved", label: "Approved" },
+  { value: "approved", label: "Accepted" },
   { value: "rejected", label: "Rejected" },
 ];
 
@@ -164,7 +164,9 @@ function SubmissionsTab({ canEdit, canDelete }: { canEdit: boolean; canDelete: b
     {
       id: "status",
       header: "Status",
-      cell: (row) => <StatusChip tone={submissionStatusTone(row.status)} label={row.status.replace("_", " ")} size="sm" />,
+      cell: (row) => (
+        <StatusChip tone={submissionStatusTone(row.status)} label={submissionStatusLabel(row.status)} size="sm" />
+      ),
     },
     { id: "submitted", header: "Submitted", cell: (row) => new Date(row.createdAt).toLocaleDateString() },
     {

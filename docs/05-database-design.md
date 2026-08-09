@@ -183,7 +183,7 @@ to `Marketing`/`Admin`/`Content Editor` the way `content.edit` is (ADR-0062).
 
 ### Governance
 | `audit_logs` | tenant_id, actor_id, entity, entity_id, action, before(json), after(json), ip, created_at |
-| `feature_flags` | tenant_id, key (per-tenant partial-unique among active rows, §4), enabled, rollout(json — e.g. `{percentage: 25}` or `{cohort: [...]}`), description |
+| ~~`feature_flags`~~ | **REMOVED** (migration `20260809160000_drop_feature_flags`) — the table, its endpoints and the CRM screen shipped in P9 but nothing in any app ever evaluated a flag, so the whole seam was dropped rather than left as a toggle that changed nothing. |
 | `settings` | tenant_id, scope(enum `SettingScope`: `system\|company`), key (per-tenant `(scope, key)` partial-unique among active rows, §4), value(json) |
 
 ---
@@ -298,7 +298,7 @@ repository layer. Path to dedicated schemas/DB per large tenant later without ap
 | `tickets`, `ticket_messages`, `canned_responses`, `kb_articles` (help-desk) | **Implemented (P9)** | Same P9 core migration; slug partial-unique on `kb_articles` in `20260709024522_phase9_completion_partial_indexes`. Own-scope (raiser) / assigned-scope (staff) IDOR→404. |
 | `two_factor_credentials` (TOTP 2FA) | **Implemented (P9)** | Migration `20260709053251_two_factor_credentials`. Durable Postgres store for the active secret + hashed backup codes (NOT Redis — see ADR-0058); only the transient enrollment-in-progress secret lives in Redis (TTL'd). Not audited (credential rows are exempt, same posture as `password_hash`). |
 | Headless CMS (`blog_categories`, `blog_posts`, `testimonials`, `partners`, `faculty_bios`, `content_pages`, `newsletter_subscriptions`, `contact_submissions`, `career_applications`) | **Implemented (P9)** | Same P9 core migration; slug/email partial-uniques in `20260709024522_phase9_completion_partial_indexes`. Supersedes the P5 MDX/Git-as-CMS decision for these content types — see ADR-0059 (supersedes ADR-0035). CRM-managed draft/publish workflow; public read endpoints filter `status='published'`. |
-| `feature_flags`, `settings` | **Implemented (P9)** | Same P9 core migration; per-tenant partial-uniques in `20260709024522_phase9_completion_partial_indexes`. |
+| `settings` | **Implemented (P9)** | Same P9 core migration; per-tenant partial-unique in `20260709024522_phase9_completion_partial_indexes`. (`feature_flags` shared that migration but was dropped — see the table list above.) |
 | `bookmarks`, `lesson_notes` | **Implemented (P9)** | Same P9 core migration; `bookmarks` partial-unique on `(user_id, ref_type, ref_id)`. Own-scope only. |
 | `referrals` (extended with `code`), `emi_plans`, `emi_installments` | **Implemented (P9)** | Same P9 core migration + partial-uniques. `referrals.code` is an **extension vs. the original §3 spec** (referrer/referred/reward/status only) — needed for a trackable referral link. EMI installment charges run against Razorpay **TEST** mode (memory `p5-decisions`); dunning reminders scheduled via BullMQ (ADR-0056). Enrollment-time referral auto-conversion is **not yet wired** — see `docs/phase-9-followups.md`. |
 | `landing_pages`, `lead_forms` | **Implemented (P9)** | Same P9 core migration; `(tenant_id, slug, variant)` and `(tenant_id, key)` partial-uniques. Backs the CRM landing-page/lead-form manager and the `web` A/B campaign pages. |

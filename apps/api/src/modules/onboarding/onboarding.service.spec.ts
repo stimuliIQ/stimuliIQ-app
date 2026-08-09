@@ -16,6 +16,7 @@ import type { OnboardingAnswer } from "@repo/types";
 import { OnboardingService } from "./onboarding.service";
 import { OnboardingRepository, type OnboardingFieldRow, type OnboardingSubmissionRow } from "./onboarding.repository";
 import type { OnboardingActivationService } from "./onboarding-activation.service";
+import type { OnboardingNotificationService } from "./onboarding-notification.service";
 import { scopeContextStorage, type ScopeContext } from "../auth/lib/scope-context";
 
 type Mocked<T> = { [K in keyof T]: T[K] extends (...args: never[]) => unknown ? jest.Mock : T[K] };
@@ -123,6 +124,7 @@ describe("OnboardingService", () => {
   let captcha: ReturnType<typeof mockCaptcha>;
   let rateLimiter: ReturnType<typeof mockRateLimiter>;
   let activation: { activate: jest.Mock };
+  let notifications: { sendRejectionEmail: jest.Mock };
 
   beforeEach(() => {
     repo = mockRepository();
@@ -130,12 +132,14 @@ describe("OnboardingService", () => {
     captcha = mockCaptcha();
     rateLimiter = mockRateLimiter();
     activation = { activate: jest.fn() };
+    notifications = { sendRejectionEmail: jest.fn().mockResolvedValue(true) };
     service = new OnboardingService(
       repo as unknown as OnboardingRepository,
       captcha as never,
       storage as never,
       rateLimiter as never,
       activation as unknown as OnboardingActivationService,
+      notifications as unknown as OnboardingNotificationService,
     );
     repo.listFields.mockResolvedValue(FIELDS);
     repo.findProgramById.mockResolvedValue({ id: "program-1", title: "Clinical Neurology Fellowship" });
@@ -345,12 +349,12 @@ describe("OnboardingService", () => {
           storageKey: `onboarding/${TENANT}/uuid-receipt.png`,
         },
       ] as never,
-      status: "pending",
+      status: "hold", // the arrival state — see migration `onboarding_default_hold`.
       reviewNotes: null,
       reviewedAt: null,
       studentProfileId: null,
       createdAt: new Date("2026-08-01T00:00:00Z"),
-      program: { title: "Clinical Neurology Fellowship" },
+      program: { title: "Clinical Neurology Fellowship", pricePaise: 2_500_000, currency: "INR" },
       reviewedBy: null,
     };
 
@@ -413,6 +417,8 @@ describe("OnboardingService", () => {
         batchName: "September 2026 Batch",
         studentCreated: true,
         credentialsEmailed: true,
+        invoiceNumber: "INV-2026-0001",
+        amountPaise: 2_500_000,
       };
 
       beforeEach(() => {
@@ -422,7 +428,7 @@ describe("OnboardingService", () => {
 
       it("activates the student, then records the approval with the reviewer and the link", async () => {
         const result = await runWithScope("all", () =>
-          service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1" }, "staff-1"),
+          service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", recordPayment: true }, "staff-1"),
         );
 
         expect(activation.activate).toHaveBeenCalledWith(
@@ -451,7 +457,7 @@ describe("OnboardingService", () => {
         activation.activate.mockRejectedValue(new UnprocessableEntityException({ code: "onboarding.batch_not_found" }));
 
         await expect(
-          runWithScope("all", () => service.approveSubmission(TENANT, "sub-1", { batchId: "bad" }, "staff-1")),
+          runWithScope("all", () => service.approveSubmission(TENANT, "sub-1", { batchId: "bad", recordPayment: true }, "staff-1")),
         ).rejects.toBeInstanceOf(UnprocessableEntityException);
 
         expect(repo.updateSubmission).not.toHaveBeenCalled();
@@ -463,7 +469,7 @@ describe("OnboardingService", () => {
         repo.findSubmissionById.mockResolvedValue({ ...ROW, status: "approved", studentProfileId: "student-1" });
 
         await expect(
-          runWithScope("all", () => service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1" }, "staff-2")),
+          runWithScope("all", () => service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", recordPayment: true }, "staff-2")),
         ).rejects.toBeInstanceOf(UnprocessableEntityException);
 
         expect(activation.activate).not.toHaveBeenCalled();
@@ -477,9 +483,98 @@ describe("OnboardingService", () => {
           ] as never,
         });
 
-        await runWithScope("all", () => service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1" }, "staff-1"));
+        await runWithScope("all", () => service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", recordPayment: true }, "staff-1"));
 
         expect(activation.activate).toHaveBeenCalledWith(expect.objectContaining({ college: "ABC Institute" }));
+      });
+
+      // The money leg is what makes approval send an INVOICE rather than a bare welcome
+      // email, and the reviewer's checkbox is the only input the server can't derive.
+      it("forwards the reviewer's record-payment decision and the receipt as the payment reference", async () => {
+        await runWithScope("all", () =>
+          service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", recordPayment: true }, "staff-1"),
+        );
+
+        expect(activation.activate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            recordPayment: true,
+            actorId: "staff-1",
+            submissionId: "sub-1",
+            // ROW's file answer — the uploaded receipt, i.e. the evidence the ledger points at.
+            paymentReference: "receipt.png",
+          }),
+        );
+      });
+
+      it("honours an opt-out so a scholarship seat is enrolled without an invoice", async () => {
+        await runWithScope("all", () =>
+          service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", recordPayment: false }, "staff-1"),
+        );
+
+        expect(activation.activate).toHaveBeenCalledWith(expect.objectContaining({ recordPayment: false }));
+      });
+
+      it("never emails a rejection notice on the approval path", async () => {
+        await runWithScope("all", () =>
+          service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", recordPayment: true }, "staff-1"),
+        );
+
+        expect(notifications.sendRejectionEmail).not.toHaveBeenCalled();
+      });
+    });
+
+    // ── Reject: the decision the student hears about ──────────────────────
+    describe("rejection notice", () => {
+      it("emails the student when a submission is rejected", async () => {
+        repo.findSubmissionById.mockResolvedValue(ROW);
+
+        await runWithScope("all", () => service.rejectSubmission(TENANT, "sub-1", {}, "staff-1"));
+
+        expect(notifications.sendRejectionEmail).toHaveBeenCalledWith(
+          "ananya@example.com",
+          "Ananya Sharma",
+          "Clinical Neurology Fellowship",
+        );
+        expect(repo.updateSubmission).toHaveBeenCalledWith("sub-1", expect.objectContaining({ status: "rejected" }));
+      });
+
+      // Same effect from either route, so the CRM's verb and a raw PATCH can't diverge.
+      it("emails on a PATCH to rejected too", async () => {
+        repo.findSubmissionById.mockResolvedValue(ROW);
+
+        await runWithScope("all", () => service.updateSubmission(TENANT, "sub-1", { status: "rejected" }, "staff-1"));
+
+        expect(notifications.sendRejectionEmail).toHaveBeenCalledTimes(1);
+      });
+
+      // Fires on the TRANSITION only — editing notes days later must not re-notify.
+      it("does not re-notify a submission that is already rejected", async () => {
+        repo.findSubmissionById.mockResolvedValue({ ...ROW, status: "rejected" });
+
+        await runWithScope("all", () =>
+          service.updateSubmission(TENANT, "sub-1", { status: "rejected", reviewNotes: "Chased twice" }, "staff-1"),
+        );
+
+        expect(notifications.sendRejectionEmail).not.toHaveBeenCalled();
+      });
+
+      it("does not email when a submission is merely put on hold", async () => {
+        repo.findSubmissionById.mockResolvedValue(ROW);
+
+        await runWithScope("all", () => service.updateSubmission(TENANT, "sub-1", { status: "hold" }, "staff-1"));
+
+        expect(notifications.sendRejectionEmail).not.toHaveBeenCalled();
+      });
+
+      // The internal notes are staff-only — the CRM promises the student never sees them.
+      it("never passes the internal review notes to the student's email", async () => {
+        repo.findSubmissionById.mockResolvedValue(ROW);
+
+        await runWithScope("all", () =>
+          service.rejectSubmission(TENANT, "sub-1", { reviewNotes: "Receipt looks doctored" }, "staff-1"),
+        );
+
+        expect(JSON.stringify(notifications.sendRejectionEmail.mock.calls[0])).not.toContain("doctored");
       });
     });
 

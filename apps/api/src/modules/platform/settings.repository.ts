@@ -4,7 +4,7 @@
 // caller. Soft-delete + audit are handled transparently by the Prisma client extensions
 // (Setting is already registered in both).
 //
-// Tenant-scoped only — same "no branch_id column" precedent as FeatureFlagsRepository;
+// Tenant-scoped only — settings have no branch_id column;
 // SettingsService narrows "branch" scope (branch_manager's settings.view grant) to
 // "no restriction beyond tenant" (documented gap, mirrors MentorsRepository).
 

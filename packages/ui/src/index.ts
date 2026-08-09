@@ -523,7 +523,6 @@ export {
 
 export { Switch, type SwitchProps } from "./components/switch";
 
-export { FeatureFlagRow, type FeatureFlagRowProps } from "./components/feature-flag-row";
 
 // P10 Page Builder UI-polish primitives -----------------------------------------------
 

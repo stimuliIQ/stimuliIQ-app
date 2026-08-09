@@ -146,13 +146,44 @@ export const RazorpayWebhookSchema = z.record(z.string(), z.unknown()).describe(
 export type RazorpayWebhook = z.infer<typeof RazorpayWebhookSchema>;
 
 /**
- * POST /api/v1/commerce/payments/manual
+ * Tolerance for the "not in the future" rule on a recorded payment instant.
  *
- * Offline / cash / NEFT / cheque payment entry by staff. Creates a payment row
- * with `is_manual = true` and `signature_verified = false`. The order must be
- * in `created` status. Finance / Admin only (requires `payments.create` + scope).
+ * The timestamp is produced by the STAFF MEMBER'S browser clock and judged against the
+ * server's, and those disagree in the wild — an unsynced laptop drifting a minute or two is
+ * ordinary. Without slack, "leave it blank to use now" is safe but explicitly picking the
+ * current minute would 422 for a subset of users, which reads as a bug rather than a rule.
+ *
+ * Five minutes is far below any interval a human would think of as "the future" for a cash
+ * receipt, so it forgives skew without weakening what the rule is actually for.
+ */
+const CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000;
+
+/**
+ * Rejects a future instant, ignoring absent values (the field is optional) and unparseable
+ * ones (already rejected by `.datetime()`, and reporting them twice helps nobody).
+ */
+function isNotInTheFuture(value: string | undefined): boolean {
+  if (value === undefined) return true;
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) return true;
+  return parsed <= Date.now() + CLOCK_SKEW_TOLERANCE_MS;
+}
+
+/**
+ * `POST /api/v1/commerce/payments/manual`
+ *
+ * Offline / cash / NEFT / cheque payment entry by staff. Creates a payment row with
+ * `is_manual = true` and `signature_verified = false`. The order must be in `created`
+ * status. Finance / Admin only (requires `payments.create` + scope).
  *
  * `Idempotency-Key` header required (docs/04 §2.6).
+ *
+ * WHY `paidAt` CANNOT BE IN THE FUTURE. This request asserts that money has ALREADY been
+ * received — it captures the payment, marks the order paid, creates the enrollment and
+ * raises an invoice, all immediately. A future `paidAt` would therefore enroll a student and
+ * invoice them for a payment nobody has taken yet, and leave the ledger claiming income on a
+ * date that has not happened. The rule lives HERE, in the shared schema, so the CRM's date
+ * picker and the API enforce the same thing rather than the UI being the only guard.
  */
 export const ManualPaymentRequestSchema = z
   .object({
@@ -172,7 +203,13 @@ export const ManualPaymentRequestSchema = z
       .string()
       .datetime({ offset: true })
       .optional()
-      .describe("When the payment was physically received. Defaults to now if omitted."),
+      .refine(isNotInTheFuture, {
+        message: "A payment can't be recorded as received in the future.",
+      })
+      .describe(
+        "When the payment was physically RECEIVED — a past instant. Defaults to now if omitted. " +
+          "Never a future date: this row asserts money has already arrived.",
+      ),
     notes: z.string().max(500).optional().describe("Staff notes on this payment entry."),
   })
   .strict();

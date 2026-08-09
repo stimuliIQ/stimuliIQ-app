@@ -102,7 +102,6 @@ const SOFT_DELETE_MODELS = new Set<string>([
   "NewsletterSubscription",
   "ContactSubmission",
   "CareerApplication",
-  "FeatureFlag",
   "Setting",
   "Bookmark",
   "LessonNote",

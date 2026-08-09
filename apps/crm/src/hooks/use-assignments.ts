@@ -133,6 +133,23 @@ function useInvalidateSubmissions() {
 }
 
 /**
+ * Send a submission back to the student for changes.
+ *
+ * Not optimistic, unlike grading: this fires an email to the student and flips the project's
+ * resubmission flag server-side, so the UI should reflect what actually happened rather than
+ * what it hoped would. Invalidates broadly — the queue's status counts, the assignment's
+ * graded/total counters and the submission itself all move.
+ */
+export function useReturnSubmission(assignmentId?: string) {
+  const invalidate = useInvalidateSubmissions();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      apiClient.learning.assignments.returnSubmission(id, { reason }),
+    onSuccess: (_data, variables) => invalidate(assignmentId, variables.id),
+  });
+}
+
+/**
  * Grade a submission (optimistic update + rollback on error).
  * Writes audit log before/after on the server (AC-B1/AC-B3).
  */

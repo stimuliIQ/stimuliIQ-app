@@ -65,6 +65,7 @@ import { STORAGE_PROVIDER, type StorageProvider } from "../storage/providers/sto
 import { S3StorageProvider } from "../storage/providers/storage/s3-storage.provider";
 import { OnboardingRepository, type OnboardingFieldRow, type OnboardingSubmissionRow } from "./onboarding.repository";
 import { OnboardingActivationService } from "./onboarding-activation.service";
+import { OnboardingNotificationService } from "./onboarding-notification.service";
 import { ONBOARDING_STORAGE_NAMESPACE, toPublicField, toValidatableField, readOptions } from "./onboarding.util";
 
 const TENANT_SLUG = "stimuliiq"; // Single-tenant (mirrors content.util.ts / public-catalog.service.ts).
@@ -89,6 +90,7 @@ export class OnboardingService {
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
     private readonly rateLimiter: PublicBookingRateLimiter,
     private readonly activation: OnboardingActivationService,
+    private readonly notifications: OnboardingNotificationService,
   ) {}
 
   // ── Shared guards ────────────────────────────────────────────────────────
@@ -395,9 +397,15 @@ export class OnboardingService {
    * Triage — reject/hold and notes. Staff never edit a student's answers: the submission is
    * the record of what was actually sent, and an editable record is not evidence.
    *
-   * Approving is NOT here (the DTO excludes it): approval creates a student, enrols them
-   * and emails their login, so it needs a batch and lives on its own endpoint where those
-   * consequences are explicit rather than a side effect of a status write.
+   * Approving is NOT here (the DTO excludes it): approval creates a student, enrols them,
+   * invoices them and emails their login, so it needs a batch and lives on its own endpoint
+   * where those consequences are explicit rather than a side effect of a status write.
+   *
+   * Rejection DOES have an effect — the student is emailed — and it is implemented here
+   * rather than in `rejectSubmission()` so that both routes to `status: rejected` (the
+   * dedicated verb and this PATCH) behave identically. It fires only on the TRANSITION into
+   * `rejected`: re-saving notes on an already-rejected submission must not re-notify
+   * someone who was told days ago.
    */
   async updateSubmission(
     tenantId: string,
@@ -430,6 +438,13 @@ export class OnboardingService {
       reviewedById: actorId,
       reviewedAt: new Date(),
     });
+
+    // Best-effort and AFTER the write: the decision is recorded whether or not the student
+    // can be reached, and a bounced mailbox must not roll back a staff member's call.
+    if (body.status === "rejected" && existing.status !== "rejected") {
+      await this.notifications.sendRejectionEmail(existing.email, existing.fullName, existing.program?.title ?? null);
+    }
+
     return this.getSubmissionById(tenantId, id);
   }
 
@@ -472,6 +487,13 @@ export class OnboardingService {
       // The college answer has no denormalised column (it is not an identity field), so it
       // is read back out of the frozen snapshot — the same place the CRM renders it from.
       college: findAnswerValue(existing.answers, ["college_name", "college", "institution"]),
+      actorId,
+      recordPayment: body.recordPayment,
+      submissionId: id,
+      // The uploaded receipt's filename becomes the payment row's reference, so the ledger
+      // entry points at the evidence a reviewer actually looked at. Null when the form asks
+      // for no file — the activation service then falls back to the submission id.
+      paymentReference: findAttachmentName(existing.answers),
     });
 
     await this.repository.updateSubmission(id, {
@@ -506,7 +528,11 @@ export class OnboardingService {
     }));
   }
 
-  /** `POST /crm/onboarding/submissions/:id/reject` — thin wrapper so the CRM has a verb. */
+  /**
+   * `POST /crm/onboarding/submissions/:id/reject` — thin wrapper so the CRM has a verb.
+   * The student-facing email lives in `updateSubmission` (see its doc comment), so this and
+   * a PATCH to `rejected` cannot drift.
+   */
   async rejectSubmission(
     tenantId: string,
     id: string,
@@ -539,6 +565,8 @@ function toSubmissionSummary(row: OnboardingSubmissionRow): OnboardingSubmission
     phone: row.phone,
     programId: row.programId,
     programTitle: row.program?.title ?? null,
+    programPricePaise: row.program?.pricePaise ?? null,
+    programCurrency: row.program?.currency ?? null,
     status: row.status,
     hasAttachment: readAnswers(row.answers).some((answer) => Boolean(answer.storageKey)),
     studentProfileId: row.studentProfileId,
@@ -562,6 +590,17 @@ function findAnswerValue(answers: unknown, candidateKeys: readonly string[]): st
     if (match?.value && match.value.trim().length > 0) return match.value.trim();
   }
   return null;
+}
+
+/**
+ * The first file answer's original filename — the payment receipt in every form we ship.
+ *
+ * Keyed off "has a storageKey" rather than a field key, because the question set is
+ * staff-authored: whatever they called the upload, the file answer IS the receipt.
+ */
+function findAttachmentName(answers: unknown): string | null {
+  const match = readAnswers(answers).find((answer) => Boolean(answer.storageKey));
+  return match?.value?.trim() || null;
 }
 
 /** `onboarding/{tenant}/{uuid}-my receipt.png` → `my receipt.png`. */

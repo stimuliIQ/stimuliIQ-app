@@ -24,7 +24,8 @@ const BRAND_COLOR = "#047857"; // --brand-500 (emerald) from packages/ui tokens
 const BRAND_COLOR_DARK = "#035f47"; // --brand-600
 const LOGO_URL = "https://www.stimuliiq.com/stimuliiq-logo.png";
 const SITE_URL = "https://www.stimuliiq.com";
-const SUPPORT_EMAIL = "support@stimuliiq.com";
+/** Exported so a body can point at the same address the footer already shows. */
+export const SUPPORT_EMAIL = "support@stimuliiq.com";
 
 export interface BrandedEmailOptions {
   /** Bold headline under the logo, e.g. "Payment Received". */

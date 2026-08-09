@@ -38,7 +38,11 @@ export interface LiveCollectionSectionFieldsProps {
  *  (home/`for-colleges`), never the generic hiring/tech Partners screen, so this maps to
  *  the dedicated Colleges screen (docs/plans/phase-11-locked-templates.md). */
 const MANAGE_LINK: Record<LiveCollectionRefBlockData["collection"], { label: string; to: string }> = {
-  testimonials: { label: "Testimonials (Blog CMS)", to: "/marketing/blog-cms" },
+  // "Reviews" is the CRM's name for these; the underlying collection/model is still
+  // `testimonials` (see reviews screen header). The link was left pointing at the Blog CMS
+  // tab strip after they were promoted to their own screen, so it sent staff somewhere the
+  // items are no longer editable.
+  testimonials: { label: "Reviews", to: "/marketing/testimonials" },
   partners: { label: "Colleges", to: "/marketing/colleges" },
   programs: { label: "Courses", to: "/courses" },
   mentors: { label: "Mentors", to: "/mentors" },

@@ -465,6 +465,106 @@ describe("CampaignsService", () => {
 
   // ─── AC-36: Cancel campaign ────────────────────────────────────────────────
 
+  // What actually lands in a student's inbox. Before this, the sender passed only
+  // { to, campaignName } while templates were authored with {{name}} / {{program_title}},
+  // and the renderer leaves unknown placeholders alone — so real sends went out reading
+  // "Hi {{name}},". These pin the substitution map against CAMPAIGN_TEMPLATE_VARIABLES.
+  describe("sendCampaign — variable substitution", () => {
+    function makeSendHarness(recipient: CampaignRecipientRow, templateBody: string) {
+      // The send path reads the template off the CAMPAIGN row (campaign.template), not via
+      // a separate findTemplateById — mocking the latter has no effect here.
+      const campaign = makeCampaignRow({
+        channel: "email",
+        status: "draft",
+        name: "August Reminder",
+        template: { channel: "email", body: templateBody, subject: "Hi {{name}}" },
+      });
+      return makeService({
+        findCampaignById: jest
+          .fn()
+          .mockResolvedValueOnce(campaign)
+          .mockResolvedValue({ ...campaign, status: "sending" }),
+        findQueuedRecipients: jest.fn().mockResolvedValue([recipient]),
+        findLeadsForSegment: jest.fn().mockResolvedValue({ rows: [], total: 0 }),
+        updateCampaignStatus: jest.fn().mockResolvedValue({ ...campaign, status: "sending" }),
+        updateRecipientStatus: jest.fn().mockResolvedValue(recipient),
+        isSuppressed: jest.fn().mockResolvedValue(false),
+        countRecipientsByStatus: jest
+          .fn()
+          .mockResolvedValue({ total: 1, sent: 1, delivered: 0, read: 0, failed: 0, queued: 0 }),
+      });
+    }
+
+    it("fills a student's name and programme into the message", async () => {
+      const recipient = makeRecipientRow({
+        to: "ananya@example.com",
+        studentId: "student-1",
+        student: {
+          user: { name: "Ananya Sharma" },
+          enrollments: [{ program: { title: "Clinical Neurology" } }],
+        },
+      });
+      const { service, port } = makeSendHarness(recipient, "Hi {{name}}, {{program_title}} is closing soon.");
+
+      await service.sendCampaign(TENANT_ID, ACTOR_ID, "camp-1");
+
+      const sent = (port.send as jest.Mock).mock.calls[0][0] as { body: string };
+      expect(sent.body).toBe("Hi Ananya Sharma, Clinical Neurology is closing soon.");
+      // The failure this replaced: braces reaching a real inbox.
+      expect(sent.body).not.toContain("{{");
+    });
+
+    it("falls back to the lead's own name and interest", async () => {
+      const recipient = makeRecipientRow({
+        to: "ravi@example.com",
+        leadId: "lead-1",
+        lead: { name: "Ravi Kumar", programInterest: { title: "Cardiology" } },
+      });
+      const { service, port } = makeSendHarness(recipient, "Hi {{name}} — about {{program_title}}");
+
+      await service.sendCampaign(TENANT_ID, ACTOR_ID, "camp-1");
+
+      expect(((port.send as jest.Mock).mock.calls[0][0] as { body: string }).body).toBe(
+        "Hi Ravi Kumar — about Cardiology",
+      );
+    });
+
+    it("substitutes the address and campaign name too", async () => {
+      const recipient = makeRecipientRow({ to: "someone@example.com", userId: "user-1", user: { name: "Staff" } });
+      const { service, port } = makeSendHarness(recipient, "{{to}} / {{campaign_name}}");
+
+      await service.sendCampaign(TENANT_ID, ACTOR_ID, "camp-1");
+
+      expect(((port.send as jest.Mock).mock.calls[0][0] as { body: string }).body).toBe(
+        "someone@example.com / August Reminder",
+      );
+    });
+
+    // A blank reads as an imperfect mail-merge; leaving the key out entirely would make the
+    // renderer emit the raw "{{program_title}}", which reads as broken software.
+    it("renders a blank, never braces, when the data is missing", async () => {
+      const recipient = makeRecipientRow({ to: "x@example.com", leadId: "lead-2", lead: { name: "Nobody", programInterest: null } });
+      const { service, port } = makeSendHarness(recipient, "[{{program_title}}]");
+
+      await service.sendCampaign(TENANT_ID, ACTOR_ID, "camp-1");
+
+      expect(((port.send as jest.Mock).mock.calls[0][0] as { body: string }).body).toBe("[]");
+    });
+
+    it("substitutes the subject line as well as the body", async () => {
+      const recipient = makeRecipientRow({
+        to: "ananya@example.com",
+        studentId: "student-1",
+        student: { user: { name: "Ananya Sharma" }, enrollments: [] },
+      });
+      const { service, port } = makeSendHarness(recipient, "body");
+
+      await service.sendCampaign(TENANT_ID, ACTOR_ID, "camp-1");
+
+      expect(((port.send as jest.Mock).mock.calls[0][0] as { subject?: string }).subject).toBe("Hi Ananya Sharma");
+    });
+  });
+
   describe("cancelCampaign — AC-36", () => {
     it("transitions campaign to cancelled + bulk-fails queued recipients", async () => {
       const campaign = makeCampaignRow({ status: "scheduled" });

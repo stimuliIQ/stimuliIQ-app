@@ -63,3 +63,18 @@ export function useDeactivateStaffUser() {
     onSuccess: invalidate,
   });
 }
+
+/**
+ * Remove a staff account from the CRM — `users.remove`, super_admin only.
+ *
+ * Not the same call as `useDeactivateStaffUser`: that blocks the login and leaves the row
+ * on the list, this one takes the account out of the product. The server soft-deletes, so
+ * audit history and lead ownership survive the removal.
+ */
+export function useRemoveStaffUser() {
+  const invalidate = useInvalidateStaffUsers();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.crm.admin.users.remove(id),
+    onSuccess: invalidate,
+  });
+}

@@ -108,6 +108,9 @@ the corresponding question.
 | POST · PATCH · DELETE | `/crm/onboarding/fields[/:id]` | `onboarding.fields.manage` |
 | POST | `/crm/onboarding/fields/reorder` | `onboarding.fields.manage` |
 | GET | `/crm/onboarding/submissions[/:id]` | `onboarding.view` |
+| GET | `/crm/onboarding/submissions/:id/batches` | `onboarding.edit` |
+| POST | `/crm/onboarding/submissions/:id/approve` | `onboarding.edit` |
+| POST | `/crm/onboarding/submissions/:id/reject` | `onboarding.edit` |
 | PATCH | `/crm/onboarding/submissions/:id` | `onboarding.edit` |
 | DELETE | `/crm/onboarding/submissions/:id` | `onboarding.delete` |
 
@@ -145,9 +148,54 @@ deactivate a question should not hit a hard error on a question that no longer e
 across the three identity columns, filterable by status, paginated. A paperclip marks rows
 carrying an attachment, so a missing receipt is visible without opening anything. Clicking a
 row opens a drawer showing **every answer**, rendered from the stored snapshot; file answers
-become links to short-lived signed URLs minted per request. Staff set `status`
-(new / in review / verified / rejected) and internal notes — nothing else. The answers are
-the record of what the student sent, and an editable record is not evidence.
+become links to short-lived signed URLs minted per request. The answers themselves are never
+editable — they are the record of what the student sent, and an editable record is not
+evidence. Staff write internal notes and make one of two decisions.
+
+### 7.1 The two decisions
+
+A submission **arrives on hold** (`status = hold`, the DB default since migration
+`onboarding_default_hold`) and stays there until a named reviewer accepts or rejects it.
+There is no status dropdown: a picker implied interchangeable states, hid that only two were
+reachable, and could not offer Accept at all — accepting needs a batch and has consequences
+that must never ride on a silent status write. (`pending` remains in the enum for old rows;
+it renders as "On hold" and nothing writes it.)
+
+**Accept** (`POST .../approve`) expands a panel inside the drawer — deliberately not a modal,
+so the receipt being invoiced stays on screen — asking for:
+
+- **Batch.** Server-resolved from `GET .../batches` (open cohorts of the submitted program
+  only), preselected when there is exactly one. Never guessed: the form captures a program
+  and a preferred month, neither of which identifies a cohort.
+- **Record their payment.** Checked by default. The amount is **never entered** — it is the
+  program's list price, applied server-side (CLAUDE.md §3.6). Unticking covers a scholarship
+  seat or one already invoiced; the checkbox is hidden entirely for a free/unpriced program.
+
+Accepting then runs, in order: resolve-or-create the student by email → **the ordinary
+offline-payment lifecycle** (`CommerceService.createOrder` → `recordManualPayment`), which
+captures the payment, enrols them, raises a GST invoice and sends **one** email containing
+the invoice *and* their LMS credentials. The payment row's `reference` is the uploaded
+receipt's filename, so the ledger entry points at the evidence.
+
+Reusing commerce rather than re-implementing it is the point: an onboarding student is
+indistinguishable from a walk-in cash payer in Orders/Payments/Invoices, and the combined
+receipt+credentials email already built for that path is not duplicated.
+
+If the money leg is skipped or fails (draft program, batch full, storage down mid-invoice),
+the student is still enrolled the plain way and emailed a welcome message — **access never
+depends on paperwork**. The failure is logged; any order created before the failure stays
+open under Finance for staff to settle or cancel.
+
+**Reject** (`POST .../reject`) confirms first, because it emails the student: the message
+says the application was not accepted and asks them to contact support. It carries **no
+`reviewNotes`** — those are internal, and a rejection reason is a conversation for support to
+have, not a line in an automated email. The email fires on the *transition* into `rejected`
+(so re-saving notes later does not re-notify) and is implemented in `updateSubmission`, so a
+raw `PATCH {status: "rejected"}` behaves identically to the verb. Best-effort: a bounced
+mailbox never rolls back the decision.
+
+Once accepted, both buttons disappear — the API refuses to re-decide a submission with an
+enrolled student behind it, and reversing means withdrawing the enrollment under Students.
 
 **Form fields** — the question list with up/down reordering, an Add-question drawer, and
 per-row edit/delete. Deleting says plainly that answers already collected are kept.
@@ -194,7 +242,7 @@ Mirrors `content-intake.service.ts` (the established anonymous-write convention)
 
 ```bash
 pnpm --filter @repo/types build && pnpm --filter @repo/api-client build
-npx prisma migrate deploy          # applies 20260807100000_onboarding_form
+npx prisma migrate deploy          # 20260807100000_onboarding_form, then …_onboarding_default_hold
 pnpm --filter @repo/db seed        # or: npx prisma db seed — inserts the 8 questions + permissions
 ```
 
@@ -203,11 +251,18 @@ Then:
 1. **API** — `curl localhost:4000/api/v1/public/onboarding/form` returns the 8 questions.
 2. **Web** — open `http://localhost:3000/onboarding`; the form renders card-per-question
    with no marketing chrome. Submit empty → every required question shows its own error.
-3. **CRM** — log in as super_admin, open **Onboarding**. The submission appears with its
-   receipt link; the Form fields tab lists the 8 questions.
-4. **The point of the whole thing** — add a question in Form fields, reload the public form:
+3. **CRM** — log in as super_admin, open **Onboarding**. The submission appears **On hold**
+   with its receipt link; the Form fields tab lists the 8 questions.
+4. **Accept** — open the row, press Accept. The panel names the batch and the exact amount it
+   will invoice. Confirm, then check: the student exists under Students (Active), an
+   enrollment exists in that batch, and Finance shows a paid order + issued invoice. The
+   student's inbox has ONE email carrying the invoice number and a temporary password.
+5. **Reject** — on another submission press Reject; the dialog names the recipient. Confirm,
+   and the student receives the "we couldn't accept your application, contact support"
+   email — with none of the internal notes in it.
+6. **The point of the whole thing** — add a question in Form fields, reload the public form:
    it is there, with no deploy.
 
-Tests: `apps/api` `src/modules/onboarding/*.spec.ts` (51),
+Tests: `apps/api` `src/modules/onboarding/*.spec.ts` (67),
 `packages/types/src/onboarding/onboarding.spec.ts` (14),
-`apps/crm/src/components/onboarding/onboarding-workspace.test.tsx` (9).
+`apps/crm/src/components/onboarding/onboarding-workspace.test.tsx` (19).

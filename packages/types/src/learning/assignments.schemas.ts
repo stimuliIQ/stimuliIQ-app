@@ -32,7 +32,23 @@ export type SubmissionStatus = z.infer<typeof SubmissionStatusSchema>;
  * Derived student-facing status for an assignment list item.
  * Computed server-side from submission state + due_at, NOT stored in DB.
  */
-export const AssignmentStudentStatusSchema = z.enum(["assigned", "submitted", "graded", "overdue"]);
+/**
+ * What the STUDENT sees on an assignment.
+ *
+ * `returned` = a reviewer sent the work back for changes. It is deliberately its own state
+ * rather than being folded into `submitted`: before it existed, a returned submission
+ * derived to "Submitted", so the student sat waiting for a verdict that had already been
+ * delivered and never saw the resubmit form. It is not a fail — a fail is a low `graded`
+ * score. It means "do this again", and it is the only student-facing state that asks for
+ * an action after handing work in.
+ */
+export const AssignmentStudentStatusSchema = z.enum([
+  "assigned",
+  "submitted",
+  "returned",
+  "graded",
+  "overdue",
+]);
 export type AssignmentStudentStatus = z.infer<typeof AssignmentStudentStatusSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -131,6 +147,15 @@ export const AssignmentDetailSchema = z.object({
   id: UuidSchema,
   lessonId: UuidSchema,
   lessonTitle: z.string(),
+  /**
+   * The COURSE this hangs off, resolved lesson → module → program.
+   *
+   * Staff think in courses ("the Neurology case study"), not lessons, and the CRM needs it
+   * to scope a batch picker to the cohorts that could actually have submitted. Empty string
+   * on rows built from the list query, which does not join it.
+   */
+  programId: z.string(),
+  programTitle: z.string(),
   kind: AssignmentKindSchema,
   title: z.string(),
   instructions: z.string().nullable(),
@@ -300,6 +325,31 @@ export const GradeSubmissionRequestSchema = z
 export type GradeSubmissionRequest = z.infer<typeof GradeSubmissionRequestSchema>;
 
 /**
+ * `POST /api/v1/crm/submissions/:id/return` — send the work back for changes.
+ *
+ * The other half of review, and until now the missing one: `SubmissionStatus.returned` has
+ * existed since Phase 4 and nothing in the API ever wrote it, so a reviewer could only ever
+ * approve. Returning carries NO score — it is not a fail (that is a low `graded` score), it
+ * is "this needs another attempt".
+ *
+ * `reason` is REQUIRED and has a floor, because it is the entire student-facing payload of
+ * this action: they are told their project was sent back and shown exactly this text. "No"
+ * is not something a student can act on, and an empty reason turns a review into a rejection
+ * with no route forward.
+ */
+export const ReturnSubmissionRequestSchema = z
+  .object({
+    reason: z
+      .string()
+      .trim()
+      .min(10, "Give the student something to act on — at least 10 characters.")
+      .max(10_000)
+      .describe("Shown to the student verbatim. Stored in submissions.feedback."),
+  })
+  .strict();
+export type ReturnSubmissionRequest = z.infer<typeof ReturnSubmissionRequestSchema>;
+
+/**
  * Submission detail — student view.
  * Own grade + rubric + feedback visible. Never includes another student's data.
  * `fileDownloadUrls` are short-lived signed GET URLs minted on request (never raw bucket URLs).
@@ -349,6 +399,13 @@ export const SubmissionSummarySchema = z.object({
   enrollmentId: UuidSchema,
   studentId: UuidSchema,
   studentName: z.string(),
+  /**
+   * The cohort this submission came from. Reviewers work a batch at a time — "who in the
+   * September batch still owes me this?" — and the server already resolves the batch on
+   * every row for the faculty assigned-scope check, so surfacing it costs nothing.
+   */
+  batchId: UuidSchema,
+  batchName: z.string(),
   status: SubmissionStatusSchema,
   attemptNo: z.number().int().min(1),
   score: z.number().int().nullable(),
@@ -420,6 +477,7 @@ export const ListSubmissionsQuerySchema = z
   .object({
     status: SubmissionStatusSchema.optional(),
     search: z.string().min(1).max(200).optional().describe("Filter by student name."),
+    batchId: UuidSchema.optional().describe("Narrow the queue to one cohort."),
   })
   .merge(PageQuerySchema)
   .strict();

@@ -6,25 +6,16 @@
 // permission catalog AND be granted to at least one role (admin/super_admin catch-all
 // counts — see NOTE below).
 //
-// NOTE on flags.view/flags.edit: prisma/seed.ts intentionally grants these ONLY via the
-// admin/super_admin catch-all (no non-admin role holds flags.* — feature-flag management
-// is admin-only by design, unlike settings.view which branch_manager also holds). This is
-// NOT the P6 bug class (that bug was a key MISSING from the catalog entirely, so it
-// 403'd even admins); flags.* IS in the catalog and IS granted to admin/super_admin, so
-// every real admin caller succeeds. The "non-admin grant" heuristic used by other
-// permission-catalog specs therefore does not apply to flags.view/flags.edit — asserted
-// separately below via the DB-guarded catch-all check instead.
+// The feature-flags controller was removed along with the rest of that seam (nothing ever
+// evaluated a flag), so this module is now Settings alone.
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PrismaClient, RolePermissionScope } from "@prisma/client";
 
-const CONTROLLER_FILES = [
-  "./feature-flags.controller.ts",
-  "./settings.controller.ts",
-] as const;
+const CONTROLLER_FILES = ["./settings.controller.ts"] as const;
 
-const ALL_EXPECTED_KEYS = ["flags.view", "flags.edit", "settings.view", "settings.edit"] as const;
+const ALL_EXPECTED_KEYS = ["settings.view", "settings.edit"] as const;
 
 /**
  * Keys granted ONLY via the admin/super_admin catch-all (no non-admin role grant).
@@ -32,7 +23,7 @@ const ALL_EXPECTED_KEYS = ["flags.view", "flags.edit", "settings.view", "setting
  * may VIEW branch-level config (edit stays admin-only)") — branch_manager holds
  * settings.view but never settings.edit.
  */
-const ADMIN_ONLY_KEYS = new Set(["flags.view", "flags.edit", "settings.edit"]);
+const ADMIN_ONLY_KEYS = new Set(["settings.edit"]);
 
 const SEED_PATH = resolve(__dirname, "../../../../../prisma/seed.ts");
 
@@ -45,18 +36,8 @@ function requiredPermissionKeys(controllerRelativePath: string): string[] {
 describe("Platform module controllers permission catalog (regression: P6 forum.read/notification_prefs.edit bug class)", () => {
   const seedSource = readFileSync(SEED_PATH, "utf8");
 
-  it("FeatureFlagsController declares exactly flags.view (GETs) + flags.edit (PUT)", () => {
-    expect(requiredPermissionKeys("./feature-flags.controller.ts")).toEqual(["flags.view", "flags.view", "flags.edit"]);
-  });
-
   it("SettingsController declares exactly settings.view (GETs) + settings.edit (PUT)", () => {
     expect(requiredPermissionKeys("./settings.controller.ts")).toEqual(["settings.view", "settings.view", "settings.edit"]);
-  });
-
-  it("FeatureFlagsEvaluateController declares NO @RequirePermission (any authenticated caller)", () => {
-    const source = readFileSync(resolve(__dirname, "./feature-flags.controller.ts"), "utf8");
-    const evaluateSection = source.slice(source.indexOf("class FeatureFlagsEvaluateController"));
-    expect(evaluateSection).not.toMatch(/@RequirePermission\(/);
   });
 
   it("every @RequirePermission key referenced anywhere in this module is accounted for in ALL_EXPECTED_KEYS", () => {

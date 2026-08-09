@@ -38,6 +38,9 @@ export interface AssignmentRow {
   tenantId: string;
   lessonId: string;
   lessonTitle: string;
+  /** The owning course. Populated by findAssignmentById only; empty on list rows. */
+  programId: string;
+  programTitle: string;
   kind: AssignmentKind;
   title: string;
   instructions: string | null;
@@ -85,8 +88,9 @@ export interface SubmissionRow {
   gradedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
-  // for assigned-scope checks
+  // for assigned-scope checks — batchName is additionally surfaced to reviewers.
   batchId: string;
+  batchName: string;
   batchFacultyId: string | null;
 }
 
@@ -292,7 +296,10 @@ export class AssignmentsRepository {
     const row: any = await this.prisma.client.assignment.findFirst({
       where: { id, tenantId },
       include: {
-        lesson: { select: { title: true } },
+        // The owning COURSE, for the CRM's review panel: it scopes the batch picker and is
+        // how staff actually refer to a project ("the Neurology case study"). Joined only on
+        // the single-assignment read — the list query has no use for it.
+        lesson: { select: { title: true, module: { select: { programId: true, program: { select: { title: true } } } } } },
         milestones: {
           where: { deletedAt: null },
           orderBy: { order: "asc" },
@@ -611,26 +618,35 @@ export class AssignmentsRepository {
       allowedBatchIds?: string[]; // assigned-scope: only these batches
       status?: SubmissionStatus;
       search?: string; // student name
+      batchId?: string; // reviewer narrowed the queue to one cohort
       page: number;
       pageSize: number;
     },
   ): Promise<{ rows: SubmissionRow[]; total: number }> {
+    // SCOPE FIX: every one of these three conditions lives under `enrollment`, and they used
+    // to be spread as separate `{ enrollment: ... }` keys — so the LAST one silently
+    // replaced the earlier ones. A faculty member typing in the search box lost their
+    // `allowedBatchIds` restriction and saw submissions from batches they do not teach
+    // (CLAUDE.md §3.5 — the server, not the UI, is the boundary). Building ONE enrollment
+    // filter makes the conditions additive, which is what they were always meant to be.
+    const enrollmentFilter: Prisma.EnrollmentWhereInput = {
+      // Reviewer-chosen batch AND scope-allowed batches must both hold; `AND` rather than a
+      // merged `batchId` so a request naming a batch outside the caller's scope returns
+      // nothing instead of widening it.
+      ...(filters.allowedBatchIds !== undefined ? { batchId: { in: filters.allowedBatchIds } } : {}),
+      ...(filters.batchId
+        ? { AND: [{ batchId: filters.batchId }] }
+        : {}),
+      ...(filters.search
+        ? { student: { user: { name: { contains: filters.search, mode: "insensitive" } } } }
+        : {}),
+    };
+
     const where: Prisma.SubmissionWhereInput = {
       tenantId,
       assignmentId,
       ...(filters.status ? { status: filters.status } : {}),
-      ...(filters.allowedBatchIds !== undefined
-        ? { enrollment: { batchId: { in: filters.allowedBatchIds } } }
-        : {}),
-      ...(filters.search
-        ? {
-            enrollment: {
-              student: {
-                user: { name: { contains: filters.search, mode: "insensitive" } },
-              },
-            },
-          }
-        : {}),
+      ...(Object.keys(enrollmentFilter).length > 0 ? { enrollment: enrollmentFilter } : {}),
     };
 
     const [rawRows, total] = await Promise.all([
@@ -644,7 +660,9 @@ export class AssignmentsRepository {
             select: {
               student: { select: { user: { select: { name: true } }, id: true } },
               batchId: true,
-              batch: { select: { facultyId: true } },
+              // `name` alongside facultyId: the cohort is what a reviewer works in, so it
+              // belongs on the row rather than behind a second lookup per submission.
+              batch: { select: { facultyId: true, name: true } },
             },
           },
           gradedBy: { select: { name: true } },
@@ -695,6 +713,49 @@ export class AssignmentsRepository {
     });
 
     return { beforeScore, beforeStatus };
+  }
+
+  /**
+   * Return a submission to the student for changes: status=returned, reason into `feedback`.
+   *
+   * NO SCORE is written and `gradedAt` stays null — returning is not grading, and a row that
+   * looked graded would land in `gradedCount` and read as reviewed-and-done on every
+   * progress figure in the product. `gradedById` records WHO acted, which is the only part
+   * of the grading trio that is true here.
+   *
+   * Guarded on `status: "submitted"` in the WHERE rather than trusting a prior read: two
+   * reviewers opening the same queue must not both return the same attempt, and the second
+   * write matching zero rows is how the service learns it lost the race.
+   */
+  async returnSubmission(
+    tenantId: string,
+    submissionId: string,
+    data: { reason: string; returnedById: string },
+  ): Promise<{ updated: number }> {
+    const result = await this.prisma.client.submission.updateMany({
+      where: { id: submissionId, tenantId, status: "submitted" },
+      data: {
+        status: "returned",
+        feedback: data.reason,
+        score: null,
+        gradedById: data.returnedById,
+        gradedAt: null,
+      },
+    });
+    return { updated: result.count };
+  }
+
+  /**
+   * Turn on resubmission for an assignment. Called when work is returned on a project that
+   * was created without `allowResubmit` — otherwise the student is told to fix and resend
+   * something the submit endpoint will refuse (RESUBMIT_NOT_ALLOWED), which is a dead end
+   * with no way out from either side of the product.
+   */
+  async enableResubmission(tenantId: string, assignmentId: string): Promise<void> {
+    await this.prisma.client.assignment.updateMany({
+      where: { id: assignmentId, tenantId },
+      data: { allowResubmit: true },
+    });
   }
 
   /**
@@ -842,7 +903,9 @@ export class AssignmentsRepository {
     actorId: string;
     submissionId: string;
     before: { score: number | null; status: string };
-    after: { score: number; status: string };
+    // `score: null` is legitimate on the AFTER side too — returning a submission for changes
+    // clears the score by design (it is not a grade). Widened when returnSubmission landed.
+    after: { score: number | null; status: string };
   }): Promise<void> {
     await this.prisma.client.auditLog.create({
       data: {
@@ -936,6 +999,8 @@ function toAssignmentRow(row: any, gradedCount: number): AssignmentRow {
     tenantId: row.tenantId,
     lessonId: row.lessonId,
     lessonTitle: row.lesson?.title ?? "",
+    programId: row.lesson?.module?.programId ?? "",
+    programTitle: row.lesson?.module?.program?.title ?? "",
     kind: row.kind as AssignmentKind,
     title: row.title,
     instructions: row.instructions,
@@ -985,6 +1050,7 @@ function toSubmissionRow(row: any): SubmissionRow {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     batchId: row.enrollment?.batchId ?? "",
+    batchName: row.enrollment?.batch?.name ?? "",
     batchFacultyId: row.enrollment?.batch?.facultyId ?? null,
   };
 }

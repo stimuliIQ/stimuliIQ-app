@@ -13,6 +13,7 @@
 //     GET  /crm/assignments/:id/submissions  → listSubmissions()
 //     GET  /crm/submissions/:id          → getSubmission()
 //     PATCH /crm/submissions/:id/grade   → gradeSubmission() [AUDITED before/after]
+//     POST /crm/submissions/:id/return   → returnSubmission() [AUDITED before/after]
 //     GET  /crm/assignments/:id/project  → getProjectCrm()
 //
 //   LMS (student, own-scope):
@@ -38,6 +39,7 @@ import type {
   UpdateAssignmentRequest,
   SubmitAssignmentRequest,
   GradeSubmissionRequest,
+  ReturnSubmissionRequest,
   SubmissionDetail,
   SubmissionSummary,
   ProjectDetail,
@@ -157,6 +159,31 @@ export class AssignmentsApi {
     return this.client.request<SubmissionDetail>(
       "PATCH",
       `/api/v1/crm/submissions/${submissionId}/grade`,
+      { body, idempotencyKey },
+    );
+  }
+
+  /**
+   * POST /api/v1/crm/submissions/:id/return
+   *
+   * Send the work back to the student for changes: status=returned, no score, `reason`
+   * stored as feedback and emailed to them. The other half of review — grading is the
+   * "accept" path, this is "do it again".
+   *
+   * NOT a fail (that is `gradeSubmission` with a low score). Only a submission still
+   * awaiting review can be returned, and the API turns on resubmission for the project if
+   * it was off, so the student can actually comply.
+   *
+   * Permission: submissions.grade (scope: assigned) — the same authority as grading.
+   */
+  async returnSubmission(
+    submissionId: string,
+    body: ReturnSubmissionRequest,
+    idempotencyKey: string = crypto.randomUUID(),
+  ): Promise<SubmissionDetail> {
+    return this.client.request<SubmissionDetail>(
+      "POST",
+      `/api/v1/crm/submissions/${submissionId}/return`,
       { body, idempotencyKey },
     );
   }

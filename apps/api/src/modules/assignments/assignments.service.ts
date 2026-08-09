@@ -32,6 +32,7 @@ import type {
   UpdateAssignmentRequest,
   SubmitAssignmentRequest,
   GradeSubmissionRequest,
+  ReturnSubmissionRequest,
   SubmissionDetail,
   SubmissionSummary,
   ProjectDetail,
@@ -349,6 +350,9 @@ export class AssignmentsService {
       allowedBatchIds,
       status: query.status as SubmissionRow["status"] | undefined,
       search: query.search,
+      // Reviewer-chosen cohort. Layered ON TOP of allowedBatchIds in the repository, never
+      // instead of it — naming a batch outside your scope returns nothing, not more.
+      batchId: query.batchId,
       page: query.page,
       pageSize: query.pageSize,
     });
@@ -387,6 +391,114 @@ export class AssignmentsService {
    * Grade a submission. Writes audit log with before/after (AC-B1, AC-B3).
    * Faculty can only grade assigned-batch submissions (AC-B2).
    */
+  /**
+   * `POST /crm/submissions/:id/return` — send the work back for changes.
+   *
+   * The other half of review. `SubmissionStatus.returned` shipped in Phase 4 and nothing
+   * ever wrote it, so a reviewer could only approve: work that needed another attempt had to
+   * be graded low (final, no route back) or left pending forever.
+   *
+   * It is NOT a fail. No score is written; the student is told what to change and resubmits.
+   * A genuine fail remains `gradeSubmission` with a low score.
+   *
+   * Three things have to be true for the loop to actually close, and each is handled here
+   * rather than assumed:
+   *   1. Only a PENDING (`submitted`) attempt can be returned — the repository re-checks it
+   *      in the WHERE so two reviewers working the same queue cannot both return one attempt.
+   *   2. The project must ALLOW resubmission, or the student is asked to fix something the
+   *      submit endpoint will then refuse. If it does not, this turns it on.
+   *   3. The student has to be told, with the reason — see notifySubmissionReturned.
+   *
+   * `dueAt` is deliberately NOT enforced here: the submit endpoint blocks resubmission past
+   * the deadline, so returning late work is legitimate (the reviewer may be extending the
+   * date next) but the reviewer needs to know. The CRM warns before confirming; the API
+   * stays permissive rather than second-guessing a decision it has no context for.
+   */
+  async returnSubmission(
+    actorId: string,
+    tenantId: string,
+    submissionId: string,
+    body: ReturnSubmissionRequest,
+    scope: "all" | "assigned" | "branch",
+  ): Promise<SubmissionDetail> {
+    const row = await this.repo.findSubmissionById(tenantId, submissionId);
+    if (!row) throw new NotFoundException("Submission not found.");
+
+    // Same authority boundary as grading — returning IS a review decision.
+    if (scope === "assigned") {
+      await this.assertFacultyCanAccessSubmission(tenantId, actorId, row);
+    }
+
+    if (row.status !== "submitted") {
+      throw new UnprocessableEntityException({
+        code: "SUBMISSION_NOT_PENDING",
+        title: "This submission isn't awaiting review",
+        detail:
+          row.status === "returned"
+            ? "It has already been sent back — the student hasn't resubmitted yet."
+            : "It has already been graded. Re-grade it instead of sending it back.",
+      });
+    }
+
+    const { updated } = await this.repo.returnSubmission(tenantId, submissionId, {
+      reason: body.reason,
+      returnedById: actorId,
+    });
+    if (updated === 0) {
+      // Lost the race against another reviewer between the read and the write.
+      throw new UnprocessableEntityException({
+        code: "SUBMISSION_NOT_PENDING",
+        title: "This submission isn't awaiting review",
+        detail: "Someone else reviewed it a moment ago. Reload the queue.",
+      });
+    }
+
+    // Without this the student is told to fix and resend something the submit endpoint
+    // refuses with RESUBMIT_NOT_ALLOWED — a dead end neither side can escape.
+    const assignment = await this.repo.findAssignmentById(tenantId, row.assignmentId);
+    if (assignment && !assignment.allowResubmit) {
+      await this.repo.enableResubmission(tenantId, row.assignmentId);
+      this.logger.log(
+        `[AssignmentsService] Resubmission enabled on assignment=${row.assignmentId} because a submission was returned.`,
+      );
+    }
+
+    await this.repo.writeGradeAuditLog({
+      tenantId,
+      actorId,
+      submissionId,
+      before: { score: row.score, status: row.status },
+      after: { score: null, status: "returned" },
+    });
+
+    this.logger.log(`[AssignmentsService] Submission returned: id=${submissionId} actor=${actorId}`);
+
+    // Best-effort, past the commit point: the decision is durable, and a student who never
+    // got the email can still see the state and the reason in the LMS.
+    try {
+      const student = await this.studentsRepository.findById(tenantId, row.studentId);
+      if (student) {
+        await this.notifSvc.notifySubmissionReturned(
+          student.userId,
+          tenantId,
+          {
+            assignmentId: row.assignmentId,
+            assignmentTitle: row.assignmentTitle,
+            reason: body.reason,
+            studentName: student.name,
+          },
+          { toEmail: student.email, toPhone: student.phone ?? undefined },
+        );
+      }
+    } catch (err) {
+      this.logger.warn(`[AssignmentsService] notifySubmissionReturned failed (non-fatal): ${String(err)}`);
+    }
+
+    const updatedRow = await this.repo.findSubmissionById(tenantId, submissionId);
+    if (!updatedRow) throw new NotFoundException("Submission not found.");
+    return this.toSubmissionDetailDto(updatedRow);
+  }
+
   async gradeSubmission(
     actorId: string,
     tenantId: string,
@@ -952,6 +1064,8 @@ function toAssignmentDetailDto(row: AssignmentRow): AssignmentDetail {
     id: row.id,
     lessonId: row.lessonId,
     lessonTitle: row.lessonTitle,
+    programId: row.programId,
+    programTitle: row.programTitle,
     kind: row.kind,
     title: row.title,
     instructions: row.instructions,
@@ -1005,6 +1119,8 @@ function toSubmissionSummaryDto(row: SubmissionRow): SubmissionSummary {
     enrollmentId: row.enrollmentId,
     studentId: row.studentId,
     studentName: row.studentName,
+    batchId: row.batchId,
+    batchName: row.batchName,
     status: row.status,
     attemptNo: row.attemptNo,
     score: row.score,
@@ -1014,12 +1130,25 @@ function toSubmissionSummaryDto(row: SubmissionRow): SubmissionSummary {
   };
 }
 
+/**
+ * What the STUDENT is shown for an assignment.
+ *
+ * `returned` is surfaced rather than collapsed into `submitted`, which is what this function
+ * used to do: a reviewer sent work back, and the student's screen still said "Submitted", so
+ * they waited for a verdict that had already arrived and never saw the resubmit form. It is
+ * the one post-submission state that asks the student to act, so it has to be visible.
+ *
+ * Overdue is still only for work never handed in — a student who submitted on time and was
+ * asked for changes has not missed a deadline, and telling them they have would be both
+ * wrong and demoralising.
+ */
 function deriveAssignmentStatus(
   assignment: AssignmentRow,
   submission: SubmissionRow | null,
-): "assigned" | "submitted" | "graded" | "overdue" {
+): "assigned" | "submitted" | "returned" | "graded" | "overdue" {
   if (submission) {
     if (submission.status === "graded") return "graded";
+    if (submission.status === "returned") return "returned";
     return "submitted";
   }
   if (assignment.dueAt && new Date() > assignment.dueAt) return "overdue";

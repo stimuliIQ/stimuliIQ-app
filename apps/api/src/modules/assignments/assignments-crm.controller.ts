@@ -44,6 +44,7 @@ import type {
   ListAssignmentsQuery,
   ListSubmissionsQuery,
   ProjectDetail,
+  ReturnSubmissionRequest,
   SubmissionDetail,
   SubmissionSummary,
   UpdateAssignmentRequest,
@@ -53,6 +54,7 @@ import {
   GradeSubmissionRequestSchema,
   ListAssignmentsQuerySchema,
   ListSubmissionsQuerySchema,
+  ReturnSubmissionRequestSchema,
   UpdateAssignmentRequestSchema,
 } from "@repo/types";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -201,6 +203,28 @@ export class AssignmentsCrmController {
     const ctx = getScopeContext();
     const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
     return this.service.gradeSubmission(user.id, user.tenantId, submissionId, body, scope);
+  }
+
+  /**
+   * POST /api/v1/crm/submissions/:id/return
+   * Send the work back to the student for changes. AUDITED with before/after.
+   *
+   * `submissions.grade`, the same key grading uses: returning is a review decision, not a
+   * lesser one, and anyone trusted to put a permanent score on a student's work is trusted
+   * to ask them to redo it. A separate key would only mean a reviewer who can fail someone
+   * but not give them another go.
+   */
+  @Post("submissions/:id/return")
+  @RequirePermission("submissions.grade")
+  @HttpCode(HttpStatus.OK)
+  async returnSubmission(
+    @CurrentUser() user: RequestUser,
+    @Param("id", new ParseUUIDPipe()) submissionId: string,
+    @Body(new ZodValidationPipe(ReturnSubmissionRequestSchema)) body: ReturnSubmissionRequest,
+  ): Promise<SubmissionDetail> {
+    const ctx = getScopeContext();
+    const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
+    return this.service.returnSubmission(user.id, user.tenantId, submissionId, body, scope);
   }
 
   // ─── PROJECTS ─────────────────────────────────────────────────────────────

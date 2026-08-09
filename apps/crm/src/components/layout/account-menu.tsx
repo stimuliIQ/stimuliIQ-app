@@ -8,24 +8,43 @@
 // data-testid contract preserved for existing/e2e coverage: `topbar-user-name`,
 // `topbar-user-roles`, `topbar-logout` (now a menu item instead of an icon button).
 import * as React from "react";
-import { ChevronDown, KeyRound, LogOut } from "lucide-react";
+import { ChevronDown, KeyRound, LogOut, User } from "lucide-react";
 import { Button, cn } from "@repo/ui";
 
 export interface AccountMenuProps {
   name: string;
   roles: string;
+  /** Profile picture URL, when the account has one. Falls back to initials. */
+  avatarUrl?: string | null;
   loggingOut: boolean;
   onChangePassword: () => void;
   onLogout: () => void;
 }
 
+/**
+ * Up to two initials from a display name — "Stimuliiq Support Admin" → "SA".
+ *
+ * First and LAST word rather than the first two, because the last word is the family name
+ * in most of this product's names and "SS" for "Stimuliiq Support Admin" identifies nobody.
+ * Falls back to a single letter, then to nothing (the icon carries it).
+ */
+function initialsOf(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "";
+  const first = words[0]![0] ?? "";
+  const last = words.length > 1 ? (words[words.length - 1]![0] ?? "") : "";
+  return `${first}${last}`.toUpperCase();
+}
+
 export function AccountMenu({
   name,
   roles,
+  avatarUrl,
   loggingOut,
   onChangePassword,
   onLogout,
 }: AccountMenuProps): React.JSX.Element {
+  const initials = initialsOf(name);
   const [open, setOpen] = React.useState(false);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
@@ -100,6 +119,10 @@ export function AccountMenu({
         ref={triggerRef}
         type="button"
         data-testid="account-menu-trigger"
+        // Explicit, because the visible name is `display:none` below the sm breakpoint and
+        // the avatar is decorative — without this the button would be a nameless control on
+        // a phone, which is exactly where it is hardest to guess what it does.
+        aria-label={`Account menu for ${name}`}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls="account-menu"
@@ -110,8 +133,29 @@ export function AccountMenu({
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
         )}
       >
-        <span className="text-right">
+        {/* Avatar first, in reading order: it is the thing you aim at, and the identity
+            it carries is what makes the greeting beside it mean anything. */}
+        <span
+          aria-hidden="true"
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full",
+            "bg-brand-500/10 text-sm font-semibold text-brand-600",
+          )}
+          data-testid="topbar-user-avatar"
+        >
+          {avatarUrl ? (
+            // `alt=""` with the wrapper aria-hidden: the name is right beside it, so
+            // announcing it twice is noise for a screen-reader user.
+            <img src={avatarUrl} alt="" className="size-full object-cover" />
+          ) : initials ? (
+            initials
+          ) : (
+            <User className="size-4" />
+          )}
+        </span>
+        <span className="hidden text-left sm:block">
           <p className="text-sm font-medium text-fg" data-testid="topbar-user-name">
+            <span className="font-normal text-fg-muted">Welcome, </span>
             {name}
           </p>
           <p className="text-xs text-fg-muted" data-testid="topbar-user-roles">

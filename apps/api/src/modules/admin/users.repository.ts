@@ -82,6 +82,87 @@ export class UsersAdminRepository {
     return existing !== null;
   }
 
+  /**
+   * Find a user by email INCLUDING soft-deleted rows.
+   *
+   * `users` carries a FULL `@@unique([tenantId, email])`, not a partial one — soft-deleting
+   * a user therefore keeps their address reserved forever. Without this lookup, re-adding a
+   * removed colleague would sail past `emailTaken` (which reads through the soft-delete
+   * filter and sees nothing) straight into a raw P2002 at the database. The service uses it
+   * to restore the row instead, so "delete then re-add" behaves the way staff expect.
+   *
+   * `deletedAt: undefined` is the documented opt-out from the soft-delete extension's
+   * auto-filter (`withNotDeleted` skips a where-clause that already mentions the key).
+   */
+  async findAnyByEmail(tenantId: string, email: string): Promise<{ id: string; deletedAt: Date | null } | null> {
+    return this.prisma.client.user.findFirst({
+      where: { tenantId, email, deletedAt: undefined },
+      select: { id: true, deletedAt: true },
+    });
+  }
+
+  /**
+   * Bring a soft-deleted user back as a fresh staff account: undelete, overwrite the
+   * identity/credential fields with what the admin just typed, and full-replace roles.
+   *
+   * Deliberately a REPLACE, not a merge — the admin filled in a create form and expects the
+   * account they described, not a half-resurrection carrying an old job title's permissions.
+   */
+  async restore(args: {
+    userId: string;
+    name: string;
+    phone: string | null;
+    passwordHash: string;
+    roleIds: string[];
+  }): Promise<void> {
+    await this.prisma.client.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: args.userId },
+        data: {
+          deletedAt: null,
+          name: args.name,
+          phone: args.phone,
+          passwordHash: args.passwordHash,
+          status: "active",
+          mustChangePassword: false,
+        },
+      });
+      // eslint-disable-next-line no-restricted-syntax -- sanctioned join-table purge; see update()'s doc comment
+      await tx.$executeRaw`DELETE FROM user_roles WHERE user_id = ${args.userId}::uuid`;
+      await tx.userRole.createMany({ data: args.roleIds.map((roleId) => ({ userId: args.userId, roleId })) });
+    });
+  }
+
+  /** Soft-deactivates: status=deactivated (blocks login — auth requires status=active). */
+  async deactivate(userId: string): Promise<void> {
+    await this.prisma.client.user.update({ where: { id: userId }, data: { status: "deactivated" } });
+  }
+
+  /**
+   * Removes the account from the CRM: `.delete()` is rewritten to `deleted_at = now()` by
+   * the soft-delete extension, so every foreign key pointing at this user — audit rows, lead
+   * ownership, onboarding reviews — stays intact while the account disappears from every
+   * read. A hard delete would either orphan or cascade away that history.
+   */
+  async softDelete(userId: string): Promise<void> {
+    await this.prisma.client.user.delete({ where: { id: userId } }); // rewritten to soft-delete.
+  }
+
+  /**
+   * How many OTHER live users hold `roleKey` — the last-super-admin guard's input.
+   * Counts only accounts that could actually sign in and use the permission.
+   */
+  async countOtherActiveUsersWithRole(tenantId: string, roleKey: string, excludeUserId: string): Promise<number> {
+    return this.prisma.client.user.count({
+      where: {
+        tenantId,
+        id: { not: excludeUserId },
+        status: "active",
+        userRoles: { some: { deletedAt: null, role: { key: roleKey, deletedAt: null } } },
+      },
+    });
+  }
+
   /** Roles by id — service validates every requested roleId exists and is not `student`. */
   async findRolesByIds(tenantId: string, ids: string[]): Promise<Array<{ id: string; key: string; name: string }>> {
     return this.prisma.client.role.findMany({
@@ -148,17 +229,12 @@ export class UsersAdminRepository {
     });
   }
 
-  /** Soft-deactivates: status=deactivated (blocks login — auth requires status=active). */
-  async deactivate(userId: string): Promise<void> {
-    await this.prisma.client.user.update({ where: { id: userId }, data: { status: "deactivated" } });
-  }
-
   /** One explicit audit row per admin user-management action (create/update/deactivate). */
   async recordAudit(args: {
     tenantId: string;
     actorId: string;
     userId: string;
-    action: "create" | "update" | "delete";
+    action: "create" | "update" | "delete" | "restore";
     before: Prisma.InputJsonValue | undefined;
     after: Prisma.InputJsonValue | undefined;
     ip?: string;

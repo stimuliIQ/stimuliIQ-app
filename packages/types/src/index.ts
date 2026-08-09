@@ -143,7 +143,6 @@ export * from "./content/careers.schemas.js";
 export * from "./content/site-settings.schemas.js";
 
 // Feature flags + Settings (T9/T23) — admin list/get/set, cached evaluate read.
-export * from "./platform/feature-flags.schemas.js";
 export * from "./platform/settings.schemas.js";
 
 // LMS: bookmarks, lesson notes, global search, learning path (T10/T29/T35/T36).

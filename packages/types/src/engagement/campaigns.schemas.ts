@@ -90,6 +90,41 @@ export type RecipientStatus = z.infer<typeof RecipientStatusSchema>;
 // and backend both get the same validation rule without a runtime branch.
 // ─────────────────────────────────────────────────────────────────────────
 
+/**
+ * The variables a campaign send actually substitutes — the single source of truth for both
+ * the sender (CampaignsService#dispatchSingleRecipient builds exactly these) and the CRM's
+ * template editor, which lists them and warns about anything else.
+ *
+ * That pairing is the point. Before this list existed the two had drifted completely: the
+ * seeded templates wrote `{{name}}`, `{{program_title}}`, `{{deadline}}` and `{{cta_url}}`,
+ * the sender substituted only `to` and `campaignName`, and unknown placeholders are left
+ * as-is by design — so campaigns went out to students reading "Hi {{name}}," literally.
+ * Anything added here MUST be populated in the dispatch path, and vice versa.
+ *
+ * `description` is what the editor shows staff; keep it in their words, not the schema's.
+ */
+export const CAMPAIGN_TEMPLATE_VARIABLES = [
+  { key: "name", description: "The recipient's name" },
+  { key: "to", description: "Their email address or phone number" },
+  { key: "program_title", description: "The programme they're enrolled in or enquired about" },
+  { key: "campaign_name", description: "The name of this campaign" },
+] as const satisfies ReadonlyArray<{ key: string; description: string }>;
+
+/** Just the keys — for validation and for building the substitution map. */
+export const CAMPAIGN_TEMPLATE_VARIABLE_KEYS: readonly string[] = CAMPAIGN_TEMPLATE_VARIABLES.map(
+  (variable) => variable.key,
+);
+
+/**
+ * Placeholders in `body`/`subject` that the sender will NOT replace, so the message would
+ * go out with the braces showing. Shared so the CRM can warn while someone is still typing
+ * rather than after a campaign has been sent.
+ */
+export function findUnknownTemplateVariables(text: string): string[] {
+  const found = [...text.matchAll(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g)].map((match) => match[1]!);
+  return [...new Set(found.filter((key) => !CAMPAIGN_TEMPLATE_VARIABLE_KEYS.includes(key)))];
+}
+
 /** Shared base fields for all campaign template channels. */
 const CampaignTemplateBaseSchema = z.object({
   id: UuidSchema,

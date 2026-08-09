@@ -5,7 +5,7 @@ import * as React from "react";
 import { cn } from "../lib/cn";
 
 /**
- * Switch — accessible on/off toggle used by `FeatureFlagRow` and settings screens (T19,
+ * Switch — accessible on/off toggle used by settings and form screens (T19,
  * docs/plans/phase-9-completion.md). Implemented as a native `<button role="switch">`
  * (the standard WAI-ARIA switch pattern) rather than pulling in `@radix-ui/react-switch`,
  * matching this package's existing preference to avoid new primitive dependencies when a

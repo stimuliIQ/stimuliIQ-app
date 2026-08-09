@@ -31,7 +31,6 @@ import { adminUsersRoute } from "./routes/admin-users-route";
 import { adminAuditRoute } from "./routes/admin-audit-route";
 import { adminSettingsRoute } from "./routes/admin-settings-route";
 import { accountTwoFactorRoute } from "./routes/account-two-factor-route";
-import { adminFeatureFlagsRoute } from "./routes/admin-feature-flags-route";
 import { commerceOrdersRoute } from "./routes/commerce-orders-route";
 import { commercePaymentsRoute } from "./routes/commerce-payments-route";
 import { commerceInvoicesRoute } from "./routes/commerce-invoices-route";
@@ -102,7 +101,6 @@ const routeTree = rootRoute.addChildren([
   adminUsersRoute,
   adminAuditRoute,
   adminSettingsRoute,
-  adminFeatureFlagsRoute,
   accountTwoFactorRoute,
   commerceOrdersRoute,
   commercePaymentsRoute,

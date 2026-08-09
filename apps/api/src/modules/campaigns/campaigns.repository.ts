@@ -76,6 +76,14 @@ export interface CampaignRecipientRow {
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  /**
+   * Personalisation joins — populated ONLY by `findQueuedRecipients` (the send path).
+   * Optional so every other read of this row type is unaffected; the service treats an
+   * absent relation as "no data for that variable" rather than an error.
+   */
+  lead?: { name: string; programInterest: { title: string } | null } | null;
+  student?: { user: { name: string }; enrollments: Array<{ program: { title: string } }> } | null;
+  user?: { name: string } | null;
 }
 
 export interface SuppressionCheckInput {
@@ -382,6 +390,16 @@ export class CampaignsRepository {
    * page. `limit` is required (no unbounded default) so every call site must pick a cap
    * explicitly — see CAMPAIGN_SEND_BATCH_SIZE (config/env.ts).
    */
+  /**
+   * The dispatch batch, joined with just enough of each recipient to PERSONALISE the
+   * message: their name, and the program they're associated with.
+   *
+   * A recipient is exactly one of lead / student / user (see the model's own comment), so
+   * all three relations are included and the service picks whichever is present. Joined
+   * here rather than looked up per recipient inside the send loop — a 500-recipient
+   * campaign would otherwise be 500 extra round trips, each one inside the loop that is
+   * already doing a provider call.
+   */
   async findQueuedRecipients(
     campaignId: string,
     tenantId: string,
@@ -391,6 +409,24 @@ export class CampaignsRepository {
       where: { campaignId, tenantId, status: "queued", deletedAt: null },
       orderBy: { createdAt: "asc" },
       take: limit,
+      include: {
+        lead: { select: { name: true, programInterest: { select: { title: true } } } },
+        student: {
+          select: {
+            user: { select: { name: true } },
+            // Their current programme: the most recent live enrollment. A student on two
+            // courses is rare and there is no "which one is this campaign about" signal,
+            // so the newest is the least surprising pick.
+            enrollments: {
+              where: { deletedAt: null, status: "active" },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { program: { select: { title: true } } },
+            },
+          },
+        },
+        user: { select: { name: true } },
+      },
     });
     return rows as unknown as CampaignRecipientRow[];
   }

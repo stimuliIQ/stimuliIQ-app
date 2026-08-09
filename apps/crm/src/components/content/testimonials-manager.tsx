@@ -1,7 +1,15 @@
-// Testimonials — dedicated CRM screen (promoted out of the Blog CMS tab strip
-// to mirror the Colleges screen). Uses `TestimonialInput` (@repo/ui) for the
-// quote/rating/name core, plus program/status/order fields the CMS record
-// needs beyond that display-focused shape. Phase 9 Completion T22/T40.
+// Reviews — dedicated CRM screen (promoted out of the Blog CMS tab strip to mirror the
+// Colleges screen). Uses `TestimonialInput` (@repo/ui) for the quote/rating/name core, plus
+// program/status/order fields the CMS record needs beyond that display-focused shape.
+// Phase 9 Completion T22/T40.
+//
+// NAMING: the screen says "Reviews" — every label, toast, dialog and empty state — while the
+// model, the API (`/public/testimonials`, `content.testimonials.*`), the `Testimonial` type
+// and the public-site page at /testimonials all still say "testimonial". That split is
+// deliberate, not a half-finished rename: the request was to change what STAFF read, and
+// renaming the domain would mean a table rename, a shipped public URL, and every consumer
+// of the type — a migration, for a word. Code identifiers here therefore stay on
+// `Testimonial` so they keep matching the API they call; only the strings changed.
 import * as React from "react";
 import { Star, Trash2 } from "lucide-react";
 import { Button, ConfirmDialog, DataTable, type DataTableColumn, Drawer, DrawerContent, DrawerBody, DrawerFooter, EmptyState, Input, PageHeader, Select, SelectItem, StatusChip, Switch, TestimonialInput, type TestimonialFormValues, useToast } from "@repo/ui";
@@ -81,7 +89,7 @@ function TestimonialFormDrawer({
       }
 
       toast({
-        title: isEdit ? "Testimonial updated" : "Testimonial created",
+        title: isEdit ? "Review updated" : "Review created",
         description: onWebsite
           ? "It's live in the \"What Our Students Say\" section."
           : "Hidden from the website until you turn on \"Show on website\".",
@@ -89,13 +97,13 @@ function TestimonialFormDrawer({
       });
       onOpenChange(false);
     } catch (error) {
-      surfaceError(toast, error, "Couldn't save this testimonial");
+      surfaceError(toast, error, "Couldn't save this review");
     }
   }
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent title={isEdit ? "Edit testimonial" : "New testimonial"} size="md" data-testid="testimonial-form-drawer">
+      <DrawerContent title={isEdit ? "Edit review" : "New review"} size="md" data-testid="testimonial-form-drawer">
         <DrawerBody className="flex flex-col gap-4">
           {/* showCollegeProgram={false}: those two free-text inputs had nowhere to go —
               `Testimonial` has no `college` column, and the program is captured properly
@@ -164,11 +172,11 @@ export function TestimonialsManager({ me }: { me: MeResponse | undefined }): Rea
     if (!deleteId) return;
     deleteTestimonial.mutate(deleteId, {
       onSuccess: () => {
-        toast({ title: "Testimonial deleted", variant: "success" });
+        toast({ title: "Review deleted", variant: "success" });
         setDeleteId(null);
       },
       onError: (error) => {
-        surfaceError(toast, error, "Couldn't delete this testimonial");
+        surfaceError(toast, error, "Couldn't delete this review");
         setDeleteId(null);
       },
     });
@@ -200,7 +208,7 @@ export function TestimonialsManager({ me }: { me: MeResponse | undefined }): Rea
             variant="ghost"
             size="sm"
             onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }}
-            aria-label={`Delete testimonial from ${row.studentName}`}
+            aria-label={`Delete review from ${row.studentName}`}
             data-testid={`delete-testimonial-${row.id}`}
           >
             <Trash2 className="size-3.5 text-danger" aria-hidden="true" />
@@ -212,7 +220,7 @@ export function TestimonialsManager({ me }: { me: MeResponse | undefined }): Rea
   if (isError) {
     return (
       <EmptyState
-        title="Couldn't load testimonials"
+        title="Couldn't load reviews"
         action={
           <Button variant="secondary" onClick={() => refetch()}>
             Try again
@@ -225,10 +233,10 @@ export function TestimonialsManager({ me }: { me: MeResponse | undefined }): Rea
   return (
     <div className="space-y-4 md:space-y-5" data-testid="testimonials-manager">
       <PageHeader
-        title="Testimonials"
+        title="Reviews"
         description={
           <>
-            Student testimonials shown in the &quot;What Our Students Say&quot; section on the homepage. Turn on
+            Student reviews shown in the &quot;What Our Students Say&quot; section on the homepage. Turn on
             &quot;Show on website&quot; to publish one — the section is hidden entirely while none are live.
           </>
         }
@@ -244,7 +252,7 @@ export function TestimonialsManager({ me }: { me: MeResponse | undefined }): Rea
             data-testid="testimonial-create-button"
           >
             <Star className="size-4" aria-hidden="true" />
-            New testimonial
+            New review
           </Button>
         </div>
       ) : null}
@@ -262,8 +270,8 @@ export function TestimonialsManager({ me }: { me: MeResponse | undefined }): Rea
               }
             : undefined
         }
-        emptyState={{ title: "No testimonials yet", description: "Add your first student testimonial." }}
-        caption="Testimonials"
+        emptyState={{ title: "No reviews yet", description: "Add your first student review." }}
+        caption="Reviews"
         data-testid="testimonials-table"
       />
 
@@ -272,7 +280,7 @@ export function TestimonialsManager({ me }: { me: MeResponse | undefined }): Rea
       <ConfirmDialog
         open={Boolean(deleteId)}
         onOpenChange={(open) => !open && setDeleteId(null)}
-        title="Delete this testimonial?"
+        title="Delete this review?"
         description="It will be soft-deleted and hidden from the site. You can restore it later."
         confirmLabel="Delete"
         tone="danger"

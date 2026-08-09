@@ -57,6 +57,24 @@ function AssignmentDetailSkeleton(): React.JSX.Element {
 // Sanitizes feedback with DOMPurify before rendering (AC-J8).
 // ---------------------------------------------------------------------------
 
+/**
+ * The reviewer's reason for sending work back, sanitized before render.
+ *
+ * Same DOMPurify posture as GradeFeedback (AC-J8) — this text is staff-authored, but it
+ * travels the identical path into `dangerouslySetInnerHTML` and gets the identical
+ * treatment rather than an exception nobody would remember to revisit.
+ */
+function ReturnedReason({ reason }: { reason: string }): React.JSX.Element {
+  const sanitized = React.useMemo(() => sanitizeHtml(reason), [reason]);
+  return (
+    <div
+      className="prose prose-sm max-w-none overflow-x-auto text-fg prose-img:h-auto prose-img:max-w-full prose-pre:overflow-x-auto"
+      data-testid="assignment-returned-reason"
+      dangerouslySetInnerHTML={{ __html: sanitized }}
+    />
+  );
+}
+
 interface GradeFeedbackProps {
   score: number | null;
   maxScore: number;
@@ -371,7 +389,13 @@ export function AssignmentDetailContent({
 
   const isGraded = submission?.status === "graded";
   const isSubmitted = submission?.status === "submitted";
-  const canResubmit = assignment.allowResubmit && (isGraded || isSubmitted);
+  // Sent back by a reviewer: the student has been asked to change something and resubmit.
+  const isReturned = submission?.status === "returned";
+  // `isReturned` was missing from this condition, which made the send-back loop impossible
+  // to complete from this screen: the reviewer asked for changes, the API allowed a new
+  // attempt, and the Submit-again button still never rendered. The API switches
+  // `allowResubmit` on whenever it returns work, so the flag check passes for this case.
+  const canResubmit = assignment.allowResubmit && (isGraded || isSubmitted || isReturned);
   const isOverdue = assignment.status === "overdue";
   const showForm =
     !submission || (canResubmit && showResubmitForm) || assignment.status === "assigned";
@@ -521,6 +545,28 @@ export function AssignmentDetailContent({
             >
               Submit again
             </Button>
+          ) : null}
+        </section>
+      ) : null}
+
+      {/* Sent back for changes — the reviewer's reason, and what to do about it. Placed
+          ABOVE the grade block and styled as an action, not a verdict: this is the one
+          post-submission state that requires the student to do something. */}
+      {isReturned && submission ? (
+        <section
+          role="alert"
+          className="mt-6 rounded-lg border border-warning/30 bg-warning/5 p-4"
+          data-testid="assignment-returned-notice"
+        >
+          <h2 className="text-sm font-semibold text-fg">Changes needed before this can be accepted</h2>
+          <p className="mt-1 text-sm text-fg-muted">
+            Your work hasn&apos;t been graded yet. Make the changes below and submit it again.
+          </p>
+          {submission.feedback ? (
+            <div className="mt-3 rounded-md border border-border bg-bg p-3">
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-fg-subtle">What to change</p>
+              <ReturnedReason reason={submission.feedback} />
+            </div>
           ) : null}
         </section>
       ) : null}

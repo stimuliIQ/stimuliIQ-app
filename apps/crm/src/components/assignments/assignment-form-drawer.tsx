@@ -1,6 +1,18 @@
 // Assignment / Project authoring form drawer — RHF + zod (CreateAssignmentRequest).
 // Faculty create/edit an assignment on a lesson within their assigned batches.
 // Permission: assignments.create / assignments.edit (scope: assigned).
+//
+// WHERE IT ATTACHES. `assignments.lesson_id` is a required FK, so every assignment and
+// every project hangs off ONE lesson. This form used to ask for that lesson as a raw uuid
+// typed into a text box ("e.g. lesson_2f9c1a"), which is not something a human knows — in
+// practice it meant opening the curriculum builder, copying an id, and coming back. So the
+// field is now a CASCADE: pick the course, then pick one of its lessons. Two reads
+// (`GET /crm/courses`, `GET /crm/courses/:id/curriculum`) that already existed for the
+// curriculum builder; no new endpoint, and the id never has to be seen.
+//
+// The course select is the thing staff actually think in ("this case study belongs to the
+// Neurology course"); the lesson select is scoped to it, so an id from the wrong course
+// cannot be entered at all — a class of mistake the free-text field allowed silently.
 import * as React from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,11 +40,49 @@ import {
 import type { z } from "zod";
 
 import { useCreateAssignment, useUpdateAssignment } from "../../hooks/use-assignments";
+import { useCurriculum, useProgramsList } from "../../hooks/use-courses";
 
 const KIND_OPTIONS: { value: AssignmentKind; label: string; description: string }[] = [
   { value: "assignment", label: "Assignment", description: "Single-submission assignment" },
   { value: "project", label: "Project", description: "Multi-milestone project (gates certificate)" },
 ];
+
+/** Enough for every catalog this product has; the picker is a dropdown, not a directory. */
+const COURSE_PAGE_SIZE = 100;
+
+/**
+ * `<input type="datetime-local">` → the ISO-8601-with-offset string the DTO requires.
+ *
+ * The browser emits `2026-07-09T10:30` (local, no seconds, no zone) and `""` when the field
+ * is untouched. `dueAt` is `z.string().datetime({ offset: true }).optional()`, which rejects
+ * BOTH — so before this, the form could not be submitted with a due date OR without one:
+ * the empty string failed the same rule the filled value did. Normalising ahead of the
+ * resolver (see `assignmentFormResolver`) is what makes the field actually optional.
+ */
+function toIsoDateTime(value: unknown): string | undefined {
+  if (typeof value !== "string" || value.trim() === "") return undefined;
+  const parsed = new Date(value);
+  // Leave garbage alone rather than coercing it — zod then reports it under the field,
+  // which is the honest outcome for a value the browser should never have produced.
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
+}
+
+/**
+ * The inverse, for edit mode: an ISO instant → the `YYYY-MM-DDTHH:mm` a datetime-local input
+ * can actually display.
+ *
+ * Without this the control renders BLANK for a stored deadline (it rejects the trailing Z),
+ * and submitting an untouched form then read that blank as "no deadline" — so editing a
+ * project's title silently cleared its due date.
+ */
+function toDateTimeLocalValue(iso: string | null | undefined): string | undefined {
+  if (!iso) return undefined;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return undefined;
+  // Shift by the local offset so the wall-clock time shown matches the stored instant.
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
 
 interface AssignmentFormDrawerProps {
   open: boolean;
@@ -41,22 +91,63 @@ interface AssignmentFormDrawerProps {
   assignment?: AssignmentDetail;
   /** Pre-fill when creating from a specific lesson context. */
   lessonId?: string;
+  /**
+   * Fix the kind and hide the Kind picker — used by the Projects screen, where "add" can
+   * only ever mean a project. Offering a choice there would let staff create an ordinary
+   * assignment from a page that then cannot show it.
+   */
+  lockedKind?: AssignmentKind;
 }
 
 // Use the zod input type (before transform/defaults) so zodResolver infers correctly.
 // Fields with .default() (kind, allowResubmit, isFinal) are optional in the input shape.
 type FormValues = z.input<typeof CreateAssignmentRequestSchema>;
 
+const zodAssignmentResolver = zodResolver(CreateAssignmentRequestSchema);
+
+/**
+ * The real resolver: normalise every datetime-local value to ISO, THEN validate.
+ *
+ * This is a wrapper rather than per-field `setValueAs` because the values reach the form by
+ * two routes — typed into the control, or `reset()` from an existing assignment — and only a
+ * wrapper covers both. The DOM value stays the local string the input can display; the DTO
+ * gets the instant it requires.
+ */
+const assignmentFormResolver: typeof zodAssignmentResolver = (values, context, options) =>
+  zodAssignmentResolver(
+    {
+      ...values,
+      dueAt: toIsoDateTime(values.dueAt),
+      ...(Array.isArray(values.milestones)
+        ? { milestones: values.milestones.map((m) => ({ ...m, dueAt: toIsoDateTime(m?.dueAt) })) }
+        : {}),
+    },
+    context,
+    options,
+  );
+
 export function AssignmentFormDrawer({
   open,
   onOpenChange,
   assignment,
   lessonId,
+  lockedKind,
 }: AssignmentFormDrawerProps): React.JSX.Element {
   const isEdit = Boolean(assignment);
   const { toast } = useToast();
   const createAssignment = useCreateAssignment();
   const updateAssignment = useUpdateAssignment();
+
+  // The course half of the lesson cascade. Local state, not a form field: the API takes a
+  // lessonId and the course is only how a human navigates to one.
+  const [courseId, setCourseId] = React.useState<string | undefined>(undefined);
+  // Both reads are gated on the drawer being open (and, for the curriculum, on a chosen
+  // course) so merely rendering the parent screen costs nothing.
+  const coursesQuery = useProgramsList(
+    { page: 1, pageSize: COURSE_PAGE_SIZE, includeDeleted: false },
+    { enabled: open && !isEdit },
+  );
+  const curriculumQuery = useCurriculum(open && !isEdit && courseId ? courseId : undefined);
 
   const {
     register,
@@ -67,9 +158,9 @@ export function AssignmentFormDrawer({
     control,
     formState: { errors },
   } = useForm<FormValues>({
-    resolver: zodResolver(CreateAssignmentRequestSchema),
+    resolver: assignmentFormResolver,
     defaultValues: {
-      kind: "assignment",
+      kind: lockedKind ?? "assignment",
       allowResubmit: false,
       isFinal: false,
       milestones: [],
@@ -83,6 +174,26 @@ export function AssignmentFormDrawer({
   });
 
   const kind = watch("kind");
+  const selectedLessonId = watch("lessonId");
+
+  /**
+   * The chosen course's lessons, flattened module-first into the order they are taught.
+   * Each option carries its module title so "Week 1 · Intro" and "Week 4 · Intro" are
+   * distinguishable — lesson titles repeat across modules far more often than staff expect.
+   */
+  const lessonOptions = React.useMemo(
+    () =>
+      (curriculumQuery.data?.modules ?? [])
+        .slice()
+        .sort((a, b) => a.order - b.order)
+        .flatMap((module) =>
+          module.lessons
+            .slice()
+            .sort((a, b) => a.order - b.order)
+            .map((lesson) => ({ id: lesson.id, label: `${module.title} · ${lesson.title}` })),
+        ),
+    [curriculumQuery.data],
+  );
 
   React.useEffect(() => {
     if (!open) return;
@@ -93,28 +204,38 @@ export function AssignmentFormDrawer({
         title: assignment.title,
         instructions: assignment.instructions ?? "",
         maxScore: assignment.maxScore,
-        dueAt: assignment.dueAt ?? undefined,
+        dueAt: toDateTimeLocalValue(assignment.dueAt),
         allowResubmit: assignment.allowResubmit,
         isFinal: assignment.isFinal,
         milestones: assignment.milestones.map((m) => ({
           title: m.title,
           order: m.order,
-          dueAt: m.dueAt ?? undefined,
+          dueAt: toDateTimeLocalValue(m.dueAt),
         })),
       });
     } else {
+      setCourseId(undefined);
       reset({
         lessonId: lessonId ?? "",
-        kind: "assignment",
+        kind: lockedKind ?? "assignment",
         allowResubmit: false,
         isFinal: false,
         milestones: [],
         maxScore: 100,
       });
     }
-  }, [open, isEdit, assignment, lessonId, reset]);
+  }, [open, isEdit, assignment, lessonId, lockedKind, reset]);
+
+  // Switching course invalidates any lesson already picked — keeping it would submit a
+  // lesson from the previous course, which the dropdown no longer even shows.
+  React.useEffect(() => {
+    if (isEdit) return;
+    setValue("lessonId", "");
+  }, [courseId, isEdit, setValue]);
 
   const isPending = createAssignment.isPending || updateAssignment.isPending;
+  /** What this drawer is creating, in the words of the screen that opened it. */
+  const noun = (lockedKind ?? assignment?.kind) === "project" ? "project" : "assignment";
 
   const onSubmit = handleSubmit(async (values) => {
     try {
@@ -130,10 +251,10 @@ export function AssignmentFormDrawer({
             isFinal: values.isFinal,
           },
         });
-        toast({ title: "Assignment updated", variant: "success" });
+        toast({ title: noun === "project" ? "Project updated" : "Assignment updated", variant: "success" });
       } else {
         await createAssignment.mutateAsync(values as CreateAssignmentRequest);
-        toast({ title: "Assignment created", variant: "success" });
+        toast({ title: noun === "project" ? "Project created" : "Assignment created", variant: "success" });
       }
       onOpenChange(false);
     } catch (error) {
@@ -145,7 +266,7 @@ export function AssignmentFormDrawer({
             ? error.message
             : undefined;
       toast({
-        title: isEdit ? "Couldn't update assignment" : "Couldn't create assignment",
+        title: isEdit ? `Couldn't update ${noun}` : `Couldn't create ${noun}`,
         description,
         variant: "destructive",
       });
@@ -155,11 +276,13 @@ export function AssignmentFormDrawer({
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent position="center"
-        title={isEdit ? "Edit assignment" : "Create assignment"}
+        title={isEdit ? `Edit ${noun}` : `Create ${noun}`}
         description={
           isEdit
             ? assignment?.title
-            : "Attach an assignment or project to a lesson in your assigned batches."
+            : lockedKind === "project"
+              ? "A multi-milestone project (case study). Pick the course it belongs to, then the lesson it hangs off."
+              : "Attach an assignment or project to a lesson in your assigned batches."
         }
         size="lg"
         data-testid={isEdit ? "assignment-edit-drawer" : "assignment-create-drawer"}
@@ -168,30 +291,75 @@ export function AssignmentFormDrawer({
           <DrawerBody className="flex flex-col gap-4">
             {!isEdit ? (
               <>
-                <Input
-                  label="Lesson ID"
-                  required
-                  placeholder="e.g. lesson_2f9c1a"
-                  {...register("lessonId")}
-                  error={errors.lessonId?.message}
-                  helperText="The lesson this assignment is attached to."
-                  data-testid="assignment-form-lesson-id"
-                />
                 <Select
-                  label="Kind"
+                  label="Course"
                   required
-                  placeholder="Select kind"
-                  value={kind}
-                  onValueChange={(value) => setValue("kind", value as AssignmentKind)}
-                  error={errors.kind?.message}
-                  data-testid="assignment-form-kind"
+                  placeholder={coursesQuery.isLoading ? "Loading courses…" : "Choose a course"}
+                  value={courseId}
+                  onValueChange={setCourseId}
+                  helperText={
+                    coursesQuery.isError
+                      ? "Couldn't load the course list — reopen this form to retry."
+                      : "Which course this belongs to. Pick it first; the lessons below follow."
+                  }
+                  data-testid="assignment-form-course"
                 >
-                  {KIND_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label} — {opt.description}
+                  {(coursesQuery.data?.items ?? []).map((course) => (
+                    <SelectItem key={course.id} value={course.id}>
+                      {course.status === "published" ? course.title : `${course.title} (${course.status})`}
                     </SelectItem>
                   ))}
                 </Select>
+
+                {/* `lessonId` is what the API takes; the Select writes it through RHF so
+                    zod's required-uuid rule still guards the submit. */}
+                <Select
+                  label="Lesson"
+                  required
+                  disabled={!courseId || curriculumQuery.isLoading}
+                  placeholder={
+                    !courseId
+                      ? "Choose a course first"
+                      : curriculumQuery.isLoading
+                        ? "Loading lessons…"
+                        : lessonOptions.length === 0
+                          ? "This course has no lessons yet"
+                          : "Choose a lesson"
+                  }
+                  value={selectedLessonId || undefined}
+                  onValueChange={(value) => setValue("lessonId", value, { shouldValidate: true })}
+                  error={errors.lessonId?.message}
+                  helperText={
+                    courseId && !curriculumQuery.isLoading && lessonOptions.length === 0
+                      ? "Add a lesson to this course under Courses ▸ Curriculum first — every project has to hang off one."
+                      : "The lesson this is attached to. Students reach it from there."
+                  }
+                  data-testid="assignment-form-lesson-id"
+                >
+                  {lessonOptions.map((lesson) => (
+                    <SelectItem key={lesson.id} value={lesson.id}>
+                      {lesson.label}
+                    </SelectItem>
+                  ))}
+                </Select>
+
+                {!lockedKind ? (
+                  <Select
+                    label="Kind"
+                    required
+                    placeholder="Select kind"
+                    value={kind}
+                    onValueChange={(value) => setValue("kind", value as AssignmentKind)}
+                    error={errors.kind?.message}
+                    data-testid="assignment-form-kind"
+                  >
+                    {KIND_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label} — {opt.description}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                ) : null}
               </>
             ) : null}
 
@@ -291,6 +459,7 @@ export function AssignmentFormDrawer({
                           type="datetime-local"
                           placeholder="e.g. 2026-07-09T10:30"
                           {...register(`milestones.${index}.dueAt`)}
+                          error={errors.milestones?.[index]?.dueAt?.message}
                           data-testid={`milestone-due-${index}`}
                         />
                       </div>
@@ -333,7 +502,7 @@ export function AssignmentFormDrawer({
               Cancel
             </Button>
             <Button type="submit" loading={isPending} data-testid="assignment-form-submit">
-              {isEdit ? "Save changes" : "Create assignment"}
+              {isEdit ? "Save changes" : `Create ${noun}`}
             </Button>
           </DrawerFooter>
         </form>

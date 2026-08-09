@@ -1,5 +1,6 @@
-// Marketing > Blog CMS — headless CMS shell over Blog/Testimonials/Partners/
-// Faculty Bios/Pages. Phase 9 Completion T22/T40.
+// Marketing > Blog CMS — headless CMS shell over Blog/Partners/Faculty Bios/Pages.
+// Phase 9 Completion T22/T40. (Testimonials — now labelled "Reviews" — were promoted out
+// of this tab strip onto their own screen; see testimonials-manager.tsx.)
 import * as React from "react";
 import { Link } from "@tanstack/react-router";
 import { PageHeader, Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui";

@@ -29,8 +29,10 @@ import {
   ConfirmDialog,
   useToast,
   Skeleton,
+  cn,
 } from "@repo/ui";
 import type { CampaignChannel, CampaignTemplateDto, MeResponse } from "@repo/types";
+import { findUnknownTemplateVariables } from "@repo/types";
 
 import {
   useCampaignTemplatesList,
@@ -137,10 +139,33 @@ export function NotificationAdmin({ me }: NotificationAdminProps): React.JSX.Ele
     {
       id: "variables",
       header: "Variables",
-      cell: (row) =>
-        row.variables.length > 0
-          ? row.variables.map((v) => `{{${v}}}`).join(", ")
-          : <span className="text-fg-muted">—</span>,
+      // Read from the BODY, not from the stored `variables` list. That list is metadata a
+      // human types in and nothing keeps in step with the message, so it goes stale the
+      // moment someone edits the text — what matters is which placeholders the message
+      // actually contains, and whether the sender will fill them.
+      cell: (row) => {
+        const used = [...new Set([...`${row.subject ?? ""} ${row.body}`.matchAll(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g)].map((m) => m[1]!))];
+        if (used.length === 0) return <span className="text-fg-muted">—</span>;
+        const unknown = new Set(findUnknownTemplateVariables(`${row.subject ?? ""} ${row.body}`));
+        return (
+          <span className="flex flex-wrap gap-1">
+            {used.map((key) => (
+              <code
+                key={key}
+                // An unresolvable placeholder ships with its braces showing, so it is
+                // called out here rather than sitting in a list that looks fine.
+                className={cn(
+                  "rounded px-1 py-0.5 text-xs",
+                  unknown.has(key) ? "bg-danger/10 text-danger" : "bg-surface text-fg-muted",
+                )}
+                title={unknown.has(key) ? "Not replaced when sending — goes out as typed" : undefined}
+              >
+                {`{{${key}}}`}
+              </code>
+            ))}
+          </span>
+        );
+      },
     },
     {
       id: "updatedAt",
@@ -197,8 +222,8 @@ export function NotificationAdmin({ me }: NotificationAdminProps): React.JSX.Ele
   return (
     <div className="space-y-4 md:space-y-5" data-testid="notification-admin">
       <PageHeader
-        title="Notifications"
-        description="Manage campaign templates for email, WhatsApp, and SMS sends."
+        title="Message Templates"
+        description="The email, WhatsApp and SMS messages campaigns send. Write one here, then pick it when you create a campaign."
         actions={
           campaignPermissions.canCreate ? (
             <Button onClick={openCreate} data-testid="new-template-btn">
@@ -210,7 +235,7 @@ export function NotificationAdmin({ me }: NotificationAdminProps): React.JSX.Ele
       />
 
       <Tabs defaultValue="templates">
-        <TabsList aria-label="Notification admin sections">
+        <TabsList aria-label="Message template sections">
           <TabsTrigger value="templates">Template registry</TabsTrigger>
           <TabsTrigger value="info">About</TabsTrigger>
         </TabsList>

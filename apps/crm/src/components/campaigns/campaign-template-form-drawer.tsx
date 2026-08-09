@@ -16,11 +16,13 @@ import {
   Textarea,
   useToast,
   Skeleton,
+  Alert,
 } from "@repo/ui";
 import type {
   CampaignChannel,
   CreateCampaignTemplateDto,
 } from "@repo/types";
+import { CAMPAIGN_TEMPLATE_VARIABLES, findUnknownTemplateVariables } from "@repo/types";
 
 import {
   useCreateCampaignTemplate,
@@ -73,6 +75,7 @@ export function CampaignTemplateFormDrawer({
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<TemplateFormValues>({
     defaultValues: {
@@ -87,6 +90,47 @@ export function CampaignTemplateFormDrawer({
 
   const channel = watch("channel");
   const requiresDlt = channel === "whatsapp" || channel === "sms";
+
+  // ── Variable insertion + live "this won't resolve" check ────────────────
+  //
+  // `register` owns the textarea's ref, and the variable buttons need it too (to insert at
+  // the caret rather than appending at the end), so the registration is split out here and
+  // both refs are attached at the element.
+  const { ref: registerBodyRef, ...bodyField } = register("body", { required: "Body is required" });
+  const bodyElementRef = React.useRef<HTMLTextAreaElement | null>(null);
+
+  const body = watch("body") ?? "";
+  const subject = watch("subject") ?? "";
+  const unknownVariables = React.useMemo(
+    () => findUnknownTemplateVariables(`${subject} ${body}`),
+    [subject, body],
+  );
+
+  /**
+   * Insert `{{key}}` where the caret is, and put the caret after it.
+   *
+   * Appending at the end would be simpler and worse — staff write the sentence first and
+   * then reach for the name, so the token belongs where they were typing.
+   */
+  function insertVariable(key: string): void {
+    const token = `{{${key}}}`;
+    const element = bodyElementRef.current;
+    if (!element) {
+      setValue("body", `${body}${token}`, { shouldDirty: true, shouldValidate: true });
+      return;
+    }
+    const start = element.selectionStart ?? body.length;
+    const end = element.selectionEnd ?? start;
+    setValue("body", `${body.slice(0, start)}${token}${body.slice(end)}`, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    // After React has re-rendered with the new value, or the caret lands on stale text.
+    requestAnimationFrame(() => {
+      element.focus();
+      element.setSelectionRange(start + token.length, start + token.length);
+    });
+  }
 
   // Pre-fill form when editing
   React.useEffect(() => {
@@ -111,9 +155,16 @@ export function CampaignTemplateFormDrawer({
   }, [templateData, isEdit, reset]);
 
   function onSubmit(values: TemplateFormValues) {
-    const variables = values.variables
-      ? values.variables.split(",").map((v) => v.trim()).filter(Boolean)
-      : [];
+    // Derived from the message, not typed by hand. The old free-text field was metadata
+    // nothing kept in step with the body — edit the text and the list silently lied. The
+    // placeholders IN the message are the only honest answer to "what does this use?".
+    const variables = [
+      ...new Set(
+        [...`${values.subject} ${values.body}`.matchAll(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g)].map(
+          (match) => match[1]!,
+        ),
+      ),
+    ];
 
     let dto: CreateCampaignTemplateDto;
     if (values.channel === "email") {
@@ -285,17 +336,58 @@ export function CampaignTemplateFormDrawer({
                   label="Body"
                   required
                   id="tpl-body"
-                  {...register("body", { required: "Body is required" })}
+                  {...bodyField}
+                  ref={(element) => {
+                    // Two owners for one node: RHF needs it to read/validate the field, and
+                    // the variable buttons below need it to insert at the caret.
+                    registerBodyRef(element);
+                    bodyElementRef.current = element;
+                  }}
                   rows={6}
                   placeholder={
                     channel === "sms"
-                      ? "Hi {{firstName}}, your session starts on {{date}}."
-                      : "Hi {{firstName}},\n\nYour enrollment in {{programTitle}} is confirmed."
+                      ? "Hi {{name}}, your {{program_title}} session starts soon."
+                      : "Hi {{name}},\n\nYour enrollment in {{program_title}} is confirmed."
                   }
                   data-testid="tpl-body"
                   error={errors.body?.message}
-                  helperText="Use {{variable_name}} for placeholders, e.g. {{firstName}}"
                 />
+
+                {/* What can go in the message. Answers "which variables exist?" at the
+                    moment it is asked, instead of leaving staff to guess a name that then
+                    silently ships with its braces showing. */}
+                <div className="rounded-md border border-border bg-surface p-3" data-testid="tpl-variables-help">
+                  <p className="text-sm font-medium text-fg">Variables you can use</p>
+                  <p className="mt-0.5 text-xs text-fg-muted">
+                    Click one to drop it in. Each is replaced per recipient when the campaign sends.
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {CAMPAIGN_TEMPLATE_VARIABLES.map((variable) => (
+                      <button
+                        key={variable.key}
+                        type="button"
+                        onClick={() => insertVariable(variable.key)}
+                        title={variable.description}
+                        className="rounded border border-border bg-bg px-2 py-1 text-xs text-fg transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        data-testid={`tpl-variable-${variable.key}`}
+                      >
+                        <code>{`{{${variable.key}}}`}</code>
+                        <span className="ml-1.5 text-fg-muted">{variable.description}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {unknownVariables.length > 0 ? (
+                    // The failure this whole panel exists to prevent: an invented
+                    // placeholder is NOT an error anywhere downstream — the renderer leaves
+                    // it alone by design — so the student receives "Hi {{firstName}},".
+                    <Alert tone="warning" className="mt-3" data-testid="tpl-unknown-variables">
+                      {unknownVariables.map((key) => `{{${key}}}`).join(", ")}{" "}
+                      {unknownVariables.length === 1 ? "isn't" : "aren't"} replaced when sending — the message will go
+                      out with the braces showing. Use one of the variables above, or write the value in directly.
+                    </Alert>
+                  ) : null}
+                </div>
 
                 {/* DLT Template ID — REQUIRED for WhatsApp/SMS (LOCK-D4, AC-78) */}
                 <Input
@@ -320,14 +412,6 @@ export function CampaignTemplateFormDrawer({
                   aria-required={requiresDlt}
                 />
 
-                <Input
-                  label="Variables"
-                  id="tpl-variables"
-                  {...register("variables")}
-                  helperText="Comma-separated list of placeholder names used in the body (e.g. firstName, programTitle)"
-                  placeholder="firstName, programTitle, date"
-                  data-testid="tpl-variables"
-                />
               </form>
             </DrawerBody>
 

@@ -298,7 +298,6 @@ const AUDITED_MODELS = new Set<string>([
   "NewsletterSubscription",
   "ContactSubmission",
   "CareerApplication",
-  "FeatureFlag",
   "Setting",
   "Bookmark",
   "LessonNote",

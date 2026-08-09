@@ -153,14 +153,33 @@ db foundation). Then execute it, delegating each task to the named specialist su
 - **P2 Commerce + Leads:** Razorpay flow, invoices, lead pipeline, enrollment.
 - **P3 LMS core:** dashboard, courses, recorded video (signed HLS), progress, attendance.
 - **P4 Learning depth:** assignments, projects, assessments, certificates + verification.
+  **Review has TWO outcomes (2026-08-09).** Grading was the only one until now:
+  `SubmissionStatus.returned` shipped in P4 and nothing ever wrote it, so work needing
+  another attempt had to be graded low (final, no way back) or left pending forever, and a
+  `returned` row would have shown the student "Submitted" with no resubmit form.
+  Now: **Grade** (`PATCH /crm/submissions/:id/grade`, unchanged) or **Send back**
+  (`POST /crm/submissions/:id/return`, same `submissions.grade` key) — no score, a mandatory
+  reason stored in `feedback` and emailed via the new `submission_returned` notification, and
+  `allowResubmit` is switched on automatically so the student can actually comply. Only a
+  `submitted` attempt can be returned (re-checked in the UPDATE's WHERE, so two reviewers
+  can't both return one attempt). It is deliberately never called "reject" anywhere the
+  student can see: a real fail is a low grade; this means "do it again". Reviewers work
+  cohort-first — the submission queue carries `batchId`/`batchName` and a batch filter.
 - **P5 Website:** marketing pages, SEO, book-slot, payment + registration funnel.
 - **P6 Engagement:** notifications, WhatsApp/email campaigns, gamification, forum.
 - **P7 Analytics + hardening:** dashboards, reports, perf, security audit, load test.
 - **P8 Future:** Mentor management (external-hire mentors → batches → internship completion + mentor dashboard), placement/recruiter/college/parent portals, multi-tenant SaaS. (An "AI mentor" chatbot was explored and removed — mentors are human hires, not AI.)
 - **P9 Completion (DONE):** cross-app gap-closing pass taking `web`/`lms`/`crm` to full PRD
   coverage — live classes, support tickets + KB, headless CMS/landing pages, referrals +
-  EMI, feature flags/settings, bookmarks/notes, durable 2FA, password reset, and BullMQ
-  queue seam (ADR-0056). Plan: `docs/plans/phase-9-completion.md`. Closed with a Wave-6
+  EMI, settings, bookmarks/notes, durable 2FA, password reset, and BullMQ
+  queue seam (ADR-0056). **Feature flags were part of this phase and have since been
+  REMOVED** (migration `20260809160000_drop_feature_flags`): the table, the RBAC-gated CRUD,
+  the cached `/feature-flags/evaluate` endpoint and the Admin ▸ Feature Flags screen were all
+  built, and nothing in `web`/`lms`/`crm`/`api` ever evaluated a flag — the one seeded flag
+  was read by no code. An admin toggle that appears to control something and does not is
+  worse than none, so the seam was deleted rather than wired up for its own sake. Restore
+  from git history if flags are ever genuinely needed.
+  Plan: `docs/plans/phase-9-completion.md`. Closed with a Wave-6
   security pass (H1 referrals scope, M1–M4, L1–L2) + QA defect fixes; api unit
   147 suites/1996 tests + 24 integration files green. Go-live blockers tracked in
   `docs/go-live-checklist.md` (remaining OPEN items are credential/infra provisioning:
@@ -207,9 +226,19 @@ db foundation). Then execute it, delegating each task to the named specialist su
   resumes (`onboarding/{tenantId}/…`, signed-URL delivery only, never CDN). Permissions
   split intentionally: `onboarding.view/edit/delete` (intake queue — counsellor/support)
   vs `onboarding.fields.manage` (editing the live form — admin only).
+  **Review is two verbs, not a status picker:** a submission arrives `hold` (DB default since
+  migration `onboarding_default_hold`; `pending` is legacy and renders as "On hold") and a
+  reviewer either **Accepts** — which drives the ORDINARY offline-payment lifecycle
+  (`CommerceService.createOrder` → `recordManualPayment`) at the program's list price, so the
+  enrolment, the GST invoice and ONE email carrying the invoice *and* the LMS credentials all
+  come from commerce rather than a private copy; the amount is never client-supplied, and the
+  money leg is skipped for a free program or an unticked box — or **Rejects**, which emails
+  the student to contact support and deliberately omits the internal `reviewNotes`. If the
+  money leg fails the student is still enrolled and emailed: access never depends on paperwork.
   Spec: `docs/specs/onboarding-form.md`, ADR-0064.
   **DB setup on an existing/live database:** `prisma migrate deploy` (additive — two new
-  tables + three enums, nothing existing touched) then `pnpm db:seed:onboarding`. Do NOT
+  tables + three enums, nothing existing touched; plus `onboarding_default_hold`, which only
+  changes a column default and moves `pending` rows to `hold`) then `pnpm db:seed:onboarding`. Do NOT
   run the full `pnpm db:seed` against a live DB — it upserts demo students/programs/
   campaigns; `seed-onboarding.ts` writes only the permissions + the nine questions, and
   skips any question a staff member has already edited.

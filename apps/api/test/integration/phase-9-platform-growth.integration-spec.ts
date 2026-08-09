@@ -1,15 +1,13 @@
 // apps/api/test/integration/phase-9-platform-growth.integration-spec.ts
 //
-// Phase-9 Completion T23/T30(growth) QA gate: feature-flags, settings, landing-pages,
+// Phase-9 Completion T23/T30(growth) QA gate: settings, landing-pages,
 // and lead-forms — integration tests against the REAL NestJS application (supertest +
 // real Nest app) over a real Postgres + Redis DB, matching the pattern of
 // phase-9-content.integration-spec.ts.
 //
 // COVERAGE:
-//   Feature flags — CRM admin set/list/get (flags.edit/flags.view RBAC); any
-//     authenticated caller can evaluate (no permission required, never a security
-//     boundary); disabled flag evaluates false; non-existent key evaluates false
-//     (never throws — UI-gating semantics).
+//   (Feature flags were also covered here until the seam was removed — nothing in any
+//     app ever evaluated a flag, so the table, endpoints and CRM screen were deleted.)
 //   Settings — system vs company scope; branch_manager may VIEW (branch scope) but not
 //     EDIT; admin may edit; RBAC deny for a role holding neither.
 //   Landing pages — create() publish-gate (status='published' in the body is downgraded
@@ -81,7 +79,6 @@ describeIfAvailable("Phase-9 Platform (flags/settings) + Growth (landing-pages/l
   let counsellorCookies: string[], csrfCounsellor: string;
 
   const fixtureUserIds: string[] = [];
-  const fixtureFlagKeys: string[] = [];
   const fixtureLandingPageIds: string[] = [];
   const fixtureLeadFormIds: string[] = [];
 
@@ -142,7 +139,6 @@ describeIfAvailable("Phase-9 Platform (flags/settings) + Growth (landing-pages/l
 
   afterAll(async () => {
     if (prisma) {
-      await prisma.featureFlag.deleteMany({ where: { key: { in: fixtureFlagKeys } } }).catch(() => {});
       await prisma.landingPage.deleteMany({ where: { id: { in: fixtureLandingPageIds } } }).catch(() => {});
       await prisma.leadForm.deleteMany({ where: { id: { in: fixtureLeadFormIds } } }).catch(() => {});
       await prisma.session.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
@@ -152,92 +148,6 @@ describeIfAvailable("Phase-9 Platform (flags/settings) + Growth (landing-pages/l
     }
     if (app) await app.close();
   }, 30_000);
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // Feature flags
-  // ═══════════════════════════════════════════════════════════════════════
-
-  describe("Feature flags: CRM CRUD + universal evaluate", () => {
-    const flagKey = `p9-flag-${suffix}`;
-
-    it("counsellor (no flags.*) -> 403 setting a flag", async () => {
-      const res = await request(httpServer)
-        .put(`/api/v1/crm/feature-flags/${flagKey}`)
-        .set("Cookie", cookieHeader(counsellorCookies))
-        .set("X-CSRF-Token", csrfCounsellor)
-        .send({ enabled: true });
-      expect(res.status).toBe(403);
-    });
-
-    it("admin sets a flag (upsert-by-key)", async () => {
-      const res = await request(httpServer)
-        .put(`/api/v1/crm/feature-flags/${flagKey}`)
-        .set("Cookie", cookieHeader(adminCookies))
-        .set("X-CSRF-Token", csrfAdmin)
-        .send({ enabled: true, description: "QA test flag" });
-      expect(res.status).toBe(200);
-      fixtureFlagKeys.push(flagKey);
-      expect(res.body.data.enabled).toBe(true);
-    });
-
-    it("ANY authenticated caller (counsellor) can evaluate — no flags.* permission required", async () => {
-      const res = await request(httpServer)
-        .get("/api/v1/feature-flags/evaluate")
-        .query({ keys: flagKey })
-        .set("Cookie", cookieHeader(counsellorCookies));
-      expect(res.status).toBe(200);
-      expect(res.body.data[flagKey]).toBe(true);
-    });
-
-    it("evaluating an UNKNOWN key returns false, never throws (UI-gating semantics)", async () => {
-      const res = await request(httpServer)
-        .get("/api/v1/feature-flags/evaluate")
-        .query({ keys: `${flagKey}-does-not-exist` })
-        .set("Cookie", cookieHeader(counsellorCookies));
-      expect(res.status).toBe(200);
-      expect(res.body.data[`${flagKey}-does-not-exist`]).toBe(false);
-    });
-
-    it("admin disables the flag — the UNCACHED CRM read (getByKey) reflects it immediately", async () => {
-      // NOTE: GET /feature-flags/evaluate is DELIBERATELY cached (30s TTL, invalidated
-      // by expiry not on write — see feature-flags.service.ts's file header "a
-      // flags.edit write is visible to evaluate() callers within one TTL window,
-      // documented, acceptable"). A fresh key was evaluated (and therefore cached) in
-      // the previous test, so asserting immediate evaluate()-after-write consistency
-      // here would be asserting the OPPOSITE of the documented contract. The CRM
-      // getByKey() read (crm/feature-flags/:key) is never cached — that is the correct
-      // surface to assert "did the edit take effect" against.
-      await request(httpServer)
-        .put(`/api/v1/crm/feature-flags/${flagKey}`)
-        .set("Cookie", cookieHeader(adminCookies))
-        .set("X-CSRF-Token", csrfAdmin)
-        .send({ enabled: false })
-        .expect(200);
-
-      const res = await request(httpServer)
-        .get(`/api/v1/crm/feature-flags/${flagKey}`)
-        .set("Cookie", cookieHeader(adminCookies));
-      expect(res.status).toBe(200);
-      expect(res.body.data.enabled).toBe(false);
-    });
-
-    it("evaluate() for a NEVER-BEFORE-cached key reflects current (disabled) state on its first read", async () => {
-      const freshFlagKey = `${flagKey}-uncached`;
-      await request(httpServer)
-        .put(`/api/v1/crm/feature-flags/${freshFlagKey}`)
-        .set("Cookie", cookieHeader(adminCookies))
-        .set("X-CSRF-Token", csrfAdmin)
-        .send({ enabled: false })
-        .expect(200);
-      fixtureFlagKeys.push(freshFlagKey);
-
-      const res = await request(httpServer)
-        .get("/api/v1/feature-flags/evaluate")
-        .query({ keys: freshFlagKey })
-        .set("Cookie", cookieHeader(counsellorCookies));
-      expect(res.body.data[freshFlagKey]).toBe(false);
-    });
-  });
 
   // ═══════════════════════════════════════════════════════════════════════
   // Settings

@@ -177,6 +177,38 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
     whatsappDltTemplateId: "DLT_PENDING", // Replace with real DLT ID from portal
   },
 
+  // ─── submission_returned ─────────────────────────────────────────────────
+  // The counterpart to grade_ready, for work a reviewer sent BACK. Every string here has
+  // one job: make it unmistakable that the student has to do something. It deliberately
+  // never says "failed" or "rejected" — the work was returned for changes, and a student
+  // who reads "failed" stops rather than resubmitting, which is the opposite of the intent.
+  // `{{reason}}` is the reviewer's own words and is the reason this message exists at all.
+  submission_returned: {
+    inAppBody: "Your project '{{assignmentTitle}}' needs changes before it can be accepted.",
+
+    emailSubject: "Changes needed on your project — {{assignmentTitle}}",
+    emailBody: renderBrandedEmail({
+      title: "Your project needs changes",
+      greeting: "Hi {{studentName}},",
+      paragraphs: [
+        "Your submission for <strong>{{assignmentTitle}}</strong> has been reviewed and sent back. " +
+          "It hasn't been graded yet — make the changes below and submit it again.",
+      ],
+      details: [{ label: "What to change", value: "{{reason}}" }],
+      button: { label: "Open and resubmit", url: "{{lmsUrl}}/assignments/{{assignmentId}}" },
+      footnote: "If anything here isn't clear, reply to your faculty on this project before resubmitting.",
+      unsubscribeUrl: "{{unsubscribeUrl}}",
+    }),
+
+    smsBody: `${BRAND_NAME}: Your project {{assignmentTitle}} needs changes before it can be accepted. Details: {{lmsUrl}}`,
+    smsDltTemplateId: "DLT_PENDING", // Replace with real DLT ID from portal
+
+    whatsappTemplateName: "submission_returned_notification",
+    whatsappBody:
+      "Your project *{{assignmentTitle}}* needs changes before it can be accepted. Open {{lmsUrl}} to see what to fix and submit again.",
+    whatsappDltTemplateId: "DLT_PENDING", // Replace with real DLT ID from portal
+  },
+
   // ─── certificate_ready ───────────────────────────────────────────────────
   certificate_ready: {
     inAppBody: "Your certificate for '{{programTitle}}' is ready! Download it now.",

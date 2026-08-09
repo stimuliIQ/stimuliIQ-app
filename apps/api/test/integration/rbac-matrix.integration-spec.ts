@@ -374,7 +374,6 @@ describeIfAvailable("RBAC matrix — generated from the live Nest router", () =>
         "GET /api/v1/crm/saved-views",
         "POST /api/v1/crm/saved-views",
         "DELETE /api/v1/crm/saved-views/:id",
-        "GET /api/v1/feature-flags/evaluate",
         "POST /api/v1/public/enroll/orders",
         "POST /api/v1/public/enroll/checkout",
         "POST /api/v1/public/enroll/verify",

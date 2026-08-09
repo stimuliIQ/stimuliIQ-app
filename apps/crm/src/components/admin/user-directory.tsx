@@ -3,7 +3,7 @@
 // branch-directory.tsx. RBAC-aware: Create/Edit/Deactivate gated on
 // users.create/users.edit/users.delete (super_admin + admin only).
 import * as React from "react";
-import { KeyRound, Pencil, Plus, UserX } from "lucide-react";
+import { KeyRound, Pencil, Plus, Trash2, UserX } from "lucide-react";
 import {
   Button,
   ConfirmDialog,
@@ -19,7 +19,7 @@ import {
 } from "@repo/ui";
 import type { ListStaffUsersQuery, MeResponse, StaffUser, StaffUserStatus } from "@repo/types";
 
-import { useStaffUsersList, useDeactivateStaffUser } from "../../hooks/use-staff-users";
+import { useStaffUsersList, useDeactivateStaffUser, useRemoveStaffUser } from "../../hooks/use-staff-users";
 import { useRolesList } from "../../hooks/use-roles";
 import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { getModulePermissions, hasPermission } from "../../lib/permissions";
@@ -57,9 +57,14 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
   const [editingUser, setEditingUser] = React.useState<StaffUser | null>(null);
   const [deactivatingUser, setDeactivatingUser] = React.useState<StaffUser | null>(null);
   const [clearingTwoFactorUser, setClearingTwoFactorUser] = React.useState<StaffUser | null>(null);
+  const [removingUser, setRemovingUser] = React.useState<StaffUser | null>(null);
   // Separate module from `users.*` — see ClearTwoFactorDrawer's header for why this is
   // its own permission rather than part of users.edit.
   const canResetTwoFactor = hasPermission(me?.permissions, "twofa.reset");
+  // `users.remove`, seeded for super_admin ALONE — deliberately not `permissions.canDelete`
+  // (`users.delete`), which admin also holds and which only DEACTIVATES. Presentation only:
+  // the API enforces the same split (CLAUDE.md §3.5).
+  const canRemove = hasPermission(me?.permissions, "users.remove");
 
   const debouncedSearch = useDebouncedValue(search);
   const pageSize = 20;
@@ -79,6 +84,7 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
   const { data, isLoading, isError, refetch, isFetching } = useStaffUsersList(query);
   const { data: rolesData } = useRolesList({ page: 1, pageSize: 100 });
   const deactivate = useDeactivateStaffUser();
+  const remove = useRemoveStaffUser();
   const roleOptions = (rolesData?.items ?? []).filter((role) => role.key !== "student");
 
   const columns: Array<DataTableColumn<StaffUser>> = [
@@ -107,6 +113,23 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
     },
     { id: "createdAt", header: "Created", cell: (row) => new Date(row.createdAt).toLocaleDateString() },
   ];
+
+  async function handleRemove() {
+    if (!removingUser) return;
+    try {
+      await remove.mutateAsync(removingUser.id);
+      toast({
+        title: "User deleted",
+        description: `${removingUser.name} has been removed from the CRM.`,
+        variant: "success",
+      });
+      setRemovingUser(null);
+    } catch (error) {
+      // Leave the dialog open on failure: the two server-side refusals (yourself, the last
+      // super admin) are things the user needs to read, not dismiss.
+      surfaceError(toast, error, "Couldn't delete this user");
+    }
+  }
 
   async function handleDeactivate() {
     if (!deactivatingUser) return;
@@ -243,6 +266,19 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
                 <UserX className="size-4 text-danger" aria-hidden="true" />
               </Button>
             ) : null}
+            {/* Delete — super_admin only (`users.remove`). Hidden for yourself: the API
+                refuses self-removal, so offering it would only ever produce a 403. */}
+            {canRemove && row.id !== me?.user.id ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Delete ${row.name}`}
+                onClick={() => setRemovingUser(row)}
+                data-testid="user-remove-row-button"
+              >
+                <Trash2 className="size-4 text-danger" aria-hidden="true" />
+              </Button>
+            ) : null}
           </span>
         )}
       />
@@ -273,6 +309,22 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
         loading={deactivate.isPending}
         onConfirm={() => void handleDeactivate()}
         data-testid="user-deactivate-confirm"
+      />
+
+      <ConfirmDialog
+        open={Boolean(removingUser)}
+        onOpenChange={(open) => {
+          if (!open) setRemovingUser(null);
+        }}
+        title={`Delete ${removingUser?.name ?? "this user"}?`}
+        // Says what actually happens, and names the softer option — most people reaching
+        // for Delete want Deactivate, and only learn the difference from this sentence.
+        description="They're removed from the CRM and signed out everywhere. Their history — audit trail, leads they own, records they approved — is kept and still shows their name. If they might come back, or you just want to block their login, use Deactivate instead."
+        confirmLabel="Delete user"
+        tone="danger"
+        loading={remove.isPending}
+        onConfirm={() => void handleRemove()}
+        data-testid="user-remove-confirm"
       />
     </div>
   );

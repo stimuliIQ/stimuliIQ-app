@@ -170,6 +170,9 @@ const DEFAULT_CHANNEL_PREFS = {
 
 const DEFAULT_PREFS_MATRIX: NotificationPrefMatrix = {
   grade_ready: { ...DEFAULT_CHANNEL_PREFS },
+  // Email ON and not optional-feeling: this is the one notification that asks the student
+  // to DO something. A returned project sitting unread is a student who never resubmits.
+  submission_returned: { ...DEFAULT_CHANNEL_PREFS, email: true },
   certificate_ready: { ...DEFAULT_CHANNEL_PREFS, email: true },
   live_reminder: { ...DEFAULT_CHANNEL_PREFS },
   forum_reply: { ...DEFAULT_CHANNEL_PREFS },
@@ -605,6 +608,32 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       score: String(payload.score),
       studentName: payload.studentName ?? "",
     }, contactOpts);
+  }
+
+  /**
+   * Notify a student that their submission was RETURNED for changes.
+   *
+   * Called from AssignmentsService.returnSubmission(). `reason` is the reviewer's own words
+   * and is the payload that matters — the student is being asked to redo work, and a
+   * notification that does not say what to change is worse than none, because they will
+   * resubmit the same thing.
+   *
+   * `assignmentId` (not submissionId) drives the CTA: the student needs the page where they
+   * can submit again, not a read-only view of the attempt that was sent back.
+   */
+  async notifySubmissionReturned(
+    userId: string,
+    tenantId: string,
+    payload: { assignmentId: string; assignmentTitle: string; reason: string; studentName?: string },
+    contactOpts?: { toEmail?: string; toPhone?: string },
+  ): Promise<void> {
+    await this.notify(
+      userId,
+      tenantId,
+      "submission_returned",
+      { ...payload, studentName: payload.studentName ?? "" },
+      contactOpts,
+    );
   }
 
   /**

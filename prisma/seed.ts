@@ -412,9 +412,7 @@ const P9_PERMISSIONS: Array<{ key: string; label: string }> = [
   { key: "content.edit",    label: "Edit Content" },
   { key: "content.delete",  label: "Delete Content" },
   { key: "content.publish", label: "Publish Content" },
-  // feature flags + settings (T9/T23)
-  { key: "flags.view",    label: "View Feature Flags" },
-  { key: "flags.edit",    label: "Edit Feature Flags" },
+  // settings (T23)
   { key: "settings.view", label: "View System / Company Settings" },
   { key: "settings.edit", label: "Edit System / Company Settings" },
   // bookmarks + lesson notes — own-scope LMS study tools (T10/T29)
@@ -812,6 +810,20 @@ async function main(): Promise<void> {
       usersAdminPermissions.map((permission) => grant(role.id, permission.id, RolePermissionScope.all)),
     );
   }
+
+  // `users.remove` — DELETE /crm/admin/users/:id/permanent, which takes a staff account out
+  // of the CRM entirely (soft-delete + session revocation), as opposed to `users.delete`
+  // above, which despite the name only DEACTIVATES the login.
+  //
+  // Granted to super_admin ALONE, and kept out of USERS_ADMIN_PERMISSIONS above precisely
+  // so it cannot ride the super_admin+admin loop by accident. An admin can stop someone
+  // signing in; only a super admin can remove the account.
+  const usersRemovePermission = await prisma.permission.upsert({
+    where: { key: "users.remove" },
+    update: { label: "Delete Staff Users" },
+    create: { key: "users.remove", label: "Delete Staff Users" },
+  });
+  await grant(superAdminRole.id, usersRemovePermission.id, RolePermissionScope.all);
 
   // branch_manager: docs/03 §9 row "BranchMgr" — students/faculty/batches = branch;
   // courses = view; payments(not in P1)/reports(not in P1) skipped; admin = none;
@@ -3332,14 +3344,13 @@ async function main(): Promise<void> {
         channel: CampaignChannel.email,
         name: "Enrollment Reminder Email",
         subject: "Don't miss out! {{program_title}} enrollment closes soon",
-        body: "Hi {{name}},\n\nThis is a reminder that enrollment for {{program_title}} is closing on {{deadline}}.\n\nRegister now at {{cta_url}}\n\nBest,\nThe Stimuliiq Team",
+        body: "Hi {{name}},\n\nThis is a reminder that enrollment for {{program_title}} is closing soon.\n\nReply to this email and our team will help you complete it.\n\nBest,\nThe Stimuliiq Team",
         dltTemplateId: null, // DLT does not apply to email
-        variables: [
-          { key: "name", label: "Student Name" },
-          { key: "program_title", label: "Program Title" },
-          { key: "deadline", label: "Enrollment Deadline" },
-          { key: "cta_url", label: "CTA URL" },
-        ],
+        // ONLY keys the sender substitutes — see CAMPAIGN_TEMPLATE_VARIABLES (@repo/types).
+        // `{{deadline}}` and `{{cta_url}}` were here and are resolved by nothing, so every
+        // send delivered them with the braces showing. Stored as plain strings to match the
+        // DTO too: the old {key,label} objects rendered as "{{[object Object]}}" in the CRM.
+        variables: ["name", "program_title"],
       },
     });
   })();
@@ -3359,12 +3370,12 @@ async function main(): Promise<void> {
         // PLACEHOLDER: replace with your India DLT-approved WhatsApp template id.
         // The campaign service REJECTS sends for whatsapp/sms if this is null in prod.
         dltTemplateId: "DLT_PLACEHOLDER_WHATSAPP_ENROLLMENT_REMINDER",
-        variables: [
-          { key: "1", label: "Student Name" },
-          { key: "2", label: "Program Title" },
-          { key: "3", label: "Start Date" },
-          { key: "4", label: "Enrollment URL" },
-        ],
+        // Positional `{{1}}..{{4}}` is Meta's OWN convention for an approved WhatsApp
+        // template — the provider fills them from the components/parameters payload, not
+        // our renderer. Left as-is deliberately; unlike the email/SMS bodies these are not
+        // ours to substitute. Stored as strings so the CRM stops showing
+        // "{{[object Object]}}".
+        variables: ["1", "2", "3", "4"],
       },
     });
   })();
@@ -3380,15 +3391,10 @@ async function main(): Promise<void> {
         channel: CampaignChannel.sms,
         name: "Enrollment Reminder SMS",
         subject: null, // SMS has no subject
-        body: "Hi {{name}}, {{program_title}} enrollment ends {{deadline}}. Enroll: {{cta_url}} -Stimuliiq",
+        body: "Hi {{name}}, {{program_title}} enrollment is closing soon. Reply to reserve your seat. -Stimuliiq",
         // PLACEHOLDER: replace with your India DLT-approved SMS template id.
         dltTemplateId: "DLT_PLACEHOLDER_SMS_ENROLLMENT_REMINDER",
-        variables: [
-          { key: "name", label: "Student Name" },
-          { key: "program_title", label: "Program Title" },
-          { key: "deadline", label: "Deadline" },
-          { key: "cta_url", label: "CTA URL" },
-        ],
+        variables: ["name", "program_title"],
       },
     });
   })();
@@ -3409,12 +3415,9 @@ async function main(): Promise<void> {
         channel: CampaignChannel.email,
         name: "Newsletter — Welcome",
         subject: "Welcome to Stimuliiq, {{name}}! 🎉",
-        body: "Hi {{name}},\n\nThanks for subscribing to the Stimuliiq newsletter! You're now on the list for weekly career and clinical learning tips, early access to new batches, and exclusive scholarships.\n\nExplore our programs: {{cta_url}}\n\nSee you inside,\nThe Stimuliiq Team",
+        body: "Hi {{name}},\n\nThanks for subscribing to the Stimuliiq newsletter! You're now on the list for weekly career and clinical learning tips, early access to new batches, and exclusive scholarships.\n\nExplore our programs: https://www.stimuliiq.com/programs\n\nSee you inside,\nThe Stimuliiq Team",
         dltTemplateId: null,
-        variables: [
-          { key: "name", label: "Subscriber Name" },
-          { key: "cta_url", label: "CTA URL" },
-        ],
+        variables: ["name"],
       },
     });
   })();
@@ -3429,15 +3432,10 @@ async function main(): Promise<void> {
         tenantId: tenant.id,
         channel: CampaignChannel.email,
         name: "Newsletter — Monthly Digest",
-        subject: "Your {{month}} learning digest is here 📚",
-        body: "Hi {{name}},\n\nHere's what's new this month at Stimuliiq:\n\n• New batches opening for {{program_title}}\n• Fresh scholarships for {{month}}\n• Top career tips from our mentors\n\nRead more: {{cta_url}}\n\nHappy learning,\nThe Stimuliiq Team",
+        subject: "Your learning digest is here 📚",
+        body: "Hi {{name}},\n\nHere's what's new this month at Stimuliiq:\n\n• New batches opening for {{program_title}}\n• Fresh scholarships\n• Top career tips from our mentors\n\nRead more: https://www.stimuliiq.com/blog\n\nHappy learning,\nThe Stimuliiq Team",
         dltTemplateId: null,
-        variables: [
-          { key: "name", label: "Subscriber Name" },
-          { key: "month", label: "Month" },
-          { key: "program_title", label: "Featured Program" },
-          { key: "cta_url", label: "CTA URL" },
-        ],
+        variables: ["name", "program_title"],
       },
     });
   })();
@@ -4535,13 +4533,7 @@ async function main(): Promise<void> {
     });
   }
 
-  // T9: FeatureFlag + Setting.
-  const existingFlag = await prisma.featureFlag.findFirst({ where: { tenantId: tenant.id, key: "live_class_reminders" } });
-  if (!existingFlag) {
-    await prisma.featureFlag.create({
-      data: { tenantId: tenant.id, key: "live_class_reminders", enabled: true, description: "BullMQ live-class join reminders (T18/T20)" },
-    });
-  }
+  // T9: Setting.
   const existingSetting = await prisma.setting.findFirst({
     where: { tenantId: tenant.id, scope: "company", key: "support_desk_sla_hours" },
   });

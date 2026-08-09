@@ -20,6 +20,7 @@ import type {
   UpdateStaffUserRequest,
   AdminClearTwoFactorRequest,
   AdminClearTwoFactorResponse,
+  DeleteStaffUserResponse,
 } from "@repo/types";
 import type { ApiClient } from "../http/client.js";
 import { toQueryString } from "../http/query.js";
@@ -144,6 +145,20 @@ export class StaffUsersApi {
   /** DELETE /api/v1/crm/admin/users/:id — deactivates the account (blocks login), never a hard delete. */
   async deactivate(id: string, idempotencyKey: string = crypto.randomUUID()): Promise<StaffUser> {
     return this.client.request<StaffUser>("DELETE", `/api/v1/crm/admin/users/${id}`, { idempotencyKey });
+  }
+
+  /**
+   * DELETE /api/v1/crm/admin/users/:id/permanent — removes the account from the CRM.
+   *
+   * Distinct from `deactivate()` above in both effect and authority: that one blocks the
+   * login and leaves the row in the list, this one takes the account out of the product and
+   * requires `users.remove`, seeded for **super_admin alone**. The row is soft-deleted, so
+   * audit history and lead ownership survive; re-adding the same email restores it.
+   */
+  async remove(id: string, idempotencyKey: string = crypto.randomUUID()): Promise<DeleteStaffUserResponse> {
+    return this.client.request<DeleteStaffUserResponse>("DELETE", `/api/v1/crm/admin/users/${id}/permanent`, {
+      idempotencyKey,
+    });
   }
 
   /**

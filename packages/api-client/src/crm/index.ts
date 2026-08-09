@@ -31,7 +31,6 @@ import { LiveClassesApi } from "./live-classes.api.js";
 import { TicketsApi, CannedResponsesApi, KbArticlesApi } from "./support.api.js";
 import { ContentApi, ContentPagesApi, CollegesApi } from "./content.api.js";
 import { SiteSettingsApi } from "./site-settings.api.js";
-import { FeatureFlagsApi } from "./feature-flags.api.js";
 import { SettingsApi } from "./settings.api.js";
 import { ReferralsApi } from "./referrals.api.js";
 import { EmiPlansApi } from "./emi.api.js";
@@ -99,7 +98,6 @@ export class CrmApi {
   // Page-builder block CRUD itself lives on `content.pages.*` (extends the existing
   // content-pages controller surface) — see content.api.ts.
   readonly siteSettings: SiteSettingsApi;
-  readonly featureFlags: FeatureFlagsApi;
   readonly settings: SettingsApi;
   readonly referrals: ReferralsApi;
   readonly emiPlans: EmiPlansApi;
@@ -140,7 +138,6 @@ export class CrmApi {
     this.contentPages = this.content.pages;
     this.colleges = this.content.colleges;
     this.siteSettings = new SiteSettingsApi(client);
-    this.featureFlags = new FeatureFlagsApi(client);
     this.settings = new SettingsApi(client);
     this.referrals = new ReferralsApi(client);
     this.emiPlans = new EmiPlansApi(client);
@@ -171,7 +168,6 @@ export * from "./live-classes.api.js";
 export * from "./support.api.js";
 export * from "./content.api.js";
 export * from "./site-settings.api.js";
-export * from "./feature-flags.api.js";
 export * from "./settings.api.js";
 export * from "./referrals.api.js";
 export * from "./emi.api.js";

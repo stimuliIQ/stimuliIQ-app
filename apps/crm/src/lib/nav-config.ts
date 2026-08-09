@@ -32,6 +32,9 @@
 // use-extended-reports.ts file header) but are real, working screens.
 // Live Classes was later dropped from the product — the Academics > Live
 // Scheduler nav leaf, its route/hooks/components were removed entirely.
+// Feature Flags went the same way: the seam was fully built (table, RBAC CRUD,
+// cached evaluate endpoint, this nav leaf) and never consumed — no app ever
+// evaluated a flag — so the screen, route, hooks and table were all removed.
 import type { ComponentType } from "react";
 import {
   LayoutDashboard,
@@ -214,10 +217,15 @@ export const NAV_SECTIONS: NavSection[] = [
       // the "items" behind the page builder's colleges_live template sections; managed on
       // their own screen, same `content.*` permissions as Blog CMS's Partners tab.
       { label: "Colleges", to: "/marketing/colleges", permission: "content.view" },
-      // Testimonials — promoted out of the Blog CMS tab strip to its own screen
+      // Reviews — promoted out of the Blog CMS tab strip to its own screen
       // (same shape as Colleges): the homepage "What Our Students Say" section
       // pulls the published rows via /public/testimonials.
-      { label: "Testimonials", to: "/marketing/testimonials", permission: "content.view" },
+      //
+      // "Reviews" is the CRM's word for them; the model, API and public-site page are all
+      // still `testimonial(s)`, which is why the route below has not moved — the URL is
+      // shared with existing bookmarks and the rename is a labelling change, not a
+      // re-modelling one.
+      { label: "Reviews", to: "/marketing/testimonials", permission: "content.view" },
       { label: "Blog CMS", to: "/marketing/blog-cms", permission: "content.view" },
       { label: "Landing Pages", to: "/marketing/landing-pages", permission: "landing_pages.view" },
     ],
@@ -264,9 +272,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Roles & Permissions", to: "/admin/roles", permission: "roles.view" },
       { label: "Branches", to: "/admin/branches", permission: "branches.view" },
       { label: "Audit Logs", to: "/admin/audit-logs", permission: "audit_logs.view" },
-      { label: "Notifications", to: "/admin/notifications", permission: "campaigns.view" },
+      { label: "Message Templates", to: "/admin/notifications", permission: "campaigns.view" },
       { label: "Settings", to: "/admin/settings", permission: "settings.view" },
-      { label: "Feature Flags", to: "/admin/feature-flags", permission: "flags.view" },
     ],
   },
   {

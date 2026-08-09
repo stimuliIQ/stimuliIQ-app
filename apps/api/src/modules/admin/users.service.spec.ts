@@ -23,6 +23,10 @@ function mockRepository(): Mocked<UsersAdminRepository> {
     update: jest.fn(),
     deactivate: jest.fn(),
     recordAudit: jest.fn(),
+    findAnyByEmail: jest.fn().mockResolvedValue(null),
+    restore: jest.fn(),
+    softDelete: jest.fn(),
+    countOtherActiveUsersWithRole: jest.fn().mockResolvedValue(1),
   } as unknown as Mocked<UsersAdminRepository>;
 }
 
@@ -175,6 +179,121 @@ describe("UsersAdminService", () => {
       expect(authRepo.revokeAllSessionsForUser).toHaveBeenCalledWith("user-1");
       expect(repo.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "delete", userId: "user-1" }));
       expect(result.status).toBe("deactivated");
+    });
+  });
+
+  // Removal is a different act from deactivation: it takes the account out of the CRM
+  // rather than blocking its login, and it is super_admin-only (`users.remove`). These
+  // cover the two ways it could lock the company out of its own CRM, and the soft-delete
+  // contract that keeps history attached to the removed id.
+  describe("remove", () => {
+    const SUPER_ADMIN_ROW: StaffUserRow = {
+      ...STAFF_ROW,
+      id: "user-super",
+      userRoles: [{ role: { id: "role-sa", key: "super_admin", name: "Super Admin" } }],
+    };
+
+    it("404s an unknown user", async () => {
+      repo.findById.mockResolvedValue(null);
+      await expect(service.remove(TENANT, ACTOR, "ghost")).rejects.toBeInstanceOf(NotFoundException);
+      expect(repo.softDelete).not.toHaveBeenCalled();
+    });
+
+    it("403s on removing YOURSELF — the classic one-click lockout", async () => {
+      repo.findById.mockResolvedValue({ ...STAFF_ROW, id: ACTOR });
+      await expect(service.remove(TENANT, ACTOR, ACTOR)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(repo.softDelete).not.toHaveBeenCalled();
+    });
+
+    // With no super_admin left, nobody can grant the role back — and `users.remove` itself
+    // becomes unreachable, so the mistake is not even self-correctable.
+    it("403s on removing the LAST active super admin", async () => {
+      repo.findById.mockResolvedValue(SUPER_ADMIN_ROW);
+      repo.countOtherActiveUsersWithRole.mockResolvedValue(0);
+
+      await expect(service.remove(TENANT, ACTOR, "user-super")).rejects.toBeInstanceOf(ForbiddenException);
+      expect(repo.softDelete).not.toHaveBeenCalled();
+    });
+
+    it("removes a super admin while another one remains", async () => {
+      repo.findById.mockResolvedValue(SUPER_ADMIN_ROW);
+      repo.countOtherActiveUsersWithRole.mockResolvedValue(1);
+
+      await service.remove(TENANT, ACTOR, "user-super");
+
+      expect(repo.countOtherActiveUsersWithRole).toHaveBeenCalledWith(TENANT, "super_admin", "user-super");
+      expect(repo.softDelete).toHaveBeenCalledWith("user-super");
+    });
+
+    it("doesn't run the last-super-admin check for an ordinary staff user", async () => {
+      repo.findById.mockResolvedValue(STAFF_ROW);
+      await service.remove(TENANT, ACTOR, "user-1");
+      expect(repo.countOtherActiveUsersWithRole).not.toHaveBeenCalled();
+    });
+
+    it("soft-deletes, revokes every session, and audits from the PRE-delete snapshot", async () => {
+      repo.findById.mockResolvedValue(STAFF_ROW);
+
+      await service.remove(TENANT, ACTOR, "user-1", "1.2.3.4");
+
+      expect(repo.softDelete).toHaveBeenCalledWith("user-1");
+      // A removed account must not keep riding an existing refresh token to expiry.
+      expect(authRepo.revokeAllSessionsForUser).toHaveBeenCalledWith("user-1");
+      // The row stops reading after the delete, so this audit entry is the only surviving
+      // record of who the account belonged to — it has to carry the identity.
+      expect(repo.recordAudit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "delete",
+          userId: "user-1",
+          before: expect.objectContaining({ email: "priya@stimuliiq.com" }),
+          after: { removed: true },
+          ip: "1.2.3.4",
+        }),
+      );
+    });
+  });
+
+  // `users` carries a FULL unique on (tenant, email), so a removed user keeps their address
+  // reserved. Re-adding them must restore the row rather than hitting a raw P2002.
+  describe("create — re-adding a removed user", () => {
+    it("restores the soft-deleted row instead of inserting a duplicate", async () => {
+      repo.emailTaken.mockResolvedValue(false);
+      repo.findRolesByIds.mockResolvedValue([COUNSELLOR_ROLE]);
+      repo.findAnyByEmail.mockResolvedValue({ id: "user-1", deletedAt: new Date("2026-08-01T00:00:00Z") });
+      repo.findById.mockResolvedValue(STAFF_ROW);
+
+      const result = await service.create(TENANT, ACTOR, {
+        name: "Priya Sharma",
+        email: "priya@stimuliiq.com",
+        password: "correct horse battery",
+        roleIds: [COUNSELLOR_ROLE.id],
+      });
+
+      expect(repo.restore).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: "user-1", roleIds: [COUNSELLOR_ROLE.id] }),
+      );
+      expect(repo.create).not.toHaveBeenCalled();
+      // `restore`, not `create` — the audit log should read as the resurrection it is.
+      expect(repo.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "restore" }));
+      expect(result.email).toBe("priya@stimuliiq.com");
+    });
+
+    it("still creates normally when the email was never used", async () => {
+      repo.emailTaken.mockResolvedValue(false);
+      repo.findRolesByIds.mockResolvedValue([COUNSELLOR_ROLE]);
+      repo.findAnyByEmail.mockResolvedValue(null);
+      repo.create.mockResolvedValue("user-new");
+      repo.findById.mockResolvedValue(STAFF_ROW);
+
+      await service.create(TENANT, ACTOR, {
+        name: "New Person",
+        email: "new@stimuliiq.com",
+        password: "correct horse battery",
+        roleIds: [COUNSELLOR_ROLE.id],
+      });
+
+      expect(repo.create).toHaveBeenCalled();
+      expect(repo.restore).not.toHaveBeenCalled();
     });
   });
 

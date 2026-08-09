@@ -115,7 +115,7 @@ export const BLOCK_TYPE_META: Record<PageBuilderBlockType, BlockTypeMeta> = {
     type: "live_collection_ref",
     label: "Automatic section",
     description:
-      "Shows your latest testimonials, partner logos, programs, or mentors automatically. Edit the items themselves in Blog & Content — never copies data into the page.",
+      "Shows your latest reviews, partner logos, programs, or mentors automatically. Edit the items themselves on their own screens — never copies data into the page.",
     category: "Reference",
     icon: Rss,
   },

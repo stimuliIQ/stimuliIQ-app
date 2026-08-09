@@ -35,6 +35,8 @@ type MockRepo = jest.Mocked<Pick<
   | "createSubmission"
   | "findSubmissionById"
   | "gradeSubmission"
+  | "returnSubmission"
+  | "enableResubmission"
   | "writeGradeAuditLog"
   | "listSubmissionsForAssignment"
   | "findMilestone"
@@ -65,6 +67,8 @@ function makeRepo(): MockRepo {
     createSubmission: jest.fn(),
     findSubmissionById: jest.fn(),
     gradeSubmission: jest.fn(),
+    returnSubmission: jest.fn(),
+    enableResubmission: jest.fn(),
     writeGradeAuditLog: jest.fn(),
     listSubmissionsForAssignment: jest.fn(),
     findMilestone: jest.fn(),
@@ -102,8 +106,11 @@ function makeStorage(): jest.Mocked<StorageProvider> {
   };
 }
 
-function makeNotifSvc(): jest.Mocked<Pick<NotificationsService, "notifyGradeReady">> {
-  return { notifyGradeReady: jest.fn().mockResolvedValue(undefined) };
+function makeNotifSvc(): jest.Mocked<Pick<NotificationsService, "notifyGradeReady" | "notifySubmissionReturned">> {
+  return {
+    notifyGradeReady: jest.fn().mockResolvedValue(undefined),
+    notifySubmissionReturned: jest.fn().mockResolvedValue(undefined),
+  };
 }
 
 function makeStudentsRepository(): jest.Mocked<Pick<StudentsRepository, "findById">> {
@@ -149,6 +156,8 @@ function makeAssignment(overrides: Partial<AssignmentRow> = {}): AssignmentRow {
     tenantId: TENANT_ID,
     lessonId: LESSON_ID,
     lessonTitle: "Test Lesson",
+    programId: PROGRAM_ID,
+    programTitle: "Clinical Neurology",
     kind: "assignment",
     title: "Test Assignment",
     instructions: null,
@@ -191,6 +200,7 @@ function makeSubmission(overrides: Partial<SubmissionRow> = {}): SubmissionRow {
     createdAt: new Date("2026-01-02"),
     updatedAt: new Date("2026-01-02"),
     batchId: BATCH_ID,
+  batchName: "September 2026 Batch",
     batchFacultyId: FACULTY_PROFILE_ID,
     ...overrides,
   };
@@ -202,7 +212,7 @@ describe("AssignmentsService", () => {
   let service: AssignmentsService;
   let repo: MockRepo;
   let storage: jest.Mocked<StorageProvider>;
-  let notifSvc: jest.Mocked<Pick<NotificationsService, "notifyGradeReady">>;
+  let notifSvc: jest.Mocked<Pick<NotificationsService, "notifyGradeReady" | "notifySubmissionReturned">>;
   let studentsRepository: jest.Mocked<Pick<StudentsRepository, "findById">>;
 
   beforeEach(() => {
@@ -354,6 +364,187 @@ describe("AssignmentsService", () => {
       await expect(
         service.gradeSubmission(FACULTY_USER_ID, TENANT_ID, SUBMISSION_ID, { score: 80 }, "assigned"),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── Send back for changes (the other half of review) ─────────────────────
+  //
+  // `SubmissionStatus.returned` shipped in Phase 4 and nothing ever wrote it, so review had
+  // one outcome: approve. These pin the loop that makes returning actually work end to end —
+  // it must be a pending attempt, resubmission must be possible afterwards, and the student
+  // must be told why.
+  describe("returnSubmission", () => {
+    const REASON = "The differential diagnosis section is missing — add it with references.";
+
+    beforeEach(() => {
+      repo.returnSubmission.mockResolvedValue({ updated: 1 });
+      repo.writeGradeAuditLog.mockResolvedValue(undefined);
+      storage.getSignedDownloadUrl.mockResolvedValue({ url: "https://noop.local", expiresAt: new Date() });
+    });
+
+    it("sets status=returned with the reason, and writes NO score", async () => {
+      repo.findSubmissionById.mockResolvedValueOnce(makeSubmission({ status: "submitted" }));
+      repo.findAssignmentById.mockResolvedValue(makeAssignment({ allowResubmit: true }));
+      repo.findSubmissionById.mockResolvedValue(makeSubmission({ status: "returned", feedback: REASON }));
+
+      const result = await service.returnSubmission(FACULTY_USER_ID, TENANT_ID, SUBMISSION_ID, { reason: REASON }, "all");
+
+      expect(repo.returnSubmission).toHaveBeenCalledWith(TENANT_ID, SUBMISSION_ID, {
+        reason: REASON,
+        returnedById: FACULTY_USER_ID,
+      });
+      // Returning is not grading — a score here would land in gradedCount and read as done.
+      expect(repo.gradeSubmission).not.toHaveBeenCalled();
+      expect(result.status).toBe("returned");
+    });
+
+    // Without this the student is told to fix and resend something the submit endpoint
+    // refuses with RESUBMIT_NOT_ALLOWED — a dead end from both sides of the product.
+    it("turns on resubmission when the project had it switched off", async () => {
+      repo.findSubmissionById.mockResolvedValueOnce(makeSubmission({ status: "submitted" }));
+      repo.findAssignmentById.mockResolvedValue(makeAssignment({ allowResubmit: false }));
+      repo.findSubmissionById.mockResolvedValue(makeSubmission({ status: "returned" }));
+
+      await service.returnSubmission(FACULTY_USER_ID, TENANT_ID, SUBMISSION_ID, { reason: REASON }, "all");
+
+      expect(repo.enableResubmission).toHaveBeenCalledWith(TENANT_ID, ASSIGNMENT_ID);
+    });
+
+    it("leaves the flag alone when resubmission was already allowed", async () => {
+      repo.findSubmissionById.mockResolvedValueOnce(makeSubmission({ status: "submitted" }));
+      repo.findAssignmentById.mockResolvedValue(makeAssignment({ allowResubmit: true }));
+      repo.findSubmissionById.mockResolvedValue(makeSubmission({ status: "returned" }));
+
+      await service.returnSubmission(FACULTY_USER_ID, TENANT_ID, SUBMISSION_ID, { reason: REASON }, "all");
+
+      expect(repo.enableResubmission).not.toHaveBeenCalled();
+    });
+
+    it("notifies the student WITH the reason — a notice they can't act on is worse than none", async () => {
+      repo.findSubmissionById.mockResolvedValueOnce(makeSubmission({ status: "submitted" }));
+      repo.findAssignmentById.mockResolvedValue(makeAssignment({ allowResubmit: true }));
+      repo.findSubmissionById.mockResolvedValue(makeSubmission({ status: "returned" }));
+      studentsRepository.findById.mockResolvedValue(
+        makeStudentRow({ email: "alice@test.com", phone: "+911234567890", userId: "user-alice" }),
+      );
+
+      await service.returnSubmission(FACULTY_USER_ID, TENANT_ID, SUBMISSION_ID, { reason: REASON }, "all");
+
+      expect(notifSvc.notifySubmissionReturned).toHaveBeenCalledWith(
+        "user-alice",
+        TENANT_ID,
+        expect.objectContaining({ reason: REASON, assignmentId: ASSIGNMENT_ID }),
+        expect.objectContaining({ toEmail: "alice@test.com" }),
+      );
+    });
+
+    it("does not fail the return when the notification does", async () => {
+      repo.findSubmissionById.mockResolvedValueOnce(makeSubmission({ status: "submitted" }));
+      repo.findAssignmentById.mockResolvedValue(makeAssignment({ allowResubmit: true }));
+      repo.findSubmissionById.mockResolvedValue(makeSubmission({ status: "returned" }));
+      notifSvc.notifySubmissionReturned.mockRejectedValue(new Error("mail provider down"));
+
+      await expect(
+        service.returnSubmission(FACULTY_USER_ID, TENANT_ID, SUBMISSION_ID, { reason: REASON }, "all"),
+      ).resolves.toBeDefined();
+    });
+
+    it("refuses to return work that is already graded", async () => {
+      repo.findSubmissionById.mockResolvedValue(makeSubmission({ status: "graded", score: 80 }));
+
+      await expect(
+        service.returnSubmission(FACULTY_USER_ID, TENANT_ID, SUBMISSION_ID, { reason: REASON }, "all"),
+      ).rejects.toThrow(UnprocessableEntityException);
+      expect(repo.returnSubmission).not.toHaveBeenCalled();
+    });
+
+    it("refuses to return the same attempt twice", async () => {
+      repo.findSubmissionById.mockResolvedValue(makeSubmission({ status: "returned" }));
+
+      await expect(
+        service.returnSubmission(FACULTY_USER_ID, TENANT_ID, SUBMISSION_ID, { reason: REASON }, "all"),
+      ).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    // Two reviewers working the same queue: the guarded UPDATE matches zero rows for the
+    // one who lost, and that has to surface rather than looking like success.
+    it("surfaces a lost race when another reviewer got there first", async () => {
+      repo.findSubmissionById.mockResolvedValue(makeSubmission({ status: "submitted" }));
+      repo.returnSubmission.mockResolvedValue({ updated: 0 });
+
+      await expect(
+        service.returnSubmission(FACULTY_USER_ID, TENANT_ID, SUBMISSION_ID, { reason: REASON }, "all"),
+      ).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    it("applies the same faculty assigned-scope boundary as grading", async () => {
+      repo.findSubmissionById.mockResolvedValue(makeSubmission({ batchId: BATCH_ID, status: "submitted" }));
+      repo.findFacultyProfileId.mockResolvedValue(FACULTY_PROFILE_ID);
+      repo.findAssignedBatchIds.mockResolvedValue(["a-different-batch"]);
+
+      await expect(
+        service.returnSubmission(FACULTY_USER_ID, TENANT_ID, SUBMISSION_ID, { reason: REASON }, "assigned"),
+      ).rejects.toThrow(NotFoundException);
+      expect(repo.returnSubmission).not.toHaveBeenCalled();
+    });
+  });
+
+  // The student-facing consequence of `returned` existing at all. Before this, a returned
+  // submission derived to "submitted", so the student's screen said they were waiting for a
+  // verdict that had already arrived — and the resubmit form is gated on this status.
+  describe("student status derivation", () => {
+    it("reports a returned submission as `returned`, not `submitted`", async () => {
+      repo.findStudentProfileId.mockResolvedValue(STUDENT_ID);
+      repo.listAssignmentsForStudent.mockResolvedValue({
+        rows: [makeAssignment()],
+        total: 1,
+      });
+      repo.findActiveEnrollmentsForStudent.mockResolvedValue([
+        { id: ENROLLMENT_ID, programId: PROGRAM_ID, batchId: BATCH_ID },
+      ]);
+      repo.findLessonProgramId.mockResolvedValue(PROGRAM_ID);
+      repo.findLatestSubmission.mockResolvedValue(makeSubmission({ status: "returned" }));
+
+      const result = await service.listMyAssignments(USER_ID, TENANT_ID, { page: 1, pageSize: 20 });
+
+      expect(result.items[0]?.status).toBe("returned");
+    });
+
+    it("still reports a pending submission as `submitted`", async () => {
+      repo.findStudentProfileId.mockResolvedValue(STUDENT_ID);
+      repo.listAssignmentsForStudent.mockResolvedValue({ rows: [makeAssignment()], total: 1 });
+      repo.findActiveEnrollmentsForStudent.mockResolvedValue([
+        { id: ENROLLMENT_ID, programId: PROGRAM_ID, batchId: BATCH_ID },
+      ]);
+      repo.findLessonProgramId.mockResolvedValue(PROGRAM_ID);
+      repo.findLatestSubmission.mockResolvedValue(makeSubmission({ status: "submitted" }));
+
+      const result = await service.listMyAssignments(USER_ID, TENANT_ID, { page: 1, pageSize: 20 });
+
+      expect(result.items[0]?.status).toBe("submitted");
+    });
+  });
+
+  // The reviewer's batch filter must NARROW an already-scoped queue, never widen it.
+  describe("listSubmissions — batch narrowing", () => {
+    it("passes the reviewer's batch alongside the scope-allowed batches, not instead of them", async () => {
+      repo.findFacultyProfileId.mockResolvedValue(FACULTY_PROFILE_ID);
+      repo.findAssignedBatchIds.mockResolvedValue([BATCH_ID]);
+      repo.listSubmissionsForAssignment.mockResolvedValue({ rows: [], total: 0 });
+
+      await service.listSubmissions(
+        TENANT_ID,
+        ASSIGNMENT_ID,
+        { page: 1, pageSize: 20, batchId: BATCH_ID },
+        "assigned",
+        FACULTY_USER_ID,
+      );
+
+      expect(repo.listSubmissionsForAssignment).toHaveBeenCalledWith(
+        TENANT_ID,
+        ASSIGNMENT_ID,
+        expect.objectContaining({ allowedBatchIds: [BATCH_ID], batchId: BATCH_ID }),
+      );
     });
   });
 

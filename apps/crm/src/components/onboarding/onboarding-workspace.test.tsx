@@ -9,7 +9,12 @@ import * as React from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { axe } from "jest-axe";
-import type { MeResponse, OnboardingField, OnboardingSubmissionSummary } from "@repo/types";
+import type {
+  MeResponse,
+  OnboardingField,
+  OnboardingSubmissionDetail,
+  OnboardingSubmissionSummary,
+} from "@repo/types";
 import { ToastProvider } from "@repo/ui";
 
 import { OnboardingWorkspace } from "./onboarding-workspace";
@@ -23,6 +28,9 @@ const useDeleteOnboardingFieldMock = vi.fn();
 const useReorderOnboardingFieldsMock = vi.fn();
 const useCreateOnboardingFieldMock = vi.fn();
 const useUpdateOnboardingFieldMock = vi.fn();
+const useOnboardingApprovableBatchesMock = vi.fn();
+const useApproveOnboardingSubmissionMock = vi.fn();
+const useRejectOnboardingSubmissionMock = vi.fn();
 
 vi.mock("../../hooks/use-onboarding", () => ({
   useOnboardingSubmissions: (...args: unknown[]) => useOnboardingSubmissionsMock(...args),
@@ -34,6 +42,9 @@ vi.mock("../../hooks/use-onboarding", () => ({
   useReorderOnboardingFields: (...args: unknown[]) => useReorderOnboardingFieldsMock(...args),
   useCreateOnboardingField: (...args: unknown[]) => useCreateOnboardingFieldMock(...args),
   useUpdateOnboardingField: (...args: unknown[]) => useUpdateOnboardingFieldMock(...args),
+  useOnboardingApprovableBatches: (...args: unknown[]) => useOnboardingApprovableBatchesMock(...args),
+  useApproveOnboardingSubmission: (...args: unknown[]) => useApproveOnboardingSubmissionMock(...args),
+  useRejectOnboardingSubmission: (...args: unknown[]) => useRejectOnboardingSubmissionMock(...args),
 }));
 
 const BASE_ME: MeResponse = {
@@ -78,11 +89,30 @@ const SUBMISSION: OnboardingSubmissionSummary = {
   phone: "+919876543210",
   programId: "program-1",
   programTitle: "Clinical Neurology Fellowship",
-  status: "pending",
+  programPricePaise: 2_500_000,
+  programCurrency: "INR",
+  status: "hold", // the arrival state — see migration `onboarding_default_hold`.
   studentProfileId: null,
   hasAttachment: true,
   reviewedAt: null,
   createdAt: "2026-08-01T00:00:00.000Z",
+};
+
+const SUBMISSION_DETAIL: OnboardingSubmissionDetail = {
+  ...SUBMISSION,
+  answers: [
+    {
+      fieldId: "field-1",
+      key: "payment_receipt",
+      label: "Payment Receipt",
+      type: "file",
+      value: "receipt.png",
+      storageKey: "onboarding/t-1/uuid-receipt.png",
+    },
+  ],
+  reviewNotes: null,
+  reviewedByName: null,
+  attachmentUrls: { "onboarding/t-1/uuid-receipt.png": "https://signed.example.test/receipt" },
 };
 
 const FIELD: OnboardingField = {
@@ -100,6 +130,19 @@ const FIELD: OnboardingField = {
   active: true,
   createdAt: "2026-08-01T00:00:00.000Z",
   updatedAt: "2026-08-01T00:00:00.000Z",
+};
+
+const APPROVE_RESULT = {
+  submission: { ...SUBMISSION_DETAIL, status: "approved" as const },
+  activation: {
+    studentProfileId: "student-1",
+    enrollmentId: "enrol-1",
+    batchName: "September 2026 Batch",
+    studentCreated: true,
+    credentialsEmailed: true,
+    invoiceNumber: "INV-2026-0001",
+    amountPaise: 2_500_000,
+  },
 };
 
 function renderWorkspace(me: MeResponse | undefined = FULL_ACCESS_ME) {
@@ -125,7 +168,25 @@ beforeEach(() => {
   useReorderOnboardingFieldsMock.mockReturnValue({ mutate: vi.fn(), isPending: false });
   useCreateOnboardingFieldMock.mockReturnValue({ mutateAsync: vi.fn(), isPending: false });
   useUpdateOnboardingFieldMock.mockReturnValue({ mutateAsync: vi.fn(), isPending: false });
+  useOnboardingApprovableBatchesMock.mockReturnValue({
+    data: [{ id: "batch-1", name: "September 2026 Batch", startDate: null, status: "planned" }],
+    isLoading: false,
+    isError: false,
+  });
+  useApproveOnboardingSubmissionMock.mockReturnValue({ mutateAsync: vi.fn().mockResolvedValue(APPROVE_RESULT), isPending: false });
+  useRejectOnboardingSubmissionMock.mockReturnValue({ mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false });
 });
+
+/** Opens the row's review drawer, which is where both decisions live. */
+async function openDrawer() {
+  const { default: userEvent } = await import("@testing-library/user-event");
+  const user = userEvent.setup();
+  useOnboardingSubmissionMock.mockReturnValue({ data: SUBMISSION_DETAIL, isLoading: false, isError: false });
+  renderWorkspace();
+  await user.click(screen.getByText("Ananya Sharma"));
+  await screen.findByTestId("onboarding-submission-drawer");
+  return user;
+}
 
 describe("OnboardingWorkspace — submissions list", () => {
   it("renders a submission with its identity columns and program", () => {
@@ -190,6 +251,142 @@ describe("OnboardingWorkspace — form fields tab", () => {
 
     expect(await screen.findByTestId("confirm-delete-onboarding-field")).toBeInTheDocument();
     expect(screen.getByText(/Answers already collected for it stay/)).toBeInTheDocument();
+  });
+});
+
+// The point of this screen: a submission sits on hold until someone accepts or rejects it,
+// and each verb states its consequences before it fires.
+describe("OnboardingWorkspace — accept / reject", () => {
+  it("offers the two decisions and no status picker", async () => {
+    await openDrawer();
+
+    expect(screen.getByTestId("onboarding-accept")).toBeInTheDocument();
+    expect(screen.getByTestId("onboarding-reject")).toBeInTheDocument();
+    expect(screen.queryByTestId("onboarding-status-select")).not.toBeInTheDocument();
+  });
+
+  it("shows an untouched submission as on hold", async () => {
+    await openDrawer();
+    expect(screen.getAllByText("On hold").length).toBeGreaterThan(0);
+  });
+
+  it("names the exact amount it will invoice before accepting", async () => {
+    const user = await openDrawer();
+
+    await user.click(screen.getByTestId("onboarding-accept"));
+
+    expect(await screen.findByTestId("onboarding-accept-panel")).toBeInTheDocument();
+    expect(screen.getByText(/₹25,000.00/)).toBeInTheDocument();
+    expect(screen.getByTestId("onboarding-accept-record-payment")).toBeInTheDocument();
+  });
+
+  it("accepts into the only open batch, recording the payment", async () => {
+    const approveMock = vi.fn().mockResolvedValue(APPROVE_RESULT);
+    useApproveOnboardingSubmissionMock.mockReturnValue({ mutateAsync: approveMock, isPending: false });
+    const user = await openDrawer();
+
+    await user.click(screen.getByTestId("onboarding-accept"));
+    await user.click(await screen.findByTestId("onboarding-accept-confirm"));
+
+    expect(approveMock).toHaveBeenCalledWith({
+      id: "sub-1",
+      body: { batchId: "batch-1", recordPayment: true },
+    });
+  });
+
+  it("lets the reviewer waive the invoice for a scholarship seat", async () => {
+    const approveMock = vi.fn().mockResolvedValue(APPROVE_RESULT);
+    useApproveOnboardingSubmissionMock.mockReturnValue({ mutateAsync: approveMock, isPending: false });
+    const user = await openDrawer();
+
+    await user.click(screen.getByTestId("onboarding-accept"));
+    await user.click(await screen.findByTestId("onboarding-accept-record-payment"));
+    await user.click(screen.getByTestId("onboarding-accept-confirm"));
+
+    expect(approveMock).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ recordPayment: false }) }));
+  });
+
+  // Accepting enrols someone into a cohort; with several to choose from, guessing would put
+  // a student in the wrong one, so the button stays disabled until a batch is picked.
+  it("won't accept until a batch is chosen when the program has several", async () => {
+    useOnboardingApprovableBatchesMock.mockReturnValue({
+      data: [
+        { id: "batch-1", name: "September 2026 Batch", startDate: null, status: "planned" },
+        { id: "batch-2", name: "October 2026 Batch", startDate: null, status: "planned" },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+    const user = await openDrawer();
+
+    await user.click(screen.getByTestId("onboarding-accept"));
+
+    expect(await screen.findByTestId("onboarding-accept-confirm")).toBeDisabled();
+  });
+
+  it("explains there is nothing to invoice when the program is free", async () => {
+    useOnboardingSubmissionMock.mockReturnValue({
+      data: { ...SUBMISSION_DETAIL, programPricePaise: 0 },
+      isLoading: false,
+      isError: false,
+    });
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    renderWorkspace();
+    await user.click(screen.getByText("Ananya Sharma"));
+    await user.click(await screen.findByTestId("onboarding-accept"));
+
+    expect(await screen.findByText("No invoice will be raised")).toBeInTheDocument();
+    expect(screen.queryByTestId("onboarding-accept-record-payment")).not.toBeInTheDocument();
+  });
+
+  // Rejecting emails the student, so it confirms — and says what the student will NOT see,
+  // which is the thing a reviewer is most likely to assume wrongly.
+  it("confirms a rejection, naming the recipient and excluding the internal notes", async () => {
+    const rejectMock = vi.fn().mockResolvedValue(undefined);
+    useRejectOnboardingSubmissionMock.mockReturnValue({ mutateAsync: rejectMock, isPending: false });
+    const user = await openDrawer();
+
+    await user.click(screen.getByTestId("onboarding-reject"));
+
+    const dialog = await screen.findByTestId("confirm-reject-onboarding-submission");
+    expect(dialog).toHaveTextContent("ananya@example.com");
+    expect(dialog).toHaveTextContent(/internal notes are not included/i);
+
+    await user.click(screen.getByRole("button", { name: "Reject & notify" }));
+    expect(rejectMock).toHaveBeenCalledWith({ id: "sub-1", body: {} });
+  });
+
+  it("hides both decisions from a read-only role", async () => {
+    useOnboardingSubmissionMock.mockReturnValue({ data: SUBMISSION_DETAIL, isLoading: false, isError: false });
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    renderWorkspace({ ...BASE_ME, permissions: [{ key: "onboarding.view", scope: "all" }] });
+
+    await user.click(screen.getByText("Ananya Sharma"));
+    await screen.findByTestId("onboarding-submission-drawer");
+
+    expect(screen.queryByTestId("onboarding-accept")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("onboarding-reject")).not.toBeInTheDocument();
+  });
+
+  // An accepted submission has an enrolled student behind it; the API refuses to re-decide
+  // it, so the buttons must not offer a click that can only fail.
+  it("hides both decisions once the student is enrolled", async () => {
+    useOnboardingSubmissionMock.mockReturnValue({
+      data: { ...SUBMISSION_DETAIL, status: "approved" as const, studentProfileId: "student-1" },
+      isLoading: false,
+      isError: false,
+    });
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    renderWorkspace();
+
+    await user.click(screen.getByText("Ananya Sharma"));
+    await screen.findByTestId("onboarding-submission-drawer");
+
+    expect(screen.queryByTestId("onboarding-accept")).not.toBeInTheDocument();
+    expect(await screen.findByText("This student is already enrolled")).toBeInTheDocument();
   });
 });
 

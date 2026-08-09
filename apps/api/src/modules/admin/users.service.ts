@@ -87,8 +87,37 @@ export class UsersAdminService {
       });
     }
     const roleIds = await this.resolveStaffRoleIds(tenantId, body.roleIds);
+    const passwordHashForNew = await argon2.hash(body.password, ARGON2_HASH_OPTIONS);
 
-    const passwordHash = await argon2.hash(body.password, ARGON2_HASH_OPTIONS);
+    // Re-adding someone who was REMOVED. `users` has a full unique on (tenant, email), so
+    // the address stays reserved by the soft-deleted row and a plain insert would hit a raw
+    // P2002 — an unexplainable 500 for an admin who can see no such user. Restore instead:
+    // the account comes back as the one they just described, and its audit history (which
+    // hangs off this id) stays connected rather than being split across two rows.
+    const removed = await this.repository.findAnyByEmail(tenantId, body.email);
+    if (removed?.deletedAt) {
+      await this.repository.restore({
+        userId: removed.id,
+        name: body.name,
+        phone: body.phone ?? null,
+        passwordHash: passwordHashForNew,
+        roleIds,
+      });
+      const restored = await this.repository.findById(tenantId, removed.id);
+      if (!restored) throw new NotFoundException({ code: "users.not_found", title: "User not found" });
+      await this.repository.recordAudit({
+        tenantId,
+        actorId,
+        userId: removed.id,
+        action: "restore",
+        before: undefined,
+        after: { ...auditSnapshot(restored), restoredFromRemoved: true },
+        ip,
+      });
+      return toDto(restored);
+    }
+
+    const passwordHash = passwordHashForNew;
     const userId = await this.repository.create({
       tenantId,
       name: body.name,
@@ -183,6 +212,69 @@ export class UsersAdminService {
       ip,
     });
     return toDto(updated);
+  }
+
+  /**
+   * `DELETE /crm/admin/users/:id/permanent` — remove the account from the CRM entirely.
+   *
+   * SEPARATE FROM DEACTIVATE, and gated on its own `users.remove` permission held by
+   * super_admin ALONE (deactivate is `users.delete`, which admin also holds). The two do
+   * different jobs: deactivate blocks a login you still expect to see in the list — someone
+   * on leave, someone suspended pending a review. This is for an account that should not be
+   * in the product at all: a test login, a wrong address, a person who never joined.
+   *
+   * SOFT delete, not a row wipe. Audit rows, lead ownership and onboarding reviews all point
+   * at this user id; a hard delete would either orphan those references or cascade real
+   * history away. The row stays, `deleted_at` is set, and every read filters it out — so
+   * from the CRM's point of view the account is gone, while "who approved this in July?"
+   * still answers. Re-adding the same email later restores this row (see `create`).
+   *
+   * Three guards, each protecting against a way an admin can lock the company out:
+   *   - never yourself (the classic one-click foot-gun, same as deactivate);
+   *   - never the last active super_admin — with no super_admin nobody can grant the role
+   *     back, and `users.remove` itself becomes unreachable;
+   *   - sessions are revoked, because a removed account must not keep working on an
+   *     existing refresh token until it expires naturally.
+   */
+  async remove(tenantId: string, actorId: string, id: string, ip?: string): Promise<void> {
+    const existing = await this.repository.findById(tenantId, id);
+    if (!existing) throw new NotFoundException({ code: "users.not_found", title: "User not found" });
+
+    if (id === actorId) {
+      throw new ForbiddenException({
+        code: "users.cannot_remove_self",
+        title: "You cannot delete your own account",
+        detail: "Ask another super admin to remove it.",
+      });
+    }
+
+    const isSuperAdmin = existing.userRoles.some((ur) => ur.role.key === "super_admin");
+    if (isSuperAdmin) {
+      const others = await this.repository.countOtherActiveUsersWithRole(tenantId, "super_admin", id);
+      if (others === 0) {
+        throw new ForbiddenException({
+          code: "users.last_super_admin",
+          title: "This is the last super admin",
+          detail:
+            "Deleting them would leave nobody able to manage roles or users. Create another super admin first, then remove this one.",
+        });
+      }
+    }
+
+    await this.repository.softDelete(id);
+    await this.authRepository.revokeAllSessionsForUser(id);
+
+    // Written from the PRE-delete snapshot: after the soft-delete the row no longer reads,
+    // so this audit entry is the only remaining record of who the account belonged to.
+    await this.repository.recordAudit({
+      tenantId,
+      actorId,
+      userId: id,
+      action: "delete",
+      before: auditSnapshot(existing),
+      after: { removed: true },
+      ip,
+    });
   }
 
   /**

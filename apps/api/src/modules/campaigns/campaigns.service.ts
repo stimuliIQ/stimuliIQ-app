@@ -710,14 +710,18 @@ export class CampaignsService {
     }
 
     // Render campaign template body with variable substitution.
-    const renderedBody = this.templateRegistry.renderRaw(template.body, {
-      to: recipient.to,
-      campaignName: campaign.name,
-    });
+    //
+    // Built from CAMPAIGN_TEMPLATE_VARIABLES (@repo/types) so the set the sender fills and
+    // the set the CRM's editor advertises cannot drift apart. They had: templates were
+    // authored with {{name}}/{{program_title}} while only `to` and `campaignName` were ever
+    // substituted, and unknown placeholders are deliberately left as-is — so real sends went
+    // out reading "Hi {{name}},".
+    const substitutions = buildRecipientVariables(recipient, campaign);
+    const renderedBody = this.templateRegistry.renderRaw(template.body, substitutions);
 
     const renderedSubject =
       channel === "email" && template.subject
-        ? this.templateRegistry.renderRaw(template.subject, { to: recipient.to, campaignName: campaign.name })
+        ? this.templateRegistry.renderRaw(template.subject, substitutions)
         : undefined;
 
     // Dispatch via the port (idempotent by dedupeKey).
@@ -818,7 +822,7 @@ export class CampaignsService {
         body: row.body,
         htmlBody: null,
         dltTemplateId: row.dltTemplateId,
-        variables: (row.variables as string[]) ?? [],
+        variables: toVariableKeys(row.variables),
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
       };
@@ -831,7 +835,7 @@ export class CampaignsService {
       name: row.name,
       body: row.body,
       dltTemplateId: row.dltTemplateId ?? "",
-      variables: (row.variables as string[]) ?? [],
+      variables: toVariableKeys(row.variables),
       subject: null,
       htmlBody: null,
       createdAt: row.createdAt.toISOString(),
@@ -892,4 +896,54 @@ export class CampaignsService {
       suppressed: m["suppressed"] ?? 0,
     };
   }
+}
+
+/**
+ * The substitution map for one recipient — exactly the keys in CAMPAIGN_TEMPLATE_VARIABLES.
+ *
+ * A recipient is one of lead / student / user (the model guarantees exactly one), so name
+ * and programme are read from whichever is present. Missing data becomes an EMPTY STRING
+ * rather than being left out: an absent key would make `renderRaw` leave the raw
+ * `{{name}}` in the message, which is precisely the failure this replaced. A blank reads
+ * as an imperfect mail-merge; braces read as broken software.
+ */
+function buildRecipientVariables(
+  recipient: CampaignRecipientRow,
+  campaign: CampaignRow,
+): Record<string, string> {
+  const name =
+    recipient.student?.user.name ?? recipient.lead?.name ?? recipient.user?.name ?? "";
+  const programTitle =
+    recipient.student?.enrollments[0]?.program.title ?? recipient.lead?.programInterest?.title ?? "";
+
+  return {
+    name,
+    to: recipient.to,
+    program_title: programTitle,
+    campaign_name: campaign.name,
+  };
+}
+
+/**
+ * `campaign_templates.variables` is a Prisma `Json` column, and what is actually in it
+ * depends on who wrote the row: the seed wrote `[{ key, label }]` objects while the DTO has
+ * always declared `string[]`, and the mapper simply cast — so the CRM rendered
+ * "{{[object Object]}}" for every seeded template and the edit form round-tripped that
+ * string back into the record.
+ *
+ * Normalising on the way OUT makes the declared contract true for both shapes, without a
+ * data migration and without breaking rows written by either era.
+ */
+function toVariableKeys(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (typeof entry === "string") return entry;
+      if (entry && typeof entry === "object" && "key" in entry) {
+        const key = (entry as { key: unknown }).key;
+        return typeof key === "string" ? key : null;
+      }
+      return null;
+    })
+    .filter((key): key is string => Boolean(key));
 }

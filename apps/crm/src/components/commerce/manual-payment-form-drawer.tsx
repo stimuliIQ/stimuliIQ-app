@@ -33,6 +33,26 @@ type ManualPaymentFormValues = Omit<ManualPaymentRequest, "amountPaise" | "paidA
   paidAt?: string;
 };
 
+/**
+ * "Now", formatted as the `YYYY-MM-DDTHH:mm` a datetime-local input understands.
+ *
+ * Used as the field's `max` — the first of three guards against recording a payment as
+ * received in the future, which would enrol and invoice a student for money nobody has
+ * taken. It is the quietest one: the picker never offers a later date, and a value typed
+ * past it fails the browser's own constraint validation, so the form does not submit.
+ *
+ * The other two exist because `max` is only as good as the client honouring it: the RHF
+ * `validate` rule on the field below catches a value set programmatically or by a browser
+ * that skips the check, and `ManualPaymentRequestSchema` refuses one server-side, where it
+ * also covers every other caller of the API.
+ */
+function nowAsDateTimeLocal(): string {
+  const now = new Date();
+  // Shift by the local offset so the ceiling is the user's wall clock, not UTC — otherwise
+  // staff east of UTC (IST is +5:30) could not record a payment they took this morning.
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
 export function ManualPaymentFormDrawer({
   open,
   onOpenChange,
@@ -42,10 +62,24 @@ export function ManualPaymentFormDrawer({
   const { toast } = useToast();
   const recordManual = useRecordManualPayment();
 
-  const { register, handleSubmit, reset, watch, setValue, formState } = useForm<ManualPaymentFormValues>({
+  // `formState: { errors }` is destructured HERE, in the useForm call, rather than read off
+  // a `formState` variable afterwards. RHF's formState is a Proxy that subscribes the
+  // component to only the keys touched during render; taking it the other way left this form
+  // unsubscribed, so a failed validation set the error in state and never re-rendered — the
+  // field-level message simply never appeared.
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<ManualPaymentFormValues>({
     defaultValues: { orderId: defaultOrderId ?? "", amountPaise: defaultAmountPaise ?? 0, method: "", reference: "" },
   });
-  const errors = formState.errors;
+
+  // Recomputed per render so a drawer left open across midnight still ceilings correctly.
+  const maxPaidAt = nowAsDateTimeLocal();
 
   React.useEffect(() => {
     if (open) {
@@ -122,9 +156,20 @@ export function ManualPaymentFormDrawer({
             <Input
               label="Paid at"
               type="datetime-local"
+              max={maxPaidAt}
               placeholder="e.g. 2026-07-09T10:30"
-              helperText="Leave blank to use now."
-              {...register("paidAt")}
+              helperText="When the money was actually received. Can't be in the future — leave blank to use now."
+              // The rule lives in `register` rather than a check inside the submit handler:
+              // RHF discards a `setError` for a field whose register carries no rules, and a
+              // validate rule additionally stops handleSubmit from running at all — so a
+              // future date can never reach the request, not merely be reported after it.
+              {...register("paidAt", {
+                validate: (value) =>
+                  !value ||
+                  new Date(value).getTime() <= Date.now() ||
+                  "A payment can't be recorded as received in the future.",
+              })}
+              error={errors.paidAt?.message}
               data-testid="manual-payment-paid-at"
             />
             <Input

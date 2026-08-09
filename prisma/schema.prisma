@@ -255,6 +255,22 @@ enum CertificateStatus {
   revoked
 }
 
+// CertificateKind: WHICH of the two certificates a row is. A student can hold one of
+// each for the same enrollment (see the reworked partial-unique index below).
+//
+//   training   — earned by finishing the BATCH. Auto-issued to every active enrollment
+//                in a batch the moment the batch closes (BatchAutoCloseScheduler), with
+//                no completion/eligibility gate: sitting in the batch is the bar.
+//   internship — earned by doing the WORK. Issued only after a project submission has
+//                been verified by staff in CRM ▸ Projects.
+//
+// If the batch's program has no project attached at all, there is nothing to verify, so
+// BOTH are issued together at batch close.
+enum CertificateKind {
+  training
+  internship
+}
+
 // ── Phase-6 enums (docs/plans/phase-6.md task #1, docs/05 §3) ────────────────
 //
 // NotificationType: the domain event that triggered the notification.
@@ -262,6 +278,12 @@ enum CertificateStatus {
 // template registry maps type → per-channel templates; unknown types are no-ops).
 enum NotificationType {
   grade_ready
+  // "Your project was sent back for changes." The counterpart to grade_ready: a reviewer
+  // returned the submission instead of grading it, and the student has to act. Its own type
+  // rather than reusing grade_ready because the message, the channel defaults and the CTA
+  // all differ — "your grade is ready" is the wrong thing to tell someone who must redo the
+  // work. See migration `submission_returned_notification`.
+  submission_returned
   certificate_ready
   live_reminder
   forum_reply
@@ -579,7 +601,6 @@ model Tenant {
   newsletterSubscriptions NewsletterSubscription[]
   contactSubmissions      ContactSubmission[]
   careerApplications      CareerApplication[]
-  featureFlags            FeatureFlag[]
   settingRecords          Setting[]
   siteSettings            SiteSetting[]
   bookmarks               Bookmark[]
@@ -2151,10 +2172,17 @@ model CertificateTemplate {
 model Certificate {
   id            String            @id @default(uuid()) @db.Uuid
   tenantId      String            @map("tenant_id") @db.Uuid
-  // enrollment_id: one ACTIVE certificate per enrollment, enforced by the partial-unique
-  // index `certificates_active_enrollment_id_key` (raw SQL — see model doc comment above),
-  // NOT by a Prisma-level @unique (which would block reissue after soft-delete).
+  // enrollment_id: one ACTIVE certificate per (enrollment, KIND), enforced by the
+  // partial-unique index `certificates_active_enrollment_kind_key` (raw SQL — see the
+  // model doc comment above), NOT by a Prisma-level @unique (which would block reissue
+  // after soft-delete). The kind is part of the key so a student can hold BOTH a
+  // training and an internship certificate for the same enrollment.
   enrollmentId  String            @map("enrollment_id") @db.Uuid
+  // kind: training (batch finished) vs internship (project verified) — see CertificateKind.
+  // The uniqueness rule is now ONE ACTIVE CERT PER (enrollment_id, kind), so a student can
+  // hold both. Defaults to `training` so the backfill of pre-existing rows is correct:
+  // every certificate issued before this split was a course-completion certificate.
+  kind          CertificateKind   @default(training)
   // student_id: FK → student_profiles (denormalized for direct query without enrollment join).
   studentId     String            @map("student_id") @db.Uuid
   // program_id: FK → programs (denormalized, included in cert_uid signature payload).
@@ -3437,27 +3465,8 @@ model CareerApplication {
   @@map("career_applications")
 }
 
-// ── T9: FeatureFlag + Setting (system/company scope) ────────────────────────────────
+// ── T9: Setting (system/company scope) ──────────────────────────────────────────────
 
-model FeatureFlag {
-  id          String    @id @default(uuid()) @db.Uuid
-  tenantId    String    @map("tenant_id") @db.Uuid
-  key         String
-  enabled     Boolean   @default(false)
-  // rollout: optional rule descriptor (e.g. {percentage: 25} or {cohort: ["beta"]}) for
-  // gradual/targeted rollout beyond a flat on/off.
-  rollout     Json?
-  description String?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  deletedAt   DateTime? @map("deleted_at")
-
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-
-  @@index([tenantId, enabled])
-  @@index([tenantId, deletedAt])
-  @@map("feature_flags")
-}
 
 model Setting {
   id        String       @id @default(uuid()) @db.Uuid
@@ -3512,7 +3521,7 @@ model SiteSetting {
 
   // (tenantId, key) uniqueness is a raw-SQL partial-unique index
   // (`site_settings_active_tenant_key_key`, WHERE deleted_at IS NULL) — same pattern as
-  // feature_flags/settings/kb_articles etc. (docs/05 §4); not expressible in `@@unique`.
+  // settings/kb_articles etc. (docs/05 §4); not expressible in `@@unique`.
   @@index([tenantId, group])
   @@index([tenantId, deletedAt])
   @@map("site_settings")
@@ -3821,7 +3830,12 @@ model OnboardingSubmission {
   phone       String?
   programId   String?                    @map("program_id") @db.Uuid
   answers     Json
-  status      OnboardingSubmissionStatus @default(pending)
+  // Arrives ON HOLD, not "pending": the CRM offers exactly two decisions (accept / reject),
+  // so "nobody has ruled yet" and "held" are the same state and having two of them only
+  // ever produced a filter nobody could reason about. `pending` stays in the enum for old
+  // rows / backups (dropping a Postgres enum value is not a safe forward-only migration) —
+  // see migration `onboarding_default_hold`, which also moved every existing row.
+  status      OnboardingSubmissionStatus @default(hold)
   reviewNotes String?                    @map("review_notes")
   // WHO decided, and when. Set on every approve/reject/hold — the audit trail lives in
   // `audit_logs` too, but a reviewer is asked "who approved this?" often enough that it
