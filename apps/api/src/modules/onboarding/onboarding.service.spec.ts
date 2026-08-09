@@ -39,6 +39,7 @@ function mockRepository(): Mocked<OnboardingRepository> {
     createSubmission: jest.fn().mockResolvedValue({ id: "sub-1" }),
     listSubmissions: jest.fn(),
     findSubmissionById: jest.fn(),
+    listApprovableBatches: jest.fn(),
     updateSubmission: jest.fn(),
     softDeleteSubmission: jest.fn(),
   } as unknown as Mocked<OnboardingRepository>;

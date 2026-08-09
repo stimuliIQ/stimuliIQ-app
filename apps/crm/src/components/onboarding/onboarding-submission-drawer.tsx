@@ -28,16 +28,27 @@ import type { OnboardingAnswer, OnboardingSubmissionStatus } from "@repo/types";
 import { useOnboardingSubmission, useUpdateOnboardingSubmission } from "../../hooks/use-onboarding";
 import { surfaceError } from "../../lib/surface-error";
 
-const STATUS_OPTIONS: Array<{ value: OnboardingSubmissionStatus; label: string }> = [
-  { value: "new", label: "New" },
-  { value: "in_review", label: "In review" },
-  { value: "verified", label: "Verified" },
+/**
+ * The only statuses this drawer's PATCH may set.
+ *
+ * `pending` is system-set on arrival and deliberately not selectable — letting someone
+ * put it back would erase the fact that a named reviewer made a call. `approved` is not
+ * here either: approving creates/matches a student and is its own endpoint
+ * (POST /crm/onboarding/submissions/:id/approve), not a status edit.
+ * Matches UpdateOnboardingSubmissionRequestSchema, which accepts exactly these two.
+ */
+type EditableSubmissionStatus = "hold" | "rejected";
+
+const STATUS_OPTIONS: Array<{ value: EditableSubmissionStatus; label: string }> = [
+  { value: "hold", label: "On hold" },
   { value: "rejected", label: "Rejected" },
 ];
 
 /** Maps the workflow enum onto the canonical CRM tone vocabulary (crm-ui-consistency §2). */
 export function submissionStatusTone(status: OnboardingSubmissionStatus) {
-  return statusTone(status === "in_review" ? "in-progress" : status === "verified" ? "completed" : status);
+  // approved/hold are this module's words for the canonical completed/in-progress tones;
+  // pending and rejected already exist in the shared vocabulary and pass straight through.
+  return statusTone(status === "approved" ? "completed" : status === "hold" ? "in-progress" : status);
 }
 
 export interface OnboardingSubmissionDrawerProps {
@@ -55,23 +66,30 @@ export function OnboardingSubmissionDrawer({
   const { data, isLoading, isError } = useOnboardingSubmission(submissionId);
   const updateSubmission = useUpdateOnboardingSubmission();
 
-  const [status, setStatus] = React.useState<OnboardingSubmissionStatus>("new");
+  // undefined = "no decision selected". A submission sitting at `pending` or `approved`
+  // has no editable status to preselect, so the picker starts empty rather than silently
+  // showing a value the PATCH could not send back.
+  const [status, setStatus] = React.useState<EditableSubmissionStatus | undefined>(undefined);
   const [notes, setNotes] = React.useState("");
 
   React.useEffect(() => {
     if (!data) return;
-    setStatus(data.status);
+    setStatus(data.status === "hold" || data.status === "rejected" ? data.status : undefined);
     setNotes(data.reviewNotes ?? "");
   }, [data]);
 
-  const dirty = Boolean(data) && (status !== data?.status || notes !== (data?.reviewNotes ?? ""));
+  const dirty =
+    Boolean(data) &&
+    ((status !== undefined && status !== data?.status) || notes !== (data?.reviewNotes ?? ""));
 
   async function handleSave(): Promise<void> {
     if (!data) return;
     try {
       await updateSubmission.mutateAsync({
         id: data.id,
-        body: { status, reviewNotes: notes.trim() ? notes.trim() : null },
+        // Omit `status` entirely when no decision is selected — the DTO requires at least
+        // one of status/reviewNotes, and notes-only edits are a normal thing to do.
+        body: { ...(status ? { status } : {}), reviewNotes: notes.trim() ? notes.trim() : null },
       });
       toast({ title: "Submission updated", variant: "success" });
       onOpenChange(false);
@@ -129,7 +147,8 @@ export function OnboardingSubmissionDrawer({
                   <Select
                     label="Status"
                     value={status}
-                    onValueChange={(v) => setStatus(v as OnboardingSubmissionStatus)}
+                    placeholder="No change"
+                    onValueChange={(v) => setStatus(v as EditableSubmissionStatus)}
                     data-testid="onboarding-status-select"
                   >
                     {STATUS_OPTIONS.map((option) => (

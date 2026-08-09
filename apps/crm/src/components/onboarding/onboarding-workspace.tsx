@@ -48,9 +48,12 @@ const PAGE_SIZE = 25;
 
 const STATUS_FILTERS: Array<{ value: OnboardingSubmissionStatus | "all"; label: string }> = [
   { value: "all", label: "All statuses" },
-  { value: "new", label: "New" },
-  { value: "in_review", label: "In review" },
-  { value: "verified", label: "Verified" },
+  // Mirrors OnboardingSubmissionStatus after the approval-workflow migration
+  // (new|in_review|verified -> pending|hold|approved). These filters were left on the old
+  // values, which no longer exist in the enum — the list could never filter by status.
+  { value: "pending", label: "Pending" },
+  { value: "hold", label: "On hold" },
+  { value: "approved", label: "Approved" },
   { value: "rejected", label: "Rejected" },
 ];
 
