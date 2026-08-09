@@ -11,6 +11,8 @@ import type {
   AssignLeadOwnerRequest,
   ConvertLeadRequest,
   ConvertLeadResponse,
+  AssignableUser,
+  ListAssignableUsersQuery,
 } from "@repo/types";
 import type { ApiClient } from "../http/client.js";
 import { toQueryString } from "../http/query.js";
@@ -29,6 +31,20 @@ export class LeadsApi {
   /** GET /api/v1/crm/leads/:id */
   async get(id: string): Promise<LeadDetail> {
     return this.client.request<LeadDetail>("GET", `/api/v1/crm/leads/${id}`);
+  }
+
+  /**
+   * GET /api/v1/crm/leads/assignable-users — the staff a lead can be handed to.
+   *
+   * Requires only `leads.view`, not `users.view`, so a counsellor or marketing rep can
+   * populate an owner picker. Returns the full (headcount-sized) list unpaginated; filter
+   * with `search` for large teams.
+   */
+  async listAssignableUsers(query: ListAssignableUsersQuery = {}): Promise<AssignableUser[]> {
+    return this.client.request<AssignableUser[]>(
+      "GET",
+      `/api/v1/crm/leads/assignable-users${toQueryString(query)}`,
+    );
   }
 
   /**

@@ -61,6 +61,7 @@ import { generateCsrfToken } from "../auth/lib/cookies";
 import { CommerceService } from "../commerce/commerce.service";
 import { CAPTCHA_PROVIDER, type CaptchaProvider } from "../captcha/providers/captcha/captcha-provider.interface";
 import { PublicBookingRateLimiter } from "../leads/lib/public-booking-rate-limiter";
+import { NotificationsService } from "../notifications/notifications.service";
 import { ARGON2_HASH_OPTIONS } from "../auth/lib/argon2-params";
 import { validateEnv } from "../../config/env";
 import type { CreateOrderRequest, VerifyPaymentRequest } from "../commerce/dto";
@@ -148,6 +149,9 @@ export class PublicFunnelService {
     private readonly commerceService: CommerceService,
     @Inject(CAPTCHA_PROVIDER) private readonly captchaProvider: CaptchaProvider,
     private readonly rateLimiter: PublicBookingRateLimiter,
+    // Staff-facing only: used to tell the round-robin-assigned rep that an inbound
+    // lead just landed on their desk. No public visitor is ever notified from here.
+    private readonly notifications: NotificationsService,
   ) {}
 
   private async resolveTenantId(): Promise<string> {
@@ -245,6 +249,28 @@ export class PublicFunnelService {
       after: { source: dto.source, phone: dto.phone },
       ip: null, // raw IP never in audit (ip_hash is in consent)
     });
+
+    // Ring the assigned rep's bell. This is the case that matters most: a website lead is
+    // the one nobody in the CRM is watching for, and the round-robin has just silently
+    // put it on somebody's desk. Deliberately non-fatal — a public visitor must still get
+    // their "thanks, we'll call you" even if the internal notification write fails.
+    if (ownerId) {
+      try {
+        await this.notifications.notifyLeadAssigned(ownerId, tenantId, {
+          leadId,
+          leadName: dto.name,
+          leadPhone: dto.phone,
+          leadSource: dto.source,
+          assignedByName: "Auto-assignment",
+        });
+      } catch (error) {
+        this.logger.warn(
+          `[PublicFunnel] Lead ${leadId} assigned to ${ownerId} but the notification failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
 
     // Enqueue confirmation event (P6 owns the actual sending)
     // For P5: this is a stub — BullMQ integration lands in P6

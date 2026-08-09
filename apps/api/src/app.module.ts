@@ -255,6 +255,12 @@ export class AppModule implements NestModule {
         // pre-session — CSRF only protects routes a browser ALREADY has a session
         // cookie for; IP-rate-limited instead, same as /auth/login).
         "auth/2fa/login-verify",
+        // 2FA recovery ("lost my authenticator") — same pre-session posture as the two
+        // password-reset routes above: the caller cannot complete a login, so no CSRF
+        // cookie exists to check. Both are IP-rate-limited (AuthIpRateLimitGuard) AND
+        // per-email rate-limited inside TwoFactorRecoveryService.
+        "auth/2fa/recovery/request",
+        "auth/2fa/recovery/confirm",
       )
       .forRoutes("*");
   }

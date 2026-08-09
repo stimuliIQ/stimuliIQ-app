@@ -35,14 +35,13 @@ import {
   RevenueReportQuerySchema,
   EnrollmentTrendQuerySchema,
   FunnelReportQuerySchema,
-  AttendanceReportQuerySchema,
   EngagementReportQuerySchema,
   CampaignPerformanceQuerySchema,
   GamificationParticipationQuerySchema,
   ForumHealthReportQuerySchema,
 } from "./reports.schemas.js";
 import { ListStudentsQuerySchema } from "./students.schemas.js";
-import { ListLeadsQuerySchema } from "./leads.schemas.js";
+import { ListLeadsQueryBaseSchema } from "./leads.schemas.js";
 import { ListPaymentsQuerySchema } from "../commerce/payments.schemas.js";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -58,7 +57,6 @@ export const ExportEntityTypeSchema = z.enum([
   "revenue",
   "enrollments",
   "funnel",
-  "attendance",
   "engagement",
   "campaigns",
   "gamification",
@@ -118,8 +116,13 @@ function entityExportVariant<TType extends string, TParams extends z.ZodTypeAny>
 export const ExportStudentsParamsSchema = ListStudentsQuerySchema.omit({ page: true, pageSize: true });
 export type ExportStudentsParams = z.infer<typeof ExportStudentsParamsSchema>;
 
-/** Export params for the leads entity list — same filters as GET /crm/leads, minus pagination. */
-export const ExportLeadsParamsSchema = ListLeadsQuerySchema.omit({ page: true, pageSize: true });
+/**
+ * Export params for the leads entity list — same filters as GET /crm/leads, minus
+ * pagination. Built off the BASE schema: the list query carries a `.superRefine()`
+ * (owner filters are mutually exclusive) and `.omit()` does not exist on a ZodEffects.
+ * The exclusivity rule is re-applied by the exports service against the resolved filters.
+ */
+export const ExportLeadsParamsSchema = ListLeadsQueryBaseSchema.omit({ page: true, pageSize: true });
 export type ExportLeadsParams = z.infer<typeof ExportLeadsParamsSchema>;
 
 /** Export params for the payments entity list — same filters as GET /crm/payments, minus pagination. */
@@ -138,7 +141,6 @@ export const CreateExportRequestDtoSchema = z.discriminatedUnion("type", [
   reportExportVariant("revenue", RevenueReportQuerySchema),
   reportExportVariant("enrollments", EnrollmentTrendQuerySchema),
   reportExportVariant("funnel", FunnelReportQuerySchema),
-  reportExportVariant("attendance", AttendanceReportQuerySchema),
   reportExportVariant("engagement", EngagementReportQuerySchema),
   reportExportVariant("campaigns", CampaignPerformanceQuerySchema),
   reportExportVariant("gamification", GamificationParticipationQuerySchema),
@@ -260,7 +262,6 @@ export const CreateReportScheduleDtoSchema = z.discriminatedUnion("type", [
   reportScheduleVariant("revenue", RevenueReportQuerySchema),
   reportScheduleVariant("enrollments", EnrollmentTrendQuerySchema),
   reportScheduleVariant("funnel", FunnelReportQuerySchema),
-  reportScheduleVariant("attendance", AttendanceReportQuerySchema),
   reportScheduleVariant("engagement", EngagementReportQuerySchema),
   reportScheduleVariant("campaigns", CampaignPerformanceQuerySchema),
   reportScheduleVariant("gamification", GamificationParticipationQuerySchema),

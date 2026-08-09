@@ -18,7 +18,6 @@ import type {
   RevenueReportDto,
   EnrollmentTrendDto,
   FunnelReportDto,
-  AttendanceReportDto,
   EngagementReportDto,
   CampaignPerformanceDto,
   GamificationParticipationDto,
@@ -59,13 +58,6 @@ export function funnelRows(dto: FunnelReportDto): RowSet {
   };
 }
 
-export function attendanceRows(dto: AttendanceReportDto): RowSet {
-  const headers = ["batchId", "batchName", "presentCount", "totalCount", "attendancePercent"];
-  if (dto.perBatch) {
-    return { headers, rows: dto.perBatch.map((b) => [b.batchId, b.batchName, b.presentCount, b.totalCount, b.attendancePercent]) };
-  }
-  return { headers, rows: [[dto.batchId, "", dto.presentCount, dto.totalCount, dto.attendancePercent]] };
-}
 
 export function engagementRows(dto: EngagementReportDto): RowSet {
   return {

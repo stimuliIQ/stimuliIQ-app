@@ -44,6 +44,26 @@ export function useLeadsList(query: ListLeadsQuery) {
   });
 }
 
+/**
+ * The staff a lead can be assigned to (owner pickers, bulk assign, filters).
+ *
+ * Cached for 5 minutes and kept OUT of `LEADS_QUERY_KEY` on purpose: it changes only
+ * when staff are hired or deactivated, so invalidating it on every lead mutation would
+ * refetch the whole team list each time somebody logs a call. `openLeadCount` does drift
+ * within that window — it is a "who's busy" hint on the picker, not a number anyone acts
+ * on precisely, and the performance report is the place to read real workload.
+ */
+export const ASSIGNABLE_USERS_QUERY_KEY = ["leads", "assignable-users"] as const;
+
+export function useAssignableUsers(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ASSIGNABLE_USERS_QUERY_KEY,
+    queryFn: () => apiClient.crm.leads.listAssignableUsers(),
+    staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
+  });
+}
+
 export function useLead(id: string | undefined) {
   return useQuery({
     queryKey: leadDetailKey(id ?? ""),

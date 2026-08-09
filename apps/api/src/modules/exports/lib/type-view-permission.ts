@@ -19,7 +19,6 @@ export const TYPE_VIEW_PERMISSION: Record<ExportEntityType, string> = {
   revenue: "reports.revenue.view",
   enrollments: "reports.enrollment.view",
   funnel: "reports.funnel.view",
-  attendance: "reports.attendance.view",
   engagement: "reports.engagement.view",
   campaigns: "reports.campaigns.view",
   gamification: "reports.gamification.view",

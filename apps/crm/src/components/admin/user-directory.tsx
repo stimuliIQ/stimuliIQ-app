@@ -3,7 +3,7 @@
 // branch-directory.tsx. RBAC-aware: Create/Edit/Deactivate gated on
 // users.create/users.edit/users.delete (super_admin + admin only).
 import * as React from "react";
-import { Pencil, Plus, UserX } from "lucide-react";
+import { KeyRound, Pencil, Plus, UserX } from "lucide-react";
 import {
   Button,
   ConfirmDialog,
@@ -22,9 +22,10 @@ import type { ListStaffUsersQuery, MeResponse, StaffUser, StaffUserStatus } from
 import { useStaffUsersList, useDeactivateStaffUser } from "../../hooks/use-staff-users";
 import { useRolesList } from "../../hooks/use-roles";
 import { useDebouncedValue } from "../../hooks/use-debounced-value";
-import { getModulePermissions } from "../../lib/permissions";
+import { getModulePermissions, hasPermission } from "../../lib/permissions";
 import { surfaceError } from "../../lib/surface-error";
 import { UserFormDrawer } from "./user-form-drawer";
+import { ClearTwoFactorDrawer } from "./clear-two-factor-drawer";
 
 const STATUS_OPTIONS: { value: StaffUserStatus; label: string }[] = [
   { value: "active", label: "Active" },
@@ -55,6 +56,10 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editingUser, setEditingUser] = React.useState<StaffUser | null>(null);
   const [deactivatingUser, setDeactivatingUser] = React.useState<StaffUser | null>(null);
+  const [clearingTwoFactorUser, setClearingTwoFactorUser] = React.useState<StaffUser | null>(null);
+  // Separate module from `users.*` — see ClearTwoFactorDrawer's header for why this is
+  // its own permission rather than part of users.edit.
+  const canResetTwoFactor = hasPermission(me?.permissions, "twofa.reset");
 
   const debouncedSearch = useDebouncedValue(search);
   const pageSize = 20;
@@ -213,6 +218,20 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
                 <Pencil className="size-4" aria-hidden="true" />
               </Button>
             ) : null}
+            {/* `twofa.reset` (super_admin/admin only), never the own-scope `twofa.manage`
+                every role holds. Hidden for yourself: the API forbids self-clearing, so
+                an admin who lost their own device uses the sign-in recovery link. */}
+            {canResetTwoFactor && row.id !== me?.user.id ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Clear two-factor authentication for ${row.name}`}
+                onClick={() => setClearingTwoFactorUser(row)}
+                data-testid="user-clear-2fa-row-button"
+              >
+                <KeyRound className="size-4 text-warning" aria-hidden="true" />
+              </Button>
+            ) : null}
             {permissions.canDelete && row.status !== "deactivated" && row.id !== me?.user.id ? (
               <Button
                 variant="ghost"
@@ -226,6 +245,13 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
             ) : null}
           </span>
         )}
+      />
+
+      <ClearTwoFactorDrawer
+        user={clearingTwoFactorUser}
+        onOpenChange={(open) => {
+          if (!open) setClearingTwoFactorUser(null);
+        }}
       />
 
       <UserFormDrawer open={createOpen} onOpenChange={setCreateOpen} />

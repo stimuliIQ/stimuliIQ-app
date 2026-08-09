@@ -4,11 +4,9 @@
 //   - Overall progress summary (total lessons completed / total across all programs)
 //   - Per-program ProgressRing + title + status
 //   - Per-module ProgressBar breakdown within each program
-//   - Attendance summary (P3: recorded attendance only — source=recorded)
 //
 // Data:
 //   - useMyProgress() → GET /api/v1/me/progress (MyProgressResponse)
-//   - useMyAttendance() → GET /api/v1/me/attendance (MyAttendanceResponse)
 //
 // Loading / empty / error states per CLAUDE.md §3 / docs/04 §3.6.
 // CLAUDE.md §3: "no business logic in components — use hooks/services".
@@ -28,11 +26,10 @@ import {
   Skeleton,
   ProgressRing,
   ProgressBar,
-  StatusChip,
 } from "@repo/ui";
-import type { ProgramProgressDetail, AttendanceSummary } from "@repo/types";
+import type { ProgramProgressDetail } from "@repo/types";
 
-import { useMyProgress, useMyAttendance } from "../../hooks/use-my-progress";
+import { useMyProgress } from "../../hooks/use-my-progress";
 import { GamificationSection } from "./gamification-section";
 import { useMe } from "../../hooks/use-me";
 
@@ -73,74 +70,6 @@ function ProgressSkeleton(): React.JSX.Element {
         </div>
       ))}
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Attendance section
-// ---------------------------------------------------------------------------
-
-function AttendanceSummarySection({
-  summaries,
-}: {
-  summaries: AttendanceSummary[];
-}): React.JSX.Element | null {
-  if (summaries.length === 0) return null;
-
-  return (
-    <section aria-labelledby="attendance-heading" className="mt-8" data-testid="attendance-section">
-      <h2
-        id="attendance-heading"
-        className="mb-3 text-sm font-semibold uppercase tracking-wide text-fg-muted"
-      >
-        Attendance (Recorded lessons)
-      </h2>
-      <ul className="flex flex-col gap-3" aria-label="Attendance by program">
-        {summaries.map((summary) => (
-          <li
-            key={summary.enrollmentId}
-            className="rounded-lg border border-border bg-card p-4"
-            data-testid="attendance-summary-item"
-          >
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <span className="text-sm font-medium text-fg line-clamp-1">
-                {summary.programTitle}
-              </span>
-              <StatusChip
-                tone={
-                  summary.attendancePct >= 75
-                    ? "success"
-                    : summary.attendancePct >= 50
-                    ? "warning"
-                    : "danger"
-                }
-                label={`${summary.attendancePct}%`}
-                size="sm"
-              />
-            </div>
-            <ProgressBar
-              value={summary.attendancePct}
-              label={`Attendance for ${summary.programTitle}`}
-              size="sm"
-              tone={
-                summary.attendancePct >= 75
-                  ? "success"
-                  : summary.attendancePct >= 50
-                  ? "warning"
-                  : "danger"
-              }
-              showLabel={false}
-            />
-            <p className="mt-1.5 text-xs text-fg-muted">
-              {summary.totalRecorded} of {summary.totalLessons} recorded lessons completed
-            </p>
-          </li>
-        ))}
-      </ul>
-      <p className="mt-2 text-xs text-fg-subtle">
-        P3: recorded attendance only.
-      </p>
-    </section>
   );
 }
 
@@ -274,16 +203,15 @@ function OverallSummary({
 /**
  * ProgressContent — the main content for /progress.
  *
- * Renders per-program progress rings + module breakdowns + attendance summary.
+ * Renders per-program progress rings + module breakdowns.
  * Handles loading / empty / error / signed-out states.
  */
 export function ProgressContent(): React.JSX.Element {
   const progress = useMyProgress();
-  const attendance = useMyAttendance();
   const { me } = useMe();
 
   // ── Signed-out (either query) ────────────────────────────────────────────
-  if (progress.isSignedOut || attendance.isSignedOut) {
+  if (progress.isSignedOut) {
     return (
       <Card data-testid="progress-signed-out">
         <CardHeader>
@@ -376,21 +304,6 @@ export function ProgressContent(): React.JSX.Element {
         </ul>
       </section>
 
-      {/* Attendance section */}
-      {attendance.isLoading ? (
-        <div
-          role="status"
-          aria-busy="true"
-          aria-label="Loading attendance"
-          className="space-y-2 mt-4"
-          data-testid="attendance-loading"
-        >
-          <Skeleton shape="line" className="h-4 w-32" />
-          <Skeleton shape="block" className="h-16 w-full" />
-        </div>
-      ) : attendance.data && attendance.data.summaries.length > 0 ? (
-        <AttendanceSummarySection summaries={attendance.data.summaries} />
-      ) : null}
 
       {/* P6: Gamification section — points, badges, streak, opt-in leaderboard */}
       <section aria-labelledby="gamification-heading" data-testid="progress-gamification">

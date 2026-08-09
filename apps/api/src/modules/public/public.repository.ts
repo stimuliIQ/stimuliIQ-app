@@ -647,6 +647,13 @@ export class PublicRepository {
         fbclid: data.fbclid,
         consent: data.consent as Prisma.InputJsonValue,
         ownerId: data.ownerId ?? null,
+        // createdById stays NULL by construction: this row came from the public site, not
+        // from a member of staff. That NULL is what the performance report reads as
+        // "inbound" rather than "created by nobody".
+        // assignedAt must be stamped here even though the assignment was automatic —
+        // without it, every website lead (i.e. most leads) would look permanently
+        // unassigned to the time-to-assignment metric.
+        assignedAt: data.ownerId ? new Date() : null,
         stage: "new",
       },
     });

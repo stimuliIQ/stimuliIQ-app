@@ -270,6 +270,10 @@ enum NotificationType {
   booking_confirmation
   payment_receipt
   welcome
+  // Staff-facing: "a lead was just assigned to you". In-app only by default
+  // (see DEFAULT_PREFS_MATRIX in notifications.service.ts) — assignment is a
+  // work-queue signal, not something worth an email per lead.
+  lead_assigned
 }
 
 // NotificationChannel: the delivery channel used (stored in notifications.channels JSON
@@ -645,6 +649,11 @@ model User {
   facultyProfile      FacultyProfile?
   // Phase-2: user as lead owner, refund actor, activity actor
   ownedLeads          Lead[]          @relation("LeadOwner")
+  // Lead accountability (lead-ownership pass): who keyed a lead in, and who handed
+  // it to its current owner. Both nullable — public/web leads have no staff creator,
+  // and a round-robin assignment has no human assigner.
+  createdLeads        Lead[]          @relation("LeadCreatedBy")
+  assignedLeads       Lead[]          @relation("LeadAssignedBy")
   requestedRefunds    Refund[]        @relation("RefundRequestedBy")
   approvedRefunds     Refund[]        @relation("RefundApprovedBy")
   activities          Activity[]
@@ -1494,6 +1503,28 @@ model Lead {
   // Set when a won lead is converted to a student (atomic, audited).
   convertedStudentId String?   @unique @map("converted_student_id") @db.Uuid
 
+  // ── Lead accountability + response-time columns (lead-ownership pass) ──────────────
+  // The audit log already records WHO changed WHAT, but it is a slow, admin-only,
+  // append-only table — useless for a per-rep performance report that has to aggregate
+  // thousands of leads. These denormalised columns make "who created it / who assigned
+  // it / how fast did we respond" a single indexed query instead of an audit-log scan.
+  //   created_by_id:      staff user who keyed this lead in. NULL for public/web leads
+  //                       (marketing site forms, book-a-slot, newsletter) — a NULL here
+  //                       means "inbound", it is not a missing value.
+  //   assigned_by_id:     staff user who set the CURRENT owner. NULL when the owner was
+  //                       picked by round-robin (nobody assigned it by hand).
+  //   assigned_at:        when the current owner was set. Powers "time to assignment"
+  //                       and the "new to you" ordering on the owner's queue.
+  //   first_contacted_at: first time ANY call/whatsapp/email/note activity was logged
+  //                       against this lead. Write-once (never overwritten) — this is
+  //                       the numerator of the first-response-time metric.
+  //   last_activity_at:   most recent logged activity. Drives the "going cold" sort.
+  createdById      String?   @map("created_by_id") @db.Uuid
+  assignedById     String?   @map("assigned_by_id") @db.Uuid
+  assignedAt       DateTime? @map("assigned_at")
+  firstContactedAt DateTime? @map("first_contacted_at")
+  lastActivityAt   DateTime? @map("last_activity_at")
+
   // ── Phase-5 attribution + consent columns (docs/plans/phase-5.md §2) ────────────────
   // These extend `utm` Json (already present) without duplicating it.
   // landing_url: the full URL of the page the lead first landed on (max ~2048 chars).
@@ -1533,6 +1564,8 @@ model Lead {
   branch             Branch?             @relation(fields: [branchId], references: [id])
   programInterest    Program?            @relation(fields: [programInterestId], references: [id])
   owner              User?               @relation("LeadOwner", fields: [ownerId], references: [id])
+  createdBy          User?               @relation("LeadCreatedBy", fields: [createdById], references: [id])
+  assignedBy         User?               @relation("LeadAssignedBy", fields: [assignedById], references: [id])
   convertedStudent   StudentProfile?     @relation("LeadConvertedStudent", fields: [convertedStudentId], references: [id])
   activities         Activity[]
   bookings           Booking[]
@@ -1544,6 +1577,10 @@ model Lead {
   @@index([tenantId, stage, ownerId])
   @@index([slaDueAt])
   @@index([phone])
+  // Per-rep performance report: "leads created by X in [from,to]" and
+  // "leads assigned to X in [from,to]" are both single index scans.
+  @@index([tenantId, createdById, createdAt])
+  @@index([tenantId, ownerId, assignedAt])
   @@map("leads")
 }
 
@@ -1685,6 +1722,27 @@ model LessonProgress {
   @@map("lesson_progress")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// RETIRED — the attendance FEATURE was removed from the product.
+//
+// The table, its two enums and `mv_attendance_daily` are deliberately KEPT so the
+// historical rows survive: the removal was code-only, with no dropping migration. Do not
+// treat this model as live surface area.
+//
+// What no longer exists: the CRM roster + attendance editor, the Student 360 attendance
+// tab, the attendance analytics dashboard and report, the attendance export/report type,
+// `GET /me/attendance`, and the recorded-attendance write that used to fire inside
+// POST /me/lessons/:id/complete.
+//
+// THE ONE REMAINING WRITER is LiveClassesRepository.upsertLiveAttendance — live-class
+// `participant_joined` webhooks still record who joined a session, kept on purpose as a
+// join log (the rest of the feature went; this did not). Nothing reads those rows in the
+// product today. A dedicated `live_class_participants` table is the intended replacement;
+// until then this table is where that data lands.
+//
+// If you are adding an attendance feature back, do not build on this model without first
+// checking what shape the join log has grown into.
+// ─────────────────────────────────────────────────────────────────────────────
 // Attendance — per-enrollment session attendance.
 // P3 scope: source=recorded only (source=live deferred — live_classes table not created).
 // live_class_id: nullable UUID (no FK constraint yet — live_classes table doesn't exist

@@ -17,6 +17,8 @@ export * from "./common/health.schemas.js";
 export * from "./auth/auth.schemas.js";
 // Two-factor auth (TOTP) — Phase-9-completion gap #8, promoted from apps/api-local schemas.
 export * from "./auth/two-factor.schemas.js";
+// Two-factor RECOVERY — email-OTP self-service + the `twofa.reset` admin rescue path.
+export * from "./auth/two-factor-recovery.schemas.js";
 
 // CRM core (Phase 1, Wave 2 — docs/plans/phase-1.md task #2).
 export * from "./crm/students.schemas.js";
@@ -48,7 +50,6 @@ export * from "./lms/enrollments.schemas.js";
 export * from "./lms/curriculum.schemas.js";
 export * from "./lms/lessons.schemas.js";
 export * from "./lms/progress.schemas.js";
-export * from "./lms/attendance.schemas.js";
 
 // Learning depth (Phase 4, Wave 2 — docs/plans/phase-4.md task #2).
 // Assignments + Submissions + Projects (kind=project + milestones).

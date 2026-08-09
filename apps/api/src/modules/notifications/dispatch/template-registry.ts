@@ -355,6 +355,44 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
     whatsappBody: "Welcome to *${BRAND_NAME}*, {{userName}}! Your account is ready. Visit {{lmsUrl}} to start learning.",
     whatsappDltTemplateId: "DLT_PENDING",
   },
+
+  // ─── lead_assigned (STAFF-facing) ────────────────────────────────────────
+  // Every other template in this map is written TO A STUDENT. This one is written to a
+  // colleague, so it drops the marketing voice entirely and leads with the two facts the
+  // rep needs to act: the name and the phone number.
+  //
+  // The email/sms/whatsapp bodies exist because renderAll() renders all four channels
+  // unconditionally, NOT because they are sent — DEFAULT_PREFS_MATRIX disables email for
+  // this type and sms/whatsapp are off for every type by default. They are the fallback
+  // wording for a rep who deliberately opts a channel on, so they are written to be
+  // correct rather than left as placeholders. `lmsUrl` is deliberately absent: staff live
+  // in the CRM, and pointing them at the student portal would be a dead end.
+  lead_assigned: {
+    inAppBody: "New lead assigned to you: {{leadName}} ({{leadPhone}}) — from {{leadSource}}.",
+
+    emailSubject: "New lead assigned to you: {{leadName}}",
+    emailBody: renderBrandedEmail({
+      title: "A lead is waiting for you",
+      greeting: "Hi,",
+      paragraphs: [
+        "<strong>{{leadName}}</strong> has been assigned to you by {{assignedByName}}. Open the CRM to log your first call.",
+      ],
+      details: [
+        { label: "Name", value: "{{leadName}}" },
+        { label: "Phone", value: "{{leadPhone}}" },
+        { label: "Source", value: "{{leadSource}}" },
+        { label: "Assigned by", value: "{{assignedByName}}" },
+      ],
+      unsubscribeUrl: "{{unsubscribeUrl}}",
+    }),
+
+    smsBody: `${BRAND_NAME}: New lead assigned to you — {{leadName}}, {{leadPhone}} (source: {{leadSource}}).`,
+    smsDltTemplateId: "DLT_PENDING",
+
+    whatsappTemplateName: "lead_assigned_notification",
+    whatsappBody: "New lead assigned to you: *{{leadName}}* — {{leadPhone}} (source: {{leadSource}}).",
+    whatsappDltTemplateId: "DLT_PENDING",
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

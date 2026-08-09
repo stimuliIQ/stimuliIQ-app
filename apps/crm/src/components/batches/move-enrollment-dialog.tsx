@@ -26,7 +26,10 @@ export function MoveEnrollmentDialog({
   const [toBatchId, setToBatchId] = React.useState<string | undefined>(undefined);
   const moveEnrollment = useMoveEnrollment();
 
-  const { data, isLoading } = useBatchesList({ page: 1, pageSize: 200, includeDeleted: false });
+  // `enrollable` — moving a student INTO a finished batch is the same mistake as
+  // enrolling them into one, so the destination list excludes closed/expired batches
+  // (the batch being moved OUT of is filtered separately, below).
+  const { data, isLoading } = useBatchesList({ page: 1, pageSize: 200, includeDeleted: false, enrollable: true });
 
   React.useEffect(() => {
     if (!open) setToBatchId(undefined);

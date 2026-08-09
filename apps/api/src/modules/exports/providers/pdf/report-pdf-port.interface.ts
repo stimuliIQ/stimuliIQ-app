@@ -7,7 +7,7 @@
 // directly) because the two ports render structurally different documents — a
 // certificate has a fixed decorative layout; a report PDF is a generic
 // title + metadata + tabular-rows summary reused across all 8 report-backed export
-// types (revenue/enrollments/funnel/attendance/engagement/campaigns/gamification/
+// types (revenue/enrollments/funnel/engagement/campaigns/gamification/
 // forum-health). Both ports share the same DI-token/module/adapter-selection shape so
 // a future BullMQ migration (ADR-0020 pattern) applies identically to either.
 //

@@ -54,7 +54,15 @@ const ROW: EnrollmentRow = {
   deletedAt: null,
 };
 
-const BATCH = { id: "batch-1", programId: "program-1", branchId: "branch-hyderabad", facultyId: "faculty-1", capacity: 30 };
+const BATCH = {
+  id: "batch-1",
+  programId: "program-1",
+  branchId: "branch-hyderabad",
+  facultyId: "faculty-1",
+  capacity: 30,
+  status: "active" as const,
+  endDate: null as Date | null,
+};
 
 function runWithScope<T>(scope: ScopeContext["scope"], actorId: string, fn: () => T): T {
   const ctx: ScopeContext = { permissionKey: "enrollments.view", scope, actorId, tenantId: "tenant-1" };
@@ -154,6 +162,67 @@ describe("EnrollmentsService", () => {
 
       const dto = await runWithScope("branch", "manager-1", () => service.getById("tenant-1", "manager-1", ROW.id));
       expect(dto.id).toBe(ROW.id);
+    });
+  });
+
+  // CLOSED-BATCH gate: the CRM's pickers already hide finished batches, but the rule has
+  // to hold server-side or a direct API call still lands a student in a finished cohort.
+  describe("enroll — closed/expired batch gate", () => {
+    beforeEach(() => {
+      repo.studentExists.mockResolvedValue(true);
+      repo.countActiveEnrollments.mockResolvedValue(0);
+    });
+
+    const enroll = () =>
+      runWithScope("all", "admin-1", () =>
+        service.enroll("tenant-1", "admin-1", { studentId: "student-1", batchId: "batch-1", autoSpillOnFull: false }),
+      );
+
+    it.each(["completed", "archived"] as const)("rejects a %s batch", async (status) => {
+      repo.findBatchForEnrollment.mockResolvedValue({ ...BATCH, status });
+
+      await expect(enroll()).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.enrollOrRestore).not.toHaveBeenCalled();
+    });
+
+    it("rejects a batch still marked active whose end date has passed (the window before the sweep runs)", async () => {
+      repo.findBatchForEnrollment.mockResolvedValue({
+        ...BATCH,
+        status: "active",
+        endDate: new Date("2020-01-01T00:00:00Z"),
+      });
+
+      await expect(enroll()).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.enrollOrRestore).not.toHaveBeenCalled();
+    });
+
+    it("allows an open-ended batch (no end date)", async () => {
+      repo.findBatchForEnrollment.mockResolvedValue({ ...BATCH, status: "active", endDate: null });
+      repo.enrollOrRestore.mockResolvedValue({ id: "enrollment-1", restored: false });
+      repo.findById.mockResolvedValue(ROW);
+
+      await expect(enroll()).resolves.toBeDefined();
+      expect(repo.enrollOrRestore).toHaveBeenCalled();
+    });
+
+    it("allows a batch whose end date is still in the future", async () => {
+      repo.findBatchForEnrollment.mockResolvedValue({
+        ...BATCH,
+        status: "active",
+        endDate: new Date("2099-01-01T00:00:00Z"),
+      });
+      repo.enrollOrRestore.mockResolvedValue({ id: "enrollment-1", restored: false });
+      repo.findById.mockResolvedValue(ROW);
+
+      await expect(enroll()).resolves.toBeDefined();
+    });
+
+    it("allows a PLANNED batch — not yet started is not the same as closed", async () => {
+      repo.findBatchForEnrollment.mockResolvedValue({ ...BATCH, status: "planned", endDate: null });
+      repo.enrollOrRestore.mockResolvedValue({ id: "enrollment-1", restored: false });
+      repo.findById.mockResolvedValue(ROW);
+
+      await expect(enroll()).resolves.toBeDefined();
     });
   });
 

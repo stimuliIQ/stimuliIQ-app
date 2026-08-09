@@ -246,4 +246,5 @@ Do **not** jump ahead. Each phase ends with tests green + a demo path.
 | Page-builder spec (blocks, ACs, edge cases — authoring UX superseded by P11) | `docs/specs/phase-10-page-builder.md` |
 | Locked page-templates plan (P11) | `docs/plans/phase-11-locked-templates.md` |
 | Onboarding form spec (CRM-authored questions, subdomain) | `docs/specs/onboarding-form.md` |
+| Lead ownership + accountability (assignment notify, owner picker, per-rep report) | `docs/specs/lead-ownership-accountability.md` |
 | Agent roster & protocol | `.claude/agents/README.md` |

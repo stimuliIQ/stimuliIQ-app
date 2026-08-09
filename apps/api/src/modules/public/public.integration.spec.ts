@@ -89,6 +89,15 @@ function makeLeadsRepo(ownerId: string | null = null) {
   return { pickRoundRobinOwner: jest.fn().mockResolvedValue(ownerId) };
 }
 
+/**
+ * Staff-facing "a lead was assigned to you" notification. The public funnel fires this
+ * after a round-robin pick; it is deliberately non-fatal, so the default here resolves
+ * and the public response is asserted independently of it.
+ */
+function makeNotificationsService() {
+  return { notifyLeadAssigned: jest.fn().mockResolvedValue(undefined) };
+}
+
 // ─── env mock ─────────────────────────────────────────────────────────────────
 
 jest.mock("../../config/env", () => ({
@@ -369,6 +378,7 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
         makeCommerceService() as never,
         makePassingCaptcha() as never,
         makeRateLimiter() as never,
+        makeNotificationsService() as never,
       );
 
       // Override getTenantIdBySlug to use real tenantId
@@ -431,6 +441,7 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
         makeCommerceService() as never,
         makeFailingCaptcha() as never,
         makeRateLimiter() as never,
+        makeNotificationsService() as never,
       );
 
       await expect(funnelSvc.verifyCaptcha("bad-token", "1.2.3.4")).rejects.toThrow(
@@ -473,6 +484,7 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
         makeCommerceService() as never,
         makePassingCaptcha() as never,
         makeRateLimiter() as never,
+        makeNotificationsService() as never,
       );
       jest.spyOn(repo, "getTenantIdBySlug").mockResolvedValue(tenantId);
 
@@ -507,6 +519,7 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
         makeCommerceService() as never,
         makePassingCaptcha() as never,
         makeRateLimiter() as never,
+        makeNotificationsService() as never,
       );
       jest.spyOn(repo, "getTenantIdBySlug").mockResolvedValue(tenantId);
 
@@ -532,6 +545,7 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
         makeCommerceService() as never,
         makePassingCaptcha() as never,
         makeRateLimiter() as never,
+        makeNotificationsService() as never,
       );
       jest.spyOn(repo, "getTenantIdBySlug").mockResolvedValue(tenantId);
 
@@ -585,6 +599,7 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
         makeCommerceService() as never,
         makePassingCaptcha() as never,
         makeRateLimiter() as never,
+        makeNotificationsService() as never,
       );
       jest.spyOn(repo, "getTenantIdBySlug").mockResolvedValue(tenantId);
 
@@ -666,6 +681,7 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
         makeCommerceService() as never,
         makePassingCaptcha() as never,
         makeRateLimiter() as never,
+        makeNotificationsService() as never,
       );
 
       // getTenantIdBySlug is called by resolveTenantId in initiateCheckout
@@ -713,6 +729,7 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
         makeCommerceService() as never,
         makePassingCaptcha() as never,
         makeRateLimiter() as never,
+        makeNotificationsService() as never,
       );
 
       jest.spyOn(repo, "getTenantIdBySlug").mockResolvedValue(tenantId);
@@ -765,6 +782,7 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
         commerceSvc as never,
         makePassingCaptcha() as never,
         makeRateLimiter() as never,
+        makeNotificationsService() as never,
       );
 
       jest.spyOn(repo, "getTenantIdBySlug").mockResolvedValue(tenantId);
@@ -804,6 +822,7 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
         commerceSvc as never,
         makePassingCaptcha() as never,
         makeRateLimiter() as never,
+        makeNotificationsService() as never,
       );
 
       jest.spyOn(repo, "getTenantIdBySlug").mockResolvedValue(tenantId);
@@ -845,6 +864,7 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
         makeCommerceService() as never,
         makePassingCaptcha() as never,
         makeRateLimiter(true) as never, // rate-limited
+        makeNotificationsService() as never,
       );
 
       await expect(funnelSvc.checkRateLimit("1.2.3.4", "public.rate_limited")).rejects.toThrow(

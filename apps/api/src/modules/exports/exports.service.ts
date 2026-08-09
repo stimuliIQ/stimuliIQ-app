@@ -10,7 +10,7 @@
 // This service NEVER re-implements a scope filter. For every exportable `type` it
 // calls the SAME already-scoped service method the matching on-screen dashboard/list
 // endpoint calls:
-//   revenue/enrollments/funnel/attendance/engagement/campaigns/gamification/
+//   revenue/enrollments/funnel/engagement/campaigns/gamification/
 //   forum-health -> AnalyticsService (the exact WS-A dashboard methods, task #7)
 //   students     -> StudentsService.list()      (students.controller.ts's own method)
 //   leads        -> LeadsService.list()         (leads.controller.ts's own method)
@@ -97,7 +97,6 @@ import {
   revenueRows,
   enrollmentsRows,
   funnelRows,
-  attendanceRows,
   engagementRows,
   campaignsRows,
   gamificationRows,
@@ -322,10 +321,6 @@ export class ExportsService {
       case "funnel": {
         const report = await this.analytics.getFunnel(tenantId, dto.params);
         return this.renderReport(dto.format, `Lead Funnel (${report.from} to ${report.to})`, report.asOf, report.stale, funnelRows(report));
-      }
-      case "attendance": {
-        const report = await this.analytics.getAttendance(tenantId, dto.params);
-        return this.renderReport(dto.format, "Attendance Report", report.asOf, report.stale, attendanceRows(report));
       }
       case "engagement": {
         const report = await this.analytics.getEngagement(tenantId, dto.params);

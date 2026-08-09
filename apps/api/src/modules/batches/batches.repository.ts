@@ -17,6 +17,7 @@
 import { Injectable } from "@nestjs/common";
 import type { Prisma, BatchStatus, ProgramMode } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { OPEN_BATCH_STATUSES, startOfTodayUtc } from "./lib/batch-expiry";
 
 export interface ListBatchesFilters {
   tenantId: string;
@@ -25,6 +26,8 @@ export interface ListBatchesFilters {
   branchId?: string;
   facultyId?: string;
   status?: BatchStatus;
+  /** Only batches a student can still be enrolled into — see ListBatchesQuerySchema.enrollable. */
+  enrollable?: boolean;
   includeDeleted: boolean;
   page: number;
   pageSize: number;
@@ -105,17 +108,29 @@ export class BatchesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(filters: ListBatchesFilters): Promise<{ rows: BatchRow[]; total: number }> {
-    // `branchId` (single, from the query string filter) and `restrictToBranchIds` (from the
-    // caller's scope restriction) both target the same column — combine via `AND` instead of
-    // letting one spread-override the other, otherwise a "branch"-scoped caller could pass a
-    // `branchId` query param that's NOT in their scope and Prisma would silently use only
-    // the last-spread key. Both are intersected here.
-    const branchIdConstraints: Prisma.BatchWhereInput[] = [];
+    // Constraints that must INTERSECT rather than overwrite each other. Spreading two
+    // conditions on the same column into one object silently keeps only the last, so
+    // anything that can collide goes in this AND list instead.
+    //
+    // `branchId` (from the query string) and `restrictToBranchIds` (from the caller's
+    // scope) both target branch_id — without this, a "branch"-scoped caller could pass a
+    // `branchId` outside their scope and Prisma would honour only the last-spread key.
+    // `enrollable` likewise constrains `status`, which the explicit `status` filter also
+    // sets below.
+    const andConstraints: Prisma.BatchWhereInput[] = [];
     if (filters.branchId) {
-      branchIdConstraints.push({ branchId: filters.branchId });
+      andConstraints.push({ branchId: filters.branchId });
     }
     if (filters.restrictToBranchIds) {
-      branchIdConstraints.push({ branchId: { in: filters.restrictToBranchIds } });
+      andConstraints.push({ branchId: { in: filters.restrictToBranchIds } });
+    }
+
+    // `enrollable`: an OPEN status and not past its end date (see
+    // ListBatchesQuerySchema.enrollable for why both halves are needed).
+    if (filters.enrollable) {
+      andConstraints.push({ status: { in: [...OPEN_BATCH_STATUSES] } });
+      // An open-ended batch (endDate null) never expires.
+      andConstraints.push({ OR: [{ endDate: null }, { endDate: { gte: startOfTodayUtc() } }] });
     }
 
     const where: Prisma.BatchWhereInput = {
@@ -128,7 +143,7 @@ export class BatchesRepository {
       // to actually opt out when `includeDeleted` is true (see findById() below).
       deletedAt: filters.includeDeleted ? undefined : null,
       ...(filters.restrictToIds ? { id: { in: filters.restrictToIds } } : {}),
-      ...(branchIdConstraints.length > 0 ? { AND: branchIdConstraints } : {}),
+      ...(andConstraints.length > 0 ? { AND: andConstraints } : {}),
       ...(filters.search ? { name: { contains: filters.search, mode: "insensitive" } } : {}),
     };
 
@@ -163,6 +178,61 @@ export class BatchesRepository {
       select: { branchId: true },
     });
     return rows.map((row) => row.branchId).filter((id): id is string => id !== null);
+  }
+
+  /**
+   * Every still-open batch whose end date has passed, across ALL tenants.
+   *
+   * Tenant-unscoped by design — the only caller is BatchAutoCloseScheduler, a system
+   * sweep with no request user to scope by. Every other method on this repository is
+   * scoped from `req.user.tenantId`; this one must never be reachable from a controller.
+   * `tenantId` is selected so the audit rows it produces land in the right tenant.
+   */
+  findExpiredOpenBatches(now: Date = new Date()): Promise<Array<{ id: string; tenantId: string; name: string; status: BatchStatus }>> {
+    return this.prisma.client.batch.findMany({
+      where: {
+        status: { in: [...OPEN_BATCH_STATUSES] },
+        endDate: { not: null, lt: startOfTodayUtc(now) },
+        deletedAt: null,
+      },
+      select: { id: true, tenantId: true, name: true, status: true },
+    });
+  }
+
+  /**
+   * Flips ONE expired batch to `completed`. Returns false if it no longer qualified.
+   *
+   * Compare-and-set on the status (`status: { in: OPEN }` in the where): if a human
+   * completed or archived the batch between the sweep's read and this write, the update
+   * matches 0 rows and we skip it — no clobbering someone's explicit action, and no
+   * audit row for a transition that did not happen. Mirrors the same guard
+   * BatchCompletionService.markComplete() uses for concurrent completion.
+   *
+   * `completedByUserId` stays null: nobody did this, the calendar did. That is what
+   * distinguishes an auto-close from a human completion in the audit trail.
+   */
+  async markExpiredComplete(batchId: string, completedAt: Date): Promise<boolean> {
+    const { count } = await this.prisma.client.batch.updateMany({
+      where: { id: batchId, status: { in: [...OPEN_BATCH_STATUSES] }, deletedAt: null },
+      data: { status: "completed", completedAt },
+    });
+    return count > 0;
+  }
+
+  /** Audit row for a system-initiated close (actorId null — see markExpiredComplete). */
+  async recordAutoCloseAudit(args: { tenantId: string; batchId: string; previousStatus: BatchStatus }): Promise<void> {
+    await this.prisma.client.auditLog.create({
+      data: {
+        tenantId: args.tenantId,
+        actorId: null,
+        entity: "Batch",
+        entityId: args.batchId,
+        action: "batch.auto_closed",
+        before: { status: args.previousStatus },
+        after: { status: "completed", reason: "end_date_passed" },
+        ip: null,
+      },
+    });
   }
 
   /** The caller's own faculty_profiles row id, used to resolve "assigned" scope. */

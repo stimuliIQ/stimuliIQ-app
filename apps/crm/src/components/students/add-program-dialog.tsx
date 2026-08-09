@@ -51,6 +51,10 @@ export function AddProgramDialog({ studentId, open, onOpenChange }: AddProgramDi
     page: 1,
     pageSize: programId ? 100 : 1,
     includeDeleted: false,
+    // Server-side: never offer a batch that has finished or been archived. Filtering
+    // here rather than over `batches` below also keeps the page of 100 full of usable
+    // options instead of padding it with closed ones.
+    enrollable: true,
   });
   const programs = programsData?.items ?? [];
   const batches = programId ? (batchesData?.items ?? []) : [];

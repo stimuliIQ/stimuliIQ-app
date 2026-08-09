@@ -78,7 +78,7 @@ function baseJobRow(overrides: Partial<ExportJobRow> = {}): ExportJobRow {
 
 describe("ExportsService", () => {
   let repo: jest.Mocked<Pick<ExportsRepository, "create" | "findById" | "list" | "markRunning" | "markSucceeded" | "markFailed" | "writeAuditLog">>;
-  let analytics: jest.Mocked<Pick<AnalyticsService, "getRevenue" | "getEnrollmentTrend" | "getFunnel" | "getAttendance" | "getEngagement" | "getCampaignPerformance" | "getGamificationParticipation" | "getForumHealth">>;
+  let analytics: jest.Mocked<Pick<AnalyticsService, "getRevenue" | "getEnrollmentTrend" | "getFunnel" | "getEngagement" | "getCampaignPerformance" | "getGamificationParticipation" | "getForumHealth">>;
   let studentsService: jest.Mocked<Pick<StudentsService, "list">>;
   let leadsService: jest.Mocked<Pick<LeadsService, "list">>;
   let commerceService: jest.Mocked<Pick<CommerceService, "listPayments">>;
@@ -104,7 +104,6 @@ describe("ExportsService", () => {
       getRevenue: jest.fn(),
       getEnrollmentTrend: jest.fn(),
       getFunnel: jest.fn(),
-      getAttendance: jest.fn(),
       getEngagement: jest.fn(),
       getCampaignPerformance: jest.fn(),
       getGamificationParticipation: jest.fn(),
@@ -311,6 +310,13 @@ describe("ExportsService", () => {
             branchName: null,
             ownerId: null,
             ownerName: null,
+            createdById: null,
+            createdByName: null,
+            assignedById: null,
+            assignedByName: null,
+            assignedAt: null,
+            firstContactedAt: null,
+            lastActivityAt: null,
             score: null,
             slaDueAt: null,
             convertedStudentId: null,

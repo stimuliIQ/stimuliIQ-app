@@ -25,12 +25,10 @@ vi.mock("@tanstack/react-router", () => ({
 const useRevenueReportMock = vi.fn();
 const useEnrollmentTrendReportMock = vi.fn();
 const useFunnelReportMock = vi.fn();
-const useAttendanceReportMock = vi.fn();
 vi.mock("../../hooks/use-reports", () => ({
   useRevenueReport: (...args: unknown[]) => useRevenueReportMock(...args),
   useEnrollmentTrendReport: (...args: unknown[]) => useEnrollmentTrendReportMock(...args),
   useFunnelReport: (...args: unknown[]) => useFunnelReportMock(...args),
-  useAttendanceReport: (...args: unknown[]) => useAttendanceReportMock(...args),
 }));
 
 const usePaymentsListMock = vi.fn();
@@ -58,7 +56,6 @@ beforeEach(() => {
   useRevenueReportMock.mockReturnValue(IDLE_QUERY);
   useEnrollmentTrendReportMock.mockReturnValue(IDLE_QUERY);
   useFunnelReportMock.mockReturnValue(IDLE_QUERY);
-  useAttendanceReportMock.mockReturnValue(IDLE_QUERY);
   usePaymentsListMock.mockReturnValue({ data: { items: [] }, isLoading: false, isError: false });
   useTicketsListMock.mockReturnValue({ data: { items: [] }, isLoading: false, isError: false });
 });
@@ -76,7 +73,6 @@ describe("OverviewDashboard — RBAC-aware rendering", () => {
     expect(screen.getByTestId("overview-kpi-revenue")).toBeInTheDocument();
     expect(screen.queryByTestId("overview-kpi-enrollment")).not.toBeInTheDocument();
     expect(screen.queryByTestId("overview-kpi-funnel")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("overview-kpi-attendance")).not.toBeInTheDocument();
     expect(screen.queryByTestId("overview-pending-payments")).not.toBeInTheDocument();
     expect(screen.queryByTestId("overview-open-tickets")).not.toBeInTheDocument();
   });
@@ -88,7 +84,6 @@ describe("OverviewDashboard — RBAC-aware rendering", () => {
           "reports.revenue.view",
           "reports.enrollment.view",
           "reports.funnel.view",
-          "reports.attendance.view",
           "payments.view",
           "tickets.view",
         ])}
@@ -97,7 +92,6 @@ describe("OverviewDashboard — RBAC-aware rendering", () => {
     expect(screen.getByTestId("overview-kpi-revenue")).toBeInTheDocument();
     expect(screen.getByTestId("overview-kpi-enrollment")).toBeInTheDocument();
     expect(screen.getByTestId("overview-kpi-funnel")).toBeInTheDocument();
-    expect(screen.getByTestId("overview-kpi-attendance")).toBeInTheDocument();
     expect(screen.getByTestId("overview-pending-payments")).toBeInTheDocument();
     expect(screen.getByTestId("overview-open-tickets")).toBeInTheDocument();
   });
@@ -122,7 +116,6 @@ describe("OverviewDashboard — a11y", () => {
           "reports.revenue.view",
           "reports.enrollment.view",
           "reports.funnel.view",
-          "reports.attendance.view",
           "payments.view",
           "tickets.view",
         ])}

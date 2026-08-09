@@ -198,7 +198,6 @@ export function useProgressReporting({
       // and the curriculum tree so sidebar completion checks stay current.
       void queryClient.invalidateQueries({ queryKey: ["lms", "dashboard"] });
       void queryClient.invalidateQueries({ queryKey: ["lms", "progress"] });
-      void queryClient.invalidateQueries({ queryKey: ["lms", "attendance"] });
       void queryClient.invalidateQueries({ queryKey: ["lms", "curriculum"] });
 
       toast({

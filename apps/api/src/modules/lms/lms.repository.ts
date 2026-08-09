@@ -13,7 +13,7 @@
 // want to include soft-deleted rows.
 
 import { Injectable } from "@nestjs/common";
-import type { Prisma, VideoStatus, AttendanceSource, AttendanceStatus } from "@prisma/client";
+import type { Prisma, VideoStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 
 // ─── Row types for service layer consumption ─────────────────────────────────
@@ -215,8 +215,7 @@ export class LmsRepository {
 
   /**
    * Find the faculty profile id for a given userId + tenantId. Used by the CRM
-   * attendance-editor's "assigned" scope check (staff correcting their own batch's
-   * attendance) — mirrors certificates.repository.ts's identically-named method.
+   * "assigned" scope check (staff acting on their own batch's records)
    */
   async findFacultyProfileId(tenantId: string, userId: string): Promise<string | null> {
     const row = await this.prisma.client.facultyProfile.findFirst({
@@ -228,7 +227,7 @@ export class LmsRepository {
 
   /**
    * Staff-scope enrollment lookup (unlike findEnrollmentByIdForStudent, NOT scoped to a
-   * single student — the CRM attendance editor looks up ANY enrollment by id, then the
+   * single student — staff look up ANY enrollment by id, then the
    * service layer applies the "assigned" scope check via EnrollmentScopeRepository).
    * TENANT-SCOPED. Returns null (caller 404s — no existence disclosure) if not found.
    */
@@ -245,7 +244,7 @@ export class LmsRepository {
 
   /**
    * Verify a lesson belongs to the given tenant + (indirectly) to the enrollment's
-   * program, via the module→program chain. Used by the CRM attendance editor to reject
+   * program, via the module→program chain. Used to reject
    * a lessonId that does not belong to the enrollment's program (defense-in-depth; the
    * FK alone would allow any tenant lesson).
    */
@@ -255,44 +254,6 @@ export class LmsRepository {
       select: { module: { select: { programId: true } } },
     });
     return row?.module.programId ?? null;
-  }
-
-  /**
-   * CRM attendance-editor write: staff sets/corrects a student's attendance for a
-   * (enrollment, lesson) pair. find-then-create/update on the SAME dedup key as the
-   * student self-service completion path (enrollment_id, lesson_id, source='recorded')
-   * — a staff correction supersedes (never duplicates) the auto-recorded row. Uses the
-   * AUDITED client (Attendance IS in AUDITED_MODELS — create/update both write an
-   * audit_logs row automatically, see apps/api/src/prisma/audit.extension.ts).
-   */
-  async upsertAttendanceForStaff(args: {
-    tenantId: string;
-    enrollmentId: string;
-    lessonId: string;
-    status: AttendanceStatus;
-  }): Promise<{ id: string; enrollmentId: string; lessonId: string | null; status: AttendanceStatus; source: AttendanceSource; markedAt: Date }> {
-    const existing = await this.prisma.client.attendance.findFirst({
-      where: { enrollmentId: args.enrollmentId, lessonId: args.lessonId, source: "recorded" },
-      select: { id: true },
-    });
-
-    const row = existing
-      ? await this.prisma.client.attendance.update({
-          where: { id: existing.id },
-          data: { status: args.status, markedAt: new Date() },
-        })
-      : await this.prisma.client.attendance.create({
-          data: {
-            tenantId: args.tenantId,
-            enrollmentId: args.enrollmentId,
-            lessonId: args.lessonId,
-            status: args.status,
-            source: "recorded",
-            markedAt: new Date(),
-          },
-        });
-
-    return { id: row.id, enrollmentId: row.enrollmentId, lessonId: row.lessonId, status: row.status, source: row.source, markedAt: row.markedAt };
   }
 
   /**
@@ -731,12 +692,11 @@ export class LmsRepository {
   }
 
   /**
-   * COMPLETION — upserts lesson_progress to completed + creates recorded attendance.
+   * COMPLETION — upserts lesson_progress to completed.
    * Called inside a $transaction on the AUDITED client (PrismaService.client).
    *
    * This method receives a transactional prisma client (tx) from the service's
    * $transaction call and uses it for all writes, so both the progress update and
-   * the attendance upsert are atomically committed together.
    *
    * Returns the final lesson_progress row.
    */
@@ -820,69 +780,6 @@ export class LmsRepository {
   }
 
   /**
-   * RECORDED ATTENDANCE UPSERT — creates one attendance row (source=recorded, status=present)
-   * per (enrollment_id, lesson_id). Idempotent: if the row already exists, no duplicate
-   * is created (the partial-unique index on (enrollment_id, lesson_id) WHERE source='recorded'
-   * enforces the invariant).
-   *
-   * Called inside the completion $transaction (same tx as markLessonCompleted).
-   *
-   * Approach: findFirst then create. If a duplicate is detected by the DB (rare concurrent
-   * completion of the same lesson), the unique constraint violation is caught and treated as
-   * a no-op (idempotent — the row already exists).
-   */
-  async upsertRecordedAttendance(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma extended client $transaction typing limitation
-    tx: Prisma.TransactionClient | any,
-    args: {
-      tenantId: string;
-      enrollmentId: string;
-      lessonId: string;
-    },
-  ): Promise<void> {
-    // Check if a recorded attendance row already exists for this (enrollment, lesson).
-    const existing = await tx.attendance.findFirst({
-      where: {
-        enrollmentId: args.enrollmentId,
-        lessonId: args.lessonId,
-        source: "recorded",
-      },
-      select: { id: true },
-    });
-
-    if (existing) {
-      // Idempotent — row already exists; nothing to do.
-      return;
-    }
-
-    // Create the attendance row. If a concurrent request wins the race and inserts
-    // first, the unique constraint fires — caught below and treated as a no-op.
-    try {
-      await tx.attendance.create({
-        data: {
-          tenantId: args.tenantId,
-          enrollmentId: args.enrollmentId,
-          lessonId: args.lessonId,
-          status: "present",
-          source: "recorded",
-          markedAt: new Date(),
-        },
-      });
-    } catch (err: unknown) {
-      // Unique constraint violation (Prisma error code P2002) = concurrent completion.
-      // Treat as a no-op (idempotent). Any other error is re-thrown.
-      const isPrismaUniqueViolation =
-        typeof err === "object" &&
-        err !== null &&
-        "code" in err &&
-        (err as { code?: string }).code === "P2002";
-      if (!isPrismaUniqueViolation) {
-        throw err;
-      }
-    }
-  }
-
-  /**
    * Recalculate and persist enrollment.progress_pct after a lesson completion.
    * Formula: completed_lessons / total_lessons_in_program × 100 (rounded, 0-100).
    *
@@ -936,7 +833,7 @@ export class LmsRepository {
     return { progressPct, justCompleted: shouldFlipToCompleted };
   }
 
-  // ─── PROGRESS / ATTENDANCE READ QUERIES (Wave 4b) ────────────────────────
+  // ─── PROGRESS READ QUERIES (Wave 4b) ─────────────────────────────────────
 
   /**
    * Get per-program/module progress rollup for all of a student's enrollments.
@@ -1024,136 +921,6 @@ export class LmsRepository {
 
     return result;
   }
-
-  /**
-   * List recorded attendance for a student (paginated).
-   * Enrollment-scoped: only returns rows belonging to this student's enrollments.
-   * Joins lesson title + program info for the response DTO.
-   */
-  async listAttendanceForStudent(
-    tenantId: string,
-    studentId: string,
-    filters: {
-      enrollmentId?: string;
-      source?: "live" | "recorded";
-      status?: "present" | "absent";
-      page: number;
-      pageSize: number;
-    },
-  ): Promise<{ rows: AttendanceRow[]; total: number }> {
-    // Build enrollment id set for this student (scope guard).
-    const enrollments = await this.prisma.client.enrollment.findMany({
-      where: { tenantId, studentId },
-      select: { id: true, programId: true, program: { select: { title: true } } },
-    });
-    const enrollmentIds = enrollments.map((e) => e.id);
-
-    if (enrollmentIds.length === 0) {
-      return { rows: [], total: 0 };
-    }
-
-    // If a specific enrollmentId was requested, verify it belongs to this student.
-    if (filters.enrollmentId && !enrollmentIds.includes(filters.enrollmentId)) {
-      // IDOR prevention: this enrollmentId doesn't belong to the student → empty result.
-      return { rows: [], total: 0 };
-    }
-
-    const where: Prisma.AttendanceWhereInput = {
-      tenantId,
-      enrollmentId: filters.enrollmentId ?? { in: enrollmentIds },
-      ...(filters.source ? { source: filters.source as AttendanceSource } : {}),
-      ...(filters.status ? { status: filters.status as AttendanceStatus } : {}),
-    };
-
-    const [rows, total] = await Promise.all([
-      this.prisma.client.attendance.findMany({
-        where,
-        include: {
-          enrollment: {
-            select: {
-              programId: true,
-              program: { select: { title: true } },
-            },
-          },
-          lesson: { select: { id: true, title: true } },
-        },
-        orderBy: { markedAt: "desc" },
-        skip: (filters.page - 1) * filters.pageSize,
-        take: filters.pageSize,
-      }),
-      this.prisma.client.attendance.count({ where }),
-    ]);
-
-    const enrollmentProgramMap = new Map(enrollments.map((e) => [e.id, { programId: e.programId, programTitle: e.program.title }]));
-
-    const attendanceRows: AttendanceRow[] = rows.map((row) => {
-      const prog = enrollmentProgramMap.get(row.enrollmentId);
-      return {
-        id: row.id,
-        enrollmentId: row.enrollmentId,
-        programId: prog?.programId ?? row.enrollment.programId,
-        programTitle: prog?.programTitle ?? row.enrollment.program.title,
-        lessonId: row.lessonId ?? null,
-        lessonTitle: row.lesson?.title ?? null,
-        liveClassId: row.liveClassId ?? null,
-        status: row.status as "present" | "absent",
-        source: row.source as "live" | "recorded",
-        markedAt: row.markedAt,
-      };
-    });
-
-    return { rows: attendanceRows, total };
-  }
-
-  /**
-   * Get per-enrollment attendance summary (total recorded / total lessons × 100).
-   * Used for the summary block in GET /me/attendance.
-   */
-  async getAttendanceSummaries(
-    tenantId: string,
-    studentId: string,
-  ): Promise<AttendanceSummaryRow[]> {
-    const enrollments = await this.prisma.client.enrollment.findMany({
-      where: { tenantId, studentId },
-      select: {
-        id: true,
-        programId: true,
-        program: {
-          select: {
-            title: true,
-            modules: {
-              where: { deletedAt: null },
-              select: {
-                lessons: {
-                  where: { deletedAt: null },
-                  select: { id: true },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const result: AttendanceSummaryRow[] = [];
-    for (const enrollment of enrollments) {
-      const totalLessons = enrollment.program.modules.reduce(
-        (sum, mod) => sum + mod.lessons.length,
-        0,
-      );
-      const totalRecorded = await this.prisma.client.attendance.count({
-        where: { enrollmentId: enrollment.id, source: "recorded" },
-      });
-      result.push({
-        enrollmentId: enrollment.id,
-        programTitle: enrollment.program.title,
-        totalRecorded,
-        totalLessons,
-        attendancePct: totalLessons > 0 ? Math.round((totalRecorded / totalLessons) * 100) : 0,
-      });
-    }
-    return result;
-  }
 }
 
 // ─── INTERMEDIATE ROW TYPES (internal to lms.repository) ─────────────────────
@@ -1232,26 +999,7 @@ export interface ProgressRollupRow {
   }>;
 }
 
-export interface AttendanceRow {
-  id: string;
-  enrollmentId: string;
-  programId: string;
-  programTitle: string;
-  lessonId: string | null;
-  lessonTitle: string | null;
-  liveClassId: string | null;
-  status: "present" | "absent";
-  source: "live" | "recorded";
-  markedAt: Date;
-}
 
-export interface AttendanceSummaryRow {
-  enrollmentId: string;
-  programTitle: string;
-  totalRecorded: number;
-  totalLessons: number;
-  attendancePct: number;
-}
 
 // ─── MAPPING HELPERS ─────────────────────────────────────────────────────────
 

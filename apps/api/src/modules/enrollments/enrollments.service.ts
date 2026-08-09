@@ -18,6 +18,9 @@ import type { Enrollment } from "@repo/types";
 import { EnrollmentsRepository, type EnrollmentRow } from "./enrollments.repository";
 import { PaginatedResult } from "../../common/dto/paginated-result";
 import { requireScopeContext } from "../auth/lib/scope-context";
+// Same expiry cutoff the batch `enrollable` filter and the auto-close sweep use, so all
+// three agree on when a batch stops accepting students.
+import { startOfTodayUtc } from "../batches/lib/batch-expiry";
 import { LmsAccountProvisioningService } from "../students/lms-account-provisioning.service";
 import type { CreateEnrollmentRequest, ListEnrollmentsQuery, MoveEnrollmentRequest, WithdrawEnrollmentRequest } from "./dto";
 
@@ -126,6 +129,26 @@ export class EnrollmentsService {
     const batch = await this.repository.findBatchForEnrollment(tenantId, body.batchId);
     if (!batch) {
       throw new NotFoundException({ code: "enrollments.batch_not_found", title: "Batch not found" });
+    }
+
+    // CLOSED-BATCH gate: a student may not be put into a batch that is over. The CRM's
+    // batch pickers already exclude these (ListBatchesQuery.enrollable), but — exactly as
+    // the entitlement gate below argues — the rule has to hold SERVER-SIDE (CLAUDE.md
+    // §3.5), or a direct API call still lands students in a finished cohort.
+    //
+    // Both halves are checked for the same reason the `enrollable` filter checks both:
+    // BatchAutoCloseScheduler flips expired batches on an interval, so a batch can be past
+    // its end date while still reading `active`.
+    const batchClosed = batch.status === "completed" || batch.status === "archived";
+    const batchExpired = batch.endDate !== null && batch.endDate < startOfTodayUtc();
+    if (batchClosed || batchExpired) {
+      throw new ConflictException({
+        code: "enrollments.batch_closed",
+        title: "Batch is closed",
+        detail: batchClosed
+          ? "This batch has been completed or archived — pick a batch that is still running."
+          : "This batch's end date has passed — pick a batch that is still running.",
+      });
     }
 
     if (scope.scope === "branch") {

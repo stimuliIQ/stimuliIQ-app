@@ -42,6 +42,20 @@ export function useUpdateStaffUser() {
   });
 }
 
+/**
+ * Admin 2FA rescue — clears ANOTHER user's second factor (`twofa.reset`, super_admin/
+ * admin only). For a user who lost both their authenticator and inbox access; everyone
+ * else self-serves via the recovery link on the sign-in page.
+ */
+export function useClearStaffUserTwoFactor() {
+  const invalidate = useInvalidateStaffUsers();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      apiClient.crm.admin.users.clearTwoFactor(id, { reason }),
+    onSuccess: invalidate,
+  });
+}
+
 export function useDeactivateStaffUser() {
   const invalidate = useInvalidateStaffUsers();
   return useMutation({

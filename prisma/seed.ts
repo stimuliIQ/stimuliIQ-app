@@ -44,8 +44,6 @@ import {
   // Phase-3 LMS core enums
   VideoStatus,
   LessonProgressStatus,
-  AttendanceStatus,
-  AttendanceSource,
   // Phase-4 Learning Depth enums
   AssignmentKind,
   SubmissionStatus,
@@ -139,15 +137,14 @@ type P2Action = (typeof P2_ACTIONS)[number];
 /**
  * Phase-3 LMS modules (docs/plans/phase-3.md task #1 + docs/02 §9).
  * Student-surface LMS: lessons (view/consume), videos (stream), progress (read/write own),
- * attendance (view own), resources (view/download links).
- * Faculty-surface: assigned-scope on videos/attendance (their batches' content).
+ * resources (view/download links).
+ * Faculty-surface: assigned-scope on videos (their batches' content).
  * Additional action "stream" for videos (minting signed HLS URLs).
  */
 const P3_MODULES = [
   "lessons",
   "videos",
   "progress",
-  "attendance",
   "resources",
 ] as const;
 
@@ -299,11 +296,14 @@ const P7_PERMISSIONS: Array<{ key: string; label: string }> = [
   { key: "reports.revenue.view",     label: "View Revenue Report" },
   { key: "reports.enrollment.view",  label: "View Enrollment Trend Report" },
   { key: "reports.funnel.view",      label: "View Lead Funnel Report" },
-  { key: "reports.attendance.view",  label: "View Attendance Report" },
   { key: "reports.engagement.view",  label: "View Course Engagement Report" },
   { key: "reports.campaigns.view",   label: "View Campaign Performance Report" },
   { key: "reports.gamification.view", label: "View Gamification Participation Report" },
   { key: "reports.forum.view",       label: "View Forum Health Report" },
+  // Separate from reports.funnel.view on purpose: the funnel measures the BUSINESS,
+  // this measures INDIVIDUAL STAFF by name. Whether a rep may see colleagues' numbers
+  // is a management call, so it needs its own grant to switch on or off.
+  { key: "reports.lead_performance.view", label: "View Lead Performance by Staff Member" },
   { key: "reports.export",          label: "Export Reports / Entity Lists (CSV/PDF)" },
   { key: "reports.schedule",        label: "Schedule Recurring Report Emails" },
   { key: "dpdp.erasure.execute",    label: "Execute DPDP Erasure (redact subject PII in audit logs)" },
@@ -385,7 +385,9 @@ function buildP8PermissionCatalog(): Array<{ key: string; label: string }> {
  *   bulk.*           — T30 bulk actions on leads/students
  *   twofa.*          — T28 2FA enrol/verify/disable (own-scope; every role, admin-tier
  *                      required at login per R-security, enforced at the auth layer,
- *                      not by this permission gate)
+ *                      not by this permission gate), PLUS `twofa.reset` — the admin
+ *                      rescue path for clearing ANOTHER user's factor (super_admin +
+ *                      admin only; see the grants block below)
  *   landing_pages.* / lead_forms.* — T12/T40 campaign landing pages + lead form manager
  */
 const P9_PERMISSIONS: Array<{ key: string; label: string }> = [
@@ -444,6 +446,10 @@ const P9_PERMISSIONS: Array<{ key: string; label: string }> = [
   { key: "bulk.students", label: "Bulk-Edit Students" },
   // 2FA (T28) — own-scope; every authenticated role manages their OWN 2FA enrolment.
   { key: "twofa.manage", label: "Manage Own Two-Factor Authentication" },
+  // 2FA admin rescue — clearing SOMEONE ELSE'S second factor. Deliberately a separate
+  // key from twofa.manage (which every role holds at own-scope): bundling them would
+  // hand every student the power to strip a colleague's 2FA.
+  { key: "twofa.reset", label: "Clear Another User's Two-Factor Authentication" },
   // campaign landing pages + configurable lead forms (T12/T40)
   { key: "landing_pages.view", label: "View Landing Pages" },
   { key: "landing_pages.edit", label: "Edit Landing Pages" },
@@ -462,12 +468,8 @@ function buildP9PermissionCatalog(): Array<{ key: string; label: string }> {
  * "P6 forum.read/notification_prefs.edit 403 for everyone" bug class before it can
  * recur (a @RequirePermission key with zero grants = 403 for every non-admin caller).
  *
- *   attendance.edit — CRM attendance-editor write (gap #6): faculty (assigned) /
- *     admin+super_admin (all, via the catch-all) correct a student's attendance for
- *     a (enrollment, lesson) pair.
  */
 const P10_PERMISSIONS: Array<{ key: string; label: string }> = [
-  { key: "attendance.edit", label: "Edit / Correct Student Attendance" },
 ];
 
 function buildP10PermissionCatalog(): Array<{ key: string; label: string }> {
@@ -1026,7 +1028,6 @@ async function main(): Promise<void> {
   //   videos.stream     — mint signed HLS URL (enrollment + RBAC check before mint)
   //   progress.view     — read own lesson_progress rows
   //   progress.edit     — upsert own lesson_progress (position ping + mark-complete)
-  //   attendance.view   — read own attendance rows
   //   resources.view    — list lesson resource metadata (signed download deferred P4)
   const studentP3OwnGrants: Array<[P3Module, P3Action]> = [
     ["lessons", "view"],
@@ -1034,7 +1035,6 @@ async function main(): Promise<void> {
     ["videos", "stream"],
     ["progress", "view"],
     ["progress", "edit"],
-    ["attendance", "view"],
     ["resources", "view"],
   ];
   await Promise.all(
@@ -1054,7 +1054,6 @@ async function main(): Promise<void> {
   // Faculty: assigned-scoped on LMS content (their batches' student-side view).
   //   lessons.view      — browse curriculum for assigned batches
   //   videos.view       — view video metadata for assigned batch content
-  //   attendance.view   — view student attendance for their assigned batches
   //   resources.view    — view/list lesson resources for their assigned batches
   //   resources.create  — upload lesson resources (CRM side, but seeded for completeness)
   //   resources.edit    — edit lesson resource metadata
@@ -1062,7 +1061,6 @@ async function main(): Promise<void> {
   const facultyP3AssignedGrants: Array<[P3Module, P3Action]> = [
     ["lessons", "view"],
     ["videos", "view"],
-    ["attendance", "view"],
     ["resources", "view"],
     ["resources", "create"],
     ["resources", "edit"],
@@ -1095,9 +1093,6 @@ async function main(): Promise<void> {
     ),
   );
 
-  // branch_manager: branch-scoped on attendance (oversight of their branch's students).
-  await grant(branchManagerRole!.id, permId(p3Key("attendance", "view")), RolePermissionScope.branch);
-  await grant(branchManagerRole!.id, permId(p3Key("attendance", "export")), RolePermissionScope.branch);
   await grant(branchManagerRole!.id, permId(p3Key("progress", "view")), RolePermissionScope.branch);
 
   // ── Phase-4 role-permission grants (docs/plans/phase-4.md §3 "Seed expansion") ────────
@@ -2144,7 +2139,7 @@ async function main(): Promise<void> {
     throw new Error("[seed] expected at least 3 lessons in fullstack module 1");
   }
 
-  // lesson0: "Semantic HTML" — will be used for completed progress + attendance
+  // lesson0: "Semantic HTML" — will be used for completed progress
   // lesson1: "Modern CSS & Flexbox" — will be used for in_progress + resume testing
   // lesson2: "JS Fundamentals" — not_started (default, no progress row needed)
   const [lesson0, lesson1, lesson2] = fullstackLessons;
@@ -2332,37 +2327,6 @@ async function main(): Promise<void> {
     }),
   );
 
-  // ── Phase-3 sample data: attendance (recorded) ───────────────────────────────────────
-  //
-  // One attendance row for lesson0 (Ananya completed "Semantic HTML" → attendance marked).
-  // source=recorded, status=present. Idempotent via the partial-unique:
-  //   (enrollment_id, lesson_id) WHERE source='recorded' AND deleted_at IS NULL
-  // (partial-unique from lms_core_partial_indexes migration).
-
-  type SeedAttendance = Awaited<ReturnType<typeof prisma.attendance.create>>;
-
-  const seedAttendance: SeedAttendance = await (async () => {
-    // Idempotency: find existing recorded attendance for this (enrollment, lesson) pair.
-    const existing = await prisma.attendance.findFirst({
-      where: {
-        enrollmentId: linkedEnrollment.id,
-        lessonId: lesson0.id,
-        source: AttendanceSource.recorded,
-      },
-    });
-    if (existing) return existing;
-    return prisma.attendance.create({
-      data: {
-        tenantId: tenant.id,
-        enrollmentId: linkedEnrollment.id,
-        liveClassId: null, // null in P3 (live deferred)
-        lessonId: lesson0.id,
-        status: AttendanceStatus.present,
-        source: AttendanceSource.recorded,
-        markedAt: new Date("2026-06-28T10:01:00Z"), // 1 minute after completion
-      },
-    });
-  })();
 
   // ── Phase-4 sample data: certificate templates ─────────────────────────────────────────
   //
@@ -2940,20 +2904,24 @@ async function main(): Promise<void> {
     return permId(key);
   }
 
-  // branch_manager: revenue/enrollment/attendance/engagement at branch scope.
+  // branch_manager: revenue/enrollment/engagement at branch scope.
   await grant(branchManagerRole!.id, p7permId("reports.revenue.view"), RolePermissionScope.branch);
   await grant(branchManagerRole!.id, p7permId("reports.enrollment.view"), RolePermissionScope.branch);
   await grant(branchManagerRole!.id, p7permId("reports.funnel.view"), RolePermissionScope.branch);
-  await grant(branchManagerRole!.id, p7permId("reports.attendance.view"), RolePermissionScope.branch);
   await grant(branchManagerRole!.id, p7permId("reports.engagement.view"), RolePermissionScope.branch);
 
+  // branch_manager: lead performance for their own branches' reps.
+  await grant(branchManagerRole!.id, p7permId("reports.lead_performance.view"), RolePermissionScope.branch);
+
   // counsellor: own-scope funnel/conversion report only.
+  // Deliberately NOT granted reports.lead_performance.view — a counsellor seeing every
+  // colleague's conversion numbers is a management decision, not a default. Their own
+  // work is already visible to them through My Work and the pipeline's "Assigned to me".
   await grant(counsellorRole!.id, p7permId("reports.funnel.view"), RolePermissionScope.own);
 
-  // faculty: assigned-scope enrollment/attendance/engagement/gamification/forum-health
+  // faculty: assigned-scope enrollment/engagement/gamification/forum-health
   // (their own assigned batches' rosters — IDOR->404 for any other batch).
   await grant(facultyRole!.id, p7permId("reports.enrollment.view"), RolePermissionScope.assigned);
-  await grant(facultyRole!.id, p7permId("reports.attendance.view"), RolePermissionScope.assigned);
   await grant(facultyRole!.id, p7permId("reports.engagement.view"), RolePermissionScope.assigned);
   await grant(facultyRole!.id, p7permId("reports.gamification.view"), RolePermissionScope.assigned);
   await grant(facultyRole!.id, p7permId("reports.forum.view"), RolePermissionScope.assigned);
@@ -2964,6 +2932,11 @@ async function main(): Promise<void> {
   // marketing: campaign-performance report at all scope (reuses P6 campaigns.view's grant
   // shape — Part 8 table explicitly excludes branch_manager from this one dashboard).
   await grant(marketingRole!.id, p7permId("reports.campaigns.view"), RolePermissionScope.all);
+
+  // marketing: lead performance at all scope — marketing owns lead generation end to end
+  // here (tenant-wide `leads.*` grants), so they need to see the whole team's throughput,
+  // not just campaign-level numbers.
+  await grant(marketingRole!.id, p7permId("reports.lead_performance.view"), RolePermissionScope.all);
 
   // reports.export (docs/plans/phase-7.md task #8, Part 8 grant table): a single flat
   // permission whose SCOPE determines which rows an export can touch (via
@@ -3044,7 +3017,6 @@ async function main(): Promise<void> {
   // grants previously only named the `faculty` role key even though the P7 spec's own
   // label conflated "Faculty/Mentor" (see docs/specs/phase-8-mentor.md Part 6
   // CONFLICT-P8-MENTOR-1 + Part 7 dependencies table). Assigned scope, same as faculty.
-  await grant(mentorRole!.id, p7permId("reports.attendance.view"), RolePermissionScope.assigned);
   await grant(mentorRole!.id, p7permId("reports.engagement.view"), RolePermissionScope.assigned);
 
   // ── Phase-8 Mentor sample data (a couple mentors + one batch_mentor assignment) ─────────
@@ -3201,6 +3173,11 @@ async function main(): Promise<void> {
       criteria: { event: "project_approved", condition: { firstTime: true } },
     },
     {
+      // DORMANT since the attendance feature was removed: nothing computes
+      // `attendancePct` any more, so this badge can no longer be earned. Kept in the
+      // catalog deliberately — `student_badges` rows awarded before the removal
+      // reference this row, and dropping it would orphan them. Delete it only alongside
+      // those awards, or repoint the criteria at lesson completion instead.
       key: "perfect_attendance",
       name: "Perfect Attendance",
       description: "Awarded for completing all recorded lessons in a batch without missing any.",
@@ -3811,13 +3788,12 @@ async function main(): Promise<void> {
   // eslint-disable-next-line no-console
   console.log(`[seed]   lesson_progress:   ${seedLessonProgress.length} (1 completed, 1 in_progress at 1200s for Ananya)`);
   // eslint-disable-next-line no-console
-  console.log(`[seed]   attendance:        1 (recorded/present for lesson0, Ananya enrollment)`);
   // eslint-disable-next-line no-console
   console.log(`[seed]   P3 permissions:    ${P3_MODULES.length * P3_ACTIONS.length} new (${P3_MODULES.join(", ")} × ${P3_ACTIONS.join(", ")})`);
   // eslint-disable-next-line no-console
-  console.log("[seed]   student scope=own: lessons.view, videos.view, videos.stream, progress.view/edit, attendance.view, resources.view");
+  console.log("[seed]   student scope=own: lessons.view, videos.view, videos.stream, progress.view/edit, resources.view");
   // eslint-disable-next-line no-console
-  console.log("[seed]   faculty scope=assigned: lessons/videos/attendance/resources.view + resources.create/edit/delete");
+  console.log("[seed]   faculty scope=assigned: lessons/videos/resources.view + resources.create/edit/delete");
   // eslint-disable-next-line no-console
   console.log("[seed]   --- Phase-4 Learning Depth ---");
   // eslint-disable-next-line no-console
@@ -3885,13 +3861,13 @@ async function main(): Promise<void> {
   // eslint-disable-next-line no-console
   console.log("[seed]   analytics MVs:     refreshed (mv_revenue_daily, mv_enrollment_daily, mv_lead_funnel_daily, mv_attendance_daily, mv_course_engagement_daily, mv_campaign_performance_daily, mv_gamification_daily, mv_forum_health_daily)");
   // eslint-disable-next-line no-console
-  console.log(`[seed]   P7 permissions:    ${P7_PERMISSIONS.length} (reports.revenue/enrollment/funnel/attendance/engagement/campaigns/gamification/forum.view + reports.export + reports.schedule + dpdp.erasure.execute)`);
+  console.log(`[seed]   P7 permissions:    ${P7_PERMISSIONS.length} (reports.revenue/enrollment/funnel/engagement/campaigns/gamification/forum.view + reports.export + reports.schedule + dpdp.erasure.execute)`);
   // eslint-disable-next-line no-console
   console.log("[seed]   --- Phase-8 Mentor (human, external-institute hire) ---");
   // eslint-disable-next-line no-console
   console.log(`[seed]   P8 permissions:    ${P8_PERMISSIONS.length} (mentors.view/create/edit/delete/assign + mentor.dashboard.view + batches.markComplete)`);
   // eslint-disable-next-line no-console
-  console.log(`[seed]   mentor role:       mentor (assigned-scope mentor.dashboard.view + batches.view + batches.markComplete + reports.attendance/engagement.view)`);
+  console.log(`[seed]   mentor role:       mentor (assigned-scope mentor.dashboard.view + batches.view + batches.markComplete + reports.engagement.view)`);
   // eslint-disable-next-line no-console
   console.log(`[seed]   mentors:           2 (Ramesh — active, WITH dashboard login; Anjali — prospective, no login yet)`);
   // eslint-disable-next-line no-console
@@ -4014,6 +3990,16 @@ async function main(): Promise<void> {
     ].map((role) => grant(role!.id, p9permId("twofa.manage"), RolePermissionScope.own)),
   );
 
+  // twofa.reset: the ADMIN RESCUE path (clear another user's 2FA when they've lost both
+  // authenticator and inbox). super_admin + admin ONLY, at scope=all — this permission
+  // removes a security factor from an account its holder does not own, so it stays with
+  // the same two roles that already hold users.* credential management. Note this is
+  // NOT granted to support/counsellor, who do hold onboarding/ticket permissions: a
+  // social-engineering call ("I'm locked out, clear my 2FA") should have to reach an
+  // admin, not the first-line queue.
+  await grant(superAdminRole!.id, p9permId("twofa.reset"), RolePermissionScope.all);
+  await grant(adminRole!.id, p9permId("twofa.reset"), RolePermissionScope.all);
+
   // landing_pages.* / lead_forms.*: marketing owns the campaign funnel tooling;
   // branch_manager may view landing pages relevant to their branch's campaigns.
   await grant(marketingRole!.id, p9permId("landing_pages.view"), RolePermissionScope.all);
@@ -4024,9 +4010,6 @@ async function main(): Promise<void> {
 
   // ── Phase-9-completion GAP-CLOSURE grants ────────────────────────────────
   //
-  // attendance.edit (gap #6): faculty correct attendance for their own assigned
-  // batches; admin/super_admin already hold it at scope=all via the catch-all loop.
-  await grant(facultyRole!.id, permId("attendance.edit"), RolePermissionScope.assigned);
 
   // ── Phase-9 Completion — minimal sample data (T6-T12) ────────────────────────────────
   //
@@ -4816,7 +4799,6 @@ async function main(): Promise<void> {
   // and used in the summary above; TypeScript strict mode requires this acknowledgement.
   void linkedEnrollment;
   void seedBooking;
-  void seedAttendance;
   void seedAssignment;
   void seedProject;
   void seedSubmission;

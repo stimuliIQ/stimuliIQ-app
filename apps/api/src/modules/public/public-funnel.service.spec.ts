@@ -25,6 +25,7 @@ import { OtpStore } from "../auth/lib/otp-store";
 import { CommerceService } from "../commerce/commerce.service";
 import { CAPTCHA_PROVIDER } from "../captcha/providers/captcha/captcha-provider.interface";
 import { PublicBookingRateLimiter } from "../leads/lib/public-booking-rate-limiter";
+import { NotificationsService } from "../notifications/notifications.service";
 
 // ─── Env mocking ────────────────────────────────────────────────────────────
 
@@ -132,6 +133,11 @@ function buildMocks() {
     rateLimiter: {
       hit: jest.fn().mockResolvedValue(false),
     } as unknown as jest.Mocked<PublicBookingRateLimiter>,
+    // Staff-facing: tells the round-robin-assigned rep an inbound lead just landed.
+    // Non-fatal by design — the public visitor's response must not depend on it.
+    notifications: {
+      notifyLeadAssigned: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<NotificationsService>,
   };
 }
 
@@ -153,6 +159,7 @@ describe("PublicFunnelService", () => {
         { provide: CommerceService, useValue: mocks.commerceService },
         { provide: CAPTCHA_PROVIDER, useValue: mocks.captchaProvider },
         { provide: PublicBookingRateLimiter, useValue: mocks.rateLimiter },
+        { provide: NotificationsService, useValue: mocks.notifications },
       ],
     }).compile();
 

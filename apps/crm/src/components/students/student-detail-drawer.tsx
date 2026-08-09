@@ -1,7 +1,7 @@
 // Student detail drawer — Phase 9 Completion T37 (docs/plans/phase-9-
 // completion.md): the "Available in a later phase" placeholder tabs are now
 // filled with real data via `@repo/ui`'s DetailShell (Enrollments/Payments/
-// Attendance/Certificates/Tickets/Timeline). RBAC-aware: Edit/Delete/Restore
+// Certificates/Tickets/Timeline). RBAC-aware: Edit/Delete/Restore
 // only render if the API would accept them.
 import * as React from "react";
 import {
@@ -28,7 +28,6 @@ import { StudentFormDrawer } from "./student-form-drawer";
 import { RegisterStudentDialog } from "./register-student-dialog";
 import { StudentEnrollmentsTab } from "./student-enrollments-tab";
 import { StudentPaymentsTab } from "./student-payments-tab";
-import { StudentAttendanceTab } from "./student-attendance-tab";
 import { StudentCertificatesTab } from "./student-certificates-tab";
 import { StudentTicketsTab } from "./student-tickets-tab";
 import { StudentTimelineTab } from "./student-timeline-tab";
@@ -116,7 +115,7 @@ export function StudentDetailDrawer({ studentId, onOpenChange, me }: StudentDeta
         <DrawerContent
           title={student?.name ?? "Student"}
           description={student?.email}
-          // xl (not lg): the 360 has 7 tabs — at lg (672px) the tab row wraps
+          // xl (not lg): the 360 has 6 tabs — at lg (672px) the tab row wraps
           // ("Timeline" dropped to a second line) and tables inside the tabs
           // were cramped. w-full still caps it on narrow screens.
           size="xl"
@@ -216,11 +215,6 @@ export function StudentDetailDrawer({ studentId, onOpenChange, me }: StudentDeta
                       value: "payments",
                       label: "Payments",
                       content: <StudentPaymentsTab studentId={student.id} me={me} />,
-                    },
-                    {
-                      value: "attendance",
-                      label: "Attendance",
-                      content: <StudentAttendanceTab studentId={student.id} />,
                     },
                     {
                       value: "certificates",

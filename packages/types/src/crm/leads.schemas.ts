@@ -140,11 +140,45 @@ export const UpdateLeadRequestSchema = z
   .strict();
 export type UpdateLeadRequest = z.infer<typeof UpdateLeadRequestSchema>;
 
-/** GET /api/v1/crm/leads — filter/paginate the lead pipeline. */
-export const ListLeadsQuerySchema = z
+/**
+ * A query-string boolean that treats `?flag=false` as FALSE.
+ *
+ * `z.coerce.boolean()` (used by the older filters in this file) is `Boolean(value)`, so
+ * the string "false" coerces to `true`. That is survivable for a flag a UI only ever
+ * sends when it is on, but the owner filters below are persisted into saved views, and a
+ * saved view round-tripping `mine=false` back through the API as `mine=true` would show a
+ * rep somebody else's pipeline. Scoped to the new fields deliberately — retro-fitting the
+ * existing ones is a separate, behaviour-changing edit.
+ */
+const BooleanQueryFlagSchema = z.preprocess(
+  (value) => (typeof value === "string" ? value.toLowerCase() === "true" : value),
+  z.boolean(),
+);
+
+/**
+ * The lead-list filter shape WITHOUT the cross-field rule below. Exported separately
+ * because `ExportLeadsParamsSchema` needs `.omit()`, and `.omit()` does not exist on the
+ * ZodEffects that `.superRefine()` produces.
+ */
+export const ListLeadsQueryBaseSchema = z
   .object({
     stage: LeadStageSchema.optional(),
     ownerId: UuidSchema.optional().describe("Filter by assigned owner."),
+    /**
+     * "Assigned to me" — resolved SERVER-SIDE from the session, so the client never has
+     * to know its own user id to ask this (and cannot ask it on someone else's behalf).
+     * This is the filter that makes a `marketing` user, whose scope is tenant-wide `all`,
+     * able to narrow a 5,000-lead pipeline down to the handful actually on their desk.
+     * Mutually exclusive with `ownerId` and `unassigned` — sending more than one is a 422.
+     */
+    mine: BooleanQueryFlagSchema.optional().describe("If true, filter to leads owned by the caller."),
+    /**
+     * Leads with no owner at all. This is the queue that must never be silently empty —
+     * an unassigned lead is one nobody is accountable for.
+     */
+    unassigned: BooleanQueryFlagSchema.optional().describe("If true, filter to leads with no owner."),
+    /** Filter by the staff user who keyed the lead in (null/absent = inbound web leads). */
+    createdById: UuidSchema.optional().describe("Filter by the staff user who created the lead."),
     source: z.string().min(1).max(120).optional(),
     branchId: UuidSchema.optional(),
     programInterestId: UuidSchema.optional(),
@@ -156,7 +190,56 @@ export const ListLeadsQuerySchema = z
   })
   .merge(PageQuerySchema)
   .strict();
+
+/** GET /api/v1/crm/leads — filter/paginate the lead pipeline. */
+export const ListLeadsQuerySchema = ListLeadsQueryBaseSchema
+  .superRefine((data, ctx) => {
+    // These three answer the same question ("whose lead is this?") in incompatible ways.
+    // Silently letting one win would make a saved view lie about what it is showing.
+    const ownerFilters = [data.ownerId ? "ownerId" : null, data.mine ? "mine" : null, data.unassigned ? "unassigned" : null].filter(
+      (key): key is string => key !== null,
+    );
+    if (ownerFilters.length > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [ownerFilters[1]!],
+        message: `Only one owner filter may be used at a time (got: ${ownerFilters.join(", ")}).`,
+      });
+    }
+  });
 export type ListLeadsQuery = z.infer<typeof ListLeadsQuerySchema>;
+
+/**
+ * GET /api/v1/crm/leads/assignable-users
+ *
+ * The people a lead can be handed to. Deliberately NOT the Admin ▸ Users list: that one
+ * is gated on `users.view`, which only super_admin/admin hold, so a counsellor or a
+ * marketing rep could never populate an owner picker from it. This endpoint is gated on
+ * `leads.view` instead and returns the minimum a picker needs — no email-less PII dump,
+ * no credential/2FA state, no soft-deleted or deactivated accounts.
+ *
+ * `openLeadCount` is included because the person doing the assigning needs to see who is
+ * already buried before they add one more; it is the same "currently-open owned leads"
+ * number the round-robin balances on.
+ */
+export const AssignableUserSchema = z
+  .object({
+    id: UuidSchema,
+    name: z.string(),
+    email: z.string().nullable().describe("Shown as a disambiguator when two staff share a name."),
+    roleKeys: z.array(z.string()).describe("Role keys held by this user, e.g. ['counsellor']."),
+    openLeadCount: z.number().int().min(0).describe("Leads they currently own that are not won/lost."),
+  })
+  .strict();
+export type AssignableUser = z.infer<typeof AssignableUserSchema>;
+
+/** GET /api/v1/crm/leads/assignable-users query. */
+export const ListAssignableUsersQuerySchema = z
+  .object({
+    search: z.string().min(1).max(200).optional().describe("Match by name or email."),
+  })
+  .strict();
+export type ListAssignableUsersQuery = z.infer<typeof ListAssignableUsersQuerySchema>;
 
 /**
  * PATCH /api/v1/crm/leads/:id/stage
@@ -275,6 +358,22 @@ export const LeadSummarySchema = z.object({
   branchName: z.string().nullable(),
   ownerId: UuidSchema.nullable(),
   ownerName: z.string().nullable(),
+  // ── Accountability (lead-ownership pass) ────────────────────────────────
+  // On the SUMMARY, not just the detail, so the pipeline table can answer
+  // "whose is this, who gave it to them, and have they touched it yet?"
+  // without a per-row fetch.
+  /** Staff user who keyed this lead in. null = inbound (website form / API). */
+  createdById: UuidSchema.nullable(),
+  createdByName: z.string().nullable().describe("null means the lead came in from the public site, not a person."),
+  /** Staff user who set the current owner. null = round-robin, nobody assigned it by hand. */
+  assignedById: UuidSchema.nullable(),
+  assignedByName: z.string().nullable(),
+  /** When the current owner was set. */
+  assignedAt: IsoDateTimeSchema.nullable(),
+  /** First logged call/whatsapp/email/note. null = NOBODY HAS CONTACTED THIS LEAD YET. */
+  firstContactedAt: IsoDateTimeSchema.nullable(),
+  /** Most recent logged activity — drives the "going cold" sort. */
+  lastActivityAt: IsoDateTimeSchema.nullable(),
   score: z.number().int().nullable(),
   slaDueAt: IsoDateTimeSchema.nullable(),
   convertedStudentId: UuidSchema.nullable(),

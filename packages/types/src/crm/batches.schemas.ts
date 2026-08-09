@@ -84,6 +84,20 @@ export const ListBatchesQuerySchema = z
     facultyId: UuidSchema.optional(),
     status: BatchStatusSchema.optional(),
     includeDeleted: z.coerce.boolean().default(false),
+    /**
+     * Restrict to batches a student can still be put INTO: status `planned` or `active`,
+     * and not past their end date.
+     *
+     * Enforced server-side because "don't offer a finished batch" is a correctness rule,
+     * not a display preference — client-side filtering would also silently shrink a page
+     * of results below its page size.
+     *
+     * The end-date half is not redundant with the status half. BatchAutoCloseScheduler
+     * flips expired batches to `completed`, but it runs on an interval, so between the
+     * end date passing and the next sweep a batch is still `active`. Checking the date
+     * here makes the guarantee immediate rather than eventual.
+     */
+    enrollable: z.coerce.boolean().optional(),
   })
   .merge(PageQuerySchema)
   .strict();

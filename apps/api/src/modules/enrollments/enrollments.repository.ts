@@ -23,7 +23,7 @@
 // (includeDeleted=true) so the service can detect this case before deciding create-vs-restore.
 
 import { Injectable } from "@nestjs/common";
-import type { EnrollmentStatus } from "@prisma/client";
+import type { BatchStatus, EnrollmentStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 
 export interface ListEnrollmentsFilters {
@@ -316,10 +316,19 @@ export class EnrollmentsRepository {
   async findBatchForEnrollment(
     tenantId: string,
     batchId: string,
-  ): Promise<{ id: string; programId: string; branchId: string; facultyId: string | null; capacity: number } | null> {
+  ): Promise<{
+    id: string;
+    programId: string;
+    branchId: string;
+    facultyId: string | null;
+    capacity: number;
+    status: BatchStatus;
+    endDate: Date | null;
+  } | null> {
     const row = await this.prisma.client.batch.findFirst({
       where: { id: batchId, tenantId, deletedAt: null },
-      select: { id: true, programId: true, branchId: true, facultyId: true, capacity: true },
+      // `status`/`endDate` back the closed-batch guard in EnrollmentsService.create().
+      select: { id: true, programId: true, branchId: true, facultyId: true, capacity: true, status: true, endDate: true },
     });
     return row;
   }
