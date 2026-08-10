@@ -24,7 +24,6 @@ interface EnrollFunnelClientProps {
   programId: string;
   programTitle: string;
   pricePaise: number;
-  emiDisplay?: string;
   slug: string;
 }
 
@@ -39,7 +38,6 @@ export function EnrollFunnelClient({
   programId,
   programTitle,
   pricePaise,
-  emiDisplay,
   slug: _slug,
 }: EnrollFunnelClientProps) {
   const {
@@ -192,7 +190,6 @@ export function EnrollFunnelClient({
             errors={orderErrors}
             programTitle={programTitle}
             pricePaise={pricePaise}
-            emiDisplay={emiDisplay}
             order={order}
             globalError={globalError}
           />

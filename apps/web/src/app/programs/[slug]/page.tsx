@@ -225,7 +225,7 @@ function ProgramHero({ program }: { program: PublicProgramDetail }) {
           </div>
         ) : null}
 
-        {/* Price + EMI */}
+        {/* Price */}
         <div className="flex items-baseline gap-3">
           <span className="text-2xl font-bold text-fg">{price}</span>
           {wasPrice ? (
@@ -238,9 +238,6 @@ function ProgramHero({ program }: { program: PublicProgramDetail }) {
             <span className="rounded bg-success/10 px-2 py-0.5 text-sm font-bold text-success">
               {discount}
             </span>
-          ) : null}
-          {program.emiDisplay ? (
-            <span className="text-sm text-fg-muted">{program.emiDisplay}</span>
           ) : null}
         </div>
 
@@ -518,9 +515,8 @@ function buildProgramFaqItems(program: PublicProgramDetail) {
     {
       id: "pq-4",
       question: "What payment options are available?",
-      answer: program.emiDisplay
-        ? `You can pay the full amount (${formatPaiseDisplay(program.pricePaise)}) or choose our EMI option: ${program.emiDisplay}.`
-        : `The program price is ${formatPaiseDisplay(program.pricePaise)}. Pay securely via Razorpay (UPI, cards, net banking).`,
+      // No EMI branch: a programme is paid in full before it starts, so there is one answer.
+      answer: `The programme price is ${formatPaiseDisplay(program.pricePaise)}, paid in full before the programme starts. Pay securely via Razorpay (UPI, cards, net banking).`,
       answerText: `The program price is ${formatPaiseDisplay(program.pricePaise)}. Secure payment via Razorpay.`,
     },
   ];
@@ -657,7 +653,6 @@ export default async function ProgramDetailPage({ params }: PageProps) {
               priceDisplay={price}
               originalPriceDisplay={wasPrice}
               discountLabel={discount}
-              emiDisplay={program.emiDisplay ?? undefined}
               // Enrollment closed → "Book Free Slot" becomes the card's PRIMARY action and
               // there is no secondary, so the card never renders a dead-end.
               primaryCtaLabel={program.enrollmentEnabled ? "Enroll Now" : "Book Free Slot"}

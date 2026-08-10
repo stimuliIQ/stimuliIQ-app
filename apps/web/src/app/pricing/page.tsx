@@ -7,7 +7,7 @@
  * Sections:
  *   1. Page header
  *   2. Per-program pricing grid (from live catalog, PricingTable cards variant)
- *   3. EMI explainer
+ *   3. How payment works (paid in full before the programme starts; we do not offer EMI)
  *   4. Comparison table (static tiers)
  *   5. Coupon field (CouponValidator — client component, needs a programId)
  *   6. Refund policy link
@@ -41,7 +41,7 @@ export const revalidate = 3600;
 export const metadata: Metadata = buildMetadata({
   title: "Programme fees and payment options",
   description:
-    "Clear, transparent pricing for all Stimuli IQ programs. EMI options available. No hidden fees. Apply a coupon to save on your enrollment.",
+    "Clear, transparent pricing for every Stimuli IQ programme. Paid in full before the programme starts, with no hidden fees. Apply a coupon at checkout to reduce what you pay.",
   canonicalPath: "/pricing",
 });
 
@@ -55,7 +55,6 @@ function buildTiers(programs: PublicProgramSummary[]) {
     id: p.id,
     name: p.title,
     priceDisplay: formatPaiseDisplay(p.pricePaise),
-    emiDisplay: p.emiDisplay ?? undefined,
     description: p.cardSummary ?? undefined,
     features: [
       p.durationWeeks ? `${p.durationWeeks} weeks` : "Full program",
@@ -86,7 +85,7 @@ const COMPARISON_ROWS: Array<{ label: string; values: ComparisonValues }> = [
   { label: "1:1 mentor support", values: { live: true, recorded: false, hybrid: true } },
   { label: "Placement assistance", values: { live: true, recorded: true, hybrid: true } },
   { label: "Verifiable certificate", values: { live: true, recorded: true, hybrid: true } },
-  { label: "EMI options", values: { live: true, recorded: true, hybrid: true } },
+  { label: "Scholarship eligible", values: { live: true, recorded: true, hybrid: true } },
 ];
 
 const COMPARISON_TIERS = [
@@ -180,8 +179,7 @@ export default async function PricingPage() {
           Transparent, <span className="text-chart-3">Affordable Pricing</span>
         </h1>
         <p className="mt-3 text-lg text-fg-muted">
-          No hidden fees. Choose the program that&apos;s right for you and pay securely.
-          EMI options available.
+          No hidden fees. Choose the programme that&apos;s right for you and pay securely, in full, before it starts.
         </p>
       </div>
 
@@ -288,33 +286,37 @@ export default async function PricingPage() {
         )}
       </section>
 
-      {/* EMI explainer */}
+      {/* How payment works.
+          This replaced an EMI explainer that advertised "0% EMI", named specific banks and
+          listed 3, 6 and 9 month tenures. We do not offer EMI: a programme is paid in full
+          before it starts. Advertising instalments we do not sell is a promise the checkout
+          cannot keep, so the section states the actual policy instead. */}
       <section
-        aria-label="EMI options explained"
-        data-testid="emi-explainer"
+        aria-label="How payment works"
+        data-testid="payment-explainer"
         className="mt-16 rounded-xl border border-border bg-surface p-8"
       >
-        <h2 className="mb-4 text-2xl font-bold text-fg">0% EMI: pay in easy instalments</h2>
+        <h2 className="mb-4 text-2xl font-bold text-fg">How payment works</h2>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <div>
-            <h3 className="mb-2 font-semibold text-fg">How it works</h3>
+            <h3 className="mb-2 font-semibold text-fg">Paid in full, before you start</h3>
             <p className="text-sm text-fg-muted leading-relaxed">
-              Select your EMI plan at checkout. The installment amount is charged to your
-              card or bank account monthly. We charge no interest, so it stays 0% EMI.
+              A programme is paid in full before it begins. There is one payment, and your
+              seat is confirmed once it clears.
             </p>
           </div>
           <div>
-            <h3 className="mb-2 font-semibold text-fg">Eligible cards</h3>
+            <h3 className="mb-2 font-semibold text-fg">Ways to pay</h3>
             <p className="text-sm text-fg-muted leading-relaxed">
-              Most major credit cards from HDFC, ICICI, SBI, Axis, Kotak, and other Indian
-              banks support EMI options at checkout. Debit card EMI varies by bank.
+              Pay by UPI, credit or debit card, net banking or wallet at checkout, all
+              handled by Razorpay. We never see or store your card details.
             </p>
           </div>
           <div>
-            <h3 className="mb-2 font-semibold text-fg">Tenures available</h3>
+            <h3 className="mb-2 font-semibold text-fg">Scholarships and coupons</h3>
             <p className="text-sm text-fg-muted leading-relaxed">
-              3-month, 6-month, and 9-month tenures. Exact options depend on your bank and
-              the program price. Available options are shown at the Razorpay checkout screen.
+              If the full fee is a barrier, apply for a scholarship: awards are merit and
+              need based. Any coupon you hold is applied at checkout before you pay.
             </p>
           </div>
         </div>

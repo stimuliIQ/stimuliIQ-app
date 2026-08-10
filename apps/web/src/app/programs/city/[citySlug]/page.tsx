@@ -139,7 +139,6 @@ export default async function CitySeoPage({ params }: PageProps) {
                   priceDisplay={formatPaiseDisplay(program.pricePaise)}
                   originalPriceDisplay={formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
                   discountLabel={formatDiscountPercent(program.compareAtPricePaise, program.pricePaise)}
-                  emiDisplay={program.emiDisplay ?? undefined}
                   ratingAvg={program.ratingAvg != null ? program.ratingAvg / 10 : undefined}
                   ratingCount={program.ratingCount ?? undefined}
                   ctaHref={`/programs/${program.slug}`}

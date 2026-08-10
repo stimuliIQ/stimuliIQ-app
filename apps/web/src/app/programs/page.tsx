@@ -237,7 +237,6 @@ export default async function CoursesListingPage({ searchParams }: PageProps) {
                       priceDisplay={formatPaiseDisplay(program.pricePaise)}
                       originalPriceDisplay={formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise)}
                       discountLabel={formatDiscountPercent(program.compareAtPricePaise, program.pricePaise)}
-                      emiDisplay={program.emiDisplay ?? undefined}
                       ratingAvg={
                         program.ratingAvg != null
                           ? Number(formatRating(program.ratingAvg))

@@ -22,7 +22,6 @@ interface EnrollOrderStepProps {
   errors: Record<string, string>;
   programTitle: string;
   pricePaise: number;
-  emiDisplay?: string;
   order: PublicOrderResponse | null;
   globalError?: string;
 }
@@ -38,7 +37,6 @@ export function EnrollOrderStep({
   errors,
   programTitle,
   pricePaise,
-  emiDisplay,
   order,
   globalError,
 }: EnrollOrderStepProps) {
@@ -81,9 +79,6 @@ export function EnrollOrderStep({
             </>
           ) : null}
         </div>
-        {emiDisplay ? (
-          <p className="mt-1 text-xs text-fg-muted">or {emiDisplay}</p>
-        ) : null}
       </div>
 
       {/* Coupon code */}

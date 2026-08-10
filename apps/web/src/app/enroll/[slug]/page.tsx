@@ -88,9 +88,6 @@ export default async function EnrollPage({ params }: PageProps) {
               {formatDiscountPercent(program.compareAtPricePaise, program.pricePaise)}
             </span>
           ) : null}
-          {program.emiDisplay ? (
-            <span className="text-sm text-fg-muted">{program.emiDisplay}</span>
-          ) : null}
         </div>
       </div>
 
@@ -99,7 +96,6 @@ export default async function EnrollPage({ params }: PageProps) {
         programId={program.id}
         programTitle={program.title}
         pricePaise={program.pricePaise}
-        emiDisplay={program.emiDisplay ?? undefined}
         slug={slug}
       />
 
