@@ -4777,7 +4777,7 @@
           "paidAt": {
             "type": "string",
             "format": "date-time",
-            "description": "When the payment was physically received. Defaults to now if omitted."
+            "description": "When the payment was physically RECEIVED — a past instant. Defaults to now if omitted. Never a future date: this row asserts money has already arrived."
           },
           "notes": {
             "type": "string",
@@ -6686,6 +6686,54 @@
               "null"
             ]
           },
+          "createdById": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "createdByName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "null means the lead came in from the public site, not a person."
+          },
+          "assignedById": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "assignedByName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assignedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "firstContactedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "lastActivityAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
           "score": {
             "type": [
               "integer",
@@ -6762,6 +6810,13 @@
           "branchName",
           "ownerId",
           "ownerName",
+          "createdById",
+          "createdByName",
+          "assignedById",
+          "assignedByName",
+          "assignedAt",
+          "firstContactedAt",
+          "lastActivityAt",
           "score",
           "slaDueAt",
           "convertedStudentId",
@@ -6841,6 +6896,54 @@
               "string",
               "null"
             ]
+          },
+          "createdById": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "createdByName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "null means the lead came in from the public site, not a person."
+          },
+          "assignedById": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "assignedByName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assignedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "firstContactedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "lastActivityAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           },
           "score": {
             "type": [
@@ -6966,6 +7069,13 @@
           "branchName",
           "ownerId",
           "ownerName",
+          "createdById",
+          "createdByName",
+          "assignedById",
+          "assignedByName",
+          "assignedAt",
+          "firstContactedAt",
+          "lastActivityAt",
           "score",
           "slaDueAt",
           "convertedStudentId",
@@ -9623,6 +9733,12 @@
           "lessonTitle": {
             "type": "string"
           },
+          "programId": {
+            "type": "string"
+          },
+          "programTitle": {
+            "type": "string"
+          },
           "kind": {
             "type": "string",
             "enum": [
@@ -9718,6 +9834,8 @@
           "id",
           "lessonId",
           "lessonTitle",
+          "programId",
+          "programTitle",
           "kind",
           "title",
           "instructions",
@@ -9870,6 +9988,7 @@
             "enum": [
               "assigned",
               "submitted",
+              "returned",
               "graded",
               "overdue"
             ],
@@ -10047,6 +10166,7 @@
             "enum": [
               "assigned",
               "submitted",
+              "returned",
               "graded",
               "overdue"
             ]
@@ -10185,6 +10305,12 @@
               "lessonTitle": {
                 "type": "string"
               },
+              "programId": {
+                "type": "string"
+              },
+              "programTitle": {
+                "type": "string"
+              },
               "kind": {
                 "type": "string",
                 "enum": [
@@ -10280,6 +10406,8 @@
               "id",
               "lessonId",
               "lessonTitle",
+              "programId",
+              "programTitle",
               "kind",
               "title",
               "instructions",
@@ -10720,6 +10848,13 @@
           "studentName": {
             "type": "string"
           },
+          "batchId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "batchName": {
+            "type": "string"
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -10762,6 +10897,8 @@
           "enrollmentId",
           "studentId",
           "studentName",
+          "batchId",
+          "batchName",
           "status",
           "attemptNo",
           "score",
@@ -12383,6 +12520,100 @@
             ],
             "items": {
               "$ref": "#/components/schemas/EligibilityListItem"
+            }
+          },
+          "meta": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OffsetPaginationMeta"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProblemDetails"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "error"
+        ]
+      },
+      "EligibilityBatchSummary": {
+        "type": "object",
+        "properties": {
+          "batchId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "batchName": {
+            "type": "string"
+          },
+          "programId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "programTitle": {
+            "type": "string"
+          },
+          "studentCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "COUNT(enrollments) WHERE batch_id=B AND status IN ('active','completed') — the same non-dropped population the eligibility list itself pages over."
+          },
+          "issuedCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "COUNT of those enrollments holding a certificate with status='valid'."
+          },
+          "revokedCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "COUNT of those enrollments whose only live certificate row is status='revoked' (needs a reissue)."
+          },
+          "completionReadyCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "COUNT of those enrollments with progress_pct >= 90 (the COMPLETION gate ALONE — assessments and final project are NOT checked here). A hint for which batch to open, never an eligibility verdict."
+          }
+        },
+        "required": [
+          "batchId",
+          "batchName",
+          "programId",
+          "programTitle",
+          "studentCount",
+          "issuedCount",
+          "revokedCount",
+          "completionReadyCount"
+        ]
+      },
+      "EligibilityBatchSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/EligibilityBatchSummary"
             }
           },
           "meta": {
@@ -15298,6 +15529,7 @@
             "type": "string",
             "enum": [
               "grade_ready",
+              "submission_returned",
               "certificate_ready",
               "live_reminder",
               "forum_reply",
@@ -15305,7 +15537,8 @@
               "lead_confirmation",
               "booking_confirmation",
               "payment_receipt",
-              "welcome"
+              "welcome",
+              "lead_assigned"
             ],
             "description": "Notification type — maps to a template for display."
           },
@@ -15429,6 +15662,7 @@
                   "type": "string",
                   "enum": [
                     "grade_ready",
+                    "submission_returned",
                     "certificate_ready",
                     "live_reminder",
                     "forum_reply",
@@ -15436,7 +15670,8 @@
                     "lead_confirmation",
                     "booking_confirmation",
                     "payment_receipt",
-                    "welcome"
+                    "welcome",
+                    "lead_assigned"
                   ],
                   "description": "Notification type — maps to a template for display."
                 },
@@ -15630,6 +15865,34 @@
                 ],
                 "additionalProperties": false
               },
+              "submission_returned": {
+                "type": "object",
+                "properties": {
+                  "in_app": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ],
+                    "description": "In-app is always enabled and cannot be disabled."
+                  },
+                  "email": {
+                    "type": "boolean"
+                  },
+                  "sms": {
+                    "type": "boolean"
+                  },
+                  "whatsapp": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "in_app",
+                  "email",
+                  "sms",
+                  "whatsapp"
+                ],
+                "additionalProperties": false
+              },
               "certificate_ready": {
                 "type": "object",
                 "properties": {
@@ -15827,6 +16090,34 @@
                 "additionalProperties": false
               },
               "welcome": {
+                "type": "object",
+                "properties": {
+                  "in_app": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ],
+                    "description": "In-app is always enabled and cannot be disabled."
+                  },
+                  "email": {
+                    "type": "boolean"
+                  },
+                  "sms": {
+                    "type": "boolean"
+                  },
+                  "whatsapp": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "in_app",
+                  "email",
+                  "sms",
+                  "whatsapp"
+                ],
+                "additionalProperties": false
+              },
+              "lead_assigned": {
                 "type": "object",
                 "properties": {
                   "in_app": {
@@ -15991,6 +16282,34 @@
                 ],
                 "additionalProperties": false
               },
+              "submission_returned": {
+                "type": "object",
+                "properties": {
+                  "in_app": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ],
+                    "description": "In-app is always enabled and cannot be disabled."
+                  },
+                  "email": {
+                    "type": "boolean"
+                  },
+                  "sms": {
+                    "type": "boolean"
+                  },
+                  "whatsapp": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "in_app",
+                  "email",
+                  "sms",
+                  "whatsapp"
+                ],
+                "additionalProperties": false
+              },
               "certificate_ready": {
                 "type": "object",
                 "properties": {
@@ -16214,6 +16533,34 @@
                   "whatsapp"
                 ],
                 "additionalProperties": false
+              },
+              "lead_assigned": {
+                "type": "object",
+                "properties": {
+                  "in_app": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ],
+                    "description": "In-app is always enabled and cannot be disabled."
+                  },
+                  "email": {
+                    "type": "boolean"
+                  },
+                  "sms": {
+                    "type": "boolean"
+                  },
+                  "whatsapp": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "in_app",
+                  "email",
+                  "sms",
+                  "whatsapp"
+                ],
+                "additionalProperties": false
               }
             },
             "additionalProperties": false
@@ -16352,6 +16699,7 @@
                 "type": "string",
                 "enum": [
                   "grade_ready",
+                  "submission_returned",
                   "certificate_ready",
                   "live_reminder",
                   "forum_reply",
@@ -16359,7 +16707,8 @@
                   "lead_confirmation",
                   "booking_confirmation",
                   "payment_receipt",
-                  "welcome"
+                  "welcome",
+                  "lead_assigned"
                 ],
                 "description": "Notification type — maps to a template for display."
               },
@@ -20547,6 +20896,19 @@
                     "type": "string",
                     "format": "uuid",
                     "description": "Filter by assigned owner."
+                  },
+                  "mine": {
+                    "type": "boolean",
+                    "description": "If true, filter to leads owned by the caller."
+                  },
+                  "unassigned": {
+                    "type": "boolean",
+                    "description": "If true, filter to leads with no owner."
+                  },
+                  "createdById": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Filter by the staff user who created the lead."
                   },
                   "source": {
                     "type": "string",
@@ -37734,206 +38096,6 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PublicCareerResumeUploadUrlResponse"
-              },
-              {
-                "type": [
-                  "object",
-                  "null"
-                ]
-              }
-            ]
-          },
-          "meta": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "additionalProperties": {}
-          },
-          "error": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ProblemDetails"
-              },
-              {
-                "type": [
-                  "object",
-                  "null"
-                ]
-              }
-            ]
-          }
-        },
-        "required": [
-          "data",
-          "meta",
-          "error"
-        ]
-      },
-      "SetFeatureFlagRequest": {
-        "type": "object",
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          },
-          "rollout": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "additionalProperties": {}
-          },
-          "description": {
-            "type": "string",
-            "maxLength": 500
-          }
-        },
-        "required": [
-          "enabled"
-        ],
-        "additionalProperties": false
-      },
-      "FeatureFlag": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "key": {
-            "type": "string"
-          },
-          "enabled": {
-            "type": "boolean"
-          },
-          "rollout": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "additionalProperties": {}
-          },
-          "description": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "id",
-          "key",
-          "enabled",
-          "rollout",
-          "description",
-          "updatedAt"
-        ]
-      },
-      "FeatureFlagEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/FeatureFlag"
-              },
-              {
-                "type": [
-                  "object",
-                  "null"
-                ]
-              }
-            ]
-          },
-          "meta": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "additionalProperties": {}
-          },
-          "error": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ProblemDetails"
-              },
-              {
-                "type": [
-                  "object",
-                  "null"
-                ]
-              }
-            ]
-          }
-        },
-        "required": [
-          "data",
-          "meta",
-          "error"
-        ]
-      },
-      "FeatureFlagListEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/FeatureFlag"
-            }
-          },
-          "meta": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/OffsetPaginationMeta"
-              },
-              {
-                "type": [
-                  "object",
-                  "null"
-                ]
-              }
-            ]
-          },
-          "error": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ProblemDetails"
-              },
-              {
-                "type": [
-                  "object",
-                  "null"
-                ]
-              }
-            ]
-          }
-        },
-        "required": [
-          "data",
-          "meta",
-          "error"
-        ]
-      },
-      "EvaluatedFeatureFlags": {
-        "type": "object",
-        "additionalProperties": {
-          "type": "boolean"
-        }
-      },
-      "EvaluatedFeatureFlagsEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EvaluatedFeatureFlags"
               },
               {
                 "type": [
@@ -57279,6 +57441,152 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EligibilityListItemListEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (RBAC/scope denied).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict (e.g. refresh reuse detected).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable (e.g. OTP expired/invalid).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/crm/certificates/eligibility-batches": {
+      "get": {
+        "summary": "List cohorts for the batch-first Certificates landing view",
+        "description": "One row per batch holding at least one non-dropped enrollment, with cheap headline counts (students, issued, revoked, completion-gate-ready). The CRM opens on this table and drills into GET /crm/certificates/eligibility?batchId=… for the students. `completionReadyCount` is the progress_pct gate ALONE — the three-gate eligibility engine is NOT run here (it costs ~5 queries per enrollment; this endpoint is a fixed 5 queries per page). Permission: certificates.view (scope: assigned|all — faculty see only their assigned batches).",
+        "tags": [
+          "learning",
+          "certificates"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-required-permission": "certificates.view (scope: assigned|all)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "programId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Filter by batch name or program title."
+            },
+            "required": false,
+            "description": "Filter by batch name or program title.",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "description": "1-based page number."
+            },
+            "required": false,
+            "description": "1-based page number.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 20,
+              "description": "Items per page, max 200."
+            },
+            "required": false,
+            "description": "Items per page, max 200.",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batch rollup list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EligibilityBatchSummaryListEnvelope"
                 }
               }
             }
@@ -77017,496 +77325,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CareerApplicationDetailEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthenticated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden (RBAC/scope denied).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict (e.g. refresh reuse detected).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable (e.g. OTP expired/invalid).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Rate limited.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/crm/feature-flags": {
-      "get": {
-        "summary": "List feature flags (admin)",
-        "tags": [
-          "crm",
-          "flags"
-        ],
-        "security": [
-          {
-            "cookieAuth": []
-          }
-        ],
-        "x-required-permission": "flags.view",
-        "parameters": [
-          {
-            "schema": {
-              "type": [
-                "boolean",
-                "null"
-              ]
-            },
-            "required": false,
-            "name": "enabled",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 120,
-              "description": "Match by key."
-            },
-            "required": false,
-            "description": "Match by key.",
-            "name": "search",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "default": 1,
-              "description": "1-based page number."
-            },
-            "required": false,
-            "description": "1-based page number.",
-            "name": "page",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 200,
-              "default": 20,
-              "description": "Items per page, max 200."
-            },
-            "required": false,
-            "description": "Items per page, max 200.",
-            "name": "pageSize",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Flag list.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FeatureFlagListEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthenticated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden (RBAC/scope denied).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict (e.g. refresh reuse detected).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable (e.g. OTP expired/invalid).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Rate limited.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/crm/feature-flags/{key}": {
-      "get": {
-        "summary": "Get a single feature flag by key",
-        "tags": [
-          "crm",
-          "flags"
-        ],
-        "security": [
-          {
-            "cookieAuth": []
-          }
-        ],
-        "x-required-permission": "flags.view",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1
-            },
-            "required": true,
-            "name": "key",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Flag detail.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FeatureFlagEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthenticated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden (RBAC/scope denied).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict (e.g. refresh reuse detected).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable (e.g. OTP expired/invalid).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Rate limited.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "summary": "Create or update a feature flag by key",
-        "tags": [
-          "crm",
-          "flags"
-        ],
-        "security": [
-          {
-            "cookieAuth": [],
-            "csrfHeader": []
-          }
-        ],
-        "x-required-permission": "flags.manage",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1
-            },
-            "required": true,
-            "name": "key",
-            "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Idempotency key for this mutation. Generate one via crypto.randomUUID(). The backend stores this and returns a cached response on replay, preventing double-mutations (docs/04 §2.6). Required on all unsafe commerce + leads mutations."
-            },
-            "required": true,
-            "description": "Idempotency key for this mutation. Generate one via crypto.randomUUID(). The backend stores this and returns a cached response on replay, preventing double-mutations (docs/04 §2.6). Required on all unsafe commerce + leads mutations.",
-            "name": "Idempotency-Key",
-            "in": "header"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SetFeatureFlagRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Flag set.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FeatureFlagEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthenticated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden (RBAC/scope denied).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict (e.g. refresh reuse detected).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable (e.g. OTP expired/invalid).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Rate limited.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/feature-flags/evaluate": {
-      "get": {
-        "summary": "Evaluate flags for the current caller (cached, any authenticated surface)",
-        "tags": [
-          "flags"
-        ],
-        "security": [
-          {
-            "cookieAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Comma-separated flag keys to evaluate."
-            },
-            "required": true,
-            "description": "Comma-separated flag keys to evaluate.",
-            "name": "keys",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Evaluated flags.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EvaluatedFeatureFlagsEnvelope"
                 }
               }
             }

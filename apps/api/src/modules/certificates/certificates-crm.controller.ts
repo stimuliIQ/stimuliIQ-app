@@ -5,6 +5,7 @@
 //
 // Route map (matches @repo/api-client CertificatesApi SDK + OpenAPI):
 //   GET    /crm/certificates/eligibility          → listEligibility (certificates.view)
+//   GET    /crm/certificates/eligibility-batches  → listEligibilityBatches (certificates.view)
 //   GET    /crm/certificates/eligibility/:enrollmentId → getEligibilityDetail (certificates.view)
 //   POST   /crm/certificates                       → issueCertificate (certificates.issue)
 //   POST   /crm/certificates/:enrollmentId/recommend → recommendCertificate (certificates.recommend)
@@ -45,6 +46,7 @@ import type {
   BulkIssueCertificatesRequest,
   BulkIssueCertificatesResponse,
   EligibilityListItem,
+  EligibilityBatchSummary,
   EligibilityResult,
   IssueCertificateRequest,
   RecommendCertificateRequest,
@@ -52,6 +54,7 @@ import type {
   ReissueCertificateRequest,
   ListCertificatesQuery,
   ListEligibilityQuery,
+  ListEligibilityBatchesQuery,
 } from "@repo/types";
 import {
   IssueCertificateRequestSchema,
@@ -63,6 +66,7 @@ import {
   BulkIssueCertificatesRequestSchema,
   ListCertificatesQuerySchema,
   ListEligibilityQuerySchema,
+  ListEligibilityBatchesQuerySchema,
 } from "@repo/types";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
@@ -99,6 +103,28 @@ export class CertificatesCrmController {
     const ctx = getScopeContext();
     const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
     return this.service.listEligibility(user.tenantId, query, scope, user.id);
+  }
+
+  /**
+   * GET /api/v1/crm/certificates/eligibility-batches
+   * Batch-first landing view: one row per cohort with cheap headline counts.
+   * The CRM drills from a row into ?batchId= on the eligibility list above.
+   * Faculty (assigned-scope): only their assigned batches.
+   * Permission: certificates.view
+   *
+   * ROUTE ORDER: declared before `certificates/:id` — Nest matches in declaration
+   * order, and `:id` would otherwise swallow the literal `eligibility-batches`
+   * segment and 400 on its ParseUUIDPipe.
+   */
+  @Get("certificates/eligibility-batches")
+  @RequirePermission("certificates.view")
+  async listEligibilityBatches(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(ListEligibilityBatchesQuerySchema)) query: ListEligibilityBatchesQuery,
+  ): Promise<PaginatedResult<EligibilityBatchSummary>> {
+    const ctx = getScopeContext();
+    const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
+    return this.service.listEligibilityBatches(user.tenantId, query, scope, user.id);
   }
 
   /**

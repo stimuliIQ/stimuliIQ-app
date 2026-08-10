@@ -34,6 +34,7 @@ type Mocked<T> = { [K in keyof T]: T[K] extends (...args: never[]) => unknown ? 
 function mockRepository(): Mocked<VideoLibraryRepository> {
   return {
     findLessonForIngest: jest.fn(),
+    promoteLessonToVideo: jest.fn(),
     findActiveVideoByLessonId: jest.fn(),
     createVideo: jest.fn(),
     replaceVideo: jest.fn(),
@@ -143,6 +144,32 @@ describe("VideoLibraryService", () => {
       expect(result.uploadUrl).toBe("https://upload.example/1");
       expect(repo.createVideo).toHaveBeenCalled();
       expect(repo.replaceVideo).not.toHaveBeenCalled();
+    });
+
+    // The LMS renders a player only for `type === "video"` (lesson-detail-content.tsx), and
+    // the CRM lets an author attach to ANY lesson — so without this the upload completes,
+    // the transcode finishes, and the student sees a reading page with no video on it.
+    it("makes the lesson a video lesson, so the upload is actually visible to students", async () => {
+      repo.findLessonForIngest.mockResolvedValue({ id: "lesson-1", title: "Intro to CSS", programId: "program-1" });
+      repo.findActiveVideoByLessonId.mockResolvedValue(null);
+      videoProvider.createUploadTarget.mockResolvedValue({ uploadUrl: "https://upload.example/1", providerAssetId: "asset-1" });
+      repo.createVideo.mockResolvedValue(VIDEO_ROW);
+      repo.findById.mockResolvedValue(VIDEO_WITH_LESSON);
+
+      await runWithScope("all", () => service.create("tenant-1", "actor-1", { lessonId: "lesson-1" }));
+
+      expect(repo.promoteLessonToVideo).toHaveBeenCalledWith("lesson-1");
+    });
+
+    // Promotion must never run for a lesson the caller isn't allowed to touch.
+    it("does not touch the lesson when the ingest is refused for scope", async () => {
+      repo.findLessonForIngest.mockResolvedValue({ id: "lesson-x", title: "Other course", programId: "program-999" });
+
+      await expect(
+        runWithScope("assigned", () => service.create("tenant-1", "actor-1", { lessonId: "lesson-x" })),
+      ).rejects.toBeTruthy();
+
+      expect(repo.promoteLessonToVideo).not.toHaveBeenCalled();
     });
 
     it("REPLACES IN PLACE (never creates a second row) when the lesson already has an active video", async () => {

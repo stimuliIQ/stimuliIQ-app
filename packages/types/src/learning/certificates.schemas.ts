@@ -24,6 +24,28 @@ import { PageQuerySchema } from "../common/pagination.js";
 export const CertificateStatusSchema = z.enum(["valid", "revoked"]);
 export type CertificateStatus = z.infer<typeof CertificateStatusSchema>;
 
+/**
+ * WHICH of the two certificates this is. A student can hold one of each for the same
+ * enrollment — the DB's partial-unique is on (enrollment_id, kind).
+ *
+ *   training   — earned by finishing the BATCH. Auto-issued to EVERY active enrollment in
+ *                a batch the moment it closes, with no eligibility gate: being in the
+ *                batch is the bar.
+ *   internship — earned by doing the WORK. Issued only after a project submission has been
+ *                verified by staff in CRM ▸ Projects.
+ *
+ * When the batch's program has no project attached there is nothing to verify, so both are
+ * issued together at batch close.
+ */
+export const CertificateKindSchema = z.enum(["training", "internship"]);
+export type CertificateKind = z.infer<typeof CertificateKindSchema>;
+
+/** Human label for a kind — one definition, so CRM/LMS/PDF never drift. */
+export const CERTIFICATE_KIND_LABEL: Record<CertificateKind, string> = {
+  training: "Training Certificate",
+  internship: "Internship Certificate",
+};
+
 // ─────────────────────────────────────────────────────────────────────────
 // Certificate serial — the SHORT, human-typeable public identifier
 // ─────────────────────────────────────────────────────────────────────────
@@ -126,6 +148,41 @@ export const EligibilityListItemSchema = z.object({
 });
 export type EligibilityListItem = z.infer<typeof EligibilityListItemSchema>;
 
+/**
+ * One row of the BATCH-FIRST landing view of CRM ▸ Certificates
+ * (GET /crm/certificates/eligibility-batches). Reviewers work cohort-first:
+ * they open the page to clear one batch, so the page opens on batches and
+ * drills into `GET /crm/certificates/eligibility?batchId=…` for the students.
+ *
+ * Every count here is a plain aggregate over `enrollments`/`certificates` —
+ * deliberately NOT the three-gate eligibility engine, which costs ~5 queries
+ * per enrollment (running it across every batch just to paint a landing page
+ * would be an N+1 sweep). `completionReadyCount` is the one gate that IS a
+ * single column read, so it is named for exactly what it measures and is never
+ * presented as "eligible": the other two gates are only resolved on drill-in.
+ */
+export const EligibilityBatchSummarySchema = z.object({
+  batchId: UuidSchema,
+  batchName: z.string(),
+  programId: UuidSchema,
+  programTitle: z.string(),
+  studentCount: z.number().int().min(0).describe(
+    "COUNT(enrollments) WHERE batch_id=B AND status IN ('active','completed') — the same " +
+      "non-dropped population the eligibility list itself pages over.",
+  ),
+  issuedCount: z.number().int().min(0).describe(
+    "COUNT of those enrollments holding a certificate with status='valid'.",
+  ),
+  revokedCount: z.number().int().min(0).describe(
+    "COUNT of those enrollments whose only live certificate row is status='revoked' (needs a reissue).",
+  ),
+  completionReadyCount: z.number().int().min(0).describe(
+    "COUNT of those enrollments with progress_pct >= 90 (the COMPLETION gate ALONE — assessments " +
+      "and final project are NOT checked here). A hint for which batch to open, never an eligibility verdict.",
+  ),
+});
+export type EligibilityBatchSummary = z.infer<typeof EligibilityBatchSummarySchema>;
+
 // ─────────────────────────────────────────────────────────────────────────
 // CRM author/ops DTOs
 // ─────────────────────────────────────────────────────────────────────────
@@ -148,6 +205,11 @@ export type EligibilityListItem = z.infer<typeof EligibilityListItemSchema>;
 export const IssueCertificateRequestSchema = z
   .object({
     enrollmentId: UuidSchema.describe("The enrollment to issue the certificate for."),
+    kind: CertificateKindSchema.default("training").describe(
+      "Which certificate to issue. `training` skips the eligibility gate entirely — batch " +
+        "completion is the bar. `internship` is normally issued by verifying a project " +
+        "submission in CRM ▸ Projects rather than through this endpoint.",
+    ),
     templateId: UuidSchema.describe(
       "The seeded CertificateTemplate to use for rendering the PDF.",
     ),
@@ -181,6 +243,7 @@ export const BulkIssueCertificatesRequestSchema = z
   .object({
     enrollmentIds: z.array(UuidSchema).min(1).max(200),
     templateId: UuidSchema,
+    kind: CertificateKindSchema.default("training"),
     overrideEligibility: z.boolean().default(false),
   })
   .strict();
@@ -268,6 +331,7 @@ export const CertificateListItemSchema = z.object({
   ),
   programId: UuidSchema,
   programTitle: z.string(),
+  kind: CertificateKindSchema,
   status: CertificateStatusSchema,
   issuedAt: IsoDateTimeSchema,
   revokedAt: IsoDateTimeSchema.nullable(),
@@ -325,6 +389,7 @@ export const CertificateCrmDetailSchema = z.object({
   batchName: z.string(),
   templateId: UuidSchema,
   templateName: z.string(),
+  kind: CertificateKindSchema,
   status: CertificateStatusSchema,
   issuedAt: IsoDateTimeSchema,
   // Null = issued automatically by the system (CertificatesService.autoIssueOnCompletion)
@@ -438,6 +503,15 @@ void _a1; void _a2; void _a3; void _a4; void _a5;
 export const CertificateTemplateSummarySchema = z.object({
   id: UuidSchema,
   name: z.string(),
+  /**
+   * WHICH award this template issues, read server-side from its `design.certificateKind`.
+   *
+   * Surfaced on the summary because the template IS the kind — its artwork says TRAINING or
+   * INTERNSHIP in the ribbon — so any caller that picks a template has already picked a
+   * kind. Before this, the CRM's issue dialogs had to ask separately, which allowed the two
+   * to contradict each other: an internship template issuing a row marked training.
+   */
+  kind: CertificateKindSchema,
   status: z.enum(["active", "inactive"]),
   createdAt: IsoDateTimeSchema,
 });
@@ -506,6 +580,7 @@ export type UpdateCertificateTemplateRequest = z.infer<typeof UpdateCertificateT
 export const ListCertificatesQuerySchema = z
   .object({
     status: CertificateStatusSchema.optional(),
+    kind: CertificateKindSchema.optional(),
     programId: UuidSchema.optional(),
     search: z.string().min(1).max(200).optional().describe("Filter by student name, cert_uid, or serial."),
   })
@@ -524,3 +599,18 @@ export const ListEligibilityQuerySchema = z
   .merge(PageQuerySchema)
   .strict();
 export type ListEligibilityQuery = z.infer<typeof ListEligibilityQuerySchema>;
+
+/**
+ * GET /api/v1/crm/certificates/eligibility-batches — the batch-first landing
+ * page of CRM ▸ Certificates. `search` matches the BATCH or the PROGRAM name
+ * here (not the student name, which is what `ListEligibilityQuery.search`
+ * matches once you are inside a batch).
+ */
+export const ListEligibilityBatchesQuerySchema = z
+  .object({
+    programId: UuidSchema.optional(),
+    search: z.string().min(1).max(200).optional().describe("Filter by batch name or program title."),
+  })
+  .merge(PageQuerySchema)
+  .strict();
+export type ListEligibilityBatchesQuery = z.infer<typeof ListEligibilityBatchesQuerySchema>;

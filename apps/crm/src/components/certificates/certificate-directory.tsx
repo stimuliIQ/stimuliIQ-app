@@ -4,8 +4,15 @@
 // certificates.revoke (UI hides affordances, API enforces).
 // Revoke is a destructive action — always gated by RevokeCertificateDialog
 // which requires a reason (ConfirmDialog pattern with extra input, AC-G1).
+//
+// BATCH-FIRST (2026-08-10): certification is cohort work, so the page opens on
+// CertificateBatchList and this per-student table renders only once a batch is
+// picked (`?batchId=` on the route, so a drilled-in view is linkable and the
+// browser Back button works). The Batch/Program columns are gone from the table
+// — inside one cohort they repeated the same value on every row, and the context
+// line under the header carries them instead.
 import * as React from "react";
-import { ExternalLink } from "lucide-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import {
   Alert,
   Button,
@@ -21,7 +28,7 @@ import {
   StatusChip,
   useToast,
 } from "@repo/ui";
-import type { EligibilityListItem, MeResponse } from "@repo/types";
+import type { EligibilityBatchSummary, EligibilityListItem, MeResponse } from "@repo/types";
 
 import {
   useEligibilityList,
@@ -35,14 +42,22 @@ import { EligibilityGate } from "./eligibility-chip";
 import { IssueCertificateDialog } from "./issue-certificate-dialog";
 import { RevokeCertificateDialog } from "./revoke-certificate-dialog";
 import { BulkIssueDialog } from "./bulk-issue-dialog";
+import { CertificateBatchList } from "./certificate-batch-list";
 import { CertTemplateDesignerDrawer } from "./cert-template-designer-drawer";
 import { certificateVerifyUrl } from "../../lib/public-urls";
 
 interface CertificateDirectoryProps {
   me: MeResponse | undefined;
+  /** The cohort being reviewed (`?batchId=`); null shows the batch landing table. */
+  batchId: string | null;
+  onBatchChange: (batchId: string | null) => void;
 }
 
-export function CertificateDirectory({ me }: CertificateDirectoryProps): React.JSX.Element {
+export function CertificateDirectory({
+  me,
+  batchId,
+  onBatchChange,
+}: CertificateDirectoryProps): React.JSX.Element {
   const canIssue = hasPermission(me?.permissions, "certificates.issue");
   const canRevoke = hasPermission(me?.permissions, "certificates.revoke");
   const canRecommend = hasPermission(me?.permissions, "certificates.recommend");
@@ -61,6 +76,10 @@ export function CertificateDirectory({ me }: CertificateDirectoryProps): React.J
   } | null>(null);
   const [bulkIssueOpen, setBulkIssueOpen] = React.useState(false);
   const [designerOpen, setDesignerOpen] = React.useState(false);
+  // Remembered from the batch row that was clicked, so the context line can name
+  // the cohort without a second fetch. A cold `?batchId=` link has no memory —
+  // hence the fallback to the first loaded row below.
+  const [openedBatch, setOpenedBatch] = React.useState<EligibilityBatchSummary | null>(null);
 
   const debouncedSearch = useDebouncedValue(search);
   const pageSize = 20;
@@ -70,13 +89,47 @@ export function CertificateDirectory({ me }: CertificateDirectoryProps): React.J
     setPage(1);
   }, [debouncedSearch, eligibleFilter, hasRecommendation]);
 
-  const { data, isLoading, isError, refetch, isFetching } = useEligibilityList({
-    page,
-    pageSize,
-    search: debouncedSearch || undefined,
-    eligible: eligibleFilter,
-    hasRecommendation,
-  });
+  // Switching cohorts resets everything scoped to the previous one: the page, the
+  // student-name search (it named one person in the batch just left), and above all
+  // the selection, whose enrollment ids belong to the old batch and would otherwise
+  // be bulk-issued from a cohort the user is no longer looking at. The eligibility /
+  // recommended dropdowns deliberately persist — those are how a reviewer works,
+  // not something about one batch.
+  React.useEffect(() => {
+    setPage(1);
+    setSearch("");
+    setSelectedIds(new Set());
+    setSelectedEnrollmentId(null);
+  }, [batchId]);
+
+  const { data, isLoading, isError, refetch, isFetching } = useEligibilityList(
+    {
+      page,
+      pageSize,
+      batchId: batchId ?? undefined,
+      search: debouncedSearch || undefined,
+      eligible: eligibleFilter,
+      hasRecommendation,
+    },
+    { enabled: Boolean(batchId) },
+  );
+
+  // Only trust the remembered row while it still describes the batch in the URL —
+  // editing `?batchId=` by hand must not leave the previous cohort's name on screen.
+  const contextBatch = openedBatch?.batchId === batchId ? openedBatch : null;
+  const firstRow = data?.items[0];
+  const batchName = contextBatch?.batchName ?? firstRow?.batchName ?? null;
+  const programTitle = contextBatch?.programTitle ?? firstRow?.programTitle ?? null;
+
+  const handleOpenBatch = (batch: EligibilityBatchSummary) => {
+    setOpenedBatch(batch);
+    onBatchChange(batch.batchId);
+  };
+
+  const handleBackToBatches = () => {
+    setOpenedBatch(null);
+    onBatchChange(null);
+  };
 
   const {
     data: eligibilityDetail,
@@ -131,8 +184,6 @@ export function CertificateDirectory({ me }: CertificateDirectoryProps): React.J
 
   const columns: Array<DataTableColumn<EligibilityListItem>> = [
     { id: "studentName", header: "Student", cell: (row) => row.studentName, sortable: true },
-    { id: "programTitle", header: "Program", cell: (row) => row.programTitle },
-    { id: "batchName", header: "Batch", cell: (row) => row.batchName },
     {
       id: "completion",
       header: "Completion",
@@ -301,40 +352,21 @@ export function CertificateDirectory({ me }: CertificateDirectoryProps): React.J
     },
   ];
 
-  if (isError) {
-    return (
-      <EmptyState
-        data-testid="certificates-error"
-        title="Couldn't load eligibility list"
-        description="Something went wrong fetching certificate eligibility data."
-        action={
-          <Button variant="secondary" onClick={() => refetch()} data-testid="certificates-retry">
-            Try again
-          </Button>
-        }
-      />
-    );
-  }
+  const errorState = (
+    <EmptyState
+      data-testid="certificates-error"
+      title="Couldn't load eligibility list"
+      description="Something went wrong fetching certificate eligibility data."
+      action={
+        <Button variant="secondary" onClick={() => refetch()} data-testid="certificates-retry">
+          Try again
+        </Button>
+      }
+    />
+  );
 
-  return (
-    <div className="space-y-4 md:space-y-5" data-testid="certificates-directory">
-      <PageHeader
-        title="Certificates"
-        description="Eligibility breakdown per enrollment. Issue, revoke, and reissue certificates."
-        actions={
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => setDesignerOpen(true)} data-testid="certificates-template-designer-button">
-              Template designer
-            </Button>
-            {canIssue && selectedIds.size > 0 ? (
-              <Button onClick={() => setBulkIssueOpen(true)} data-testid="certificates-bulk-issue-button">
-                Bulk issue ({selectedIds.size})
-              </Button>
-            ) : null}
-          </div>
-        }
-      />
-
+  const studentTable = (
+    <>
       <DataFilterBar data-testid="certificates-filter-bar">
         <Input
           label="Search"
@@ -486,6 +518,57 @@ export function CertificateDirectory({ me }: CertificateDirectoryProps): React.J
           )}
         </div>
       ) : null}
+    </>
+  );
+
+  return (
+    <div className="space-y-4 md:space-y-5" data-testid="certificates-directory">
+      <PageHeader
+        title="Certificates"
+        description={
+          batchId
+            ? "Eligibility breakdown per student in this batch. Issue, revoke, and reissue certificates."
+            : "Pick a batch to see its students, their eligibility gates, and issue certificates."
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => setDesignerOpen(true)} data-testid="certificates-template-designer-button">
+              Template designer
+            </Button>
+            {batchId && canIssue && selectedIds.size > 0 ? (
+              <Button onClick={() => setBulkIssueOpen(true)} data-testid="certificates-bulk-issue-button">
+                Bulk issue ({selectedIds.size})
+              </Button>
+            ) : null}
+          </div>
+        }
+      />
+
+      {batchId ? (
+        <>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBackToBatches}
+              data-testid="certificates-back-to-batches"
+            >
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              All batches
+            </Button>
+            {batchName ? (
+              <p className="text-sm text-fg-muted" data-testid="certificates-batch-context">
+                <span className="font-medium text-fg">{batchName}</span>
+                {programTitle ? ` · ${programTitle}` : null}
+              </p>
+            ) : null}
+          </div>
+
+          {isError ? errorState : studentTable}
+        </>
+      ) : (
+        <CertificateBatchList onOpenBatch={handleOpenBatch} />
+      )}
 
       {/* Dialogs */}
       <IssueCertificateDialog

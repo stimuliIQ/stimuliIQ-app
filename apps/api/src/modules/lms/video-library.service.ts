@@ -87,6 +87,12 @@ export class VideoLibraryService {
       metadata: { lessonId: lesson.id },
     });
 
+    // A lesson whose content is a video IS a video lesson. The CRM lets an author attach to
+    // any lesson (its picker used to hide everything else, which read as "lessons aren't
+    // loading"), and the LMS only renders a player for `type === "video"` — so without this
+    // the upload would complete and the student would never see it. No-op when it already is.
+    await this.repository.promoteLessonToVideo(lesson.id);
+
     const existing = await this.repository.findActiveVideoByLessonId(tenantId, body.lessonId);
     const row: VideoRow = existing
       ? await this.repository.replaceVideo(existing.id, { provider: this.providerKey(), providerAssetId: uploadTarget.providerAssetId })

@@ -314,6 +314,7 @@ describe("CertificatesService", () => {
       await expect(
         service.issueCertificate(ACTOR_ID, TENANT_ID, {
           enrollmentId: ENROLLMENT_ID,
+          kind: "training" as const,
           templateId: TEMPLATE_ID,
           overrideEligibility: false,
         }, "all"),
@@ -333,6 +334,7 @@ describe("CertificatesService", () => {
         id: CERT_ID,
         tenantId: TENANT_ID,
         enrollmentId: ENROLLMENT_ID,
+        kind: "training" as const,
         studentId: STUDENT_ID,
         programId: PROGRAM_ID,
         certUid: "fake.uid",
@@ -359,7 +361,7 @@ describe("CertificatesService", () => {
       const result = await service.issueCertificate(
         ACTOR_ID,
         TENANT_ID,
-        { enrollmentId: ENROLLMENT_ID, templateId: TEMPLATE_ID, overrideEligibility: false },
+        { enrollmentId: ENROLLMENT_ID, kind: "training" as const, templateId: TEMPLATE_ID, overrideEligibility: false },
         "all",
       );
 
@@ -391,6 +393,7 @@ describe("CertificatesService", () => {
         id: CERT_ID,
         tenantId: TENANT_ID,
         enrollmentId: ENROLLMENT_ID,
+        kind: "training" as const,
         studentId: STUDENT_ID,
         programId: PROGRAM_ID,
         certUid: "fake.uid",
@@ -418,7 +421,7 @@ describe("CertificatesService", () => {
       const result = await service.issueCertificate(
         ACTOR_ID,
         TENANT_ID,
-        { enrollmentId: ENROLLMENT_ID, templateId: TEMPLATE_ID, overrideEligibility: false },
+        { enrollmentId: ENROLLMENT_ID, kind: "training" as const, templateId: TEMPLATE_ID, overrideEligibility: false },
         "all",
       );
 
@@ -433,6 +436,7 @@ describe("CertificatesService", () => {
       await expect(
         service.issueCertificate(ACTOR_ID, TENANT_ID, {
           enrollmentId: ENROLLMENT_ID,
+          kind: "training" as const,
           templateId: TEMPLATE_ID,
           overrideEligibility: true,
         }, "assigned"),
@@ -445,6 +449,7 @@ describe("CertificatesService", () => {
         id: CERT_ID,
         tenantId: TENANT_ID,
         enrollmentId: ENROLLMENT_ID,
+        kind: "training" as const,
         studentId: STUDENT_ID,
         programId: PROGRAM_ID,
         certUid: "existing.uid",
@@ -471,6 +476,7 @@ describe("CertificatesService", () => {
       await expect(
         service.issueCertificate(ACTOR_ID, TENANT_ID, {
           enrollmentId: ENROLLMENT_ID,
+          kind: "training" as const,
           templateId: TEMPLATE_ID,
           overrideEligibility: false,
         }, "all"),
@@ -496,6 +502,7 @@ describe("CertificatesService", () => {
         id: CERT_ID,
         tenantId: TENANT_ID,
         enrollmentId: ENROLLMENT_ID,
+        kind: "training" as const,
         studentId: STUDENT_ID,
         programId: PROGRAM_ID,
         certUid: "fake.uid",
@@ -537,6 +544,7 @@ describe("CertificatesService", () => {
         id: CERT_ID,
         tenantId: TENANT_ID,
         enrollmentId: ENROLLMENT_ID,
+        kind: "training" as const,
         studentId: STUDENT_ID,
         programId: PROGRAM_ID,
         certUid: "existing.uid",
@@ -572,6 +580,7 @@ describe("CertificatesService", () => {
         id: CERT_ID,
         tenantId: TENANT_ID,
         enrollmentId: ENROLLMENT_ID,
+        kind: "training" as const,
         studentId: STUDENT_ID,
         programId: PROGRAM_ID,
         certUid: "existing.uid",
@@ -726,6 +735,7 @@ describe("CertificatesService", () => {
         id: CERT_ID,
         tenantId: TENANT_ID,
         enrollmentId: ENROLLMENT_ID,
+        kind: "training" as const,
         studentId: STUDENT_ID,
         programId: PROGRAM_ID,
         certUid: "fake.uid",
@@ -752,7 +762,7 @@ describe("CertificatesService", () => {
       const result = await service.bulkIssueCertificates(
         ACTOR_ID,
         TENANT_ID,
-        { enrollmentIds: [ENROLLMENT_ID, OTHER_ENROLLMENT_ID], templateId: TEMPLATE_ID, overrideEligibility: false },
+        { enrollmentIds: [ENROLLMENT_ID, OTHER_ENROLLMENT_ID], kind: "training" as const, templateId: TEMPLATE_ID, overrideEligibility: false },
         "all",
       );
 
@@ -943,6 +953,7 @@ describe("CertificatesService", () => {
         id: CERT_ID,
         tenantId: TENANT_ID,
         enrollmentId: ENROLLMENT_ID,
+        kind: "training" as const,
         studentId: STUDENT_ID,
         programId: PROGRAM_ID,
         certUid: "fake.uid",
@@ -991,6 +1002,7 @@ describe("CertificatesService", () => {
         id: CERT_ID,
         tenantId: TENANT_ID,
         enrollmentId: ENROLLMENT_ID,
+        kind: "training" as const,
         studentId: STUDENT_ID,
         programId: PROGRAM_ID,
         certUid: "fake.uid",
@@ -1036,6 +1048,7 @@ describe("CertificatesService", () => {
       id: CERT_ID,
       tenantId: TENANT_ID,
       enrollmentId: ENROLLMENT_ID,
+      kind: "training" as const,
       studentId: STUDENT_ID,
       programId: PROGRAM_ID,
       certUid: "fake.uid",

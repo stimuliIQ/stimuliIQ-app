@@ -371,7 +371,7 @@ describeIfDb("CertificatesService integration", () => {
     const result = await service.issueCertificate(
       actorUserId,
       tenId,
-      { enrollmentId: enrollId, templateId, overrideEligibility: false },
+      { enrollmentId: enrollId, kind: "training" as const, templateId, overrideEligibility: false },
       "all",
     );
     return { id: result.id, certUid: result.certUid };
@@ -400,7 +400,7 @@ describeIfDb("CertificatesService integration", () => {
         service.issueCertificate(
           actorUserId,
           tenantId,
-          { enrollmentId, templateId, overrideEligibility: false },
+          { enrollmentId, kind: "training" as const, templateId, overrideEligibility: false },
           "all",
         ),
       ).rejects.toThrow(UnprocessableEntityException);
@@ -487,7 +487,7 @@ describeIfDb("CertificatesService integration", () => {
         service.issueCertificate(
           actorUserId,
           tenant2Id, // wrong tenant
-          { enrollmentId, templateId, overrideEligibility: false },
+          { enrollmentId, kind: "training" as const, templateId, overrideEligibility: false },
           "all",
         ),
       ).rejects.toThrow(NotFoundException);
@@ -749,7 +749,7 @@ describeIfDb("CertificatesService integration", () => {
         service.issueCertificate(
           actorUserId,
           tenant2Id, // wrong tenant
-          { enrollmentId, templateId, overrideEligibility: true },
+          { enrollmentId, kind: "training" as const, templateId, overrideEligibility: true },
           "all",
         ),
       ).rejects.toThrow(NotFoundException);

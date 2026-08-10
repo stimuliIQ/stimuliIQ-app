@@ -168,6 +168,72 @@ export interface CertificateDesign {
    */
   signatoryName?: string;
   signatoryDesignation?: string;
+
+  // ── Artwork mode ────────────────────────────────────────────────────────────
+
+  /**
+   * The approved certificate ARTWORK, printed full-bleed as the page itself.
+   *
+   * Setting this switches the renderer out of "draw the certificate in code" and into
+   * "print the design and place the values on it". That distinction is the whole point:
+   * everything else in this interface (borders, seal, ribbon, colours) drives a code
+   * REPRODUCTION of the approved design, and a reproduction is never identical — fonts,
+   * ornament geometry and spacing all drift. With artwork mode the certificate IS the
+   * approved file, so it cannot drift, and only the five values below are drawn.
+   *
+   * A file name in the API's PRIVATE `assets/certificate/` directory, sanitised by
+   * `safeAssetName()` like every other asset here — not a URL, never served over HTTP.
+   *
+   * THE FILE MUST BE BLANK where values go: no "Your Name", no specimen certificate id,
+   * no issue date, and no body paragraph (the programme and date sit mid-sentence, so the
+   * sentence has to be drawn, not baked). Everything static — frame, ornaments, ribbon,
+   * seal, headings, logos, signature block — stays in the artwork and is therefore exact.
+   */
+  artworkFileName?: string;
+
+  /**
+   * Where each drawn value sits on the artwork, as a PERCENTAGE of page width/height.
+   *
+   * Percentages rather than points so the same numbers hold whatever size the artwork is
+   * exported at, and so a designer moving a field in the CRM produces a value that means
+   * the same thing on every page size.
+   *
+   * Omitted entries fall back to `DEFAULT_ARTWORK_FIELDS`, which are measured from the
+   * approved specimens in `docs/sample certificate/` — so a template that names artwork
+   * and nothing else already lands its values in the right places.
+   */
+  artworkFields?: Partial<Record<ArtworkFieldKey, ArtworkFieldPlacement>>;
+
+  /**
+   * Font files (private assets, `.ttf`/`.otf`) registered before rendering, so the drawn
+   * values match the artwork's typography instead of falling back to Helvetica.
+   *
+   * `script` is the calligraphic face used for the holder's name; `body` is the sans used
+   * for the paragraph and the small print. Absent files are skipped and the built-in font
+   * is used — a missing font must never fail an issuance.
+   */
+  artworkFonts?: { script?: string; body?: string; bodyBold?: string };
+}
+
+/** The five values that are NOT part of the artwork and must be drawn onto it. */
+export type ArtworkFieldKey = "holderName" | "body" | "certificateId" | "issuedAt" | "verifyUrl";
+
+/** Placement of one drawn value on the artwork. All positions are percentages (0–100). */
+export interface ArtworkFieldPlacement {
+  /** Horizontal anchor. With `align: "center"` this is the CENTRE of the text. */
+  x: number;
+  /** Vertical anchor — the TOP of the text box. */
+  y: number;
+  /** Box width, so long programme names wrap instead of running off the page. */
+  width?: number;
+  /** Font size in points. */
+  size?: number;
+  align?: "left" | "center" | "right";
+  color?: string;
+  /** Which registered face to use. Defaults to the body font. */
+  font?: "script" | "body" | "bodyBold";
+  /** Line height multiplier, for the multi-line body paragraph. */
+  lineHeight?: number;
 }
 
 /**

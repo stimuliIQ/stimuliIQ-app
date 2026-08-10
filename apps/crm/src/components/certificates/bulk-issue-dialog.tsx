@@ -10,6 +10,7 @@
 import * as React from "react";
 import { Button, Drawer, DrawerContent, DrawerBody, DrawerFooter, Select, SelectItem, StatusChip, useToast } from "@repo/ui";
 import type { EligibilityListItem } from "@repo/types";
+import { CERTIFICATE_KIND_LABEL } from "@repo/types";
 
 import { useCertificateTemplates, useIssueCertificate } from "../../hooks/use-certificates";
 
@@ -28,6 +29,10 @@ export function BulkIssueDialog({ open, onOpenChange, candidates, onDone }: Bulk
   const { toast } = useToast();
 
   const [templateId, setTemplateId] = React.useState<string | undefined>(undefined);
+  // The award comes FROM the template, never from a second picker: the template carries the
+  // artwork whose ribbon reads TRAINING or INTERNSHIP, so asking separately would let the
+  // issued row contradict the document the student receives.
+  const selectedTemplate = (templates?.items ?? []).find((t) => t.id === templateId);
   const [running, setRunning] = React.useState(false);
   const [results, setResults] = React.useState<RowResult[] | null>(null);
 
@@ -41,12 +46,17 @@ export function BulkIssueDialog({ open, onOpenChange, candidates, onDone }: Bulk
   const issuable = candidates.filter((c) => c.eligibility.eligible && !c.certificateStatus);
 
   async function handleIssueAll() {
-    if (!templateId) return;
+    if (!templateId || !selectedTemplate) return;
     setRunning(true);
     const rowResults: RowResult[] = [];
     for (const candidate of issuable) {
       try {
-        await issueCertificate.mutateAsync({ enrollmentId: candidate.enrollmentId, templateId, overrideEligibility: false });
+        await issueCertificate.mutateAsync({
+          enrollmentId: candidate.enrollmentId,
+          templateId,
+          kind: selectedTemplate.kind,
+          overrideEligibility: false,
+        });
         rowResults.push({ enrollmentId: candidate.enrollmentId, studentName: candidate.studentName, success: true });
       } catch (error) {
         const message =
@@ -86,7 +96,7 @@ export function BulkIssueDialog({ open, onOpenChange, candidates, onDone }: Bulk
               >
                 {(templates?.items ?? []).map((t) => (
                   <SelectItem key={t.id} value={t.id}>
-                    {t.name}
+                    {t.name} — {CERTIFICATE_KIND_LABEL[t.kind]}
                   </SelectItem>
                 ))}
               </Select>

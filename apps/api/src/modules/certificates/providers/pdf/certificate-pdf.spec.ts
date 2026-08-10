@@ -7,6 +7,7 @@
 import { NoopCertificatePdfAdapter } from "./noop-certificate-pdf.adapter";
 import { SyncCertificatePdfAdapter } from "./sync-certificate-pdf.adapter";
 import type { CertificatePdfInput } from "./certificate-pdf-port.interface";
+import { loadCertificateAsset } from "./certificate-assets";
 
 const INPUT: CertificatePdfInput = {
   design: {
@@ -110,5 +111,59 @@ describe("SyncCertificatePdfAdapter", () => {
     await expect(
       titleContains({ ...INPUT.design, certificateKind: "diploma" as never }, "COURSE CERTIFICATE"),
     ).resolves.toBe(true);
+  }, 60000);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Artwork mode
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// The code-drawn certificate above is a REPRODUCTION of the approved design and can never
+// be identical to it. Artwork mode prints the approved file itself and draws only the
+// per-student values onto it, which is the only way "exactly as designed" is achievable.
+// These pin the switch and its safety behaviour — the visual result is the artwork's, not
+// something a unit test can assert.
+
+describe("SyncCertificatePdfAdapter — artwork mode", () => {
+  const adapter = new SyncCertificatePdfAdapter();
+
+  it("still renders a PDF when the named artwork is missing, instead of failing an earned certificate", async () => {
+    // A template can name artwork that has not been installed on this server yet. That must
+    // degrade to the code-drawn certificate, never to an error — the student earned it.
+    const result = await adapter.render({
+      ...INPUT,
+      design: { ...INPUT.design, artworkFileName: "not-installed-yet.png" },
+    });
+
+    expect(result.contentType).toBe("application/pdf");
+    expect(result.bytes.subarray(0, 4).toString()).toBe("%PDF");
+  }, 60000);
+
+  it("ignores an unsafe artwork name rather than reading outside the asset directory", async () => {
+    // `design` is CRM-editable, so the file name is untrusted input (same posture as every
+    // other asset here — see certificate-assets.ts).
+    const result = await adapter.render({
+      ...INPUT,
+      design: { ...INPUT.design, artworkFileName: "../../../../etc/passwd" },
+    });
+
+    expect(result.bytes.subarray(0, 4).toString()).toBe("%PDF");
+  }, 60000);
+
+  it("renders with the real artwork when one is installed", async () => {
+    // Skips until a blank artwork is dropped into apps/api/assets/certificate/ — the file is
+    // the customer's approved design and is deliberately not committed as a fixture.
+    const installed = await loadCertificateAsset("training-certificate-blank.png");
+    if (!installed) return;
+
+    const result = await adapter.render({
+      ...INPUT,
+      design: { ...INPUT.design, certificateKind: "training", artworkFileName: "training-certificate-blank.png" },
+    });
+
+    expect(result.bytes.subarray(0, 4).toString()).toBe("%PDF");
+    // The artwork is embedded, so the document is materially larger than the vector-only
+    // reproduction — a cheap proof that the image actually made it into the page.
+    expect(result.bytes.byteLength).toBeGreaterThan(20_000);
   }, 60000);
 });

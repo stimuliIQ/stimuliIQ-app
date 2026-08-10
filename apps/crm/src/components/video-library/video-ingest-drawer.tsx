@@ -22,7 +22,7 @@
 // We also read the file's duration from a throwaway <video> element so the library
 // and LMS show a real length instead of "—".
 import * as React from "react";
-import { Button, Drawer, DrawerContent, DrawerBody, DrawerFooter, FileUpload, Select, SelectItem, useToast } from "@repo/ui";
+import { Alert, Button, Drawer, DrawerContent, DrawerBody, DrawerFooter, FileUpload, Select, SelectItem, useToast } from "@repo/ui";
 import type { VideoAsset } from "@repo/types";
 
 import { useIngestVideoAsset, useMarkVideoUploaded } from "../../hooks/use-video-library";
@@ -80,9 +80,22 @@ export function VideoIngestDrawer({ open, onOpenChange, replaceFor, attachFor }:
   const ingestVideo = useIngestVideoAsset();
   const markUploaded = useMarkVideoUploaded();
 
-  const videoLessons = (curriculum?.modules ?? []).flatMap((mod) =>
-    mod.lessons.filter((l) => l.type === "video").map((l) => ({ ...l, moduleTitle: mod.title })),
+  /**
+   * EVERY lesson in the course, not just the ones already typed `video`.
+   *
+   * The old filter was `type === "video"`, which meant a course whose lessons were created
+   * as readings showed an empty dropdown with no explanation — the reported "lessons are not
+   * loading". Nothing on the server ever required it: `findLessonForIngest` accepts any
+   * lesson. Attaching to a non-video lesson now promotes it (see the note below the picker
+   * and VideoLibraryService#createIngest), because a lesson whose content is a video IS a
+   * video lesson — and the LMS only renders the player for `type === "video"`, so leaving it
+   * alone would have uploaded a file no student could see.
+   */
+  const lessons = (curriculum?.modules ?? []).flatMap((mod) =>
+    mod.lessons.map((l) => ({ ...l, moduleTitle: mod.title })),
   );
+  const selectedLesson = lessons.find((l) => l.id === lessonId);
+  const curriculumLoaded = Boolean(curriculum);
 
   // Memoized: create() must run exactly once per lesson selection, not once per file.
   const pendingRequestRef = React.useRef<Promise<{ url: string; storageKey: string }> | null>(null);
@@ -182,21 +195,44 @@ export function VideoIngestDrawer({ open, onOpenChange, replaceFor, attachFor }:
               <Select
                 label="Lesson"
                 required
-                placeholder={programId ? "Select a video lesson" : "Select a program first"}
+                placeholder={
+                  !programId
+                    ? "Select a course first"
+                    : !curriculumLoaded
+                      ? "Loading lessons…"
+                      : lessons.length === 0
+                        ? "This course has no lessons yet"
+                        : "Select a lesson"
+                }
                 value={lessonId}
                 onValueChange={(v) => {
                   setLessonId(v);
                   pendingRequestRef.current = null;
                 }}
-                disabled={!programId}
+                disabled={!programId || lessons.length === 0}
+                helperText={
+                  programId && curriculumLoaded && lessons.length === 0
+                    ? "Add a lesson to this course under Courses ▸ Curriculum, then upload the video here."
+                    : undefined
+                }
                 data-testid="video-ingest-lesson-select"
               >
-                {videoLessons.map((l) => (
+                {lessons.map((l) => (
                   <SelectItem key={l.id} value={l.id}>
                     {l.moduleTitle} — {l.title}
+                    {l.type !== "video" ? ` (${l.type})` : ""}
                   </SelectItem>
                 ))}
               </Select>
+
+              {/* Say it before the upload, not after: the lesson's type decides whether the
+                  LMS renders a player at all, so attaching here changes it. */}
+              {selectedLesson && selectedLesson.type !== "video" ? (
+                <Alert tone="info" data-testid="video-ingest-type-change-note">
+                  “{selectedLesson.title}” is currently a {selectedLesson.type} lesson. Uploading a video turns it into
+                  a video lesson so students can watch it.
+                </Alert>
+              ) : null}
             </>
           )}
 

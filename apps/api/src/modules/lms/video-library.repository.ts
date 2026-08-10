@@ -51,6 +51,24 @@ export class VideoLibraryRepository {
       .then((row) => (row ? { id: row.id, title: row.title, programId: row.module.programId } : null));
   }
 
+  /**
+   * Make a lesson a VIDEO lesson.
+   *
+   * Called when a video is attached to a lesson of any other type. The LMS renders the
+   * player only for `type === "video"` (lesson-detail-content.tsx), so without this the
+   * upload succeeds, the transcode completes, and the student sees a reading page with no
+   * video anywhere on it — a silent dead end for whoever uploaded it.
+   *
+   * Idempotent, and narrow on purpose: only the type changes, never the lesson's title,
+   * order or content.
+   */
+  async promoteLessonToVideo(lessonId: string): Promise<void> {
+    await this.prisma.client.lesson.updateMany({
+      where: { id: lessonId, type: { not: "video" } },
+      data: { type: "video" },
+    });
+  }
+
   findActiveVideoByLessonId(tenantId: string, lessonId: string): Promise<VideoRow | null> {
     return this.prisma.client.video.findFirst({ where: { tenantId, lessonId, deletedAt: null } });
   }
@@ -98,11 +116,20 @@ export class VideoLibraryRepository {
   }
 
   async list(filters: ListVideoAssetsFilters): Promise<{ rows: VideoWithLesson[]; total: number }> {
+    // SCOPE FIX: both conditions below live under `lesson`, and they used to be spread as
+    // two separate `{ lesson: ... }` keys — so the LAST one replaced the first. A faculty
+    // member typing in the search box lost `restrictToProgramIds` and saw videos from
+    // programs they don't teach (CLAUDE.md §3.5 — the server is the boundary, not the UI).
+    // One merged filter makes them additive, which is what they were always meant to be.
+    const lessonFilter: Prisma.LessonWhereInput = {
+      ...(filters.restrictToProgramIds ? { module: { programId: { in: filters.restrictToProgramIds } } } : {}),
+      ...(filters.search ? { title: { contains: filters.search, mode: "insensitive" } } : {}),
+    };
+
     const where: Prisma.VideoWhereInput = {
       tenantId: filters.tenantId,
       ...(filters.status ? { status: filters.status } : {}),
-      ...(filters.restrictToProgramIds ? { lesson: { module: { programId: { in: filters.restrictToProgramIds } } } } : {}),
-      ...(filters.search ? { lesson: { title: { contains: filters.search, mode: "insensitive" } } } : {}),
+      ...(Object.keys(lessonFilter).length > 0 ? { lesson: lessonFilter } : {}),
     };
 
     const [rows, total] = await Promise.all([

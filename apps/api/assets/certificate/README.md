@@ -21,6 +21,54 @@ the only way to obtain the signature is to already hold a genuine certificate.
 Every asset is optional. A missing file never fails issuance: the layout degrades to the
 typeset fallback, because a certificate that has been earned must still be issuable.
 
+## Artwork mode — how to get the approved design EXACTLY
+
+The four files above decorate a certificate this repo **draws in code**. A drawing is a
+copy: the typeface, the ornament geometry and the spacing are all produced by
+`sync-certificate-pdf.adapter.ts`, so it can resemble the approved artwork but never equal
+it, and every visual change means editing TypeScript.
+
+Artwork mode replaces that. Drop the approved export in here, name it on the template, and
+the PDF **is** that file with the student's values printed onto it.
+
+| File | Used by | Notes |
+|------|---------|-------|
+| `training-certificate-blank.png` | the training template | full-bleed page background |
+| `internship-certificate-blank.png` | the internship template | full-bleed page background |
+
+Then set on the template's `design` JSON:
+
+```json
+{ "certificateKind": "training", "artworkFileName": "training-certificate-blank.png" }
+```
+
+### The artwork must be BLANK where values go
+
+Leave out the holder name, the body paragraph, the certificate id value and the issue
+date — those five are printed on top. Everything else (frame, corner ornaments, ribbon,
+seal, wordmark, ISO/MSME marks, signature block, the "Verify this certificate at" line)
+**stays in the image** and is therefore pixel-exact.
+
+The body paragraph is printed rather than baked because the programme name and the date sit
+mid-sentence: a baked sentence with a gap in it cannot fit both "AI" and "Clinical Neurology
+Fellowship" without one of them looking wrong.
+
+Export at **A4 landscape** (3508 × 2480 px at 300 dpi) so the image fills the page with no
+distortion. The signature must NOT be baked in — it is stamped at render time from
+`ceo-signature.png` above, which is the whole reason that file is private.
+
+### Matching the typefaces
+
+Positions come from `DEFAULT_ARTWORK_FIELDS` (measured from the approved specimens) and can
+be overridden per template via `design.artworkFields`. To match the artwork's fonts rather
+than falling back to Helvetica, drop the `.ttf`/`.otf` files here too and name them:
+
+```json
+{ "artworkFonts": { "script": "GreatVibes-Regular.ttf", "body": "Montserrat-Regular.ttf", "bodyBold": "Montserrat-Bold.ttf" } }
+```
+
+A missing or unreadable font degrades to the built-in face — it never fails an issuance.
+
 All four are **transparent PNGs**. The certificate page is pure white while the approved
 artwork is printed on a faintly warm paper, so any mark carried over from the artwork has
 its background knocked out rather than kept — an opaque off-white rectangle sitting on a

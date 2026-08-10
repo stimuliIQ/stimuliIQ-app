@@ -74,6 +74,14 @@ discounts, revenue by program/branch/period.
 Certificate templates (designer), eligibility rules engine, **bulk + auto issuance**,
 unique verifiable IDs (tamper-evident hash), revoke/reissue, public verification endpoint
 feeding `web`, issuance audit.
+The screen is **batch-first** (2026-08-10): it opens on a list of cohorts
+(students / completion ≥ 90% / issued / not issued per batch, from
+`GET /crm/certificates/eligibility-batches`) and drills into the per-student
+eligibility table via `?batchId=`, because staff certify a cohort at a time and a
+flat per-enrollment list made them hunt one batch's students among every other
+batch's rows. The batch counts are cheap aggregates — the three-gate eligibility
+engine still runs per student on drill-in only, so the batch column reading
+"Completion ≥ 90%" is that one gate and is never labelled "eligible".
 
 ### 7.8 Attendance, assignments, projects (ops side)
 Attendance editor + reports, assignment creation + **rubric grading** + feedback,

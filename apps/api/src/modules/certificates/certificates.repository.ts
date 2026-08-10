@@ -47,6 +47,7 @@ export interface CertificateRow {
   id: string;
   tenantId: string;
   enrollmentId: string;
+  kind: import("@prisma/client").CertificateKind;
   studentId: string;
   programId: string;
   certUid: string;
@@ -705,6 +706,7 @@ export class CertificatesRepository {
   async createCertificate(data: {
     tenantId: string;
     enrollmentId: string;
+    kind: import("@prisma/client").CertificateKind;
     studentId: string;
     programId: string;
     certUid: string;
@@ -719,6 +721,7 @@ export class CertificatesRepository {
       data: {
         tenantId: data.tenantId,
         enrollmentId: data.enrollmentId,
+        kind: data.kind,
         studentId: data.studentId,
         programId: data.programId,
         certUid: data.certUid,
@@ -811,12 +814,20 @@ export class CertificatesRepository {
     return row?.title ?? "Program";
   }
 
+  /**
+   * Active templates for the issue pickers.
+   *
+   * `design` is selected so the service can surface each template's KIND — the award is a
+   * property of the template (its artwork's ribbon reads TRAINING or INTERNSHIP), and a
+   * caller that has chosen a template has already chosen a kind. Selecting the whole JSON
+   * rather than adding a column keeps the kind in the one place the renderer also reads it.
+   */
   async listTemplates(
     tenantId: string,
-  ): Promise<Array<{ id: string; name: string; status: string; createdAt: Date }>> {
+  ): Promise<Array<{ id: string; name: string; status: string; createdAt: Date; design: unknown }>> {
     return this.prisma.client.certificateTemplate.findMany({
       where: { tenantId, status: "active", deletedAt: null },
-      select: { id: true, name: true, status: true, createdAt: true },
+      select: { id: true, name: true, status: true, createdAt: true, design: true },
       orderBy: { name: "asc" },
     });
   }
@@ -987,6 +998,144 @@ export class CertificatesRepository {
     return { rows, total };
   }
 
+  // ─── Eligibility batch rollup (batch-first landing view) ──────────────────
+
+  /**
+   * One row per batch that has at least one non-dropped enrollment, with the
+   * cheap headline counts for the CRM ▸ Certificates landing table.
+   *
+   * COST: a FIXED five queries for the whole page, whatever the batch count —
+   * never one-per-batch. The three-gate eligibility engine is deliberately NOT
+   * run here (it is ~5 queries per enrollment); `completionReadyCount` is a
+   * plain `progress_pct >= threshold` column read and the service labels it as
+   * the completion gate only. Batches with zero qualifying enrollments are
+   * omitted — this table is a queue of students to certify, not a batch admin list.
+   */
+  async listBatchSummariesForEligibility(
+    tenantId: string,
+    filters: {
+      programId?: string;
+      batchIds?: string[];
+      search?: string;
+      completionThreshold: number;
+      page: number;
+      pageSize: number;
+    },
+  ): Promise<{
+    rows: Array<{
+      batchId: string;
+      batchName: string;
+      programId: string;
+      programTitle: string;
+      studentCount: number;
+      issuedCount: number;
+      revokedCount: number;
+      completionReadyCount: number;
+    }>;
+    total: number;
+  }> {
+    // The enrollment population MUST match listEnrollmentsForEligibility's
+    // exactly, or a batch row's studentCount would disagree with the number of
+    // rows the drill-in table then shows.
+    const enrollmentFilter: Prisma.EnrollmentWhereInput = {
+      tenantId,
+      status: { in: ["active", "completed"] },
+      deletedAt: null,
+    };
+
+    const where: Prisma.BatchWhereInput = {
+      tenantId,
+      deletedAt: null,
+      ...(filters.programId ? { programId: filters.programId } : {}),
+      ...(filters.batchIds !== undefined ? { id: { in: filters.batchIds } } : {}),
+      ...(filters.search
+        ? {
+            OR: [
+              { name: { contains: filters.search, mode: "insensitive" } },
+              { program: { title: { contains: filters.search, mode: "insensitive" } } },
+            ],
+          }
+        : {}),
+      // Nested relation filters are NOT rewritten by the soft-delete extension,
+      // hence the explicit `deletedAt: null` inside enrollmentFilter.
+      enrollments: { some: enrollmentFilter },
+    };
+
+    const [batches, total] = await Promise.all([
+      this.prisma.client.batch.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          startDate: true,
+          program: { select: { id: true, title: true } },
+        },
+        // Newest cohort first — that is the one being certified right now.
+        orderBy: [{ startDate: "desc" }, { name: "asc" }],
+        skip: (filters.page - 1) * filters.pageSize,
+        take: filters.pageSize,
+      }),
+      this.prisma.client.batch.count({ where }),
+    ]);
+
+    const batchIds = batches.map((b) => b.id);
+    if (batchIds.length === 0) return { rows: [], total };
+
+    const [studentCounts, completionReadyCounts, certificateRows] = await Promise.all([
+      this.prisma.client.enrollment.groupBy({
+        by: ["batchId"],
+        where: { ...enrollmentFilter, batchId: { in: batchIds } },
+        _count: { _all: true },
+      }),
+      this.prisma.client.enrollment.groupBy({
+        by: ["batchId"],
+        where: {
+          ...enrollmentFilter,
+          batchId: { in: batchIds },
+          progressPct: { gte: filters.completionThreshold },
+        },
+        _count: { _all: true },
+      }),
+      // Certificate has no batch_id of its own, so there is nothing to group by
+      // in SQL — we fetch the (small: one row per certified student) status +
+      // batch pairs for the page's batches and tally them in memory.
+      this.prisma.client.certificate.findMany({
+        where: {
+          tenantId,
+          deletedAt: null,
+          enrollment: { batchId: { in: batchIds }, ...enrollmentFilter },
+        },
+        select: { status: true, enrollment: { select: { batchId: true } } },
+      }),
+    ]);
+
+    const studentCountByBatch = new Map(studentCounts.map((r) => [r.batchId, r._count._all]));
+    const completionReadyByBatch = new Map(
+      completionReadyCounts.map((r) => [r.batchId, r._count._all]),
+    );
+    const issuedByBatch = new Map<string, number>();
+    const revokedByBatch = new Map<string, number>();
+    for (const cert of certificateRows) {
+      const batchId = cert.enrollment?.batchId;
+      if (!batchId) continue;
+      const bucket = cert.status === "valid" ? issuedByBatch : revokedByBatch;
+      bucket.set(batchId, (bucket.get(batchId) ?? 0) + 1);
+    }
+
+    const rows = batches.map((batch) => ({
+      batchId: batch.id,
+      batchName: batch.name,
+      programId: batch.program?.id ?? "",
+      programTitle: batch.program?.title ?? "",
+      studentCount: studentCountByBatch.get(batch.id) ?? 0,
+      issuedCount: issuedByBatch.get(batch.id) ?? 0,
+      revokedCount: revokedByBatch.get(batch.id) ?? 0,
+      completionReadyCount: completionReadyByBatch.get(batch.id) ?? 0,
+    }));
+
+    return { rows, total };
+  }
+
   // ─── Audit logging ────────────────────────────────────────────────────────
 
   async writeAuditLog(data: {
@@ -1053,6 +1202,7 @@ function toCertificateRow(row: any): CertificateRow {
     id: row.id,
     tenantId: row.tenantId,
     enrollmentId: row.enrollmentId,
+    kind: row.kind,
     studentId: row.studentId,
     programId: row.programId,
     certUid: row.certUid,

@@ -6,6 +6,7 @@
 // Endpoints covered:
 //   CRM (ops/faculty, assigned/all-scope):
 //     GET  /crm/certificates/eligibility               → listEligibility()
+//     GET  /crm/certificates/eligibility-batches       → listEligibilityBatches()
 //     GET  /crm/certificates/eligibility/:enrollmentId → getEligibility()
 //     GET  /crm/certificate-templates                  → listTemplates()
 //     POST /crm/certificates                           → issue()
@@ -33,6 +34,7 @@
 import type {
   EligibilityResult,
   EligibilityListItem,
+  EligibilityBatchSummary,
   IssueCertificateRequest,
   RecommendCertificateRequest,
   RevokeCertificateRequest,
@@ -50,6 +52,7 @@ import type {
   BulkIssueCertificatesResponse,
   ListCertificatesQuery,
   ListEligibilityQuery,
+  ListEligibilityBatchesQuery,
 } from "@repo/types";
 import type { ApiClient } from "../http/client.js";
 import { toQueryString } from "../http/query.js";
@@ -68,6 +71,20 @@ export class CertificatesApi {
     return this.client.requestPaginated<EligibilityListItem>(
       "GET",
       `/api/v1/crm/certificates/eligibility${toQueryString(query ?? {})}`,
+    );
+  }
+
+  /**
+   * GET /api/v1/crm/certificates/eligibility-batches
+   * Batch-first landing view of CRM ▸ Certificates — one row per cohort with
+   * cheap headline counts, which the UI drills into via
+   * `listEligibility({ batchId })`. `search` matches batch/program name here.
+   * Permission: certificates.view (scope: assigned|all).
+   */
+  async listEligibilityBatches(query?: Partial<ListEligibilityBatchesQuery>) {
+    return this.client.requestPaginated<EligibilityBatchSummary>(
+      "GET",
+      `/api/v1/crm/certificates/eligibility-batches${toQueryString(query ?? {})}`,
     );
   }
 

@@ -2393,6 +2393,22 @@ async function main(): Promise<void> {
     { key: "serial", label: "Certificate ID" },
   ];
 
+  /**
+   * ARTWORK MODE. Naming a file here switches the renderer from drawing the certificate in
+   * code to printing the APPROVED EXPORT and stamping the student's values onto it — the
+   * only way the result is identical to the design rather than a close copy of it.
+   *
+   * Seeded ahead of the files themselves on purpose: `loadCertificateAsset` returns
+   * undefined for a name that is not on disk, and the adapter falls straight back to the
+   * code-drawn certificate. So this is inert until the two blanks are dropped into
+   * apps/api/assets/certificate/, and live the moment they are — no code change, no
+   * re-seed. See that directory's README for what "blank" has to mean.
+   */
+  const CERT_ARTWORK: Record<"internship" | "training", string> = {
+    internship: "internship-certificate-blank.png",
+    training: "training-certificate-blank.png",
+  };
+
   async function upsertCertTemplate(name: string, certificateKind: "internship" | "training") {
     const existing = await prisma.certificateTemplate.findFirst({
       where: { tenantId: tenant.id, name },
@@ -2403,14 +2419,14 @@ async function main(): Promise<void> {
     if (existing) {
       return prisma.certificateTemplate.update({
         where: { id: existing.id },
-        data: { design: { ...CERT_DESIGN_BASE, certificateKind }, fields: CERT_FIELDS, status: "active" },
+        data: { design: { ...CERT_DESIGN_BASE, certificateKind, artworkFileName: CERT_ARTWORK[certificateKind] }, fields: CERT_FIELDS, status: "active" },
       });
     }
     return prisma.certificateTemplate.create({
       data: {
         tenantId: tenant.id,
         name,
-        design: { ...CERT_DESIGN_BASE, certificateKind },
+        design: { ...CERT_DESIGN_BASE, certificateKind, artworkFileName: CERT_ARTWORK[certificateKind] },
         fields: CERT_FIELDS,
         status: "active",
       },

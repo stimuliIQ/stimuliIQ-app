@@ -49,6 +49,7 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 import type {
+  CertificateKind,
   CertificateListItem,
   CertificateDetail,
   CertificateDownloadResponse,
@@ -61,6 +62,7 @@ import type {
   BulkIssueCertificatesResponse,
   EligibilityResult,
   EligibilityListItem,
+  EligibilityBatchSummary,
   IssueCertificateRequest,
   RecommendCertificateRequest,
   RevokeCertificateRequest,
@@ -68,6 +70,7 @@ import type {
   VerifyResult,
   ListCertificatesQuery,
   ListEligibilityQuery,
+  ListEligibilityBatchesQuery,
 } from "@repo/types";
 import type { Prisma } from "@prisma/client";
 import { CertificatesRepository } from "./certificates.repository";
@@ -352,6 +355,59 @@ export class CertificatesService {
     });
   }
 
+  // ─── CRM: ELIGIBILITY BATCH ROLLUP (batch-first landing view) ─────────────
+
+  /**
+   * GET /crm/certificates/eligibility-batches — one row per cohort for the
+   * landing table of CRM ▸ Certificates, which reviewers then drill into via
+   * `listEligibility({ batchId })`.
+   *
+   * Faculty (assigned scope) see only their own batches, exactly as in
+   * listEligibility — so a faculty member cannot learn the headcount of a batch
+   * whose students the list endpoint would hide from them.
+   *
+   * The counts are cheap aggregates, NOT the three-gate engine (see
+   * EligibilityBatchSummarySchema): `completionReadyCount` is the completion
+   * gate alone, and the UI labels it as such.
+   */
+  async listEligibilityBatches(
+    tenantId: string,
+    query: ListEligibilityBatchesQuery,
+    scope: "all" | "assigned" | "branch",
+    actorId: string,
+  ): Promise<PaginatedResult<EligibilityBatchSummary>> {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    let batchIds: string[] | undefined = undefined;
+
+    if (scope === "assigned") {
+      const facultyProfileId = await this.repo.findFacultyProfileId(tenantId, actorId);
+      if (!facultyProfileId) {
+        return new PaginatedResult<EligibilityBatchSummary>([], { page, pageSize, total: 0, hasMore: false });
+      }
+      batchIds = await this.repo.findAssignedBatchIds(tenantId, facultyProfileId);
+      if (batchIds.length === 0) {
+        return new PaginatedResult<EligibilityBatchSummary>([], { page, pageSize, total: 0, hasMore: false });
+      }
+    }
+
+    const { rows, total } = await this.repo.listBatchSummariesForEligibility(tenantId, {
+      programId: query.programId,
+      batchIds,
+      search: query.search,
+      completionThreshold: COMPLETION_THRESHOLD,
+      page,
+      pageSize,
+    });
+
+    return new PaginatedResult<EligibilityBatchSummary>(rows, {
+      page,
+      pageSize,
+      total,
+      hasMore: page * pageSize < total,
+    });
+  }
+
   /**
    * Eligibility detail for ONE enrollment (GET /crm/certificates/eligibility/:enrollmentId).
    * Same three-gate computation as the list, for the CRM eligibility drawer.
@@ -453,6 +509,7 @@ export class CertificatesService {
       actorId,
       tenantId,
       enrollment,
+      kind: body.kind,
       templateId: body.templateId,
       overrideEligibility: body.overrideEligibility ?? false,
     });
@@ -475,9 +532,11 @@ export class CertificatesService {
     tenantId: string;
     enrollment: EnrollmentForEligibility;
     templateId: string;
+    /** Which certificate this issuance mints. Callers are explicit; there is no safe default. */
+    kind: CertificateKind;
     overrideEligibility?: boolean;
   }): Promise<CertificateCrmDetail> {
-    const { actorId, tenantId, enrollment, templateId } = params;
+    const { actorId, tenantId, enrollment, templateId, kind } = params;
 
     // Fetch template
     const template = await this.repo.findTemplateById(tenantId, templateId);
@@ -517,6 +576,7 @@ export class CertificatesService {
     const certId = await this.repo.createCertificate({
       tenantId,
       enrollmentId: enrollment.id,
+      kind,
       studentId: enrollment.studentId,
       programId: enrollment.programId,
       certUid,
@@ -617,6 +677,9 @@ export class CertificatesService {
       actorId: null,
       tenantId,
       enrollment,
+      // Auto-issue on 100%% progress predates the two-certificate split and still means
+      // "the course is finished" — that is the training certificate.
+      kind: "training",
       templateId: defaultTemplate.id,
     });
 
@@ -875,6 +938,9 @@ export class CertificatesService {
     const newCertId = await this.repo.createCertificate({
       tenantId,
       enrollmentId,
+      // A reissue replaces the SAME certificate, so it keeps its kind — reissuing a
+      // training cert must never silently mint an internship one.
+      kind: existing.kind,
       studentId: enrollment.studentId,
       programId: enrollment.programId,
       certUid: newCertUid,
@@ -915,6 +981,7 @@ export class CertificatesService {
     return rows.map((r) => ({
       id: r.id,
       name: r.name,
+      kind: templateKind(r.design),
       status: r.status as "active" | "inactive",
       createdAt: r.createdAt.toISOString(),
     }));
@@ -1021,6 +1088,7 @@ export class CertificatesService {
       try {
         const cert = await this.issueCertificate(actorId, tenantId, {
           enrollmentId,
+          kind: body.kind,
           templateId: body.templateId,
           overrideEligibility: body.overrideEligibility,
         }, scope);
@@ -1091,6 +1159,7 @@ export class CertificatesService {
       serial: row.serial,
       programId: row.programId,
       programTitle: row.programTitle,
+      kind: row.kind,
       status: row.status,
       issuedAt: row.issuedAt.toISOString(),
       revokedAt: row.revokedAt?.toISOString() ?? null,
@@ -1130,6 +1199,7 @@ export class CertificatesService {
       serial: row.serial,
       programId: row.programId,
       programTitle: row.programTitle,
+      kind: row.kind,
       status: row.status,
       issuedAt: row.issuedAt.toISOString(),
       revokedAt: row.revokedAt?.toISOString() ?? null,
@@ -1442,6 +1512,9 @@ function toTemplateDetailDto(row: CertificateTemplateDetailRow): CertificateTemp
   return {
     id: row.id,
     name: row.name,
+    // Same single source as the summary: the award is read out of `design`, never stored
+    // twice, so a template cannot claim one kind on the list and another on the detail.
+    kind: templateKind(row.design),
     status: row.status as "active" | "inactive",
     createdAt: row.createdAt.toISOString(),
     design: (row.design ?? {}) as Record<string, unknown>,
@@ -1454,6 +1527,7 @@ function toTemplateDetailDto(row: CertificateTemplateDetailRow): CertificateTemp
 function toCrmDetailDto(row: CertificateRow, verifyUrl: string): CertificateCrmDetail {
   return {
     id: row.id,
+    kind: row.kind,
     certUid: row.certUid,
     serial: row.serial,
     enrollmentId: row.enrollmentId,
@@ -1476,4 +1550,19 @@ function toCrmDetailDto(row: CertificateRow, verifyUrl: string): CertificateCrmD
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+/**
+ * The award a template issues, read out of its CRM-editable `design` JSON.
+ *
+ * `design.certificateKind` also accepts "course" — the neutral wording templates seeded
+ * before the training/internship split were approved with — but `certificates.kind` is a DB
+ * enum of exactly training|internship. "course" and anything unrecognised therefore resolve
+ * to `training`, which is the same call the split migration made when it backfilled every
+ * pre-existing row: a certificate issued before the split was a training certificate.
+ */
+function templateKind(design: unknown): CertificateKind {
+  const candidate =
+    design && typeof design === "object" ? (design as { certificateKind?: unknown }).certificateKind : undefined;
+  return candidate === "internship" ? "internship" : "training";
 }

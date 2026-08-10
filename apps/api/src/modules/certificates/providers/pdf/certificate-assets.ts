@@ -98,6 +98,41 @@ export async function loadCertificateAsset(candidate: string | undefined): Promi
 /** Test seam — clears the per-process memo so a spec can vary the on-disk assets. */
 export function __clearCertificateAssetCache(): void {
   cache.clear();
+  fontPathCache.clear();
+}
+
+/** Font files the renderer may register. Kept separate from image extensions. */
+const ALLOWED_FONT_EXTENSIONS = new Set([".ttf", ".otf"]);
+const fontPathCache = new Map<string, string | undefined>();
+
+/**
+ * Resolve a private font file to an absolute path for `Font.register`.
+ *
+ * Fonts are handed to @react-pdf/renderer as a PATH, not a data URI, which is why this
+ * cannot reuse `loadCertificateAsset`. Same untrusted-input posture though: the name comes
+ * from the CRM-editable `design` JSON, so it goes through the same basename + charset
+ * reduction before it can touch the filesystem.
+ *
+ * Returns `undefined` — never throws — when the name is unsafe or the file is absent. A
+ * missing font must degrade to the built-in face, never fail an earned certificate.
+ */
+export async function resolveCertificateFontPath(candidate: string | undefined): Promise<string | undefined> {
+  if (!candidate) return undefined;
+  const name = basename(candidate.trim());
+  if (!name || !SAFE_NAME.test(name)) return undefined;
+  if (!ALLOWED_FONT_EXTENSIONS.has(extname(name).toLowerCase())) return undefined;
+  if (fontPathCache.has(name)) return fontPathCache.get(name);
+
+  const path = join(ASSET_DIR, name);
+  let resolved: string | undefined;
+  try {
+    await readFile(path);
+    resolved = path;
+  } catch {
+    resolved = undefined;
+  }
+  fontPathCache.set(name, resolved);
+  return resolved;
 }
 
 /** Default file names. Drop a file with one of these names into `apps/api/assets/certificate/`. */

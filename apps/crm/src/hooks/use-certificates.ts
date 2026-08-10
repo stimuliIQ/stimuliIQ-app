@@ -4,6 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   IssueCertificateRequest,
+  ListEligibilityBatchesQuery,
   ListEligibilityQuery,
   RecommendCertificateRequest,
   ReissueCertificateRequest,
@@ -19,6 +20,9 @@ export const CERTIFICATES_QUERY_KEY = ["certificates"] as const;
 export function eligibilityListKey(query: Partial<ListEligibilityQuery>) {
   return [...CERTIFICATES_QUERY_KEY, "eligibility", "list", query] as const;
 }
+export function eligibilityBatchesKey(query: Partial<ListEligibilityBatchesQuery>) {
+  return [...CERTIFICATES_QUERY_KEY, "eligibility", "batches", query] as const;
+}
 export function eligibilityDetailKey(enrollmentId: string) {
   return [...CERTIFICATES_QUERY_KEY, "eligibility", enrollmentId] as const;
 }
@@ -31,11 +35,33 @@ export function templatesKey() {
 
 // ── Eligibility ───────────────────────────────────────────────────────────────
 
-export function useEligibilityList(query: Partial<ListEligibilityQuery>) {
+export function useEligibilityList(
+  query: Partial<ListEligibilityQuery>,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: eligibilityListKey(query),
     queryFn: () => apiClient.learning.certificates.listEligibility(query),
     placeholderData: (prev) => prev,
+    enabled: options?.enabled ?? true,
+  });
+}
+
+/**
+ * Batch-first landing view of the Certificates page — one row per cohort.
+ * The counts are cheap aggregates; `completionReadyCount` is the completion
+ * gate ALONE (assessments/final project are only resolved on drill-in, where
+ * `useEligibilityList({ batchId })` runs the full three-gate engine per row).
+ */
+export function useEligibilityBatches(
+  query: Partial<ListEligibilityBatchesQuery>,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: eligibilityBatchesKey(query),
+    queryFn: () => apiClient.learning.certificates.listEligibilityBatches(query),
+    placeholderData: (prev) => prev,
+    enabled: options?.enabled ?? true,
   });
 }
 

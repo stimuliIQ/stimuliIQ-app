@@ -70,8 +70,11 @@ import type {
   CertificateDesign,
   CertificateKind,
   CertificateRenderFields,
+  ArtworkFieldKey,
+  ArtworkFieldPlacement,
 } from "./certificate-pdf-port.interface";
 import { DEFAULT_ASSETS, loadCertificateAsset } from "./certificate-assets";
+import { buildArtworkDocument, registerArtworkFonts } from "./artwork-certificate";
 
 // Palette — the artwork's deep forest green on white, with a gold hairline on the
 // ribbon. Templates may override the greens via CertificateDesign directives.
@@ -587,6 +590,31 @@ export class SyncCertificatePdfAdapter implements CertificatePdfPort {
     );
 
     const design = input.design ?? {};
+
+    // ARTWORK MODE. When the template names an approved artwork file, that image IS the
+    // certificate and only the per-student values are drawn onto it — see
+    // artwork-certificate.ts for why that is the only way to be exact rather than close.
+    // Everything below this block is the code-drawn REPRODUCTION, kept unchanged as the
+    // fallback for templates that have no artwork.
+    const artworkSrc = await loadCertificateAsset(design.artworkFileName);
+    if (artworkSrc) {
+      const kind = KIND_COPY[resolveKind(design.certificateKind)];
+      const fonts = await registerArtworkFonts(design);
+      const bytes = await renderToBuffer(
+        buildArtworkDocument({
+          fields: input.fields,
+          design,
+          artworkSrc,
+          fonts,
+          kindNoun: kind.noun,
+          documentTitle: `${kind.ribbon.replace("\n", " ")} — Certificate of Completion`,
+          orgName: design.orgName ?? DEFAULTS.orgName,
+          issuedAtText: formatIssuedAt(input.fields.issuedAt).toUpperCase(),
+        }),
+      );
+      return { bytes, contentType: "application/pdf" };
+    }
+
     // Every asset is optional; a missing file resolves to undefined and the layout
     // falls back (see certificate-assets.ts). Loaded in parallel — they are memoised
     // after the first render, so this is a no-op on subsequent certificates.

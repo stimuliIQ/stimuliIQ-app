@@ -2463,6 +2463,7 @@ import {
   CertificateStatusSchema,
   EligibilityResultSchema,
   EligibilityListItemSchema,
+  EligibilityBatchSummarySchema,
   IssueCertificateRequestSchema,
   RecommendCertificateRequestSchema,
   RevokeCertificateRequestSchema,
@@ -2480,6 +2481,7 @@ import {
   BulkIssueCertificatesResponseSchema,
   ListCertificatesQuerySchema,
   ListEligibilityQuerySchema,
+  ListEligibilityBatchesQuerySchema,
 } from "../learning/certificates.schemas.js";
 
 import {
@@ -2537,6 +2539,8 @@ const EligibilityResult = registry.register("EligibilityResult", EligibilityResu
 const EligibilityResultEnvelope = envelopeOf("EligibilityResult", EligibilityResult);
 const EligibilityListItem = registry.register("EligibilityListItem", EligibilityListItemSchema);
 const EligibilityListEnvelope = paginatedEnvelopeOf("EligibilityListItem", EligibilityListItem);
+const EligibilityBatchSummary = registry.register("EligibilityBatchSummary", EligibilityBatchSummarySchema);
+const EligibilityBatchListEnvelope = paginatedEnvelopeOf("EligibilityBatchSummary", EligibilityBatchSummary);
 const IssueCertificateRequest = registry.register("IssueCertificateRequest", IssueCertificateRequestSchema);
 const RecommendCertificateRequest = registry.register("RecommendCertificateRequest", RecommendCertificateRequestSchema);
 const RevokeCertificateRequest = registry.register("RevokeCertificateRequest", RevokeCertificateRequestSchema);
@@ -3018,6 +3022,24 @@ registry.registerPath({
   security: [{ cookieAuth: [] }],
   ...requiredPermission("certificates.view (scope: assigned|all)"),
   responses: { 200: { description: "Eligibility list.", content: { "application/json": { schema: EligibilityListEnvelope } } }, ...errorResponses },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/v1/crm/certificates/eligibility-batches",
+  summary: "List cohorts for the batch-first Certificates landing view",
+  description:
+    "One row per batch holding at least one non-dropped enrollment, with cheap headline counts " +
+    "(students, issued, revoked, completion-gate-ready). The CRM opens on this table and drills " +
+    "into GET /crm/certificates/eligibility?batchId=… for the students. `completionReadyCount` is " +
+    "the progress_pct gate ALONE — the three-gate eligibility engine is NOT run here (it costs ~5 " +
+    "queries per enrollment; this endpoint is a fixed 5 queries per page). " +
+    "Permission: certificates.view (scope: assigned|all — faculty see only their assigned batches).",
+  tags: ["learning", "certificates"],
+  security: [{ cookieAuth: [] }],
+  ...requiredPermission("certificates.view (scope: assigned|all)"),
+  request: { query: ListEligibilityBatchesQuerySchema },
+  responses: { 200: { description: "Batch rollup list.", content: { "application/json": { schema: EligibilityBatchListEnvelope } } }, ...errorResponses },
 });
 
 registry.registerPath({
