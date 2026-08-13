@@ -384,8 +384,19 @@ export class PublicRepository {
   async getPublicMentorBios(programId: string): Promise<PublicMentorRow[]> {
     // Faculty bios for programs are linked via batches.facultyId. We fetch all
     // faculty profiles for faculty who teach a batch of this program.
+    //
+    // Restricted to faculty whose profile is not soft-deleted AND whose USER account is
+    // still active. Neither was checked before, so a deactivated account stayed on the
+    // public programme page indefinitely — live, that surfaced a seeded demo faculty
+    // member (a `.test` address, deactivated, tagged with unrelated expertise) as a
+    // mentor on a real programme. Deactivating someone is the action staff take when they
+    // should stop representing the company, so it has to reach the marketing site too.
     const batchFaculty = await this.prisma.client.batch.findMany({
-      where: { programId, deletedAt: null },
+      where: {
+        programId,
+        deletedAt: null,
+        faculty: { deletedAt: null, user: { status: "active", deletedAt: null } },
+      },
       select: {
         faculty: {
           select: PUBLIC_MENTOR_SELECT,
