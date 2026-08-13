@@ -5,6 +5,142 @@ api.stimuliiq.com). One dated section per reporting day; each issue gets root ca
 fix commit, and status. Fixes are committed locally and pushed in a single batch on
 explicit approval (CLAUDE.md §3.13 — every push triggers Vercel deploys).
 
+## 2026-08-13
+
+Reported as a batch of ten. Three turned out to be production **environment** problems, not
+code: the fix for those is setting a value on the VPS, and no deploy will help without it.
+
+### A. `RESEND_API_KEY` in production is the literal placeholder `re_` — EVERY email fails
+
+- **Symptom reported:** forgot-password emails never arrive. Also explains missing LMS
+  credentials emails, and would equally affect invoices, receipts and assignment reminders.
+- **Root cause:** `/srv/stimuliiq/.env` contains `RESEND_API_KEY=re_` — the 3-character
+  prefix from `.env.example`, never replaced with a real key. Confirmed live against the
+  Resend API: `GET https://api.resend.com/domains` returns
+  `400 {"message":"API key is invalid"}`.
+- **Why nothing showed it:** every transactional send is wrapped in log-and-continue
+  (`password-reset.service.ts`, `lms-account-provisioning.service.ts`, `commerce.service.ts`,
+  `faculty.service.ts`), and both the LMS and CRM forgot-password screens show the success
+  confirmation on error as well as on success (deliberate, for enumeration resistance). So a
+  total mail outage looks identical to normal operation from every screen.
+- **Status:** OPEN — needs a real Resend API key. Nothing in the codebase can fix this.
+  Set `RESEND_API_KEY` in `/srv/stimuliiq/.env`, then `pm2 restart stq-api`. Verify with the
+  same `curl` above returning 200.
+
+### B. `TWO_FACTOR_ENC_KEY` unset in production — 2FA could never be enabled
+
+- **Symptom reported:** Google Authenticator "not working".
+- **Root cause:** the key was commented out in `/srv/stimuliiq/.env`. Enrolment starts fine
+  (the pending secret is plaintext in Redis, the QR scans, codes generate) and the code
+  verifies correctly. It fails at the last step, where the confirmed secret is encrypted for
+  storage, which throws and 500s. The CRM's catch-all then reports "That code didn't verify",
+  pointing the user at their phone instead of at a missing environment variable. The TOTP
+  implementation itself is correct (verified against the RFC 4226 test vectors).
+- **Fix:** key generated and set on the VPS. Code side, `TWO_FACTOR_ENC_KEY`,
+  `CERT_SIGNING_SECRET` and `NOTIFICATION_SIGNING_SECRET` are now validated at BOOT in
+  production, so a missing one stops the app starting instead of surfacing later as an
+  unrelated-looking 500.
+- **Status:** key set; code committed `aa17681`. Requires the API deploy.
+- **DEPLOY ORDER MATTERS:** the boot check ships in `aa17681`. `NOTIFICATION_SIGNING_SECRET`
+  was also missing and has been set for the same reason. If either were still absent when
+  this code deploys, the API would refuse to start.
+
+### C. Batch completion never issued certificates — FIXED
+
+- **Root cause:** `autoIssueOnCompletion` had exactly one caller, a student completing their
+  last LMS lesson. No path from `batch.status = completed` to certificate issuance existed;
+  all three ways a batch can complete explicitly documented that they touch no certificate
+  row. A batch taught in person therefore issued nothing, ever, with no error.
+- **Secondary defect found:** auto-issue selected the tenant's OLDEST active template
+  regardless of kind, and the seed creates the internship template first. So every
+  auto-issued certificate was stored as `kind=training` and rendered on internship artwork.
+- **Fix:** `aa17681`. Marking a batch complete issues the training certificate to each
+  student (dropped students skipped, already-certified skipped, per-student failures isolated
+  and reported as counts). Template lookup is kind-aware.
+- **Note:** the hourly auto-close sweep (batches past their end date) deliberately still does
+  NOT issue. Issuing on a date rollover with no human involved is not the same assertion as a
+  mentor clicking "Mark complete".
+
+### D. Password reset left users locked out — FIXED
+
+- **Symptom reported:** "LMS credentials issue after password fixed".
+- **Root cause:** a completed reset wrote only the password hash and left
+  `must_change_password` set. Login then succeeded, every authenticated route 403'd, and the
+  first-login gate redirected to a form asking for the temporary password the user had just
+  replaced. A dead end reachable only by users who chose forgot-password over the forced
+  change screen.
+- **Second defect:** temporary passwords were 16 random base64url characters, but the login
+  policy requires at least one digit. About 6.6% of generated passwords contained none, so
+  roughly one provisioned student in fifteen received credentials the login form refused to
+  submit. The stored hash was correct; the request never reached it.
+- **Third defect:** user lookup by email was case sensitive with no normalisation on write.
+  A student created in the CRM as `Name@Gmail.com` failed both login and forgot-password when
+  they typed lowercase, silently in the second case.
+- **Fix:** `aa17681`, all three.
+
+### E. Sitemap and robots.txt URLs contain a line break — FIXED
+
+- **Symptom reported:** Google results still not showing proper information.
+- **Root cause:** production `NEXT_PUBLIC_SITE_URL` has a trailing newline, and the code
+  stripped only a trailing slash. `new URL()` silently trims whitespace, so canonical tags
+  and OG URLs looked correct in the page source, which is where anyone would check. But
+  `robots.txt` and `sitemap.xml` interpolate the raw string, and live they emit
+  `Sitemap: https://www.stimuliiq.com\n/sitemap.xml` and `<loc>https://www.stimuliiq.com\n/</loc>`
+  for every URL. The sitemap was undiscoverable and its entries malformed.
+- **Fix:** `aa17681` trims at the source, and the two `/verify` pages stop separately
+  re-deriving the host from env with the wrong bare-apex default.
+- **Also do:** correct the `NEXT_PUBLIC_SITE_URL` value in Vercel (remove the newline), and
+  resubmit the sitemap in Google Search Console. Re-indexing is not instant.
+
+### F. Super admin appeared to hold edit/delete on audit logs — FIXED
+
+- **Root cause:** the permission catalog is generated as modules x actions, and `audit_logs`
+  was in the module list, so `audit_logs.create/edit/delete/export/approve` were minted and
+  granted to super_admin and admin at scope=all. No endpoint ever honoured them (only
+  `audit_logs.view` is read anywhere, and the audit controller exposes no write verb), but
+  the RBAC matrix displayed them, which is indistinguishable from rights that work.
+- **Fix:** `aa17681`. Seed narrowed to `audit_logs.view`; `pnpm db:seed:audit-permissions`
+  removes the stale rows from an existing database. Backed by a Postgres trigger blocking
+  DELETE and any UPDATE outside the DPDP redaction columns, plus a Prisma extension guard.
+- **Status:** run `pnpm db:seed:audit-permissions` against production after the migration.
+
+### G. "Only one member in a batch" — PARTLY A DATA-ENTRY TRAP
+
+- **Finding:** there is no one-member cap. `@@unique([studentId, batchId])` is per pair, and
+  capacity enforcement is correct. But `capacity` has no database default and the create form
+  left the field blank, so a batch saved with `1` accepts one student and then rejects
+  everyone with `enrollments.batch_full`.
+- **Fix:** `aa17681` seeds a default of 30 in the create form, still editable.
+- **Check production:** `SELECT id, name, capacity FROM batches WHERE capacity <= 2;` If the
+  affected batch is there, edit its capacity. No deploy needed for that.
+- **One course per batch is real and by design.** `Batch.programId` is a single FK and there
+  is no join table. Supporting multiple courses per batch is a schema project, not a fix.
+  Confirm the requirement before anyone starts it.
+
+### H. Still open, not started
+
+- **Assignment module dropdown** (attach an assignment to its module and lesson while
+  building a course). Investigated, not built. The Course and Lesson pickers work today, but
+  there is no Module picker, and the lesson list is flattened to `Module . Lesson` in one long
+  list. There is also no way to add an assignment from the curriculum builder, and the
+  "Assignment" lesson TYPE creates no assignment row, which is an active trap for authors.
+- **WhatsApp template campaigns.** Roughly 85% built. Three defects make every send fail at
+  Meta: the friendly template name is sent instead of the approved one, variables are never
+  passed, and the language is hard-coded to English. Scheduled campaigns also never fire, as
+  nothing polls for them. See `docs/staff-guide-reassignment-and-campaigns.md` Part 2.
+
+### I. VPS housekeeping
+
+- A `prisma migrate deploy` process had been hung for 3.5 days (1 second of CPU across
+  308,000 seconds), stuck on `can-connect-to-database` against the Supabase pgbouncer pooler
+  on port 6543. Killed. Migrations need a DIRECT connection, and no `DIRECT_URL` is
+  configured, which is very likely why it hung. Worth fixing before the next migration.
+- Two PM2 daemons are running, one under `root` with no apps and one under `deploy` holding
+  `stq-api`. The `deploy` one is the live one and its pid matches the port 4000 listener.
+  Harmless but worth tidying, and a known source of confusion in past incidents.
+- Public endpoints are responding in 2 to 5 seconds, consistent with the known API-to-database
+  region split.
+
 ## 2026-07-26
 
 ### 1. `/programs` (and all per-request SSR pages) return 500 on www — FIXED (awaiting push)
