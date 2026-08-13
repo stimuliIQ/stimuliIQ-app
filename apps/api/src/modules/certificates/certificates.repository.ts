@@ -833,16 +833,41 @@ export class CertificatesRepository {
   }
 
   /**
-   * Pick a default active template for AUTO issuance (autoIssueOnCompletion) — the
-   * OLDEST active, non-deleted template for the tenant. A tenant with no active
-   * template simply cannot auto-issue (the caller logs + skips); this is intentional.
+   * Pick a default active template for AUTO issuance (autoIssueOnCompletion).
+   *
+   * Prefers the oldest active template whose `design.certificateKind` matches the kind being
+   * minted, and only falls back to the oldest active template of any kind when the tenant has
+   * none for that kind. The `kind` argument is what makes this correct: the seed creates the
+   * internship template first, so an unfiltered "oldest active" always returned the internship
+   * artwork — and auto-issue always mints `kind: "training"`. Every auto-issued training
+   * certificate was therefore stored as training and rendered as an internship certificate.
+   *
+   * A tenant with no active template at all simply cannot auto-issue (the caller logs and
+   * skips); that remains intentional.
    */
   async findDefaultActiveTemplate(
     tenantId: string,
+    kind?: string,
   ): Promise<{ id: string; name: string; design: unknown; fields: unknown; status: string } | null> {
+    const select = { id: true, name: true, design: true, fields: true, status: true } as const;
+
+    if (kind) {
+      const match = await this.prisma.client.certificateTemplate.findFirst({
+        where: {
+          tenantId,
+          status: "active",
+          deletedAt: null,
+          design: { path: ["certificateKind"], equals: kind },
+        },
+        select,
+        orderBy: { createdAt: "asc" },
+      });
+      if (match) return match;
+    }
+
     const row = await this.prisma.client.certificateTemplate.findFirst({
       where: { tenantId, status: "active", deletedAt: null },
-      select: { id: true, name: true, design: true, fields: true, status: true },
+      select,
       orderBy: { createdAt: "asc" },
     });
     return row ?? null;

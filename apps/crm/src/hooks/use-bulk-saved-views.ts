@@ -13,7 +13,7 @@ import type {
 } from "@repo/types";
 
 import { apiClient } from "../lib/api-client";
-import { LEADS_QUERY_KEY } from "./use-leads";
+import { ASSIGNABLE_USERS_QUERY_KEY, LEADS_QUERY_KEY } from "./use-leads";
 import { STUDENTS_QUERY_KEY } from "./use-students";
 
 // ── Bulk actions ─────────────────────────────────────────────────────────
@@ -22,7 +22,12 @@ export function useBulkAssignLeads() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: BulkAssignLeadsRequest) => apiClient.crm.bulk.assignLeads(body),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: LEADS_QUERY_KEY }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: LEADS_QUERY_KEY });
+      // The picker's "N open" counts are cached 5 minutes (use-leads.ts) — stale right
+      // when a manager is mid load-balancing, so a bulk handover invalidates it too.
+      void queryClient.invalidateQueries({ queryKey: ASSIGNABLE_USERS_QUERY_KEY });
+    },
   });
 }
 

@@ -30,6 +30,7 @@ import { softDeleteExtension } from "./soft-delete.extension";
 import { auditExtension } from "./audit.extension";
 import { auditContextStorage } from "./audit-context";
 import { describeIfLocalDb } from "./local-db-guard";
+import { purgeAuditLogs } from "./purge-audit-logs";
 
 // Fail closed: this spec creates real rows and hard-`deleteMany`s them in afterAll, so it
 // runs ONLY against a disposable local database. The previous `!!process.env.DATABASE_URL`
@@ -75,7 +76,7 @@ describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + pa
   afterAll(async () => {
     // Hard-delete all test-scoped rows to leave a clean DB after the test run.
     // Order respects FK constraints.
-    await base.auditLog.deleteMany({ where: { tenantId } });
+    await purgeAuditLogs(base, { tenantId });
     await base.program.deleteMany({ where: { tenantId } });
     await base.user.deleteMany({ where: { tenantId } });
     await base.tenant.deleteMany({ where: { id: tenantId } });
@@ -512,7 +513,7 @@ describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + pa
     let testProgramId: string;
 
     afterEach(async () => {
-      await base.auditLog.deleteMany({ where: { tenantId } });
+      await purgeAuditLogs(base, { tenantId });
       if (testProgramId) {
         await base.program.deleteMany({ where: { id: testProgramId } });
         testProgramId = "";

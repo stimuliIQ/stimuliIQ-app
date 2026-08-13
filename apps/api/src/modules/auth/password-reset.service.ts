@@ -113,7 +113,14 @@ export class PasswordResetService {
     }
 
     const passwordHash = await argon2.hash(newPassword, ARGON2_HASH_OPTIONS);
-    await this.authRepository.updatePasswordHash(userId, passwordHash);
+    // Clears `must_change_password` as well as setting the hash. A provisioned student carries
+    // that flag until they rotate their temporary password, and a completed reset is a
+    // stronger proof of possession than that screen asks for — the user proved control of the
+    // mailbox and chose the password themselves. Writing only the hash left them in a
+    // deadlock: login succeeded, then every authenticated route 403'd `password_change_required`
+    // and the first-login gate redirected them to a form demanding the temporary password they
+    // had just replaced. "I reset my password, it said success, I still can't get in."
+    await this.authRepository.setPasswordAndClearMustChange(userId, passwordHash);
     // Security best practice: invalidate every existing session so a stolen/leaked
     // session cannot outlive the credential change.
     await this.authRepository.revokeAllSessionsForUser(userId);

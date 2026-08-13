@@ -41,6 +41,7 @@
 
 import { PrismaClient, RolePermissionScope } from "@prisma/client";
 import * as argon2 from "argon2";
+import { purgeAuditLogs } from "../../src/prisma/purge-audit-logs";
 
 export const CL_TENANT_SLUG = "stimuliiq";
 
@@ -470,7 +471,7 @@ export async function teardownCommerceLeadsFixtures(prisma: PrismaClient, _tenan
 
   await prisma.session.deleteMany({ where: { userId: { in: [...userIds, ...convertedUserIds] } } });
   await prisma.userRole.deleteMany({ where: { userId: { in: [...userIds, ...convertedUserIds] } } });
-  await prisma.auditLog.deleteMany({ where: { actorId: { in: [...userIds, ...convertedUserIds] } } });
+  await purgeAuditLogs(prisma, { actorId: { in: [...userIds, ...convertedUserIds] } });
   // Phase-9 Completion T31/R3: CommerceService.verifyPayment now calls
   // notifSvc.notifyPaymentReceipt(), which writes a `notifications` row for the payer —
   // must be cleaned up before deleting the user (FK) or teardown throws.

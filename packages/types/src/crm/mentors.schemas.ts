@@ -411,9 +411,14 @@ export type MarkBatchCompleteRequest = z.infer<typeof MarkBatchCompleteRequestSc
 
 /**
  * Response includes the rollup AT THE MOMENT OF TRANSITION (AC-41 — shown for
- * visibility, never a gate) alongside the new status/completedAt. Marking
- * complete NEVER mutates enrollment/progress/grading/certificate data (AC-42)
- * — this is a pure `batches.status`/`completed_at` write plus an audit-log row.
+ * visibility, never a gate) alongside the new status/completedAt.
+ *
+ * AC-42 originally read "marking complete NEVER mutates enrollment/progress/grading/
+ * certificate data — a pure status/completed_at write". The certificate half of that no
+ * longer holds: completing a batch is the staff assertion that this cohort finished its
+ * training, and it now issues each student's TRAINING certificate. Enrollment, progress and
+ * grading rows are still never touched. The `certificates` counts below report what the
+ * issuance pass did so the outcome is visible instead of assumed.
  */
 export const MarkBatchCompleteResponseSchema = z.object({
   batchId: UuidSchema,
@@ -421,6 +426,21 @@ export const MarkBatchCompleteResponseSchema = z.object({
   completedAt: IsoDateTimeSchema,
   completedByUserId: UuidSchema,
   summary: BatchCompletionSummaryDtoSchema,
+  certificates: z
+    .object({
+      issued: z.number().int().min(0).describe("Training certificates minted by this transition."),
+      skipped: z
+        .number()
+        .int()
+        .min(0)
+        .describe("Enrollments passed over — already certified, or withdrawn from the batch."),
+      failed: z
+        .number()
+        .int()
+        .min(0)
+        .describe("Enrollments that errored during issuance; retry from the certificate directory."),
+    })
+    .describe("Outcome of the automatic training-certificate issuance triggered by completion."),
 });
 export type MarkBatchCompleteResponse = z.infer<typeof MarkBatchCompleteResponseSchema>;
 

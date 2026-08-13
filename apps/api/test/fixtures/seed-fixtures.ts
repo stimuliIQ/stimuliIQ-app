@@ -25,6 +25,7 @@
 
 import { PrismaClient, RolePermissionScope } from "@prisma/client";
 import * as argon2 from "argon2";
+import { purgeAuditLogs } from "../../src/prisma/purge-audit-logs";
 
 export const FIXTURE_TENANT_SLUG = "stimuliiq";
 export const ADMIN_EMAIL = "qa-admin@stimuliiq.test";
@@ -129,7 +130,7 @@ export async function teardownFixtures(prisma: PrismaClient, _tenantId: string):
 
   await prisma.session.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.userRole.deleteMany({ where: { userId: { in: userIds } } });
-  await prisma.auditLog.deleteMany({ where: { actorId: { in: userIds } } });
+  await purgeAuditLogs(prisma, { actorId: { in: userIds } });
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
   // Intentionally leave the audit_log.list permission + role grants + the shared
   // "stimuliiq" tenant/roles in place — they are upserted (idempotent) on every run and

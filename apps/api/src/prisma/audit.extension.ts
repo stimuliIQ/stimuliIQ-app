@@ -603,15 +603,52 @@ interface AuditLogDelegate {
   create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
 }
 
+// Defence in depth for `audit_logs` immutability (the DB trigger from migration
+// audit_logs_immutability is the real enforcement — see prisma/migrations — this is the
+// belt to that suspenders, and the only layer that runs against a Supabase dashboard
+// session bound by RLS-less superuser access is the trigger, not this file). `create`/
+// `createMany` pass straight through with NO recursion (writing the audit row here must
+// never itself write another audit row). Every other mutation shape — update, updateMany,
+// upsert, delete, deleteMany — throws: nothing may edit or remove an audit row through the
+// extended client. The ONE sanctioned edit (DPDP erasure redacting `before`/`after`,
+// dpdp.repository.ts `redactAuditRow`) does not go through this client at all — it uses
+// `PrismaService.baseClient` (soft-delete only, no audit layer, so this guard never sees
+// it), and is itself still bounded by the Postgres trigger to touching only
+// before/after/redacted_at. Reads (findMany, count, ...) are untouched — `action` is
+// `undefined` for them, so they fall through below.
+function guardAuditLogMutation(
+  operation: string,
+  args: unknown,
+  query: (args: unknown) => Promise<unknown>,
+): Promise<unknown> {
+  const shape = MUTATION_OPERATIONS[operation];
+  if (shape === "create") {
+    return query(args);
+  }
+  if (shape) {
+    throw new Error(
+      `[audit] audit_logs is append-only: "${operation}" is blocked on the extended Prisma ` +
+        "client. The only sanctioned mutation is DPDP redaction of before/after/redacted_at, " +
+        "via PrismaService.baseClient (dpdp.repository.ts), enforced by the audit_logs_guard " +
+        "Postgres trigger.",
+    );
+  }
+  return query(args);
+}
+
 export const auditExtension = Prisma.defineExtension((client) =>
   client.$extends({
     name: "audit-log",
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {
+          if (model === "AuditLog") {
+            return guardAuditLogMutation(operation, args, query);
+          }
+
           const action = MUTATION_OPERATIONS[operation];
 
-          if (!isAudited(model) || !action || model === "AuditLog") {
+          if (!isAudited(model) || !action) {
             return query(args);
           }
 

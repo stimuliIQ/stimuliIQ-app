@@ -33,6 +33,7 @@ import { VerifyPanel } from "../../../components/verify/verify-panel";
 import type { VerifyState } from "../../../components/verify/verify-panel";
 import { VerifyPageSkeleton } from "../../../components/verify/verify-skeleton";
 import { escapeJsonLd } from "../../../lib/seo/json-ld";
+import { SITE_NAME, SITE_URL } from "../../../lib/seo/metadata";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Server-side API client (RSC context — no cookie refresh needed for public endpoint)
@@ -56,8 +57,10 @@ interface PageProps {
 // Metadata (SEO + OG for shareability — AC task §11 "SEO/OG for shareability")
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SITE_NAME = "stimuliiq";
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://stimuliiq.com";
+// SITE_NAME/SITE_URL come from lib/seo/metadata (imported above) rather than being re-derived
+// from the environment here: the local copy defaulted to the bare apex, which only ever 307s to
+// www, and it skipped the trim the shared constant applies. Two modules deriving the canonical
+// host from the same env var by different rules is how they drift apart.
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { certId } = await params;

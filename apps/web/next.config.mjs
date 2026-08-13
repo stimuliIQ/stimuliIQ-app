@@ -77,6 +77,11 @@ async function headers() {
   //   Must include the API origin so fetch() calls to the NestJS backend succeed.
   //   Must include Turnstile siteverify (widget JS pings *.cloudflare.com).
   //   Must include GA4/GTM endpoints (post-consent analytics).
+  //   Must include the S3/R2 storage endpoint: the anonymous upload flows (career résumés,
+  //   /onboarding payment receipts) XHR-PUT the file straight to a signed URL on the
+  //   bucket host, so the browser connects to the STORAGE host, not to the API. Without it
+  //   the PUT is blocked before it leaves the page and FileUpload can only report
+  //   "Network error during upload" (a blocked request looks identical to a dead network).
   //
   // frame-src:
   //   Razorpay checkout opens in an iframe.
@@ -118,14 +123,44 @@ async function headers() {
         "https://challenges.cloudflare.com",
       ].join(" ");
 
+  // Extra storage origin for a deployment whose signed-upload host is neither R2 nor the
+  // API origin (e.g. real AWS S3). Read from the same public asset-base env the image
+  // allowlist uses, and only when it points somewhere the wildcards below don't cover.
+  const extraUploadOrigin = (() => {
+    const configuredBase = process.env.PUBLIC_ASSET_BASE_URL ?? process.env.NEXT_PUBLIC_ASSET_BASE_URL;
+    if (!configuredBase) return null;
+    try {
+      const { protocol, origin, hostname } = new URL(configuredBase);
+      if (protocol !== "https:" || hostname.endsWith(".r2.cloudflarestorage.com")) return null;
+      return origin;
+    } catch {
+      return null;
+    }
+  })();
+
+  const connectSrc = [
+    "'self'",
+    apiOrigin,
+    "https://*.r2.cloudflarestorage.com",
+    ...(extraUploadOrigin ? [extraUploadOrigin] : []),
+    "https://*.google-analytics.com",
+    "https://*.analytics.google.com",
+    "https://stats.g.doubleclick.net",
+    "https://challenges.cloudflare.com",
+    "https://*.razorpay.com",
+  ].join(" ");
+
   const csp = [
     `default-src 'self'`,
     `script-src ${scriptSrc}`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     `font-src 'self' data: https://fonts.gstatic.com`,
     imgSrc,
-    // connect-src: self + API origin + analytics + Turnstile endpoints
-    `connect-src 'self' ${apiOrigin} https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://challenges.cloudflare.com https://*.razorpay.com`,
+    // connect-src: self + API origin + storage (signed uploads) + analytics + Turnstile
+    // The storage host is the R2 S3 endpoint (`<bucket>.<accountId>.r2.cloudflarestorage.com`);
+    // the same wildcard already appears in `images.remotePatterns` below. In dev the "local"
+    // StorageProvider signs uploads on the API origin, already allowed above.
+    `connect-src ${connectSrc}`,
     // frame-src: Razorpay checkout iframe + Turnstile challenge iframe
     `frame-src https://checkout.razorpay.com https://*.razorpay.com https://challenges.cloudflare.com`,
     `frame-ancestors 'none'`,

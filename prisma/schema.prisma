@@ -2869,17 +2869,32 @@ model AnalyticsRefreshLog {
 // Append-only audit trail — exempt from soft-delete (docs/05 §5/§6). No deleted_at:
 // audit rows must never be hidden or soft-deleted; only privileged purge/retention
 // jobs may hard-delete per compliance policy.
+//
+// Immutability is enforced at THREE layers (defence in depth, migration
+// audit_logs_immutability):
+//   1. Postgres trigger `audit_logs_guard` — blocks ALL DELETE and any UPDATE that
+//      touches a column other than before/after/redacted_at, including direct DB/
+//      dashboard access. The real enforcement.
+//   2. Prisma extension (audit.extension.ts `guardAuditLogMutation`) — throws on any
+//      delete/deleteMany/update/updateMany/upsert reaching the extended client.
+//   3. `Permission`/`RolePermission` catalog — `audit_logs.{create,edit,delete,approve}`
+//      do not exist; only `audit_logs.view` is seeded (prisma/seed.ts).
 model AuditLog {
-  id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String   @map("tenant_id") @db.Uuid
-  actorId   String?  @map("actor_id") @db.Uuid
-  entity    String
-  entityId  String   @map("entity_id") @db.Uuid
-  action    String
-  before    Json?
-  after     Json?
-  ip        String?
-  createdAt DateTime @default(now()) @map("created_at")
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  actorId    String?   @map("actor_id") @db.Uuid
+  entity     String
+  entityId   String    @map("entity_id") @db.Uuid
+  action     String
+  before     Json?
+  after      Json?
+  ip         String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  // Set ONLY by the DPDP erasure redaction path (dpdp.repository.ts `redactAuditRow`,
+  // ADR-0049) — the one sanctioned edit to an otherwise-immutable row. Nullable: null
+  // means "never redacted". Makes that single legitimate mutation visible on the row
+  // itself instead of only inferable from the separate `DpdpErasure` audit row.
+  redactedAt DateTime? @map("redacted_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   actor  User?  @relation(fields: [actorId], references: [id])

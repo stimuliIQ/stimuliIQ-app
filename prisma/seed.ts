@@ -103,7 +103,6 @@ const P1_MODULES = [
   "enrollments",
   "roles",
   "branches",
-  "audit_logs",
 ] as const;
 
 /** Full P1 action set per docs/03 §9 ("module × action: view/create/edit/delete/export/approve"). */
@@ -817,6 +816,51 @@ async function main(): Promise<void> {
     await Promise.all(
       usersAdminPermissions.map((permission) => grant(role.id, permission.id, RolePermissionScope.all)),
     );
+  }
+
+  // ── Audit log permissions — VIEW ONLY, for everyone, including super_admin ──────────
+  //
+  // Kept out of the `P1_MODULES` × `P1_ACTIONS` cross-product on purpose. That product
+  // minted `audit_logs.create/edit/delete/export/approve` alongside `.view`, and the
+  // super_admin/admin catch-all loop above granted the lot at scope=all — so the RBAC
+  // matrix showed Super Admin holding edit and delete rights over the audit trail. No
+  // endpoint ever honoured them (`audit_logs.view` is the only key any code reads, and the
+  // audit controller exposes no write verb), but a permission the UI displays and nothing
+  // enforces is indistinguishable, to anyone reading the matrix, from one that works.
+  //
+  // An audit trail nobody can edit is the entire point of having one, so the write keys
+  // should not exist to be granted. Enforcement proper is the Postgres trigger and the
+  // Prisma extension guard (migration audit_logs_immutability); this block removes the
+  // misleading grant surface that sits on top of them.
+  const auditLogViewPermission = await prisma.permission.upsert({
+    where: { key: "audit_logs.view" },
+    update: { label: "View Audit Logs" },
+    create: { key: "audit_logs.view", label: "View Audit Logs" },
+  });
+  for (const role of [superAdminRole, adminRole]) {
+    await grant(role.id, auditLogViewPermission.id, RolePermissionScope.all);
+  }
+
+  // Idempotent cleanup for databases seeded before the narrowing above: drop the write
+  // keys and every grant pointing at them. Hard-deleted rather than soft-deleted because
+  // `Permission`/`RolePermission` are catalog rows, not business records — a soft-deleted
+  // permission that RBAC still resolves would defeat the purpose.
+  const staleAuditPermissionKeys = [
+    "audit_logs.create",
+    "audit_logs.edit",
+    "audit_logs.delete",
+    "audit_logs.approve",
+    "audit_logs.export",
+  ];
+  const staleAuditPermissions = await prisma.permission.findMany({
+    where: { key: { in: staleAuditPermissionKeys } },
+    select: { id: true },
+  });
+  if (staleAuditPermissions.length > 0) {
+    const staleIds = staleAuditPermissions.map((row) => row.id);
+    await prisma.rolePermission.deleteMany({ where: { permissionId: { in: staleIds } } });
+    await prisma.permission.deleteMany({ where: { id: { in: staleIds } } });
+    console.log(`  ✓ removed ${staleIds.length} stale audit_logs write permission(s)`);
   }
 
   // `users.remove` — DELETE /crm/admin/users/:id/permanent, which takes a staff account out

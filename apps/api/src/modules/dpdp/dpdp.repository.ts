@@ -62,13 +62,22 @@ export class DpdpRepository {
    * form. This is a controlled, targeted field-level redaction — NOT a delete, and NOT a
    * wholesale snapshot replacement of fields outside the PII registry (Rule H-5: the
    * audit trail's non-PII shape survives).
+   *
+   * Deliberately uses `baseClient` (soft-delete only, no audit layer), never `client`:
+   * the audit Prisma extension throws on any `AuditLog` update other than create, by
+   * design (audit.extension.ts `guardAuditLogMutation`) — this is the one call site
+   * meant to reach past that guard. The Postgres `audit_logs_guard` trigger is the real
+   * enforcement underneath both clients, and only permits this call to touch
+   * before/after/redacted_at, never the accountability columns (id, tenant_id, actor_id,
+   * entity, entity_id, action, ip, created_at).
    */
   async redactAuditRow(id: string, before: unknown, after: unknown): Promise<void> {
-    await this.prisma.client.auditLog.update({
+    await this.prisma.baseClient.auditLog.update({
       where: { id },
       data: {
         before: (before ?? undefined) as Prisma.InputJsonValue | undefined,
         after: (after ?? undefined) as Prisma.InputJsonValue | undefined,
+        redactedAt: new Date(),
       },
     });
   }

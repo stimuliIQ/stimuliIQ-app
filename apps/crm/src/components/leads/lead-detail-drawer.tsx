@@ -22,6 +22,7 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
+  Textarea,
   useToast,
   type ActivityItem,
 } from "@repo/ui";
@@ -66,6 +67,8 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
   const [convertOpen, setConvertOpen] = React.useState(false);
   const [ownerId, setOwnerId] = React.useState<string | null>(null);
+  const [ownerReason, setOwnerReason] = React.useState("");
+  const [reassignConfirmOpen, setReassignConfirmOpen] = React.useState(false);
   // Follow-up scheduler: choosing "Follow-up" reveals a date/time picker instead of
   // moving immediately, so the callback is always scheduled (surfaces on the tasks/SLA queue).
   const [followUpAt, setFollowUpAt] = React.useState("");
@@ -83,6 +86,7 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
   // re-seed when the drawer is pointed at a different lead.
   React.useEffect(() => {
     setOwnerId(lead?.ownerId ?? null);
+    setOwnerReason("");
   }, [lead?.id, lead?.ownerId]);
 
   function handleStageSelect(stage: LeadStage) {
@@ -125,15 +129,28 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
   async function handleReassign() {
     if (!lead) return;
     try {
-      await assignOwner.mutateAsync({ id: lead.id, body: { ownerId } });
+      await assignOwner.mutateAsync({ id: lead.id, body: { ownerId, reason: ownerReason.trim() || undefined } });
       toast({
-        title: ownerId ? "Owner reassigned" : "Owner unassigned",
+        title: ownerId ? "Owner saved" : "Owner unassigned",
         description: ownerId ? "They've been notified in the CRM." : undefined,
         variant: "success",
       });
+      setReassignConfirmOpen(false);
+      setOwnerReason("");
     } catch (error) {
-      surfaceError(toast, error, "Couldn't reassign the owner");
+      surfaceError(toast, error, "Couldn't save this lead's owner");
     }
+  }
+
+  // Claiming a lead nobody owns stays a single click — only a HANDOVER away from an
+  // existing owner (to someone else, or to nobody) needs an explicit confirmation.
+  function handleSaveOwnerClick() {
+    if (!lead) return;
+    if (lead.ownerId && ownerId !== lead.ownerId) {
+      setReassignConfirmOpen(true);
+      return;
+    }
+    void handleReassign();
   }
 
   async function handleDelete() {
@@ -386,23 +403,39 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
                         <LeadAssignmentProvenance lead={lead} />
                         <div className="flex items-end gap-2">
                           <OwnerSelect
-                            label="Reassign to"
                             value={ownerId}
                             onChange={setOwnerId}
                             wrapperClassName="flex-1"
                             data-testid="lead-detail-owner-select"
                           />
                           <Button
-                            onClick={handleReassign}
+                            onClick={handleSaveOwnerClick}
                             loading={assignOwner.isPending}
                             // A no-op save would fire a "reassigned" toast and, worse, a
                             // notification to someone who already owns the lead.
                             disabled={ownerId === lead.ownerId}
                             data-testid="lead-detail-reassign-submit"
                           >
-                            Reassign
+                            Save owner
                           </Button>
                         </div>
+                        {ownerId === lead.ownerId ? (
+                          <p className="text-xs text-fg-muted" data-testid="lead-detail-owner-unchanged-hint">
+                            {ownerId
+                              ? "This is already the owner — pick someone else to change it."
+                              : "This lead has no owner yet — pick someone to assign it."}
+                          </p>
+                        ) : (
+                          <Textarea
+                            label="Reason (optional)"
+                            size="sm"
+                            rows={2}
+                            placeholder="Why is this lead changing hands?"
+                            value={ownerReason}
+                            onChange={(event) => setOwnerReason(event.target.value)}
+                            data-testid="lead-detail-owner-reason"
+                          />
+                        )}
                       </div>
                     ) : null}
                   </div>
@@ -491,6 +524,20 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
 
       {lead ? (
         <>
+          <ConfirmDialog
+            open={reassignConfirmOpen}
+            onOpenChange={setReassignConfirmOpen}
+            title="Change this lead's owner?"
+            description={
+              ownerId
+                ? "This hands the lead to a new owner. They'll be notified in the CRM."
+                : "This unassigns the lead. Nobody will be notified."
+            }
+            confirmLabel="Save owner"
+            loading={assignOwner.isPending}
+            onConfirm={handleReassign}
+            data-testid="lead-reassign-confirm"
+          />
           <ConfirmDialog
             open={deleteConfirmOpen}
             onOpenChange={setDeleteConfirmOpen}

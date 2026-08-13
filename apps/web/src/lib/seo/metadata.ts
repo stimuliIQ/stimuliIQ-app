@@ -39,9 +39,25 @@ export const SITE_NAME = "Stimuli IQ" as const;
  * If the bare domain is ever made primary instead (Vercel project settings, Domains), flip this
  * default with it. The two must agree, and a Vercel `NEXT_PUBLIC_SITE_URL` overrides this, so
  * check that env var too before assuming this line is what production uses.
+ *
+ * The value is trimmed before use. Production had a trailing newline pasted into the Vercel env
+ * var, and only the trailing slash was being stripped, so the newline survived into every place
+ * that interpolates this constant into a raw string. `new URL()` tolerates it — it strips
+ * surrounding whitespace — which is why the canonical tag looked correct while `robots.txt`
+ * emitted `Sitemap: https://www.stimuliiq.com\n/sitemap.xml` and every `<loc>` in `sitemap.xml`
+ * carried a line break mid-URL. The sitemap was therefore undiscoverable and its entries
+ * malformed, which is a far better explanation for thin Google results than ranking. Trimming
+ * here fixes every consumer at once; the env var should be corrected too, but code that only
+ * works when an env var is pasted perfectly is code with a trap in it.
  */
-export const SITE_URL =
-  (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.stimuliiq.com").replace(/\/$/, "");
+export const SITE_URL = normalizeSiteUrl(
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.stimuliiq.com",
+);
+
+/** Strip surrounding whitespace/newlines and any trailing slashes from a site base URL. */
+export function normalizeSiteUrl(value: string): string {
+  return value.trim().replace(/\/+$/, "");
+}
 export const DEFAULT_DESCRIPTION =
   "Healthcare training and internships for students in India. Structured programmes in psychology, clinical practice and allied health, with mentors who work in the field and a real internship at the end.";
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;

@@ -26,6 +26,7 @@ import * as React from "react";
 import { LayoutGrid, Table2, Plus } from "lucide-react";
 import {
   Button,
+  ConfirmDialog,
   DataFilterBar,
   DataTable,
   type DataTableColumn,
@@ -146,6 +147,7 @@ export function PipelineBoard({ me, initialOwnerFilter }: PipelineBoardProps): R
   const [selectedIds, setSelectedIds] = React.useState<ReadonlySet<string>>(new Set());
   const [activeViewId, setActiveViewId] = React.useState<string | null>(null);
   const [bulkOwnerId, setBulkOwnerId] = React.useState<string | null>(null);
+  const [bulkAssignConfirmOpen, setBulkAssignConfirmOpen] = React.useState(false);
 
   const { toast } = useToast();
   const moveStage = useMoveLeadStage();
@@ -242,6 +244,7 @@ export function PipelineBoard({ me, initialOwnerFilter }: PipelineBoardProps): R
       });
       setSelectedIds(new Set());
       setBulkOwnerId(null);
+      setBulkAssignConfirmOpen(false);
     } catch (error) {
       surfaceError(toast, error, "Couldn't bulk-assign these leads");
     }
@@ -461,7 +464,13 @@ export function PipelineBoard({ me, initialOwnerFilter }: PipelineBoardProps): R
             wrapperClassName="w-64"
             data-testid="pipeline-bulk-owner-select"
           />
-          <Button size="sm" variant="secondary" onClick={handleBulkAssign} loading={bulkAssign.isPending} data-testid="pipeline-bulk-assign">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setBulkAssignConfirmOpen(true)}
+            loading={bulkAssign.isPending}
+            data-testid="pipeline-bulk-assign"
+          >
             {bulkOwnerId ? `Assign ${selectedIds.size}` : `Unassign ${selectedIds.size}`}
           </Button>
           <Select
@@ -548,6 +557,20 @@ export function PipelineBoard({ me, initialOwnerFilter }: PipelineBoardProps): R
 
       <LeadFormDrawer open={createOpen} onOpenChange={setCreateOpen} />
       <LeadDetailDrawer leadId={selectedLeadId} me={me} onOpenChange={(open) => !open && setSelectedLeadId(null)} />
+      <ConfirmDialog
+        open={bulkAssignConfirmOpen}
+        onOpenChange={setBulkAssignConfirmOpen}
+        title={bulkOwnerId ? "Assign these leads?" : "Unassign these leads?"}
+        description={
+          bulkOwnerId
+            ? `${selectedIds.size} lead(s) will be handed to the selected owner, who will be notified in the CRM.`
+            : `${selectedIds.size} lead(s) will lose their current owner. Nobody will be notified.`
+        }
+        confirmLabel={bulkOwnerId ? "Assign" : "Unassign"}
+        loading={bulkAssign.isPending}
+        onConfirm={handleBulkAssign}
+        data-testid="pipeline-bulk-assign-confirm"
+      />
     </div>
   );
 }

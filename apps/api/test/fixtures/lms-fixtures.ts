@@ -26,6 +26,7 @@
 //     TENANT_SLUG hard-coding prevents a real second tenant login in this harness).
 
 import { PrismaClient, RolePermissionScope } from "@prisma/client";
+import { purgeAuditLogs } from "../../src/prisma/purge-audit-logs";
 import * as argon2 from "argon2";
 
 export const LMS_TENANT_SLUG = "stimuliiq";
@@ -585,7 +586,7 @@ export async function teardownLmsFixtures(
   if (userIds.length) {
     await prisma.session.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.userRole.deleteMany({ where: { userId: { in: userIds } } });
-    await prisma.auditLog.deleteMany({ where: { actorId: { in: userIds } } });
+    await purgeAuditLogs(prisma, { actorId: { in: userIds } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
   }
 

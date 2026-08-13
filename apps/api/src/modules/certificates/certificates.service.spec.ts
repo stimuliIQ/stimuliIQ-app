@@ -528,7 +528,7 @@ describe("CertificatesService", () => {
 
       const result = await service.autoIssueOnCompletion(TENANT_ID, ENROLLMENT_ID);
 
-      expect(result).toEqual({ issued: true });
+      expect(result).toEqual({ issued: true, certificateId: expect.any(String) });
       expect(repo.createCertificate).toHaveBeenCalledWith(
         expect.objectContaining({ issuedById: null, templateId: TEMPLATE_ID }),
       );

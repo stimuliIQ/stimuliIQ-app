@@ -7,15 +7,14 @@
 
 import { generateTotpSecret, buildOtpauthUrl, generateTotpCode, verifyTotpCode } from "./totp";
 
-// RFC 6238 Appendix B test vector: the SHA1 seed "12345678901234567890" (20 ASCII bytes),
-// base32-encoded, at T=59s (counter=1) produces code "94287082" — but that's an 8-digit
-// vector; RFC 6238 in 8-digit mode. This implementation is fixed at 6 digits (matches
-// the codebase's own `CODE_DIGITS` choice), so instead we verify SELF-CONSISTENCY
-// (generate then verify) plus the well-known RFC 4226 HOTP counter=0 test vector
-// (secret "12345678901234567890123456789012" base32 = the standard otplib/Google
-// Authenticator test seed) — asserting a KNOWN 6-digit code for a fixed secret+time,
-// which is the same practical guarantee (the HMAC-SHA1 + dynamic-truncation math is
-// exercised end-to-end against a real, externally-verifiable seed/time pair).
+// RFC 6238 Appendix B's own test vectors are 8-digit (e.g. seed "12345678901234567890",
+// T=59s / counter=1 → "94287082"); this implementation is fixed at 6 digits (matches the
+// codebase's own `CODE_DIGITS` choice), so those exact vectors don't apply here. Below:
+// self-consistency checks (generate then verify) for the general TOTP behavior, PLUS —
+// in the "RFC 4226 Appendix D test vectors" block further down — the actual published
+// RFC 4226 HOTP test vectors (counters 0..9 against the same "12345678901234567890" ASCII
+// seed), which ARE 6-digit and directly assertable: this is the externally-verifiable
+// proof that the HMAC-SHA1 + dynamic-truncation math is correct, not just self-consistent.
 const KNOWN_SECRET = "JBSWY3DPEHPK3PXP"; // base32("Hello!\xde\xad\xbe\xef") — a stable, arbitrary fixture.
 
 describe("totp.ts", () => {
@@ -81,4 +80,65 @@ describe("totp.ts", () => {
     const staleCode = generateTotpCode(secret, twoStepsAgo);
     expect(verifyTotpCode(secret, staleCode, now)).toBe(false);
   });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // RFC 4226 Appendix D — the actual published HOTP test vector (previously only
+  // claimed by this file's header comment, never asserted). Seed: the 20 ASCII bytes
+  // "12345678901234567890" used AS THE RAW HMAC KEY (not base32-decoded — RFC 4226's
+  // own vector table works directly off the ASCII string). `hotp()` in totp.ts is not
+  // exported, so the vectors are exercised through the public `generateTotpCode()`
+  // (TOTP = HOTP at counter = floor(unixSeconds / 30)) by picking `at` = counter*30s,
+  // and through a base32-encoded copy of the same seed, since totp.ts's `hotp()`
+  // base32-decodes whatever secret it's given.
+  // ───────────────────────────────────────────────────────────────────────────
+  describe("RFC 4226 Appendix D test vectors", () => {
+    const RFC4226_ASCII_SEED = "12345678901234567890";
+    const RFC4226_SECRET_BASE32 = base32EncodeAscii(RFC4226_ASCII_SEED);
+
+    // RFC 4226 Appendix D, counters 0..9 → expected 6-digit (truncated) HOTP values.
+    const EXPECTED_CODES = [
+      "755224",
+      "287082",
+      "359152",
+      "969429",
+      "338314",
+      "254676",
+      "287922",
+      "162583",
+      "399871",
+      "520489",
+    ];
+
+    it.each(EXPECTED_CODES.map((code, counter) => [counter, code] as const))(
+      "counter=%i produces the published HOTP code %s",
+      (counter, expectedCode) => {
+        // floor(atMs / 1000 / 30) === counter exactly, since atMs = counter * 30_000.
+        const at = new Date(counter * 30_000);
+        expect(generateTotpCode(RFC4226_SECRET_BASE32, at)).toBe(expectedCode);
+      },
+    );
+  });
 });
+
+/** RFC 4648 §6 base32 encoder (same alphabet as totp.ts's own, duplicated here so the
+ * RFC 4226 test vector — an ASCII seed — can be fed through the public `generateTotpCode`
+ * API, which only accepts base32 input). */
+function base32EncodeAscii(ascii: string): string {
+  const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const buffer = Buffer.from(ascii, "ascii");
+  let bits = 0;
+  let value = 0;
+  let output = "";
+  for (const byte of buffer) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      output += ALPHABET[(value >>> (bits - 5)) & 0x1f];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) {
+    output += ALPHABET[(value << (5 - bits)) & 0x1f];
+  }
+  return output;
+}

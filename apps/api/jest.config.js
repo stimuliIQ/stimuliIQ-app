@@ -15,6 +15,10 @@ module.exports = {
   // `roots` (including jest.integration.config.js, which needs the REAL jose), with no
   // way to opt a specific config out of it. Wiring the stub in explicitly here (and only
   // here) keeps the integration suite unaffected.
+  // Seeds the production-required signing secrets so specs that flip APP_ENV/NODE_ENV to
+  // "production" to test something else don't fail env validation on unrelated vars.
+  // See the file header; it sets defaults only, so absence-asserting specs still work.
+  setupFiles: ["<rootDir>/test/unit-setup-env.ts"],
   moduleNameMapper: {
     "^jose$": "<rootDir>/test/unit-mocks/jose.ts",
     // @repo/types builds as pure ESM (`"type": "module"`, dist/index.js uses `export`),

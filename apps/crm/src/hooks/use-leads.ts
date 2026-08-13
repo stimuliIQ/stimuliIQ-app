@@ -55,10 +55,17 @@ export function useLeadsList(query: ListLeadsQuery) {
  */
 export const ASSIGNABLE_USERS_QUERY_KEY = ["leads", "assignable-users"] as const;
 
-export function useAssignableUsers(options?: { enabled?: boolean }) {
+/**
+ * `search` is appended to the cache key rather than kept out of it — each term gets its
+ * own cache entry, so retyping a previous term is instant and `invalidateQueries({
+ * queryKey: ASSIGNABLE_USERS_QUERY_KEY })` still invalidates every variant (TanStack Query
+ * matches by key prefix).
+ */
+export function useAssignableUsers(options?: { enabled?: boolean; search?: string }) {
+  const search = options?.search?.trim() || undefined;
   return useQuery({
-    queryKey: ASSIGNABLE_USERS_QUERY_KEY,
-    queryFn: () => apiClient.crm.leads.listAssignableUsers(),
+    queryKey: [...ASSIGNABLE_USERS_QUERY_KEY, search ?? null] as const,
+    queryFn: () => apiClient.crm.leads.listAssignableUsers(search ? { search } : {}),
     staleTime: 5 * 60 * 1000,
     enabled: options?.enabled ?? true,
   });

@@ -29,6 +29,7 @@ function mockAuthRepository(): Mocked<AuthRepository> {
     findUserByEmail: jest.fn(),
     findUserById: jest.fn(),
     updatePasswordHash: jest.fn(),
+    setPasswordAndClearMustChange: jest.fn(),
     revokeAllSessionsForUser: jest.fn(),
   } as unknown as Mocked<AuthRepository>;
 }
@@ -146,13 +147,18 @@ describe("PasswordResetService", () => {
       await expect(service.confirm("token", "NewPassw0rd!")).rejects.toBeInstanceOf(UnprocessableEntityException);
     });
 
-    it("sets a new password hash and revokes every existing session on success", async () => {
+    // `setPasswordAndClearMustChange`, not `updatePasswordHash`: a completed reset must also
+    // clear the first-login gate. Writing only the hash left a provisioned student able to
+    // log in but 403'd on every authenticated route and bounced to a change-password form
+    // demanding the temporary password they had just replaced.
+    it("sets a new password, clears the must-change gate, and revokes every existing session", async () => {
       store.consume.mockResolvedValue("user-1");
       repo.findUserById.mockResolvedValue(ACTIVE_USER);
 
       const result = await service.confirm("token", "NewPassw0rd!");
       expect(result).toEqual({ reset: true });
-      expect(repo.updatePasswordHash).toHaveBeenCalledWith("user-1", expect.any(String));
+      expect(repo.setPasswordAndClearMustChange).toHaveBeenCalledWith("user-1", expect.any(String));
+      expect(repo.updatePasswordHash).not.toHaveBeenCalled();
       expect(repo.revokeAllSessionsForUser).toHaveBeenCalledWith("user-1");
     });
 

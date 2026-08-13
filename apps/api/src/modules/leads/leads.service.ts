@@ -368,6 +368,32 @@ export class LeadsService {
     const updated = await this.repository.findById(tenantId, id, {});
     if (!updated) throw new NotFoundException({ code: "leads.not_found", title: "Lead not found after owner assignment" });
 
+    // A real ownership change (not a no-op re-save) gets a timeline entry so the Activity
+    // tab shows the handover and the PREVIOUS owner has a record of losing the lead, not
+    // just silence. Written directly via the repository (mirrors moveStage's follow-up
+    // task write above) rather than through ActivitiesService, so this can never route
+    // through `touchLeadContact` with `countsAsContact: true` — a reassignment is not a
+    // call/whatsapp/email touch, and letting it fake a first response would corrupt the
+    // per-rep report's avgFirstResponseMinutes.
+    if (body.ownerId !== existing.ownerId) {
+      const fromName = existing.ownerName ?? "Unassigned";
+      const toName = updated.ownerName ?? "Unassigned";
+      const reason = body.reason?.trim();
+      await this.activitiesRepository.create({
+        tenantId,
+        leadId: id,
+        userId: scope.actorId,
+        type: "note",
+        payload: {
+          body: `Owner changed from ${fromName} to ${toName}.${reason ? ` Reason: ${reason}` : ""}`,
+        },
+      });
+      // Bumps `lastActivityAt` only — `countsAsContact: false` keeps `firstContactedAt`
+      // untouched, so a lead reassigned before anyone has called it still reads as
+      // uncontacted.
+      await this.repository.touchLeadContact(id, new Date(), false);
+    }
+
     // Notify only on a REAL handover to someone else. Three cases stay silent:
     //   - unassign (ownerId null) — nobody to tell;
     //   - a no-op re-save of the same owner — they already know;

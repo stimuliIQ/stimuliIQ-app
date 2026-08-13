@@ -519,6 +519,76 @@ describe("LeadsService", () => {
       ).rejects.toThrow(BadRequestException);
       expect(repo.assignOwner).not.toHaveBeenCalled();
     });
+
+    it("writes a timeline entry recording the handover, including the reason", async () => {
+      repo.isActiveUserInTenant.mockResolvedValue(true);
+      const updated = { ...ROW, ownerId: "new-owner", ownerName: "Priya Sharma" };
+      repo.findById.mockResolvedValueOnce(ROW).mockResolvedValueOnce(updated);
+
+      await runWithScope("branch", () =>
+        service.assignOwner("tenant-1", ROW.id, { ownerId: "new-owner", reason: "Better fit for this territory" }),
+      );
+
+      expect(activitiesRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId: "tenant-1",
+          leadId: ROW.id,
+          userId: "actor-1",
+          type: "note",
+          payload: {
+            body: "Owner changed from Counsellor One to Priya Sharma. Reason: Better fit for this territory",
+          },
+        }),
+      );
+    });
+
+    it("omits the reason clause from the timeline entry when none is given", async () => {
+      repo.isActiveUserInTenant.mockResolvedValue(true);
+      const updated = { ...ROW, ownerId: "new-owner", ownerName: "Priya Sharma" };
+      repo.findById.mockResolvedValueOnce(ROW).mockResolvedValueOnce(updated);
+
+      await runWithScope("branch", () => service.assignOwner("tenant-1", ROW.id, { ownerId: "new-owner" }));
+
+      expect(activitiesRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ payload: { body: "Owner changed from Counsellor One to Priya Sharma." } }),
+      );
+    });
+
+    it("records 'Unassigned' on both sides of the timeline entry when there is no owner", async () => {
+      repo.findById
+        .mockResolvedValueOnce({ ...ROW, ownerId: null, ownerName: null })
+        .mockResolvedValueOnce({ ...ROW, ownerId: "new-owner", ownerName: "Priya Sharma" });
+      repo.isActiveUserInTenant.mockResolvedValue(true);
+
+      await runWithScope("branch", () => service.assignOwner("tenant-1", ROW.id, { ownerId: "new-owner" }));
+
+      expect(activitiesRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ payload: { body: "Owner changed from Unassigned to Priya Sharma." } }),
+      );
+    });
+
+    it("does NOT write a timeline entry for a no-op re-save of the same owner", async () => {
+      repo.isActiveUserInTenant.mockResolvedValue(true);
+      repo.findById
+        .mockResolvedValueOnce({ ...ROW, ownerId: "existing-owner" })
+        .mockResolvedValueOnce({ ...ROW, ownerId: "existing-owner" });
+
+      await runWithScope("branch", () => service.assignOwner("tenant-1", ROW.id, { ownerId: "existing-owner" }));
+
+      expect(activitiesRepo.create).not.toHaveBeenCalled();
+      expect(repo.touchLeadContact).not.toHaveBeenCalled();
+    });
+
+    it("bumps lastActivityAt WITHOUT counting the reassignment as first contact", async () => {
+      repo.isActiveUserInTenant.mockResolvedValue(true);
+      repo.findById.mockResolvedValueOnce(ROW).mockResolvedValueOnce({ ...ROW, ownerId: "new-owner" });
+
+      await runWithScope("branch", () => service.assignOwner("tenant-1", ROW.id, { ownerId: "new-owner" }));
+
+      // The `false` here is the whole point: a reassignment must never fake a first
+      // response and drag avgFirstResponseMinutes below zero.
+      expect(repo.touchLeadContact).toHaveBeenCalledWith(ROW.id, expect.any(Date), false);
+    });
   });
 
   describe("convert (from any non-lost stage, one click)", () => {

@@ -19,10 +19,10 @@
 // change (must_change_password gate + POST /auth/change-password) rotates it immediately.
 
 import { Inject, Injectable, Logger } from "@nestjs/common";
-import { randomBytes } from "node:crypto";
 import * as argon2 from "argon2";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ARGON2_HASH_OPTIONS } from "../auth/lib/argon2-params";
+import { generateTemporaryPassword } from "../auth/lib/temporary-password";
 import { AuthRepository } from "../auth/auth.repository";
 import { MAIL_PROVIDER, type MailProvider } from "../notifications/providers/mail/mail-provider.interface";
 import { renderBrandedEmail, escapeEmailHtml } from "../notifications/dispatch/email-layout";
@@ -176,13 +176,4 @@ export class LmsAccountProvisioningService {
   }
 }
 
-/**
- * A readable, reasonably strong one-time password: 16 url-safe base64 chars from 12
- * random bytes. Never persisted in plaintext (only its argon2 hash) and rotated on first
- * login. Not a long-lived credential, so human-friendliness (no ambiguous separators)
- * matters more than maximal entropy here.
- */
-function generateTemporaryPassword(): string {
-  return randomBytes(12).toString("base64url");
-}
 

@@ -26,9 +26,17 @@ export interface UserWithRbac {
 export class AuthRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Case-insensitive on the address, because email addresses are not case-sensitive in
+   * practice and `users.email` is a plain `String` column with no normalisation on write.
+   * An exact match meant a student created in the CRM as `Name@Gmail.com` failed both login
+   * ("Invalid email or password") and forgot-password (which resolves no user and then, by
+   * design, returns the same generic "check your inbox" as a successful send) whenever they
+   * typed their address in lowercase. One cause, both reported symptoms, no error anywhere.
+   */
   findUserByEmail(tenantSlug: string, email: string): Promise<User | null> {
     return this.prisma.client.user.findFirst({
-      where: { email, tenant: { slug: tenantSlug } },
+      where: { email: { equals: email.trim(), mode: "insensitive" }, tenant: { slug: tenantSlug } },
     });
   }
 

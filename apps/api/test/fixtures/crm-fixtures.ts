@@ -30,6 +30,7 @@
 // therefore created in that shared tenant, never an isolated per-suite tenant.
 
 import { PrismaClient, RolePermissionScope } from "@prisma/client";
+import { purgeAuditLogs } from "../../src/prisma/purge-audit-logs";
 import * as argon2 from "argon2";
 
 export const CRM_TENANT_SLUG = "stimuliiq";
@@ -503,7 +504,7 @@ export async function teardownCrmFixtures(prisma: PrismaClient, _tenantId: strin
 
   await prisma.session.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.userRole.deleteMany({ where: { userId: { in: userIds } } });
-  await prisma.auditLog.deleteMany({ where: { actorId: { in: userIds } } });
+  await purgeAuditLogs(prisma, { actorId: { in: userIds } });
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
 
   await prisma.program.deleteMany({ where: { slug: "qa-crm-fixture-program" } });

@@ -635,17 +635,36 @@ export class CertificatesService {
 
   /**
    * Called by LmsProgressService.markComplete AFTER its $transaction commits, when the
-   * student's enrollment reaches 100% progress. IDEMPOTENT + SILENT-SKIP: this is safe
-   * to call on every 100% completion event (e.g. replays) — it never throws for the
+   * student's enrollment reaches 100% progress, and by BatchCompletionService.markComplete
+   * when staff mark a whole batch complete. IDEMPOTENT + SILENT-SKIP: this is safe
+   * to call on every completion event (e.g. replays) — it never throws for the
    * "not eligible yet" / "already has a cert" / "no template" cases, only for genuine
-   * unexpected errors, which the LMS caller catches anyway.
+   * unexpected errors, which both callers catch anyway.
    *
    * Skip reasons: "enrollment_not_found" | "already_exists" | "not_eligible" | "no_template".
+   *
+   * ── On the two triggers, and why they gate differently ──
+   * `lms_progress` is a machine signal: the student ticked off the last lesson, so the
+   * per-student eligibility engine decides. `batch_completion` is a HUMAN signal — a mentor
+   * with `batches.markComplete` asserting that this cohort finished its training — so it does
+   * not re-derive completion from `progress_pct`. That column is written only from
+   * `lesson_progress`, so for a cohort taught in person it is 0 for everyone; gating the batch
+   * trigger on it would mean the feature issues nothing at all and looks broken in exactly the
+   * way it was reported. The staff assertion is recorded: `performIssuance` carries the actor
+   * and the batch trigger writes its own summary audit row.
    */
   async autoIssueOnCompletion(
     tenantId: string,
     enrollmentId: string,
-  ): Promise<{ issued: boolean; reason?: string }> {
+    options: {
+      /** What asserted completion. Default `lms_progress` (the original caller). */
+      trigger?: "lms_progress" | "batch_completion";
+      /** Staff member who marked the batch complete; null for machine-triggered issuance. */
+      actorId?: string | null;
+    } = {},
+  ): Promise<{ issued: boolean; reason?: string; certificateId?: string }> {
+    const trigger = options.trigger ?? "lms_progress";
+
     const enrollment = await this.repo.findEnrollmentById(tenantId, enrollmentId);
     if (!enrollment) {
       return { issued: false, reason: "enrollment_not_found" };
@@ -658,13 +677,22 @@ export class CertificatesService {
       return { issued: false, reason: "already_exists" };
     }
 
-    const { eligible } = await this.isEligible(tenantId, enrollmentId);
-    if (!eligible) {
-      // Silent — unlike the CRM path (422), auto-issuance never throws for ineligibility.
-      return { issued: false, reason: "not_eligible" };
+    // The batch trigger does not re-derive completion (see above). Filtering out students who
+    // are not actually finishing the batch — withdrawn ones — is the CALLER's job, because
+    // enrollment status is not part of the eligibility projection this method reads.
+    if (trigger !== "batch_completion") {
+      const { eligible } = await this.isEligible(tenantId, enrollmentId);
+      if (!eligible) {
+        // Silent — unlike the CRM path (422), auto-issuance never throws for ineligibility.
+        return { issued: false, reason: "not_eligible" };
+      }
     }
 
-    const defaultTemplate = await this.repo.findDefaultActiveTemplate(tenantId);
+    // Auto-issue means "the training is finished" — that is the training certificate. The
+    // internship certificate stays a deliberate staff action.
+    const kind: CertificateKind = "training";
+
+    const defaultTemplate = await this.repo.findDefaultActiveTemplate(tenantId, kind);
     if (!defaultTemplate) {
       this.logger.warn(
         `[CertificatesService] autoIssueOnCompletion: no active certificate template for ` +
@@ -673,17 +701,15 @@ export class CertificatesService {
       return { issued: false, reason: "no_template" };
     }
 
-    await this.performIssuance({
-      actorId: null,
+    const issued = await this.performIssuance({
+      actorId: options.actorId ?? null,
       tenantId,
       enrollment,
-      // Auto-issue on 100%% progress predates the two-certificate split and still means
-      // "the course is finished" — that is the training certificate.
-      kind: "training",
+      kind,
       templateId: defaultTemplate.id,
     });
 
-    return { issued: true };
+    return { issued: true, certificateId: issued.id };
   }
 
   // ─── CRM: RECOMMEND ──────────────────────────────────────────────────────

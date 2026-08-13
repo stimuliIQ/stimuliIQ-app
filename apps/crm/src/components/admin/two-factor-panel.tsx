@@ -15,7 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TotpEnrollResponse, TotpVerifyEnrollResponse } from "@repo/types";
 
 import { apiClient } from "../../lib/api-client";
-import { surfaceError } from "../../lib/surface-error";
+import { surfaceError, errorCode } from "../../lib/surface-error";
 
 const TWO_FACTOR_STATUS_KEY = ["two-factor", "status"] as const;
 
@@ -143,7 +143,15 @@ export function TwoFactorPanel(): React.JSX.Element {
       await verifyEnroll.mutateAsync(verifyCode);
       toast({ title: "Two-factor authentication enabled", variant: "success" });
     } catch (error) {
-      surfaceError(toast, error, "That code didn't verify — check your authenticator app and try again");
+      // "That code didn't verify" is only true for a genuine wrong/expired TOTP code
+      // (TOTP_CODE_INVALID, 401). Everything else — TOTP_ENROLLMENT_EXPIRED, a network
+      // failure, or a server error (e.g. the API's TWO_FACTOR_ENC_KEY misconfigured) —
+      // is NOT the user's fault and must not be blamed on their authenticator app.
+      if (errorCode(error) === "TOTP_CODE_INVALID") {
+        surfaceError(toast, error, "That code didn't verify — check your authenticator app and try again");
+      } else {
+        surfaceError(toast, error, "Couldn't verify your code");
+      }
     }
   }
 

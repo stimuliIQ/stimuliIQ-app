@@ -13,9 +13,10 @@
 // The open-lead count next to each name is the other half: handing a lead to whoever is
 // top of the alphabet is how one rep ends up with 200 leads and another with 12.
 import * as React from "react";
-import { Select, SelectItem } from "@repo/ui";
+import { Input, Select, SelectItem } from "@repo/ui";
 
 import { useAssignableUsers } from "../../hooks/use-leads";
+import { useDebouncedValue } from "../../hooks/use-debounced-value";
 
 /**
  * Radix Select cannot hold an empty-string item value, so the two "not a user" choices
@@ -26,6 +27,13 @@ const UNASSIGNED_VALUE = "__unassigned__";
 const ANY_OWNER_VALUE = "__any__";
 /** "Assigned to me" — resolved to the caller server-side, so no user id is needed here. */
 export const MINE_VALUE = "__mine__";
+
+/**
+ * Below this option count a plain list is faster to scan than typing a search term —
+ * the search box only earns its keyboard focus once the list is long enough that
+ * scrolling it beats typing a few letters.
+ */
+const SEARCH_THRESHOLD = 8;
 
 export interface OwnerSelectProps {
   /** Selected user id, or null for "unassigned"/"any" depending on `mode`. */
@@ -50,10 +58,10 @@ export interface OwnerSelectProps {
   unassignedSelected?: boolean;
 }
 
-/** "Priya Sharma · counsellor · 12 open" — role and load in the option itself, since a bare name tells you nothing about who to pick. */
+/** "Priya Sharma · counsellor, marketing · 12 open" — every role a dual-role user holds, since the repository deliberately merges them into one row. */
 function describeUser(user: { name: string; roleKeys: string[]; openLeadCount: number }): string {
-  const role = user.roleKeys[0] ?? "staff";
-  return `${user.name} · ${role} · ${user.openLeadCount} open`;
+  const roles = user.roleKeys.length > 0 ? user.roleKeys.join(", ") : "staff";
+  return `${user.name} · ${roles} · ${user.openLeadCount} open`;
 }
 
 export function OwnerSelect({
@@ -69,7 +77,20 @@ export function OwnerSelect({
   onSelectUnassigned,
   unassignedSelected = false,
 }: OwnerSelectProps): React.JSX.Element {
-  const { data: users, isLoading, isError } = useAssignableUsers();
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const debouncedSearch = useDebouncedValue(searchTerm);
+
+  // Unfiltered list, always fetched: it is what decides whether the picker is "large"
+  // enough to need a search box at all, and it is what renders while the box is empty.
+  const baseUsers = useAssignableUsers();
+  const showSearch = (baseUsers.data?.length ?? 0) >= SEARCH_THRESHOLD;
+  const hasSearchTerm = showSearch && debouncedSearch.trim().length > 0;
+  const searchedUsers = useAssignableUsers({ search: debouncedSearch, enabled: hasSearchTerm });
+
+  const activeQuery = hasSearchTerm ? searchedUsers : baseUsers;
+  const users = activeQuery.data;
+  const isLoading = activeQuery.isLoading;
+  const isError = activeQuery.isError;
 
   const selectValue = React.useMemo(() => {
     if (mode === "filter") {
@@ -106,24 +127,38 @@ export function OwnerSelect({
   const errorText = isError ? "Couldn't load the team list — refresh to try again." : undefined;
 
   return (
-    <Select
-      label={label}
-      value={selectValue}
-      onValueChange={handleChange}
-      disabled={disabled || isLoading || isError}
-      error={errorText}
-      wrapperClassName={wrapperClassName}
-      data-testid={testId}
-      placeholder={isLoading ? "Loading team…" : mode === "filter" ? "All owners" : "Unassigned"}
-    >
-      {mode === "filter" ? <SelectItem value={ANY_OWNER_VALUE}>All owners</SelectItem> : null}
-      {mode === "filter" && onSelectMine ? <SelectItem value={MINE_VALUE}>Assigned to me</SelectItem> : null}
-      <SelectItem value={UNASSIGNED_VALUE}>Unassigned</SelectItem>
-      {(users ?? []).map((user) => (
-        <SelectItem key={user.id} value={user.id}>
-          {describeUser(user)}
-        </SelectItem>
-      ))}
-    </Select>
+    <div className={wrapperClassName}>
+      {showSearch ? (
+        <Input
+          type="search"
+          size="sm"
+          aria-label={`Search ${label.toLowerCase()} list`}
+          placeholder="Search by name or email…"
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          disabled={disabled || baseUsers.isError}
+          wrapperClassName="mb-1.5"
+          data-testid={`${testId}-search`}
+        />
+      ) : null}
+      <Select
+        label={label}
+        value={selectValue}
+        onValueChange={handleChange}
+        disabled={disabled || isLoading || isError}
+        error={errorText}
+        data-testid={testId}
+        placeholder={isLoading ? "Loading team…" : mode === "filter" ? "All owners" : "Unassigned"}
+      >
+        {mode === "filter" ? <SelectItem value={ANY_OWNER_VALUE}>All owners</SelectItem> : null}
+        {mode === "filter" && onSelectMine ? <SelectItem value={MINE_VALUE}>Assigned to me</SelectItem> : null}
+        <SelectItem value={UNASSIGNED_VALUE}>Unassigned</SelectItem>
+        {(users ?? []).map((user) => (
+          <SelectItem key={user.id} value={user.id}>
+            {describeUser(user)}
+          </SelectItem>
+        ))}
+      </Select>
+    </div>
   );
 }

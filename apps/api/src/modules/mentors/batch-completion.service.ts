@@ -28,7 +28,7 @@
 // limitation as `listEligibility`'s `eligible`/`hasRecommendation` filters: a page may
 // return fewer than `pageSize` rows when combined with a post-computation filter).
 
-import { ConflictException, ForbiddenException, Injectable, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
 import type {
   BatchCompletionBucket,
   BatchCompletionStudentRow,
@@ -61,6 +61,8 @@ interface ComputedRow {
 
 @Injectable()
 export class BatchCompletionService {
+  private readonly logger = new Logger(BatchCompletionService.name);
+
   constructor(
     private readonly repository: BatchCompletionRepository,
     private readonly certificatesService: CertificatesService,
@@ -320,8 +322,23 @@ export class BatchCompletionService {
       });
     }
 
+    // Training certificates for the cohort.
+    //
+    // Marking a batch complete is a staff assertion that this cohort finished its training, so
+    // it is the signal that mints the training certificate. Before this, nothing connected the
+    // two: the transition was a pure status write and `autoIssueOnCompletion` had exactly one
+    // caller — a student ticking off their last LMS lesson. A batch taught in person therefore
+    // completed and issued nothing, forever, with no error anywhere to explain it.
+    //
+    // Failures are per-student and swallowed: the batch is already committed above, and one
+    // student's PDF render or storage hiccup must not roll back the cohort's transition or
+    // block the other students' certificates. The counts come back in the response so staff can
+    // see what actually happened rather than assume it worked.
+    const certificates = await this.issueCohortCertificates(tenantId, actorId, batchId);
+
     // AC-41/Rule M-2: the rollup is ALWAYS computed and returned for visibility, but never
-    // gates the transition above (already committed by this point).
+    // gates the transition above (already committed by this point). Computed AFTER issuance so
+    // the certificate columns it reports reflect the certificates just minted.
     const summary = await this.getSummary(tenantId, actorId, batchId);
 
     return {
@@ -330,7 +347,60 @@ export class BatchCompletionService {
       completedAt: completedAt.toISOString(),
       completedByUserId: actorId,
       summary,
+      certificates,
     };
+  }
+
+  /**
+   * Issue the training certificate to every enrollment in a just-completed batch.
+   *
+   * Idempotent through `autoIssueOnCompletion`, which skips an enrollment that already has a
+   * certificate — so re-running this (or completing a batch that was partly certified by hand)
+   * never double-issues.
+   */
+  private async issueCohortCertificates(
+    tenantId: string,
+    actorId: string,
+    batchId: string,
+  ): Promise<MarkBatchCompleteResponse["certificates"]> {
+    const enrollments = await this.repository.listEnrollments(tenantId, batchId);
+    let issued = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const enrollment of enrollments) {
+      // A dropped student (the roster's "Withdraw" action) was in the cohort for part of it
+      // but did not finish, so completing the batch must not hand them a certificate.
+      if (enrollment.status === "dropped") {
+        skipped += 1;
+        continue;
+      }
+
+      try {
+        const result = await this.certificatesService.autoIssueOnCompletion(tenantId, enrollment.id, {
+          trigger: "batch_completion",
+          actorId,
+        });
+        if (result.issued) issued += 1;
+        else skipped += 1;
+      } catch (err) {
+        // Per-student isolation: the batch transition is already committed and the remaining
+        // students must still be processed. Staff see the count and can retry from the
+        // certificate directory's bulk issue.
+        failed += 1;
+        this.logger.warn(
+          `[BatchCompletionService] certificate issuance failed batchId=${batchId} ` +
+            `enrollmentId=${enrollment.id}: ${String(err)}`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `[BatchCompletionService] batch complete batchId=${batchId} actor=${actorId} ` +
+        `certificates issued=${issued} skipped=${skipped} failed=${failed}`,
+    );
+
+    return { issued, skipped, failed };
   }
 }
 

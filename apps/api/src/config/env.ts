@@ -12,7 +12,7 @@ const booleanFromString = z
   .enum(["true", "false"])
   .transform((value) => value === "true");
 
-const envSchema = z.object({
+const rawEnvSchema = z.object({
   // --- App ---
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_ENV: z.enum(["local", "staging", "production"]).default("local"),
@@ -270,8 +270,9 @@ const envSchema = z.object({
   // Used to sign unsubscribe link tokens: HMAC(NOTIFICATION_SIGNING_SECRET, userId+channel+nonce)
   // so recipients cannot guess or enumerate unsubscribe tokens (AC-21, AC-77).
   // Optional in dev/CI (a well-known dev fallback is used with a loud warning).
-  // REQUIRED in production (>= 32 chars). Generate with:
-  //   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  // REQUIRED in production (>= 32 chars) — enforced by the superRefine below, so a
+  // missing key FAILS AT BOOT, not the first time an unsubscribe link is signed.
+  // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
   NOTIFICATION_SIGNING_SECRET: z.string().min(32).optional(), // SERVER-ONLY — never log
 
   // ─── Video (Cloudflare Stream / Mux) — behind VideoProvider (docs/04 §2.10/§2.12) ───
@@ -448,9 +449,11 @@ const envSchema = z.object({
   //
   // Optional here so local dev / CI can boot without it: when absent AND
   // NODE_ENV !== "production" the signer uses a clearly-marked, well-known LOCAL
-  // dev secret (see cert-uid.util.ts) and logs a warning. In production the
-  // signer FAILS CLOSED (throws) if this is unset — a real secret (>= 32 chars,
-  // e.g. `openssl rand -hex 32`) is REQUIRED for staging/prod.
+  // dev secret (see cert-uid.util.ts) and logs a warning. REQUIRED in production
+  // (>= 32 chars, e.g. `openssl rand -hex 32`) — enforced by the superRefine below,
+  // so a missing key FAILS AT BOOT rather than the first time a certificate is signed
+  // (the signer's own lazy fail-closed throw in cert-uid.util.ts is now a second,
+  // redundant line of defense — unreachable in practice once boot validation passes).
   CERT_SIGNING_SECRET: z.string().min(32, "CERT_SIGNING_SECRET must be at least 32 chars").optional(),
 
   // ─── 2FA (TOTP) secret encryption-at-rest (Wave 6 security audit M4) ───
@@ -458,8 +461,11 @@ const envSchema = z.object({
   // `two_factor_credentials.secret`. A DB dump alone must NOT yield usable 2FA secrets.
   // Mirrors CERT_SIGNING_SECRET's posture exactly: OPTIONAL here so local dev / CI boot
   // without it (a clearly-marked, well-known LOCAL dev key is used with a loud warning —
-  // see auth/lib/two-factor-crypto.ts); the crypto layer FAILS CLOSED (throws) in
-  // production when unset. Generate a real value with: `openssl rand -hex 32`.
+  // see auth/lib/two-factor-crypto.ts). REQUIRED in production (>= 32 chars) — enforced
+  // by the superRefine below, so a missing key FAILS AT BOOT rather than the first time
+  // a user completes 2FA enrolment (the crypto layer's own lazy fail-closed throw in
+  // two-factor-crypto.ts is now a second, redundant line of defense). Generate a real
+  // value with: `openssl rand -hex 32`.
   // SERVER-ONLY — never log, never return in any response.
   TWO_FACTOR_ENC_KEY: z.string().min(32, "TWO_FACTOR_ENC_KEY must be at least 32 chars").optional(),
 
@@ -519,7 +525,42 @@ const envSchema = z.object({
   QUEUE_DRIVER: z.enum(["sync", "bullmq"]).default("sync"),
 });
 
-export type Env = z.infer<typeof envSchema>;
+// ─── Signing/encryption secrets REQUIRED in production, boot-throw (not lazy-throw) ───
+// TWO_FACTOR_ENC_KEY, CERT_SIGNING_SECRET, NOTIFICATION_SIGNING_SECRET are all declared
+// `.optional()` above (so local/dev/CI/test boot without them — each consumer falls back
+// to a well-known LOCAL dev value with a loud warning, see two-factor-crypto.ts /
+// cert-uid.util.ts / the notification unsubscribe-token signer). Left at that, a
+// production deployment missing one of these boots GREEN and the failure only surfaces
+// the first time the corresponding code path runs (e.g. confirming a 2FA enrolment) —
+// which is exactly the incident this closes: TWO_FACTOR_ENC_KEY was unset in production,
+// the app booted fine, and 2FA confirmation 500'd for every user who tried to enable it.
+// This mirrors the SAME production-required pattern the provider modules already use
+// (mail/whatsapp/sms/video/storage/captcha — see e.g. mail-provider.module.ts), applied
+// at the env-validation layer instead of a factory, since these three have no dedicated
+// provider module to gate them.
+const PRODUCTION_REQUIRED_SECRETS = [
+  ["TWO_FACTOR_ENC_KEY", "encrypts 2FA (TOTP) secrets at rest — see auth/lib/two-factor-crypto.ts"],
+  ["CERT_SIGNING_SECRET", "signs the cert_uid embedded in every issued certificate — see cert-uid.util.ts"],
+  ["NOTIFICATION_SIGNING_SECRET", "signs unsubscribe link tokens — see notifications AC-21/24/77"],
+] as const;
+
+const envSchema = rawEnvSchema.superRefine((data, ctx) => {
+  const isProd = data.NODE_ENV === "production" || data.APP_ENV === "production";
+  if (!isProd) return;
+
+  for (const [key, purpose] of PRODUCTION_REQUIRED_SECRETS) {
+    if (!data[key]) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [key],
+        message: `${key} is required in production (${purpose}). Generate one with ` +
+          `\`openssl rand -hex 32\` and set it in the environment.`,
+      });
+    }
+  }
+});
+
+export type Env = z.infer<typeof rawEnvSchema>;
 
 let cachedEnv: Env | undefined;
 

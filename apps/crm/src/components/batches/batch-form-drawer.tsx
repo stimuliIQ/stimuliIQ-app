@@ -64,6 +64,9 @@ interface BatchFormDrawerProps {
 /** New batches open in Active — see the create branch of the reset() below. */
 const DEFAULT_NEW_BATCH_STATUS: BatchStatus = "active";
 
+/** Seat count a new batch opens with. Always editable in the field below. */
+const DEFAULT_NEW_BATCH_CAPACITY = 30;
+
 // RHF state shape — same fields as the wire schema, but `schedule` is flattened to a set
 // of days plus ONE shared time range; reassembled into the BatchScheduleSchema array at
 // submit time.
@@ -113,7 +116,11 @@ export function BatchFormDrawer({ open, onOpenChange, batch }: BatchFormDrawerPr
       // Active, not Planned: in practice a batch is created when it is ready to take
       // students, and "Planned" batches were being left un-flipped and quietly missing
       // from anything that filters on active. Still fully editable in the field below.
-      reset({ status: DEFAULT_NEW_BATCH_STATUS, scheduleDays: [] });
+      // Capacity is seeded rather than left blank. It has no DB default and is the hard cap
+      // on enrolments (`activeCount >= batch.capacity` → `enrollments.batch_full`), so a
+      // batch created with 1 in this box silently accepts one student and rejects everyone
+      // after — which reads as "a batch can only hold one member" rather than as a typo.
+      reset({ status: DEFAULT_NEW_BATCH_STATUS, scheduleDays: [], capacity: DEFAULT_NEW_BATCH_CAPACITY });
     }
     // Intentionally reset only on open/identity change, not on every render.
   }, [open, isEdit, batch]);

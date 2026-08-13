@@ -10,7 +10,6 @@
 // 404 (not 403) to avoid existence disclosure — consistent with the students module.
 
 import { ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
-import { randomBytes } from "node:crypto";
 import * as argon2 from "argon2";
 import type { FacultyDetail, FacultyResetPasswordResponse, FacultySummary } from "@repo/types";
 import type { BatchSummary } from "@repo/types";
@@ -19,6 +18,7 @@ import { PaginatedResult } from "../../common/dto/paginated-result";
 import { requireScopeContext } from "../auth/lib/scope-context";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ARGON2_HASH_OPTIONS } from "../auth/lib/argon2-params";
+import { generateTemporaryPassword } from "../auth/lib/temporary-password";
 import { AuthRepository } from "../auth/auth.repository";
 import { MAIL_PROVIDER, type MailProvider } from "../notifications/providers/mail/mail-provider.interface";
 import { renderBrandedEmail, escapeEmailHtml } from "../notifications/dispatch/email-layout";
@@ -295,18 +295,6 @@ export class FacultyService {
       );
     }
   }
-}
-
-/**
- * A readable, reasonably strong one-time password: 16 url-safe base64 chars from 12
- * random bytes. Never persisted in plaintext (only its argon2 hash) and rotated on first
- * login. Not a long-lived credential, so human-friendliness (no ambiguous separators)
- * matters more than maximal entropy here. Mirrors the student-side helper in
- * lms-account-provisioning.service.ts (kept module-local rather than shared to keep the
- * faculty module self-contained, per this feature's build instructions).
- */
-function generateTemporaryPassword(): string {
-  return randomBytes(12).toString("base64url");
 }
 
 function toSummary(row: FacultyRow): FacultySummary {
