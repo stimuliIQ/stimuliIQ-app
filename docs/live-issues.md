@@ -129,6 +129,35 @@ code: the fix for those is setting a value on the VPS, and no deploy will help w
   passed, and the language is hard-coded to English. Scheduled campaigns also never fire, as
   nothing polls for them. See `docs/staff-guide-reassignment-and-campaigns.md` Part 2.
 
+### J. "Deleted a faculty member in admin, it did not remove" — the delete WORKED
+
+- **Reported as:** a mentor card ("Kavya Reddy", tagged AWS / Docker / CI-CD) showing under
+  **Your Mentors** on the live Psychology programme page, after deleting her in the CRM.
+- **What the audit log shows:** the delete succeeded. `FacultyProfile` audit rows at
+  `2026-08-13T05:36:49Z` (update) and `05:36:50Z` (delete), and the profile carried
+  `deleted_at = 2026-08-13T05:36:47Z`. Permissions were fine (`faculty.delete` granted to
+  super_admin/admin at scope=all). Nothing about the delete path is broken.
+- **Actual root cause, two parts:**
+  1. `PublicRepository.getPublicMentorBios` filtered on neither `faculty.deletedAt` nor the
+     user's status, so a soft-deleted, deactivated faculty member stayed on the public page
+     permanently. Deleting in the CRM genuinely changed nothing the reporter could see.
+  2. Soft-deleting a faculty member does NOT clear `batches.faculty_id`, so the batch went on
+     pointing at a deleted row, which is what the public query then followed.
+- **Where the data came from:** all three faculty were demo seed rows
+  (`faculty.{priya,arjun,kavya}@stimuliiq.test`, `prisma/seed.ts`), with tech-stack expertise
+  on a healthcare catalog. They survived the July reset because that reset cleared courses and
+  mentors but kept staff, and faculty are staff.
+- **Fix:** `714a1a6` filters the public query on both the profile's soft-delete and the user's
+  status. Production data cleaned separately: batch unassigned, three demo faculty profiles
+  removed, backup at `/srv/stimuliiq/faculty-cleanup-backup.json`. User rows were deliberately
+  left in place (already soft-deleted, and `audit_logs.actor_id` references them).
+- **Still open:** soft-deleting a faculty member leaves them assigned to their batches. The
+  CRM shows a deleted person as the batch's teacher, and the confirm dialog gives no warning
+  that batches will be left without faculty.
+- **Also note:** the programme page's heading says "Your Mentors" over data that is really
+  `batch.facultyId`. The `Mentor` records staff manage in the CRM never appear there, which is
+  why adding a mentor had no effect. Unresolved product decision.
+
 ### I. VPS housekeeping
 
 - A `prisma migrate deploy` process had been hung for 3.5 days (1 second of CPU across
