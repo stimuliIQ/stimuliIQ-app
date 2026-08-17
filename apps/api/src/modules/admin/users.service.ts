@@ -15,13 +15,31 @@
 //     old refresh token expires).
 //   - Every mutation writes one explicit audit row (entity="User") with before/after.
 
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import * as argon2 from "argon2";
-import type { StaffUser, CreateStaffUserRequest, ListStaffUsersQuery, UpdateStaffUserRequest } from "@repo/types";
+import type {
+  StaffUser,
+  CreateStaffUserRequest,
+  ListStaffUsersQuery,
+  UpdateStaffUserRequest,
+  ResetStaffUserPasswordResponse,
+} from "@repo/types";
 import { UsersAdminRepository, type StaffUserRow } from "./users.repository";
 import { AuthRepository } from "../auth/auth.repository";
 import { TwoFactorStore } from "../auth/lib/two-factor-store";
 import { ARGON2_HASH_OPTIONS } from "../auth/lib/argon2-params";
+import { generateTemporaryPassword } from "../auth/lib/temporary-password";
+import { MAIL_PROVIDER, type MailProvider } from "../notifications/providers/mail/mail-provider.interface";
+import { renderBrandedEmail, escapeEmailHtml } from "../notifications/dispatch/email-layout";
+import { validateEnv } from "../../config/env";
 import { PaginatedResult } from "../../common/dto/paginated-result";
 
 function toDto(row: StaffUserRow): StaffUser {
@@ -50,10 +68,13 @@ function auditSnapshot(row: StaffUserRow) {
 
 @Injectable()
 export class UsersAdminService {
+  private readonly logger = new Logger(UsersAdminService.name);
+
   constructor(
     private readonly repository: UsersAdminRepository,
     private readonly authRepository: AuthRepository,
     private readonly twoFactorStore: TwoFactorStore,
+    @Inject(MAIL_PROVIDER) private readonly mail: MailProvider,
   ) {}
 
   async list(tenantId: string, query: ListStaffUsersQuery): Promise<PaginatedResult<StaffUser>> {
@@ -275,6 +296,134 @@ export class UsersAdminService {
       after: { removed: true },
       ip,
     });
+  }
+
+  /**
+   * Rotate a staff member's CRM password and email them a one-time replacement.
+   *
+   * Mirrors FacultyService.resetPassword (the only other staff-credential rotation in the
+   * codebase) rather than inventing a second shape: same generator, same argon2 params,
+   * same forced `mustChangePassword`, same session revocation, same branded email.
+   *
+   * SECURITY, and the reason this is `users.reset_password` (super_admin only) rather than
+   * the super_admin+admin `users.edit`:
+   *
+   *   - The temporary password is NEVER returned to the caller. It exists only in the
+   *     target's inbox. An actor who can trigger a reset therefore still cannot sign in as
+   *     the target unless they also control that mailbox. Returning it here would turn this
+   *     endpoint into "become any user", which is precisely what it must not be.
+   *   - Self-reset is blocked. An admin changing their OWN password goes through the
+   *     account screen, which requires the current password. Allowing it here would let a
+   *     hijacked session lock out the real owner without ever proving knowledge of the
+   *     existing credential.
+   *   - Every live session for the target is revoked. A rotation that leaves old refresh
+   *     tokens working has not actually revoked anything (same reasoning as deactivate()).
+   *
+   * The audit row is written from the PRE-reset snapshot, before the email is attempted, so
+   * a bounced email cannot erase the record that the credential was rotated.
+   */
+  async resetPassword(
+    tenantId: string,
+    actorId: string,
+    id: string,
+    ip?: string,
+  ): Promise<ResetStaffUserPasswordResponse> {
+    const existing = await this.repository.findById(tenantId, id);
+    if (!existing) throw new NotFoundException({ code: "users.not_found", title: "User not found" });
+
+    if (id === actorId) {
+      throw new ForbiddenException({
+        code: "users.cannot_reset_own_password",
+        title: "You cannot reset your own password here",
+        detail:
+          "Change your own password from your account settings, which asks for your current password first.",
+      });
+    }
+
+    if (existing.status === "deactivated") {
+      throw new ConflictException({
+        code: "users.cannot_reset_deactivated",
+        title: "This account is deactivated",
+        detail:
+          "Someone disabled this login on purpose. Reactivate the account first, then reset the password — " +
+          "otherwise a password reset would quietly undo the deactivation.",
+      });
+    }
+
+    // Captured BEFORE the rotation, which flips `invited` → `active`.
+    const wasInvited = existing.status === "invited";
+
+    const tempPassword = generateTemporaryPassword();
+    const passwordHash = await argon2.hash(tempPassword, ARGON2_HASH_OPTIONS);
+
+    // Rotation + audit commit together or not at all (see repository.setPassword). Only
+    // once that has committed do we revoke sessions and send the mail, so a failure here
+    // leaves the account exactly as it was rather than half-reset.
+    await this.repository.setPassword({
+      userId: id,
+      passwordHash,
+      tenantId,
+      actorId,
+      before: auditSnapshot(existing),
+      ip,
+    });
+    await this.authRepository.revokeAllSessionsForUser(id);
+
+    // An account that has never had a working credential is being INVITED, not reset —
+    // telling a new colleague their password "has been reset" describes an event that never
+    // happened and reads as a security alert. Same endpoint, same effect, honest wording.
+    const isFirstCredential = wasInvited;
+    await this.sendPasswordResetEmail(existing.email, existing.name, tempPassword, isFirstCredential);
+    return { email: existing.email };
+  }
+
+  private async sendPasswordResetEmail(
+    email: string,
+    name: string,
+    tempPassword: string,
+    isFirstCredential: boolean,
+  ): Promise<void> {
+    const env = validateEnv();
+    const loginUrl = `${env.CRM_APP_URL}/login`;
+    try {
+      await this.mail.send({
+        to: email,
+        subject: isFirstCredential
+          ? "Your stimuliIQ staff account is ready"
+          : "Your stimuliIQ staff password has been reset",
+        html: renderBrandedEmail({
+          title: isFirstCredential ? "Welcome to stimuliIQ" : "Staff password reset",
+          greeting: `Hi ${escapeEmailHtml(name)},`,
+          paragraphs: [
+            isFirstCredential
+              ? "An administrator has set up your stimuliIQ staff account. " +
+                "Use the details below to sign in to the admin dashboard:"
+              : "Your stimuliIQ staff account password has been reset by an administrator. " +
+                "Use the details below to sign in to the admin dashboard:",
+          ],
+          details: [
+            { label: "Username", value: escapeEmailHtml(email) },
+            { label: "Temporary password", value: escapeEmailHtml(tempPassword) },
+          ],
+          button: { label: "Sign in to the dashboard", url: loginUrl },
+          footnote:
+            "For your security you'll be asked to set a new password the next time you sign in. " +
+            "Please don't share these details with anyone. If you didn't expect this, contact your administrator immediately.",
+        }),
+        tags: [
+          { name: "category", value: isFirstCredential ? "staff_invitation" : "staff_password_reset" },
+        ],
+      });
+    } catch (err) {
+      // Never fail the reset because the email bounced — the rotation and session
+      // revocation already happened, and reporting failure would invite the operator to
+      // retry, minting a SECOND password and invalidating the one already in flight.
+      this.logger.error(
+        `[UsersAdminService] password-reset email failed for ${email}: ${
+          err instanceof Error ? err.message : "unknown error"
+        }`,
+      );
+    }
   }
 
   /**

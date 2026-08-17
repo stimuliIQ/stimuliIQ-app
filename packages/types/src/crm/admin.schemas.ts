@@ -250,3 +250,23 @@ export type UpdateStaffUserRequest = z.infer<typeof UpdateStaffUserRequestSchema
  */
 export const DeleteStaffUserResponseSchema = z.object({ deleted: z.literal(true) });
 export type DeleteStaffUserResponse = z.infer<typeof DeleteStaffUserResponseSchema>;
+
+/**
+ * `POST /crm/admin/users/:id/reset-password` — rotate a staff member's CRM password.
+ *
+ * Gated on `users.reset_password`, seeded for **super_admin alone**, deliberately NOT
+ * folded into the super_admin+admin `users.edit` grant. Handing every admin the ability to
+ * mint a colleague's credentials is a privilege-escalation path: an admin who can reset a
+ * super admin's password can read the temporary one out of the target's inbox (or simply
+ * be the one who receives it, if the address is shared) and take over the stronger account.
+ * Same reasoning that put `users.remove` on its own key.
+ *
+ * The new password is NEVER returned in the response — it goes only to the account holder's
+ * inbox, so an actor who can trigger a reset still cannot sign in as the target without also
+ * controlling that mailbox. The response carries the destination address purely so the CRM
+ * can tell the operator where it went.
+ */
+export const ResetStaffUserPasswordResponseSchema = z.object({
+  email: z.string().email().describe("The address the temporary-password email was sent to."),
+});
+export type ResetStaffUserPasswordResponse = z.infer<typeof ResetStaffUserPasswordResponseSchema>;

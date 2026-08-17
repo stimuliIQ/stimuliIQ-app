@@ -877,6 +877,20 @@ async function main(): Promise<void> {
   });
   await grant(superAdminRole.id, usersRemovePermission.id, RolePermissionScope.all);
 
+  // `users.reset_password` — POST /crm/admin/users/:id/reset-password, which rotates a staff
+  // member's CRM password and emails them a one-time replacement.
+  //
+  // super_admin ALONE, and kept out of USERS_ADMIN_PERMISSIONS for the same reason as
+  // `users.remove`: `users.edit` is held by admin too, and an admin who can mint a super
+  // admin's credentials can take over the stronger account via that person's inbox. Editing
+  // someone's profile and reissuing their credentials are different powers.
+  const usersResetPasswordPermission = await prisma.permission.upsert({
+    where: { key: "users.reset_password" },
+    update: { label: "Reset Staff Passwords" },
+    create: { key: "users.reset_password", label: "Reset Staff Passwords" },
+  });
+  await grant(superAdminRole.id, usersResetPasswordPermission.id, RolePermissionScope.all);
+
   // branch_manager: docs/03 §9 row "BranchMgr" — students/faculty/batches = branch;
   // courses = view; payments(not in P1)/reports(not in P1) skipped; admin = none;
   // audit = none. roles/branches not in BranchMgr's §9 row -> no grant.

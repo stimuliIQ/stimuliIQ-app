@@ -21,6 +21,7 @@ function mockRepository(): Mocked<UsersAdminRepository> {
     findRolesByIds: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    setPassword: jest.fn(),
     deactivate: jest.fn(),
     recordAudit: jest.fn(),
     findAnyByEmail: jest.fn().mockResolvedValue(null),
@@ -45,6 +46,10 @@ function mockTwoFactorStore(): Mocked<TwoFactorStore> {
   } as unknown as Mocked<TwoFactorStore>;
 }
 
+function mockMailProvider(): { send: jest.Mock } {
+  return { send: jest.fn().mockResolvedValue({ providerMessageId: "msg-1" }) };
+}
+
 const COUNSELLOR_ROLE = { id: "role-counsellor", key: "counsellor", name: "Counsellor" };
 
 const STAFF_ROW: StaffUserRow = {
@@ -66,15 +71,18 @@ describe("UsersAdminService", () => {
   let repo: Mocked<UsersAdminRepository>;
   let authRepo: Mocked<AuthRepository>;
   let twoFactorStore: Mocked<TwoFactorStore>;
+  let mail: { send: jest.Mock };
 
   beforeEach(() => {
     repo = mockRepository();
     authRepo = mockAuthRepository();
     twoFactorStore = mockTwoFactorStore();
+    mail = mockMailProvider();
     service = new UsersAdminService(
       repo as unknown as UsersAdminRepository,
       authRepo as unknown as AuthRepository,
       twoFactorStore as unknown as TwoFactorStore,
+      mail as never,
     );
   });
 
@@ -338,6 +346,90 @@ describe("UsersAdminService", () => {
       expect(twoFactorStore.deactivate).not.toHaveBeenCalled();
       expect(authRepo.revokeAllSessionsForUser).not.toHaveBeenCalled();
       expect(authRepo.recordTwoFactorAudit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("resetPassword", () => {
+    it("rotates the credential, forces a change, revokes sessions and emails the holder", async () => {
+      repo.findById.mockResolvedValue(STAFF_ROW);
+
+      const result = await service.resetPassword(TENANT, ACTOR, "user-1", "1.2.3.4");
+
+      expect(result).toEqual({ email: "priya@stimuliiq.com" });
+      expect(repo.setPassword).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: "user-1", passwordHash: expect.stringContaining("$argon2") }),
+      );
+      // A rotated credential that leaves old refresh tokens alive has revoked nothing.
+      expect(authRepo.revokeAllSessionsForUser).toHaveBeenCalledWith("user-1");
+      expect(mail.send).toHaveBeenCalledWith(
+        expect.objectContaining({ to: "priya@stimuliiq.com" }),
+      );
+    });
+
+    it("never returns the temporary password to the caller", async () => {
+      repo.findById.mockResolvedValue(STAFF_ROW);
+
+      const result = await service.resetPassword(TENANT, ACTOR, "user-1");
+
+      // The whole security model rests on this: an actor who can trigger a reset must still
+      // need the target's inbox to actually sign in as them.
+      expect(Object.keys(result)).toEqual(["email"]);
+      expect(JSON.stringify(result)).not.toContain("password");
+    });
+
+    it("keeps the temporary password out of the audit snapshot", async () => {
+      repo.findById.mockResolvedValue(STAFF_ROW);
+
+      await service.resetPassword(TENANT, ACTOR, "user-1");
+
+      const arg = repo.setPassword.mock.calls[0][0] as { before: unknown; passwordHash: string };
+      // The hash is the credential material; it must reach the user row and nothing else.
+      expect(JSON.stringify(arg.before)).not.toContain("$argon2");
+      expect(JSON.stringify(arg.before)).not.toContain("password");
+    });
+
+    it("rolls the rotation back with its audit row — a half-applied reset locks the holder out", async () => {
+      repo.findById.mockResolvedValue(STAFF_ROW);
+      // Exactly the live failure this guards: audit_logs missing a column the client expects.
+      repo.setPassword.mockRejectedValue(new Error("column audit_logs.redacted_at does not exist"));
+
+      await expect(service.resetPassword(TENANT, ACTOR, "user-1")).rejects.toThrow();
+      // No sessions killed and no mail sent for a rotation that never committed.
+      expect(authRepo.revokeAllSessionsForUser).not.toHaveBeenCalled();
+      expect(mail.send).not.toHaveBeenCalled();
+    });
+
+    it("refuses to reset your own password", async () => {
+      repo.findById.mockResolvedValue({ ...STAFF_ROW, id: ACTOR });
+
+      await expect(service.resetPassword(TENANT, ACTOR, ACTOR)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(repo.setPassword).not.toHaveBeenCalled();
+    });
+
+    it("refuses a deactivated account rather than silently reactivating it", async () => {
+      repo.findById.mockResolvedValue({ ...STAFF_ROW, status: "deactivated" });
+
+      await expect(service.resetPassword(TENANT, ACTOR, "user-1")).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.setPassword).not.toHaveBeenCalled();
+      expect(mail.send).not.toHaveBeenCalled();
+    });
+
+    it("404s an unknown id", async () => {
+      repo.findById.mockResolvedValue(null);
+
+      await expect(service.resetPassword(TENANT, ACTOR, "nope")).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("still succeeds when the email bounces — the credential was already rotated", async () => {
+      repo.findById.mockResolvedValue(STAFF_ROW);
+      mail.send.mockRejectedValue(new Error("mailbox unavailable"));
+
+      // Reporting failure here would invite a retry, minting a SECOND password and
+      // invalidating the one already in flight.
+      await expect(service.resetPassword(TENANT, ACTOR, "user-1")).resolves.toEqual({
+        email: "priya@stimuliiq.com",
+      });
+      expect(repo.setPassword).toHaveBeenCalled();
     });
   });
 

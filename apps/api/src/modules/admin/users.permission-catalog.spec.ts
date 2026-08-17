@@ -54,6 +54,33 @@ describe("Admin ▸ Users permission catalog", () => {
     );
     expect(deactivateSection).toMatch(/@RequirePermission\("users\.delete"\)/);
   });
+
+  // ── users.reset_password — same shape of guard, same failure mode if folded in ──
+  //
+  // POST /crm/admin/users/:id/reset-password mints a one-time credential for the target.
+  // If it ever rides `users.edit` (super_admin + admin), every admin gains the ability to
+  // reset a SUPER admin's password and take that account over through its inbox. That is a
+  // privilege-escalation path, and nothing else in the codebase would notice it opening.
+
+  it('"users.reset_password" is registered in the seed catalog', () => {
+    expect(seedSource).toMatch(/key:\s*"users\.reset_password"/);
+  });
+
+  it('"users.reset_password" is granted to super_admin only — NOT via the super_admin+admin loop', () => {
+    const catalogBlock = seedSource.slice(
+      seedSource.indexOf("const USERS_ADMIN_PERMISSIONS"),
+      seedSource.indexOf("const USERS_ADMIN_PERMISSIONS") + 900,
+    );
+    expect(catalogBlock).not.toMatch(/key:\s*"users\.reset_password"/);
+    expect(seedSource).toMatch(/grant\(\s*superAdminRole\.id,\s*usersResetPasswordPermission\.id/);
+    expect(seedSource).not.toMatch(/grant\(\s*adminRole\.id,\s*usersResetPasswordPermission\.id/);
+  });
+
+  it("the reset-password route requires users.reset_password, NOT users.edit", () => {
+    const resetSection = controllerSource.slice(controllerSource.indexOf('@Post(":id/reset-password")'));
+    expect(resetSection).toMatch(/@RequirePermission\("users\.reset_password"\)/);
+    expect(resetSection).not.toMatch(/@RequirePermission\("users\.edit"\)/);
+  });
 });
 
 // ─── DB-guarded deep check ──────────────────────────────────────────────────

@@ -78,3 +78,17 @@ export function useRemoveStaffUser() {
     onSuccess: invalidate,
   });
 }
+
+/**
+ * Rotate a staff member's password — `users.reset_password`, super_admin only.
+ *
+ * Invalidates the list because the reset can change the row's visible state: an `invited`
+ * account becomes `active` once it has a real credential to sign in with.
+ */
+export function useResetStaffUserPassword() {
+  const invalidate = useInvalidateStaffUsers();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.crm.admin.users.resetPassword(id),
+    onSuccess: invalidate,
+  });
+}

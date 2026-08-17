@@ -33,6 +33,7 @@ import {
   type AdminClearTwoFactorRequest,
   type AdminClearTwoFactorResponse,
   type DeleteStaffUserResponse,
+  type ResetStaffUserPasswordResponse,
 } from "@repo/types";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
@@ -105,6 +106,26 @@ export class UsersAdminController {
     @Req() req: Request,
   ): Promise<AdminClearTwoFactorResponse> {
     return this.usersService.clearTwoFactor(user.tenantId, user.id, id, body.reason, req.ip);
+  }
+
+  /**
+   * Rotate a staff member's password and email them a one-time replacement.
+   *
+   * `users.reset_password` is seeded for super_admin ALONE, NOT bundled into `users.edit`
+   * (which admin also holds). An admin able to mint a super admin's credentials is a
+   * privilege-escalation path, so this sits on its own key for the same reason
+   * `users.remove` does. The new password is never in the response body — only the
+   * destination address is, so the CRM can say where it went.
+   */
+  @Post(":id/reset-password")
+  @HttpCode(200)
+  @RequirePermission("users.reset_password")
+  async resetPassword(
+    @CurrentUser() user: RequestUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Req() req: Request,
+  ): Promise<ResetStaffUserPasswordResponse> {
+    return this.usersService.resetPassword(user.tenantId, user.id, id, req.ip);
   }
 
   /** DELETE = deactivate (blocks login, revokes sessions) — never a hard row delete. */

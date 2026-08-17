@@ -3,7 +3,10 @@
 // branch-directory.tsx. RBAC-aware: Create/Edit/Deactivate gated on
 // users.create/users.edit/users.delete (super_admin + admin only).
 import * as React from "react";
-import { KeyRound, Pencil, Plus, Trash2, UserX } from "lucide-react";
+// LockKeyhole (reset password) is deliberately NOT KeyRound (clear 2FA) — two credential
+// actions sharing one glyph in the same row is how "the key icon" got read as a password
+// reset when it clears the second factor.
+import { KeyRound, LockKeyhole, Pencil, Plus, Send, Trash2, UserX } from "lucide-react";
 import {
   Button,
   ConfirmDialog,
@@ -15,11 +18,18 @@ import {
   Select,
   SelectItem,
   StatusChip,
+  ActionMenu,
+  type ActionMenuItem,
   useToast,
 } from "@repo/ui";
 import type { ListStaffUsersQuery, MeResponse, StaffUser, StaffUserStatus } from "@repo/types";
 
-import { useStaffUsersList, useDeactivateStaffUser, useRemoveStaffUser } from "../../hooks/use-staff-users";
+import {
+  useStaffUsersList,
+  useDeactivateStaffUser,
+  useRemoveStaffUser,
+  useResetStaffUserPassword,
+} from "../../hooks/use-staff-users";
 import { useRolesList } from "../../hooks/use-roles";
 import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { getModulePermissions, hasPermission } from "../../lib/permissions";
@@ -58,6 +68,7 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
   const [deactivatingUser, setDeactivatingUser] = React.useState<StaffUser | null>(null);
   const [clearingTwoFactorUser, setClearingTwoFactorUser] = React.useState<StaffUser | null>(null);
   const [removingUser, setRemovingUser] = React.useState<StaffUser | null>(null);
+  const [resettingPasswordUser, setResettingPasswordUser] = React.useState<StaffUser | null>(null);
   // Separate module from `users.*` — see ClearTwoFactorDrawer's header for why this is
   // its own permission rather than part of users.edit.
   const canResetTwoFactor = hasPermission(me?.permissions, "twofa.reset");
@@ -65,6 +76,11 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
   // (`users.delete`), which admin also holds and which only DEACTIVATES. Presentation only:
   // the API enforces the same split (CLAUDE.md §3.5).
   const canRemove = hasPermission(me?.permissions, "users.remove");
+  // `users.reset_password`, seeded for super_admin ALONE — deliberately not
+  // `permissions.canEdit` (`users.edit`), which admin also holds. An admin able to mint a
+  // super admin's credentials could take over that account via its inbox. Presentation
+  // only: the API enforces the same split (CLAUDE.md §3.5).
+  const canResetPassword = hasPermission(me?.permissions, "users.reset_password");
 
   const debouncedSearch = useDebouncedValue(search);
   const pageSize = 20;
@@ -85,6 +101,7 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
   const { data: rolesData } = useRolesList({ page: 1, pageSize: 100 });
   const deactivate = useDeactivateStaffUser();
   const remove = useRemoveStaffUser();
+  const resetPassword = useResetStaffUserPassword();
   const roleOptions = (rolesData?.items ?? []).filter((role) => role.key !== "student");
 
   const columns: Array<DataTableColumn<StaffUser>> = [
@@ -128,6 +145,111 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
       // Leave the dialog open on failure: the two server-side refusals (yourself, the last
       // super admin) are things the user needs to read, not dismiss.
       surfaceError(toast, error, "Couldn't delete this user");
+    }
+  }
+
+  /**
+   * The row's action list, in a fixed order: routine edits first, credential actions in the
+   * middle, destructive actions fenced off at the bottom behind a separator.
+   *
+   * Permission filtering happens by OMISSION — an action the viewer cannot perform is not
+   * in the array, so it never renders. That is presentation only; the API enforces each key
+   * independently (CLAUDE.md §3.5).
+   *
+   * `row.id !== me?.user.id` guards mirror the server's self-action refusals. Offering a
+   * button whose only possible outcome is a 403 is worse than not offering it.
+   */
+  function rowActions(row: StaffUser): ActionMenuItem[] {
+    const items: ActionMenuItem[] = [];
+    const isSelf = row.id === me?.user.id;
+
+    if (permissions.canEdit) {
+      items.push({
+        id: "edit",
+        label: "Edit",
+        icon: <Pencil className="size-4" />,
+        onSelect: () => setEditingUser(row),
+      });
+    }
+
+    // ONE action, named for what it does to THIS row. An account still `invited` has never
+    // had a working password, so there is nothing to "reset" — it is being invited. Both
+    // labels hit the same endpoint and mint a fresh one-time password; the alternative was
+    // two menu entries with identical consequences, which is how the key icon became
+    // ambiguous in the first place.
+    if (canResetPassword && !isSelf) {
+      const neverSignedIn = row.status === "invited";
+      items.push({
+        id: "reset-password",
+        label: neverSignedIn ? "Resend invitation" : "Reset password",
+        description: neverSignedIn
+          ? "Emails them a new sign-in password"
+          : "Emails a new password and signs them out",
+        icon: neverSignedIn ? <Send className="size-4" /> : <LockKeyhole className="size-4" />,
+        onSelect: () => setResettingPasswordUser(row),
+      });
+    }
+
+    // `twofa.reset` (super_admin/admin only), never the own-scope `twofa.manage` every role
+    // holds. Hidden for yourself: the API forbids self-clearing, so an admin who lost their
+    // own device uses the sign-in recovery link.
+    if (canResetTwoFactor && !isSelf) {
+      items.push({
+        id: "clear-2fa",
+        label: "Clear two-factor",
+        description: "For someone locked out of their authenticator",
+        icon: <KeyRound className="size-4 text-warning" />,
+        onSelect: () => setClearingTwoFactorUser(row),
+      });
+    }
+
+    if (permissions.canDelete && row.status !== "deactivated" && !isSelf) {
+      items.push({
+        id: "deactivate",
+        label: "Deactivate",
+        description: "Blocks their login, keeps the record",
+        icon: <UserX className="size-4" />,
+        tone: "danger",
+        separatorBefore: true,
+        onSelect: () => setDeactivatingUser(row),
+      });
+    }
+
+    // Delete — super_admin only (`users.remove`). Hidden for yourself: the API refuses
+    // self-removal, so offering it would only ever produce a 403.
+    if (canRemove && !isSelf) {
+      items.push({
+        id: "delete",
+        label: "Delete",
+        description: "Removes them from the CRM",
+        icon: <Trash2 className="size-4" />,
+        tone: "danger",
+        // Only fence here if Deactivate did not already open the destructive group.
+        separatorBefore: !items.some((item) => item.id === "deactivate"),
+        onSelect: () => setRemovingUser(row),
+      });
+    }
+
+    return items;
+  }
+
+  async function handleResetPassword() {
+    if (!resettingPasswordUser) return;
+    try {
+      const result = await resetPassword.mutateAsync(resettingPasswordUser.id);
+      toast({
+        // Names the destination rather than showing the password: the temporary credential
+        // only ever exists in that inbox, and an operator who could read it off this screen
+        // would be able to sign in as the target.
+        title: resettingPasswordUser.status === "invited" ? "Invitation sent" : "Password reset",
+        description: `A temporary password was emailed to ${result.email}. They'll be asked to change it on first sign-in.`,
+        variant: "success",
+      });
+      setResettingPasswordUser(null);
+    } catch (error) {
+      // Left open on failure: the server's refusals (yourself, a deactivated account) are
+      // things the operator needs to read.
+      surfaceError(toast, error, "Couldn't reset this password");
     }
   }
 
@@ -229,57 +351,7 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
         caption="Staff user directory"
         data-testid="users-table"
         rowActions={(row) => (
-          <span className="flex items-center gap-1">
-            {permissions.canEdit ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Edit ${row.name}`}
-                onClick={() => setEditingUser(row)}
-                data-testid="user-edit-row-button"
-              >
-                <Pencil className="size-4" aria-hidden="true" />
-              </Button>
-            ) : null}
-            {/* `twofa.reset` (super_admin/admin only), never the own-scope `twofa.manage`
-                every role holds. Hidden for yourself: the API forbids self-clearing, so
-                an admin who lost their own device uses the sign-in recovery link. */}
-            {canResetTwoFactor && row.id !== me?.user.id ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Clear two-factor authentication for ${row.name}`}
-                onClick={() => setClearingTwoFactorUser(row)}
-                data-testid="user-clear-2fa-row-button"
-              >
-                <KeyRound className="size-4 text-warning" aria-hidden="true" />
-              </Button>
-            ) : null}
-            {permissions.canDelete && row.status !== "deactivated" && row.id !== me?.user.id ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Deactivate ${row.name}`}
-                onClick={() => setDeactivatingUser(row)}
-                data-testid="user-deactivate-row-button"
-              >
-                <UserX className="size-4 text-danger" aria-hidden="true" />
-              </Button>
-            ) : null}
-            {/* Delete — super_admin only (`users.remove`). Hidden for yourself: the API
-                refuses self-removal, so offering it would only ever produce a 403. */}
-            {canRemove && row.id !== me?.user.id ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Delete ${row.name}`}
-                onClick={() => setRemovingUser(row)}
-                data-testid="user-remove-row-button"
-              >
-                <Trash2 className="size-4 text-danger" aria-hidden="true" />
-              </Button>
-            ) : null}
-          </span>
+          <ActionMenu triggerLabel={`Actions for ${row.name}`} data-testid="user-row-actions" items={rowActions(row)} />
         )}
       />
 
@@ -309,6 +381,31 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
         loading={deactivate.isPending}
         onConfirm={() => void handleDeactivate()}
         data-testid="user-deactivate-confirm"
+      />
+
+      <ConfirmDialog
+        open={Boolean(resettingPasswordUser)}
+        onOpenChange={(open) => {
+          if (!open) setResettingPasswordUser(null);
+        }}
+        title={
+          resettingPasswordUser?.status === "invited"
+            ? `Send ${resettingPasswordUser?.name ?? "this user"} their sign-in details?`
+            : `Reset password for ${resettingPasswordUser?.name ?? "this user"}?`
+        }
+        // States the consequences people don't expect: the password goes to the account
+        // holder rather than back to the operator, and (for an existing account) every live
+        // session dies. An invited account has no sessions and no password to invalidate,
+        // so that warning is omitted there rather than stated falsely.
+        description={
+          resettingPasswordUser?.status === "invited"
+            ? "A one-time password is emailed to them, and they'll be asked to change it the first time they sign in. You won't see it — only they will."
+            : "A one-time password is emailed to them, and they'll be asked to change it the first time they sign in. They'll be signed out everywhere, and their current password stops working immediately. You won't see the new password — only they will."
+        }
+        confirmLabel={resettingPasswordUser?.status === "invited" ? "Send invitation" : "Reset password"}
+        loading={resetPassword.isPending}
+        onConfirm={() => void handleResetPassword()}
+        data-testid="user-reset-password-confirm"
       />
 
       <ConfirmDialog

@@ -21,6 +21,7 @@ import type {
   AdminClearTwoFactorRequest,
   AdminClearTwoFactorResponse,
   DeleteStaffUserResponse,
+  ResetStaffUserPasswordResponse,
 } from "@repo/types";
 import type { ApiClient } from "../http/client.js";
 import { toQueryString } from "../http/query.js";
@@ -159,6 +160,26 @@ export class StaffUsersApi {
     return this.client.request<DeleteStaffUserResponse>("DELETE", `/api/v1/crm/admin/users/${id}/permanent`, {
       idempotencyKey,
     });
+  }
+
+  /**
+   * POST /api/v1/crm/admin/users/:id/reset-password — rotates the staff member's password
+   * and emails them a one-time replacement.
+   *
+   * Requires `users.reset_password`, seeded for **super_admin alone** (not bundled into the
+   * super_admin+admin `users.edit`). The temporary password is never in the response — only
+   * the address it was sent to, so the caller can report where it went. Also revokes every
+   * live session for the target and forces a password change on next sign-in.
+   */
+  async resetPassword(
+    id: string,
+    idempotencyKey: string = crypto.randomUUID(),
+  ): Promise<ResetStaffUserPasswordResponse> {
+    return this.client.request<ResetStaffUserPasswordResponse>(
+      "POST",
+      `/api/v1/crm/admin/users/${id}/reset-password`,
+      { idempotencyKey },
+    );
   }
 
   /**

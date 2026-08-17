@@ -229,6 +229,55 @@ export class UsersAdminRepository {
     });
   }
 
+  /**
+   * Credential rotation for UsersAdminService.resetPassword.
+   *
+   * Separate from `update()` above because that method cannot express the two fields that
+   * make a reset a reset: `mustChangePassword` (the admin-chosen password is one-time, and
+   * the holder must replace it on first use) and the `invited` → `active` promotion (an
+   * invited account has an EMPTY passwordHash and cannot sign in; giving it a real
+   * credential is exactly what makes it usable). Callers that merely edit a profile must
+   * keep using `update()`.
+   *
+   * Deliberately does NOT touch a `deactivated` account — the service refuses those before
+   * reaching here, so a password reset can never quietly undo a deactivation.
+   */
+  async setPassword(args: {
+    userId: string;
+    passwordHash: string;
+    tenantId: string;
+    actorId: string;
+    before: Prisma.InputJsonValue;
+    ip?: string;
+  }): Promise<void> {
+    // ONE transaction for the rotation AND its audit row, deliberately.
+    //
+    // The sibling `remove()` path does these as separate awaits, and that is exactly how a
+    // staff account got deleted with no audit record when the audit insert failed: the
+    // mutation had already committed. Here the stakes are higher still — a rotation that
+    // commits while its audit write fails leaves the holder locked out of an account whose
+    // new password was never emailed to anyone. Rolling both back means a failure is simply
+    // "nothing happened, try again", which is always a recoverable state.
+    await this.prisma.client.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: args.userId },
+        data: { passwordHash: args.passwordHash, mustChangePassword: true, status: "active" },
+      });
+      await tx.auditLog.create({
+        data: {
+          tenantId: args.tenantId,
+          actorId: args.actorId,
+          entity: "User",
+          entityId: args.userId,
+          action: "update",
+          before: args.before,
+          after: { passwordReset: true },
+          ip: args.ip ?? null,
+        },
+      });
+    });
+  }
+
   /** One explicit audit row per admin user-management action (create/update/deactivate). */
   async recordAudit(args: {
     tenantId: string;

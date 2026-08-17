@@ -7,6 +7,9 @@
 
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
+// MailProviderModule: for MAIL_PROVIDER, used by UsersAdminService.resetPassword's
+// "your password has been reset" email (same wiring as FacultyModule).
+import { MailProviderModule } from "../notifications/providers/mail/mail-provider.module";
 import { RolesController } from "./roles.controller";
 import { RolesService } from "./roles.service";
 import { RolesRepository } from "./roles.repository";
@@ -18,7 +21,7 @@ import { UsersAdminService } from "./users.service";
 import { UsersAdminRepository } from "./users.repository";
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, MailProviderModule],
   controllers: [RolesController, BranchesController, UsersAdminController],
   providers: [RolesService, RolesRepository, BranchesService, BranchesRepository, UsersAdminService, UsersAdminRepository],
   exports: [RolesRepository, BranchesRepository],
