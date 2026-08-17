@@ -40,6 +40,9 @@ export {
   type PasswordRequirementsRule,
 } from "./components/password-requirements";
 
+export { Tooltip, type TooltipProps, type TooltipSide } from "./components/tooltip";
+export { ActionMenu, type ActionMenuProps, type ActionMenuItem } from "./components/action-menu";
+
 export { Alert, Callout, type AlertProps } from "./components/alert";
 
 export {
