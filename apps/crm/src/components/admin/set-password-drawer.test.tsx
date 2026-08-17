@@ -119,3 +119,44 @@ describe("SetPasswordDrawer", () => {
     expect(screen.queryByTestId("user-set-password-input")).not.toBeInTheDocument();
   });
 });
+
+// Sign-in requires a non-empty hash AND status "active". Setting a password on an invited
+// account without promoting it produces a credential that cannot be used.
+describe("SetPasswordDrawer — invited accounts", () => {
+  it("promotes an invited account to active so the new password actually works", async () => {
+    const user = userEvent.setup();
+    renderDrawer({ ...USER, status: "invited" } as StaffUser);
+
+    await user.type(screen.getByTestId("user-set-password-input"), VALID);
+    await user.type(screen.getByTestId("user-set-password-confirm-input"), VALID);
+    await user.click(screen.getByTestId("user-set-password-submit"));
+
+    expect(updateMock).toHaveBeenCalledWith({
+      id: "user-1",
+      body: { password: VALID, status: "active" },
+    });
+  });
+
+  // Someone disabled that login on purpose; a password change must not undo it.
+  it("does NOT reactivate a deactivated account", async () => {
+    const user = userEvent.setup();
+    renderDrawer({ ...USER, status: "deactivated" } as StaffUser);
+
+    await user.type(screen.getByTestId("user-set-password-input"), VALID);
+    await user.type(screen.getByTestId("user-set-password-confirm-input"), VALID);
+    await user.click(screen.getByTestId("user-set-password-submit"));
+
+    expect(updateMock).toHaveBeenCalledWith({ id: "user-1", body: { password: VALID } });
+  });
+
+  it("leaves an already-active account's status alone", async () => {
+    const user = userEvent.setup();
+    renderDrawer();
+
+    await user.type(screen.getByTestId("user-set-password-input"), VALID);
+    await user.type(screen.getByTestId("user-set-password-confirm-input"), VALID);
+    await user.click(screen.getByTestId("user-set-password-submit"));
+
+    expect(updateMock).toHaveBeenCalledWith({ id: "user-1", body: { password: VALID } });
+  });
+});

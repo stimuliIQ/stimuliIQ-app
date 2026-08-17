@@ -71,7 +71,20 @@ export function SetPasswordDrawer({ user, onOpenChange }: SetPasswordDrawerProps
   async function handleSubmit() {
     if (!user || !canSubmit) return;
     try {
-      await update.mutateAsync({ id: user.id, body: { password } });
+      await update.mutateAsync({
+        id: user.id,
+        body: {
+          password,
+          // Sign-in requires BOTH a non-empty hash and status "active"
+          // (auth.service.ts#login). An `invited` account has an empty hash, so giving it a
+          // real credential without also promoting it leaves a password that cannot be used
+          // — the account looks fixed and still refuses every login.
+          //
+          // ONLY from `invited`. A `deactivated` account was disabled on purpose, and a
+          // password change must never quietly undo that (same guard as resetPassword).
+          ...(user.status === "invited" ? { status: "active" as const } : {}),
+        },
+      });
       toast({
         title: "Password updated",
         description: `${user.name} can now sign in with the new password. They've been signed out everywhere else.`,
