@@ -123,7 +123,14 @@ describe("UserDirectory — action menu", () => {
     renderDirectory(SUPER_ADMIN_PERMISSIONS);
     await openRowMenu(user);
 
-    for (const label of ["Edit", "Reset password", "Clear two-factor", "Deactivate", "Delete"]) {
+    for (const label of [
+      "Edit",
+      "Set new password",
+      "Reset password",
+      "Clear two-factor",
+      "Deactivate",
+      "Delete",
+    ]) {
       expect(screen.getByRole("menuitem", { name: new RegExp(label, "i") })).toBeInTheDocument();
     }
   });
@@ -271,5 +278,49 @@ describe("UserDirectory — reset password", () => {
     expect(dialog).not.toHaveTextContent(/signed out everywhere/i);
     // The one guarantee that holds in both cases.
     expect(dialog).toHaveTextContent(/won't see it/i);
+  });
+});
+
+// ─── Set new password ───────────────────────────────────────────────────────
+//
+// Distinct from Reset password: the operator picks the value and therefore knows it. It
+// rides `users.edit`, matching what PATCH /crm/admin/users/:id already enforces.
+describe("UserDirectory — set new password", () => {
+  it("offers Set new password to anyone who can edit users", async () => {
+    const user = userEvent.setup();
+    renderDirectory(ADMIN_PERMISSIONS);
+    await openRowMenu(user);
+    expect(screen.getByTestId("user-row-actions-set-password")).toBeInTheDocument();
+  });
+
+  // update() revokes every session for the target, so doing this to yourself signs you out
+  // mid-action. Your own password belongs in account settings.
+  it("hides Set new password on your own row", async () => {
+    const user = userEvent.setup();
+    renderDirectory(SUPER_ADMIN_PERMISSIONS, [staffUser({ id: ME_ID, name: "Admin" })]);
+    await openRowMenu(user);
+    expect(screen.queryByTestId("user-row-actions-set-password")).not.toBeInTheDocument();
+  });
+
+  it("keeps it separate from Reset password — they are different acts", async () => {
+    const user = userEvent.setup();
+    renderDirectory(SUPER_ADMIN_PERMISSIONS);
+    await openRowMenu(user);
+
+    const setItem = screen.getByTestId("user-row-actions-set-password");
+    // The distinction that matters: one is chosen by the operator, one is not.
+    expect(setItem).toHaveTextContent(/you will know it/i);
+    expect(screen.getByTestId("user-row-actions-reset-password")).toBeInTheDocument();
+  });
+
+  it("opens the dialog with both fields", async () => {
+    const user = userEvent.setup();
+    renderDirectory(SUPER_ADMIN_PERMISSIONS);
+    await openRowMenu(user);
+
+    await user.click(screen.getByTestId("user-row-actions-set-password"));
+
+    expect(await screen.findByTestId("user-set-password-input")).toBeInTheDocument();
+    expect(screen.getByTestId("user-set-password-confirm-input")).toBeInTheDocument();
   });
 });

@@ -6,7 +6,7 @@ import * as React from "react";
 // LockKeyhole (reset password) is deliberately NOT KeyRound (clear 2FA) — two credential
 // actions sharing one glyph in the same row is how "the key icon" got read as a password
 // reset when it clears the second factor.
-import { KeyRound, LockKeyhole, Pencil, Plus, Send, Trash2, UserX } from "lucide-react";
+import { KeyRound, KeySquare, LockKeyhole, Pencil, Plus, Send, Trash2, UserX } from "lucide-react";
 import {
   Button,
   ConfirmDialog,
@@ -36,6 +36,7 @@ import { getModulePermissions, hasPermission } from "../../lib/permissions";
 import { surfaceError } from "../../lib/surface-error";
 import { UserFormDrawer } from "./user-form-drawer";
 import { ClearTwoFactorDrawer } from "./clear-two-factor-drawer";
+import { SetPasswordDrawer } from "./set-password-drawer";
 
 const STATUS_OPTIONS: { value: StaffUserStatus; label: string }[] = [
   { value: "active", label: "Active" },
@@ -69,6 +70,7 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
   const [clearingTwoFactorUser, setClearingTwoFactorUser] = React.useState<StaffUser | null>(null);
   const [removingUser, setRemovingUser] = React.useState<StaffUser | null>(null);
   const [resettingPasswordUser, setResettingPasswordUser] = React.useState<StaffUser | null>(null);
+  const [settingPasswordUser, setSettingPasswordUser] = React.useState<StaffUser | null>(null);
   // Separate module from `users.*` — see ClearTwoFactorDrawer's header for why this is
   // its own permission rather than part of users.edit.
   const canResetTwoFactor = hasPermission(me?.permissions, "twofa.reset");
@@ -187,6 +189,24 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
           : "Emails a new password and signs them out",
         icon: neverSignedIn ? <Send className="size-4" /> : <LockKeyhole className="size-4" />,
         onSelect: () => setResettingPasswordUser(row),
+      });
+    }
+
+    // Set new password — the operator CHOOSES the value, so they end up knowing it. Rides
+    // `users.edit`, which is what PATCH /crm/admin/users/:id already enforces for a
+    // `password` field; gating the menu item more tightly than the endpoint would only be
+    // decoration, since the Edit drawer exposes the same field.
+    //
+    // Hidden on your own row: update() revokes every session for the target, so setting your
+    // own password here signs you out mid-action. Your own password belongs in account
+    // settings, which asks for the current one first.
+    if (permissions.canEdit && !isSelf) {
+      items.push({
+        id: "set-password",
+        label: "Set new password",
+        description: "You choose it, and you will know it",
+        icon: <KeySquare className="size-4" />,
+        onSelect: () => setSettingPasswordUser(row),
       });
     }
 
@@ -353,6 +373,13 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
         rowActions={(row) => (
           <ActionMenu triggerLabel={`Actions for ${row.name}`} data-testid="user-row-actions" items={rowActions(row)} />
         )}
+      />
+
+      <SetPasswordDrawer
+        user={settingPasswordUser}
+        onOpenChange={(open) => {
+          if (!open) setSettingPasswordUser(null);
+        }}
       />
 
       <ClearTwoFactorDrawer
