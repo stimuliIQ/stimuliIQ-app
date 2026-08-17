@@ -36,6 +36,7 @@
 // cached evaluate endpoint, this nav leaf) and never consumed — no app ever
 // evaluated a flag — so the screen, route, hooks and table were all removed.
 import type { ComponentType } from "react";
+import type { PermissionGrant } from "@repo/types";
 import {
   LayoutDashboard,
   Users,
@@ -49,6 +50,7 @@ import {
   BarChart3,
   ShieldCheck,
   Calendar,
+  CalendarDays,
   UserCog,
   Headset,
   ClipboardList,
@@ -61,6 +63,15 @@ export interface NavLeaf {
   to?: string;
   /** RBAC gate: only rendered if the user holds this `module.action` permission. Omit for always-visible (e.g. Dashboard). */
   permission?: string;
+  /**
+   * Narrows `permission` to specific data-scopes. Omit to accept any scope (the norm).
+   *
+   * Needed where a module cannot serve every scope its permission is granted at, and fails
+   * closed on the rest. Faculty hold `courses.view` at scope `assigned`, but the courses
+   * module rejects anything other than `all` (see hasPermissionAtScope's comment), so
+   * gating on the key alone puts a Courses item in faculty's sidebar that 403s on arrival.
+   */
+  permissionScopes?: readonly PermissionGrant["scope"][];
   /**
    * Role gate: only rendered if the user HOLDS this role key. Use for items that a
    * permission gate alone can't hide — e.g. anything admins reach via their wildcard
@@ -161,7 +172,9 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Academics",
     icon: GraduationCap,
     children: [
-      { label: "Courses", to: "/courses", permission: "courses.view" },
+      // scope `all` ONLY — faculty's `assigned` grant is rejected by the API
+      // (courses.scope_unresolvable), so showing them this leaf leads nowhere.
+      { label: "Courses", to: "/courses", permission: "courses.view", permissionScopes: ["all"] },
       { label: "Faculty", to: "/faculty", permission: "faculty.view" },
       { label: "Mentors", to: "/mentors", permission: "mentors.view" },
       { label: "Batches", to: "/batches", permission: "batches.view" },
@@ -262,6 +275,26 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       { label: "Campaign Performance", to: "/analytics/campaigns", permission: "reports.campaigns.view" },
       { label: "Exports", to: "/analytics/exports", permission: "reports.export" },
+    ],
+  },
+  {
+    // Staff leave (docs/specs/leave-management.md). Sits here, just above Admin, for the same
+    // reason Two-Factor Auth sits below it: this section is half about the signed-in person
+    // (My Leave, the calendar) and half administrative (Approvals, Setup), so it belongs
+    // beside Admin rather than inside it — filing for leave is not an admin task.
+    //
+    // Four leaves rather than one tabbed page because they have four different audiences. The
+    // sidebar hides what the viewer lacks, so an ordinary member of staff sees only My Leave
+    // and Calendar; `leave.approve` and `leave.manage` are held by super_admin alone
+    // (prisma/seed.ts seeds them outside the admin catch-all), so Approvals and Setup are
+    // invisible to everybody else — including Admin.
+    label: "Leave Management",
+    icon: CalendarDays,
+    children: [
+      { label: "My Leave", to: "/leave", permission: "leave.view" },
+      { label: "Approvals", to: "/leave/approvals", permission: "leave.approve" },
+      { label: "Calendar", to: "/leave/calendar", permission: "leave.calendar.view" },
+      { label: "Setup", to: "/leave/setup", permission: "leave.manage" },
     ],
   },
   {

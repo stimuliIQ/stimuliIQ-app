@@ -10,8 +10,8 @@ import { ChevronDown, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { cn } from "@repo/ui";
 import type { MeResponse } from "@repo/types";
 
-import { NAV_SECTIONS, type NavSection } from "../../lib/nav-config";
-import { hasPermission } from "../../lib/permissions";
+import { NAV_SECTIONS, type NavSection, type NavLeaf } from "../../lib/nav-config";
+import { hasPermission, hasPermissionAtScope } from "../../lib/permissions";
 import { ComingSoonBadge } from "./coming-soon-badge";
 
 // One focus-visible recipe for every interactive in the shell (docs/specs/
@@ -36,9 +36,14 @@ function isSectionVisible(section: NavSection, me: MeResponse | undefined): bool
   return hasPermission(me?.permissions, section.permission);
 }
 
-function isLeafVisible(leaf: { permission?: string; role?: string }, me: MeResponse | undefined): boolean {
+export function isLeafVisible(leaf: NavLeaf, me: MeResponse | undefined): boolean {
   if (!hasRole(me, leaf.role)) return false;
   if (!leaf.permission) return true;
+  // `permissionScopes` narrows the gate to the scopes the module can actually serve —
+  // holding a key at a scope the API rejects is not the same as being able to use it.
+  if (leaf.permissionScopes) {
+    return hasPermissionAtScope(me?.permissions, leaf.permission, leaf.permissionScopes);
+  }
   return hasPermission(me?.permissions, leaf.permission);
 }
 

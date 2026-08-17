@@ -12,6 +12,29 @@ export function hasPermission(permissions: PermissionGrant[] | undefined, key: s
   return (permissions ?? []).some((grant) => grant.key === key);
 }
 
+/**
+ * True if the user holds `key` at one of `scopes`.
+ *
+ * Holding a permission is not the same as being able to USE it. Some modules can only
+ * resolve a subset of the data-scopes their permission is granted at, and reject the rest
+ * fail-closed. The faculty role holds `courses.view` at scope `assigned`, meaning
+ * "programs this faculty authors" — but `programs` has no author column, so
+ * courses.service.ts refuses any scope other than `all` (403 `courses.scope_unresolvable`)
+ * rather than silently widening it to every program.
+ *
+ * A plain `hasPermission` check therefore renders a Courses nav item for faculty that can
+ * only ever lead to an error screen. Gate on the scope the module can actually serve.
+ *
+ * Presentation only, like everything else in this file — the server still decides.
+ */
+export function hasPermissionAtScope(
+  permissions: PermissionGrant[] | undefined,
+  key: string,
+  scopes: readonly PermissionGrant["scope"][],
+): boolean {
+  return (permissions ?? []).some((grant) => grant.key === key && scopes.includes(grant.scope));
+}
+
 /** Convenience bundle of the CRUD checks a module's UI typically branches on. */
 export interface ModulePermissions {
   canView: boolean;

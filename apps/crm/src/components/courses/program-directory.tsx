@@ -9,7 +9,7 @@ import type { ListProgramsQuery, MeResponse, ProgramStatus, ProgramSummary } fro
 
 import { useProgramsList, useReorderPrograms } from "../../hooks/use-courses";
 import { useDebouncedValue } from "../../hooks/use-debounced-value";
-import { getModulePermissions } from "../../lib/permissions";
+import { getModulePermissions, hasPermissionAtScope } from "../../lib/permissions";
 import { formatPaiseAsInr } from "../../lib/money";
 import { ProgramStatusChip } from "./program-status-chip";
 import { ProgramFormDrawer } from "./program-form-drawer";
@@ -22,12 +22,16 @@ const STATUS_OPTIONS: { value: ProgramStatus; label: string }[] = [
 ];
 
 /**
- * Reorder sends the full ordered id list, so it needs every program in one fetch. 500 is
- * far above any realistic catalog size while still bounding the request; past it the
- * up/down buttons would silently reorder against a truncated list, so the controls are
+ * Reorder sends the full ordered id list, so it needs every program in one fetch. Past this
+ * the up/down buttons would silently reorder against a truncated list, so the controls are
  * hidden entirely rather than allowed to corrupt the sequence.
+ *
+ * MUST NOT EXCEED `PageQuerySchema`'s `pageSize` maximum of 200. This was 500, which the
+ * server rejected outright — every reorder fetch came back 400 `validation.failed`, so the
+ * full ordered list never loaded and the up/down controls had nothing to reorder against.
+ * The failure was invisible because the query's error state is not surfaced anywhere.
  */
-const REORDER_FETCH_LIMIT = 500;
+const REORDER_FETCH_LIMIT = 200;
 
 const REORDER_FILTER_HINT = "Clear the search and status filters to reorder programs.";
 
@@ -37,6 +41,12 @@ interface ProgramDirectoryProps {
 
 export function ProgramDirectory({ me }: ProgramDirectoryProps): React.JSX.Element {
   const permissions = getModulePermissions(me, "courses");
+  // The API serves `courses.view` ONLY at scope `all`. Faculty hold it at `assigned`
+  // ("programs this faculty authors"), which courses.service.ts cannot resolve — `programs`
+  // has no author column — so it 403s `courses.scope_unresolvable` rather than widening to
+  // every program. Without this check the screen mounts, fires two doomed requests, and
+  // shows a generic "couldn't load" error that blames the network for an RBAC decision.
+  const canUseCourses = hasPermissionAtScope(me?.permissions, "courses.view", ["all"]);
 
   const [search, setSearch] = React.useState("");
   const [status, setStatus] = React.useState<ProgramStatus | undefined>(undefined);
@@ -59,7 +69,9 @@ export function ProgramDirectory({ me }: ProgramDirectoryProps): React.JSX.Eleme
     includeDeleted: false,
   };
 
-  const { data, isLoading, isError, refetch, isFetching } = useProgramsList(query);
+  const { data, isLoading, isError, refetch, isFetching } = useProgramsList(query, {
+    enabled: canUseCourses,
+  });
 
   // Reordering rewrites the WHOLE sequence from an id array, so it needs every program —
   // not the 20 on the current page. A second, unpaginated fetch supplies that full list;
@@ -68,7 +80,7 @@ export function ProgramDirectory({ me }: ProgramDirectoryProps): React.JSX.Eleme
   const reorderDisabled = Boolean(debouncedSearch || status);
   const { data: allPrograms } = useProgramsList(
     { page: 1, pageSize: REORDER_FETCH_LIMIT, includeDeleted: false },
-    { enabled: permissions.canEdit && !reorderDisabled },
+    { enabled: canUseCourses && permissions.canEdit && !reorderDisabled },
   );
   const reorderPrograms = useReorderPrograms();
   const { toast } = useToast();
@@ -181,6 +193,19 @@ export function ProgramDirectory({ me }: ProgramDirectoryProps): React.JSX.Eleme
         );
       },
     });
+  }
+
+  // Checked BEFORE the loading/error branches: with the queries disabled there is nothing
+  // to load and nothing to retry, and "Couldn't load programs — try again" would blame the
+  // network for a permission decision no amount of retrying changes.
+  if (!canUseCourses) {
+    return (
+      <EmptyState
+        data-testid="programs-no-access"
+        title="You don't have access to Courses"
+        description="Your role can only see programmes you author, and the catalogue doesn't record authorship yet — so there's nothing this screen can show you. An admin can grant tenant-wide course access if you need it."
+      />
+    );
   }
 
   if (isError) {
