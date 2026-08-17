@@ -40,16 +40,55 @@ export const PhoneSchema = z
  * check), so the digit requirement is enforced by zod at runtime but is not
  * independently visible in the generated `pattern` — see the description.
  */
+export const PASSWORD_MIN_LENGTH = 10;
+export const PASSWORD_MAX_LENGTH = 128;
+
+const PASSWORD_LETTER_RE = /[A-Za-z]/;
+const PASSWORD_DIGIT_RE = /[0-9]/;
+
 export const PasswordSchema = z
   .string()
-  .min(10, "password must be at least 10 characters")
-  .max(128)
-  .regex(/[A-Za-z]/, "password must contain at least one letter")
-  .regex(/[0-9]/, "password must contain at least one digit")
+  .min(PASSWORD_MIN_LENGTH, `password must be at least ${PASSWORD_MIN_LENGTH} characters`)
+  .max(PASSWORD_MAX_LENGTH)
+  .regex(PASSWORD_LETTER_RE, "password must contain at least one letter")
+  .regex(PASSWORD_DIGIT_RE, "password must contain at least one digit")
   .describe(
-    "Min 10 chars, max 128, must contain at least one letter and one digit " +
+    `Min ${PASSWORD_MIN_LENGTH} chars, max ${PASSWORD_MAX_LENGTH}, must contain at least one letter and one digit ` +
       "(both rules enforced server-side; only the letter check is representable in the JSON Schema `pattern`).",
   );
+
+/**
+ * The password policy expressed as individually-checkable rules, so a form can show
+ * WHICH requirement is still unmet instead of only a single collapsed error string.
+ *
+ * Deliberately built from the SAME constants/regexes as `PasswordSchema` above rather
+ * than restating them: a checklist that drifts from the validator is worse than none,
+ * because it tells the user they have satisfied a rule the server then rejects. Adding
+ * a rule means adding it here and to the schema in one edit, in this file only.
+ *
+ * `label` is user-facing copy (sentence case, no trailing period) — it is rendered
+ * verbatim by `PasswordRequirements` in @repo/ui.
+ */
+export interface PasswordRule {
+  id: "length" | "letter" | "digit";
+  label: string;
+  isMet: (value: string) => boolean;
+}
+
+export const PASSWORD_RULES: readonly PasswordRule[] = [
+  {
+    id: "length",
+    label: `At least ${PASSWORD_MIN_LENGTH} characters`,
+    isMet: (value) => value.length >= PASSWORD_MIN_LENGTH && value.length <= PASSWORD_MAX_LENGTH,
+  },
+  { id: "letter", label: "Contains a letter", isMet: (value) => PASSWORD_LETTER_RE.test(value) },
+  { id: "digit", label: "Contains a digit", isMet: (value) => PASSWORD_DIGIT_RE.test(value) },
+];
+
+/** Evaluates every rule against `value`. Order matches `PASSWORD_RULES`. */
+export function checkPasswordRules(value: string): Array<{ id: PasswordRule["id"]; label: string; met: boolean }> {
+  return PASSWORD_RULES.map((rule) => ({ id: rule.id, label: rule.label, met: rule.isMet(value) }));
+}
 
 /** 6-digit numeric OTP code, as issued by the (stubbed) SmsProvider. */
 export const OtpCodeSchema = z.string().regex(/^\d{6}$/, "OTP must be exactly 6 digits");

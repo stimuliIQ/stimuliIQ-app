@@ -34,6 +34,11 @@ export { Label } from "./components/label";
 export { Input, type InputProps, type InputSize } from "./components/input";
 export { Textarea, type TextareaProps, type TextareaSize } from "./components/textarea";
 export { PasswordInput, type PasswordInputProps } from "./components/password-input";
+export {
+  PasswordRequirements,
+  type PasswordRequirementsProps,
+  type PasswordRequirementsRule,
+} from "./components/password-requirements";
 
 export { Alert, Callout, type AlertProps } from "./components/alert";
 

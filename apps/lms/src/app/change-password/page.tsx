@@ -13,9 +13,9 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Button, Label, PasswordInput } from "@repo/ui";
+import { Button, Label, PasswordInput, PasswordRequirements } from "@repo/ui";
 import { ApiError } from "@repo/api-client";
-import { PasswordSchema } from "@repo/types";
+import { PasswordSchema, checkPasswordRules } from "@repo/types";
 
 import { AuthSplitLayout } from "../../components/auth/auth-split-layout";
 import { useChangePassword } from "../../hooks/use-change-password";
@@ -45,11 +45,15 @@ export default function ChangePasswordPage(): React.JSX.Element {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<ChangePasswordFormValues>({
     resolver: zodResolver(ChangePasswordFormSchema),
     defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
   });
+
+  // Live requirement checklist — watch() so it re-evaluates per keystroke.
+  const newPasswordRules = checkPasswordRules(watch("newPassword") ?? "");
 
   const onSubmit = handleSubmit((values) => {
     changePassword.mutate(
@@ -104,11 +108,13 @@ export default function ChangePasswordPage(): React.JSX.Element {
           <Label htmlFor="change-password-new">New password</Label>
           <PasswordInput
             id="change-password-new"
-            placeholder="At least 10 characters"
+            placeholder="Enter a new password"
             autoComplete="new-password"
             toggleTestId="change-password-new-toggle"
             aria-invalid={errors.newPassword ? true : undefined}
-            aria-describedby={errors.newPassword ? "change-password-new-error" : undefined}
+            aria-describedby={
+              errors.newPassword ? "change-password-new-error change-password-new-reqs" : "change-password-new-reqs"
+            }
             {...register("newPassword")}
           />
           {errors.newPassword ? (
@@ -116,6 +122,11 @@ export default function ChangePasswordPage(): React.JSX.Element {
               {errors.newPassword.message}
             </p>
           ) : null}
+          <PasswordRequirements
+            id="change-password-new-reqs"
+            rules={newPasswordRules}
+            data-testid="change-password-requirements"
+          />
         </div>
 
         <div className="space-y-1.5">

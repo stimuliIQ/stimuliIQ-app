@@ -12,8 +12,17 @@ import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Button, Drawer, DrawerContent, DrawerBody, DrawerFooter, PasswordInput, useToast } from "@repo/ui";
-import { PasswordSchema } from "@repo/types";
+import {
+  Button,
+  Drawer,
+  DrawerContent,
+  DrawerBody,
+  DrawerFooter,
+  PasswordInput,
+  PasswordRequirements,
+  useToast,
+} from "@repo/ui";
+import { PasswordSchema, checkPasswordRules } from "@repo/types";
 
 import { useChangePassword } from "../../hooks/use-change-password";
 import { errorCode, surfaceError } from "../../lib/surface-error";
@@ -52,11 +61,15 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
     handleSubmit,
     reset,
     setError,
+    watch,
     formState: { errors },
   } = useForm<ChangePasswordFormValues>({
     resolver: zodResolver(ChangePasswordFormSchema),
     defaultValues: EMPTY_VALUES,
   });
+
+  // Live requirement checklist — watch() so it re-evaluates per keystroke.
+  const newPasswordRules = checkPasswordRules(watch("newPassword") ?? "");
 
   // Blank the form every time the dialog opens (and after it closes) rather than
   // leaving a half-typed password sitting in memory/DOM between openings.
@@ -120,16 +133,32 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
               data-testid="change-password-current"
               toggleTestId="change-password-current-toggle"
             />
-            <PasswordInput
-              label="New password"
-              autoComplete="new-password"
-              required
-              helperText="At least 10 characters, with a letter and a digit."
-              {...register("newPassword")}
-              error={errors.newPassword?.message}
-              data-testid="change-password-new"
-              toggleTestId="change-password-new-toggle"
-            />
+            {/* Explicit id so BOTH the error text (Input derives `${id}-error`) and the
+                requirement list can be referenced — Input spreads caller props after its
+                own computed aria-describedby, so passing one here replaces rather than
+                merges, and the error association has to be preserved by hand. */}
+            <div className="flex flex-col gap-1.5">
+              <PasswordInput
+                id="change-password-new"
+                label="New password"
+                autoComplete="new-password"
+                required
+                {...register("newPassword")}
+                error={errors.newPassword?.message}
+                aria-describedby={
+                  errors.newPassword
+                    ? "change-password-new-error change-password-new-reqs"
+                    : "change-password-new-reqs"
+                }
+                data-testid="change-password-new"
+                toggleTestId="change-password-new-toggle"
+              />
+              <PasswordRequirements
+                id="change-password-new-reqs"
+                rules={newPasswordRules}
+                data-testid="change-password-requirements"
+              />
+            </div>
             <PasswordInput
               label="Confirm new password"
               autoComplete="new-password"

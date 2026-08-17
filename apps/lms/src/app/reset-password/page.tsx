@@ -13,9 +13,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Button, Label, PasswordInput } from "@repo/ui";
+import { Button, Label, PasswordInput, PasswordRequirements } from "@repo/ui";
 import { ApiError } from "@repo/api-client";
-import { PasswordSchema } from "@repo/types";
+import { PasswordSchema, checkPasswordRules } from "@repo/types";
 
 import { AuthSplitLayout } from "../../components/auth/auth-split-layout";
 import { useConfirmPasswordReset } from "../../hooks/use-confirm-password-reset";
@@ -62,11 +62,15 @@ function ResetPasswordForm(): React.JSX.Element {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<ResetPasswordFormValues>({
     resolver: zodResolver(ResetPasswordFormSchema),
     defaultValues: { newPassword: "", confirmPassword: "" },
   });
+
+  // Live requirement checklist — watch() so it re-evaluates per keystroke.
+  const newPasswordRules = checkPasswordRules(watch("newPassword") ?? "");
 
   const onSubmit = handleSubmit((values) => {
     if (!token) return;
@@ -126,12 +130,14 @@ function ResetPasswordForm(): React.JSX.Element {
           <Label htmlFor="reset-password-new">New password</Label>
           <PasswordInput
             id="reset-password-new"
-            placeholder="At least 10 characters"
+            placeholder="Enter a new password"
             autoComplete="new-password"
             autoFocus
             toggleTestId="reset-password-new-toggle"
             aria-invalid={errors.newPassword ? true : undefined}
-            aria-describedby={errors.newPassword ? "reset-password-new-error" : undefined}
+            aria-describedby={
+              errors.newPassword ? "reset-password-new-error reset-password-new-reqs" : "reset-password-new-reqs"
+            }
             {...register("newPassword")}
           />
           {errors.newPassword ? (
@@ -139,6 +145,11 @@ function ResetPasswordForm(): React.JSX.Element {
               {errors.newPassword.message}
             </p>
           ) : null}
+          <PasswordRequirements
+            id="reset-password-new-reqs"
+            rules={newPasswordRules}
+            data-testid="reset-password-requirements"
+          />
         </div>
 
         <div className="space-y-1.5">
