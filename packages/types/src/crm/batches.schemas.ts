@@ -9,7 +9,7 @@
 // that both resources need independently.
 
 import { z } from "zod";
-import { UuidSchema, IsoDateSchema, IsoDateTimeSchema } from "../common/primitives.js";
+import { UuidSchema, IsoDateSchema, IsoDateTimeSchema, BooleanQueryFlagSchema } from "../common/primitives.js";
 import { PageQuerySchema } from "../common/pagination.js";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ export const ListBatchesQuerySchema = z
     branchId: UuidSchema.optional(),
     facultyId: UuidSchema.optional(),
     status: BatchStatusSchema.optional(),
-    includeDeleted: z.coerce.boolean().default(false),
+    includeDeleted: BooleanQueryFlagSchema.default(false),
     /**
      * Restrict to batches a student can still be put INTO: status `planned` or `active`,
      * and not past their end date.

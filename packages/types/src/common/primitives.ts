@@ -90,6 +90,26 @@ export function checkPasswordRules(value: string): Array<{ id: PasswordRule["id"
   return PASSWORD_RULES.map((rule) => ({ id: rule.id, label: rule.label, met: rule.isMet(value) }));
 }
 
+/**
+ * A query-string boolean that treats `?flag=false` as FALSE.
+ *
+ * `z.coerce.boolean()` is `Boolean(value)`, so EVERY non-empty string coerces to `true` —
+ * "false" and "0" included. A query string only ever carries strings, so a filter declared
+ * with `z.coerce.boolean()` is permanently stuck ON for any client that sends the parameter
+ * explicitly, which `toQueryString` (@repo/api-client) always does: it serializes
+ * `{ includeDeleted: false }` to `?includeDeleted=false`, which then parses back as `true`.
+ *
+ * That is how soft-deleted faculty kept appearing in the CRM list while the detail route
+ * (which filters `deletedAt: null` unconditionally) answered 404 for the very same row.
+ *
+ * Use this for any boolean that arrives via the query string. Body fields are parsed from
+ * JSON and already carry real booleans, so they do not need it.
+ */
+export const BooleanQueryFlagSchema = z.preprocess(
+  (value) => (typeof value === "string" ? value.toLowerCase() === "true" : value),
+  z.boolean(),
+);
+
 /** 6-digit numeric OTP code, as issued by the (stubbed) SmsProvider. */
 export const OtpCodeSchema = z.string().regex(/^\d{6}$/, "OTP must be exactly 6 digits");
 

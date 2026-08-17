@@ -21,7 +21,7 @@
 // for lead-stage students; tracked in docs/phase-1-followups.md).
 
 import { z } from "zod";
-import { UuidSchema, PhoneSchema, IsoDateTimeSchema } from "../common/primitives.js";
+import { UuidSchema, PhoneSchema, IsoDateTimeSchema, BooleanQueryFlagSchema } from "../common/primitives.js";
 import { PageQuerySchema } from "../common/pagination.js";
 import { LifecycleStageSchema } from "./lifecycle.schemas.js";
 
@@ -91,7 +91,7 @@ export const ListStudentsQuerySchema = z
     branchId: UuidSchema.optional(),
     programId: UuidSchema.optional(),
     batchId: UuidSchema.optional(),
-    includeDeleted: z.coerce.boolean().default(false).describe("Admin-only: include soft-deleted rows."),
+    includeDeleted: BooleanQueryFlagSchema.default(false).describe("Admin-only: include soft-deleted rows."),
   })
   .merge(PageQuerySchema)
   .strict();

@@ -73,7 +73,13 @@
 // not an error in this contract.
 
 import { z } from "zod";
-import { UuidSchema, PhoneSchema, IsoDateSchema, IsoDateTimeSchema } from "../common/primitives.js";
+import {
+  UuidSchema,
+  PhoneSchema,
+  IsoDateSchema,
+  IsoDateTimeSchema,
+  BooleanQueryFlagSchema,
+} from "../common/primitives.js";
 import { PageQuerySchema } from "../common/pagination.js";
 import { BatchStatusSchema } from "./batches.schemas.js";
 import { EnrollmentStatusSchema } from "./enrollments.schemas.js";
@@ -185,7 +191,7 @@ export const ListMentorsQuerySchema = z
       .describe("Matches fullName or externalInstitute, case-insensitive (AC-6). Empty/whitespace treated as no filter (Part 4 edge case)."),
     engagementStatus: MentorEngagementStatusSchema.optional(),
     expertise: z.string().min(1).max(80).optional().describe("Matches one entry in the expertise array (AC-7)."),
-    includeDeleted: z.coerce.boolean().default(false).describe("Admin-only: include soft-deleted rows."),
+    includeDeleted: BooleanQueryFlagSchema.default(false).describe("Admin-only: include soft-deleted rows."),
   })
   .merge(PageQuerySchema)
   .strict();

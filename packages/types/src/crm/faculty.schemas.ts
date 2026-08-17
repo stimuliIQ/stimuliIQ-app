@@ -6,7 +6,7 @@
 // new faculty_profiles.id.
 
 import { z } from "zod";
-import { UuidSchema, PhoneSchema, IsoDateTimeSchema } from "../common/primitives.js";
+import { UuidSchema, PhoneSchema, IsoDateTimeSchema, BooleanQueryFlagSchema } from "../common/primitives.js";
 import { PageQuerySchema } from "../common/pagination.js";
 import { BatchSummarySchema } from "./batches.schemas.js";
 
@@ -46,7 +46,7 @@ export const ListFacultyQuerySchema = z
     search: z.string().min(1).max(200).optional().describe("Matches name or email."),
     branchId: UuidSchema.optional(),
     expertise: z.string().min(1).max(80).optional().describe("Matches one entry in the expertise array."),
-    includeDeleted: z.coerce.boolean().default(false),
+    includeDeleted: BooleanQueryFlagSchema.default(false),
   })
   .merge(PageQuerySchema)
   .strict();

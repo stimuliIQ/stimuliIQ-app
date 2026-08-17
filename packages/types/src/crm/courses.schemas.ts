@@ -8,7 +8,7 @@
 // note).
 
 import { z } from "zod";
-import { UuidSchema, IsoDateTimeSchema } from "../common/primitives.js";
+import { UuidSchema, IsoDateTimeSchema, BooleanQueryFlagSchema } from "../common/primitives.js";
 import { PageQuerySchema } from "../common/pagination.js";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -295,7 +295,7 @@ export const ListProgramsQuerySchema = z
     domain: ProgramDomainSchema.optional(),
     level: ProgramLevelSchema.optional(),
     status: ProgramStatusSchema.optional(),
-    includeDeleted: z.coerce.boolean().default(false),
+    includeDeleted: BooleanQueryFlagSchema.default(false),
   })
   .merge(PageQuerySchema)
   .strict();

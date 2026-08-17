@@ -37,7 +37,7 @@
 // `utm` is a JSON blob stored as-is; shape here is a typed helper.
 
 import { z } from "zod";
-import { UuidSchema, PhoneSchema, IsoDateTimeSchema } from "../common/primitives.js";
+import { UuidSchema, PhoneSchema, IsoDateTimeSchema, BooleanQueryFlagSchema } from "../common/primitives.js";
 import { PageQuerySchema } from "../common/pagination.js";
 import { CreateStudentRequestSchema } from "./students.schemas.js";
 import { LifecycleStageSchema } from "./lifecycle.schemas.js";
@@ -140,20 +140,12 @@ export const UpdateLeadRequestSchema = z
   .strict();
 export type UpdateLeadRequest = z.infer<typeof UpdateLeadRequestSchema>;
 
-/**
- * A query-string boolean that treats `?flag=false` as FALSE.
- *
- * `z.coerce.boolean()` (used by the older filters in this file) is `Boolean(value)`, so
- * the string "false" coerces to `true`. That is survivable for a flag a UI only ever
- * sends when it is on, but the owner filters below are persisted into saved views, and a
- * saved view round-tripping `mine=false` back through the API as `mine=true` would show a
- * rep somebody else's pipeline. Scoped to the new fields deliberately — retro-fitting the
- * existing ones is a separate, behaviour-changing edit.
- */
-const BooleanQueryFlagSchema = z.preprocess(
-  (value) => (typeof value === "string" ? value.toLowerCase() === "true" : value),
-  z.boolean(),
-);
+// `BooleanQueryFlagSchema` used to be defined locally here, for the owner filters below
+// only, with a note that retro-fitting the other `z.coerce.boolean()` filters was "a
+// separate, behaviour-changing edit". That edit has now happened: the footgun it warned
+// about was shipping soft-deleted rows into every CRM list, so the schema moved to
+// ../common/primitives.js and the `includeDeleted` filters across faculty/students/
+// batches/courses/mentors now use it too. Imported at the top of this file.
 
 /**
  * The lead-list filter shape WITHOUT the cross-field rule below. Exported separately
