@@ -25,9 +25,15 @@ import {
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { AuthIpRateLimitGuard } from "./guards/auth-ip-rate-limit.guard";
 import { TwoFactorRecoveryService } from "./two-factor-recovery.service";
+import { SkipPasswordGate } from "./decorators/skip-password-gate.decorator";
 
+// @SkipPasswordGate(): both routes authenticate from the BODY (email + password), never
+// from `req.user`. The global MustChangePasswordGuard reads `req.user` on every route
+// though, so a leftover session cookie for a `mustChangePassword: true` account 403'd the
+// whole recovery flow — the same defect as PasswordResetController (see its header).
 @Controller("auth/2fa/recovery")
 @UseGuards(AuthIpRateLimitGuard)
+@SkipPasswordGate()
 export class TwoFactorRecoveryController {
   constructor(private readonly service: TwoFactorRecoveryService) {}
 

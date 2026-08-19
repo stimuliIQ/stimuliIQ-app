@@ -40,6 +40,14 @@ export class AuthController {
   @Post("login")
   @HttpCode(200)
   @UseGuards(AuthIpRateLimitGuard)
+  // PRE-SESSION route: it authenticates from the BODY (email + password), never from
+  // `req.user`. Any `req.user` AuditContextMiddleware happened to resolve here is a
+  // leftover cookie from a previous sign-in in the same browser, not the caller's
+  // authorization — so the gate must not read it. Without this exemption a student
+  // whose account is `mustChangePassword: true` (the state EVERY freshly provisioned
+  // student is in) got 403 `password_change_required` on their next sign-in attempt,
+  // i.e. locked out of the app by the very gate meant to walk them through it.
+  @SkipPasswordGate()
   @UsePipes(new ZodValidationPipe(LoginRequestSchema))
   async login(@Body() body: LoginRequest, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<AuthSessionData> {
     // T28 (2FA, docs/plans/phase-9-completion.md): gate admin login server-side when

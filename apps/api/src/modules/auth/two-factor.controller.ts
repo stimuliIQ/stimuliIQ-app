@@ -19,6 +19,7 @@ import { RequirePermission } from "./decorators/require-permission.decorator";
 import { CurrentUser } from "./decorators/current-user.decorator";
 import type { RequestUser } from "./lib/request-user";
 import { AuthIpRateLimitGuard } from "./guards/auth-ip-rate-limit.guard";
+import { SkipPasswordGate } from "./decorators/skip-password-gate.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { AuthService } from "./auth.service";
 import { TwoFactorService } from "./two-factor.service";
@@ -87,7 +88,11 @@ export class TwoFactorController {
  * request (AuthService.verifyCredentialsOnly + AuthService.login) — no session exists
  * yet, so ScopeInterceptor/PermissionsGuard do not apply here.
  */
+// @SkipPasswordGate(): pre-session route — the credentials come from the body, so the
+// global MustChangePasswordGuard must not judge it on a leftover session cookie (same
+// defect as POST /auth/login; see auth.controller.ts).
 @Controller("auth/2fa")
+@SkipPasswordGate()
 export class TwoFactorLoginController {
   constructor(
     private readonly authService: AuthService,

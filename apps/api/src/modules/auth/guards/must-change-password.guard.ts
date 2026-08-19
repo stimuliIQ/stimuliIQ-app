@@ -14,10 +14,22 @@
 // `mustChangePassword: true` account could call ANY other authenticated API route. This
 // guard is the real, server-side control that comment referred to.
 //
-// Routes are exempted via `@SkipPasswordGate()` (skip-password-gate.decorator.ts) —
-// applied ONLY to POST /auth/change-password, POST /auth/logout, POST /auth/refresh, and
-// GET /me (the minimal set needed so a gated student can still check their state, change
-// their password, and end their session). Every other route stays gated.
+// Routes are exempted via `@SkipPasswordGate()` (skip-password-gate.decorator.ts), in two
+// groups:
+//
+//   1. Routes a gated session must reach to CLEAR the gate or inspect it — POST
+//      /auth/change-password, POST /auth/logout, POST /auth/refresh, GET /me.
+//
+//   2. PRE-SESSION routes, which authenticate from the request BODY (credentials, an
+//      emailed reset token) and never from `req.user` — POST /auth/login, the whole of
+//      /auth/password-reset, /auth/2fa/login-verify and /auth/2fa/recovery. Here
+//      `req.user` is only ever a leftover cookie from an earlier sign-in in the same
+//      browser; it is not the caller's authorization, so gating on it is meaningless.
+//      Leaving them gated locked freshly-provisioned students (who are ALL
+//      `mustChangePassword: true`) out of sign-in AND out of password reset — the gate
+//      blocking the only two doors out of itself.
+//
+// Every other route stays gated.
 
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";

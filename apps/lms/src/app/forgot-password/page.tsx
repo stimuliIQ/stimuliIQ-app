@@ -5,12 +5,18 @@
 //
 // ENUMERATION RESISTANCE: POST /auth/password-reset/request ALWAYS returns 200
 // with an identical generic message whether or not the email exists (see
-// apps/api/src/modules/auth/password-reset.service.ts). We deliberately show
-// the SAME neutral confirmation on success *and* on failure (network/5xx) —
-// a distinguishable error state here would itself become a timing/behavior
-// oracle for account enumeration, undermining the backend's own posture. The
-// only exception is a client-side validation error (invalid email shape),
-// which never reaches the network at all.
+// apps/api/src/modules/auth/password-reset.service.ts) — including when it
+// silently declines to send (rate-limited bucket, mail-provider failure). The
+// account-existence signal is therefore already erased server-side, on the ONE
+// axis that carries it.
+//
+// So a NON-200 says nothing about the account: it means the request never got
+// as far as looking one up. We surface those, because reporting "sent" for a
+// request the server rejected is how a real outage stays invisible — a 403
+// from the must-change-password gate silently swallowed every reset request
+// from a signed-in student for weeks, and this screen cheerfully said "check
+// your inbox" each time. Client-side validation errors (invalid email shape)
+// still never reach the network at all.
 "use client";
 
 import * as React from "react";
@@ -41,8 +47,11 @@ export default function ForgotPasswordPage(): React.JSX.Element {
   });
 
   const busy = isSubmitting || resetRequest.isPending;
-  // Settled (success OR error) -> same neutral confirmation, see file header.
-  const submitted = resetRequest.isSuccess || resetRequest.isError;
+  const submitted = resetRequest.isSuccess;
+  // Never echo a server error string here — a bespoke message per status code would
+  // put the enumeration surface back. One flat "we couldn't process it, retry" for
+  // every failure, which is all the student can act on anyway.
+  const failed = resetRequest.isError;
 
   return (
     <AuthSplitLayout
@@ -81,6 +90,12 @@ export default function ForgotPasswordPage(): React.JSX.Element {
               </p>
             ) : null}
           </div>
+
+          {failed ? (
+            <p role="alert" data-testid="forgot-password-error" className="text-sm text-danger">
+              We couldn&apos;t send the reset link just now. Please try again in a moment.
+            </p>
+          ) : null}
 
           <Button
             type="submit"

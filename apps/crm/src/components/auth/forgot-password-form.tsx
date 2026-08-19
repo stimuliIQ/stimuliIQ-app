@@ -4,11 +4,15 @@
 //
 // ENUMERATION RESISTANCE: POST /auth/password-reset/request ALWAYS returns 200
 // with an identical generic message whether or not the email exists (see
-// apps/api/src/modules/auth/password-reset.service.ts). We deliberately show
-// the SAME neutral confirmation on success *and* on failure (network/5xx) —
-// a distinguishable error state here would itself become an account-
-// enumeration oracle. The only exception is a client-side validation error
-// (invalid email shape), which never reaches the network at all.
+// apps/api/src/modules/auth/password-reset.service.ts) — including when it
+// silently declines to send. The account-existence signal is erased server-side,
+// on the one axis that carries it.
+//
+// A NON-200 therefore says nothing about the account: it means the request never
+// got as far as looking one up. We surface those (as one flat message, never the
+// server's own error string), because reporting "sent" for a request the server
+// rejected is how a real outage stays invisible — see the LMS twin of this file.
+// Client-side validation errors never reach the network at all.
 import * as React from "react";
 import { Link } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
@@ -39,8 +43,8 @@ export function ForgotPasswordForm(): React.JSX.Element {
   });
 
   const busy = isSubmitting || resetRequest.isPending;
-  // Settled (success OR error) -> same neutral confirmation, see file header.
-  const submitted = resetRequest.isSuccess || resetRequest.isError;
+  const submitted = resetRequest.isSuccess;
+  const failed = resetRequest.isError;
 
   return (
     <AuthLayout>
@@ -74,6 +78,12 @@ export function ForgotPasswordForm(): React.JSX.Element {
                   </p>
                 ) : null}
               </div>
+
+              {failed ? (
+                <p role="alert" data-testid="forgot-password-error" className="text-sm text-danger">
+                  We couldn&apos;t send the reset link just now. Please try again in a moment.
+                </p>
+              ) : null}
 
               <Button
                 type="submit"

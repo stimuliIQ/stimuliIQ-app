@@ -137,6 +137,43 @@ describeIfAvailable("Gap-closing pass — server-side must-change-password gate 
     expect(res.body.data.user.mustChangePassword).toBe(true);
   });
 
+  // --- Pre-session routes must stay reachable while gated ---------------------------
+  //
+  // REGRESSION (live defect, 2026-08-19): these three authenticate from the request BODY,
+  // never from `req.user` — but AuditContextMiddleware still resolves `req.user` from the
+  // access-token cookie the browser is carrying, so the global guard 403'd them. That
+  // walled a freshly-provisioned student (every one of whom is `mustChangePassword: true`)
+  // out of sign-in AND out of password reset from the browser they had just signed in
+  // with, and the LMS forgot-password screen reported "check your inbox" regardless.
+
+  it("POST /auth/password-reset/request is NOT blocked while gated — 200, not 403", async () => {
+    const res = await request(httpServer)
+      .post("/api/v1/auth/password-reset/request")
+      .set("Cookie", cookieHeader(cookies))
+      .send({ email });
+    expect(res.status).toBe(200);
+  });
+
+  it("POST /auth/password-reset/confirm is NOT blocked while gated — reaches the token check (422), not 403", async () => {
+    const res = await request(httpServer)
+      .post("/api/v1/auth/password-reset/confirm")
+      .set("Cookie", cookieHeader(cookies))
+      .send({ token: "not-a-real-token-but-well-formed", newPassword: NEW_PASSWORD });
+    // 422 TOKEN_INVALID_OR_EXPIRED proves the request got PAST the gate and into the
+    // service — the point is only that it is not 403 auth.password_change_required.
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe("TOKEN_INVALID_OR_EXPIRED");
+  });
+
+  it("POST /auth/login is NOT blocked by a gated cookie already in the browser — 200, not 403", async () => {
+    const res = await request(httpServer)
+      .post("/api/v1/auth/login")
+      .set("Cookie", cookieHeader(cookies))
+      .send({ email, password: TEMP_PASSWORD });
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.mustChangePassword).toBe(true);
+  });
+
   it("POST /auth/change-password with the WRONG current password still 422s (not blocked by the gate itself)", async () => {
     const res = await request(httpServer)
       .post("/api/v1/auth/change-password")
