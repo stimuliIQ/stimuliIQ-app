@@ -14,7 +14,6 @@ import {
   CardDescription,
   CardFooter,
   EmptyState,
-  PageHeader,
   Skeleton,
   StatusChip,
   type StatusChipTone,
@@ -154,11 +153,7 @@ export function AssessmentsListContent(): React.JSX.Element {
   }
 
   return (
-    <div data-testid="assessments-list-content" className="space-y-6 md:space-y-8">
-      <PageHeader
-        title="My Assessments"
-        description="Quizzes and tests from your enrolled courses."
-      />
+    <div data-testid="assessments-list-content">
       <ul className="flex flex-col gap-2" aria-label="Assessments">
         {assessments.map((item) => (
           <AssessmentRow key={item.id} item={item} />

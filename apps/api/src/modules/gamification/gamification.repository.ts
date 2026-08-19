@@ -378,13 +378,16 @@ export class GamificationRepository {
   // ─── Gamification Prefs (leaderboard opt-in) ──────────────────────────────
 
   /**
-   * Fetch the gamification prefs stored in notification_prefs.matrix.
-   * Returns defaults when no row exists.
+   * Fetch the gamification leaderboard prefs. Returns defaults when no row exists.
    *
-   * The leaderboard opt-in and display name are stored inside the
-   * notification_prefs.matrix JSON (under "leaderboardOptIn" + "leaderboardDisplayName")
-   * as established by the notifications module's own prefs upsert path.
-   * AC-49/AC-50/AC-51: only leaderboard_opt_in = true users appear on the leaderboard.
+   * These live in their OWN columns on notification_prefs, NOT inside the `matrix`
+   * JSON. They used to be stashed in `matrix`, which is the type×channel notification
+   * matrix and whose contract (NotificationPrefMatrixSchema, `.strict()`) admits only
+   * NotificationType keys — so GET /me/notification-prefs returned a matrix that
+   * PUT /me/notification-prefs then rejected with 400, and the row carried no real
+   * notification preferences at all. Migration
+   * 20260819120000_leaderboard_prefs_out_of_matrix moved them out and stripped the keys.
+   * AC-49/AC-50/AC-51: only leaderboardOptIn = true users appear on the leaderboard.
    */
   async getGamificationPrefs(userId: string): Promise<{
     leaderboardOptIn: boolean;
@@ -392,27 +395,26 @@ export class GamificationRepository {
   }> {
     const row = await this.prisma.client.notificationPref.findFirst({
       where: { userId, deletedAt: null },
-      select: { matrix: true },
+      select: { leaderboardOptIn: true, leaderboardDisplayName: true },
     });
     if (!row) {
       return { leaderboardOptIn: false, leaderboardDisplayName: null };
     }
-    const matrix = row.matrix as Record<string, unknown>;
     return {
-      leaderboardOptIn: (matrix["leaderboardOptIn"] as boolean | undefined) ?? false,
-      leaderboardDisplayName:
-        (matrix["leaderboardDisplayName"] as string | null | undefined) ?? null,
+      leaderboardOptIn: row.leaderboardOptIn,
+      leaderboardDisplayName: row.leaderboardDisplayName,
     };
   }
 
   /**
-   * Upsert leaderboard prefs into notification_prefs.matrix.
+   * Upsert the leaderboard prefs on the user's notification_prefs row.
    * Own-scope: userId comes from the authenticated session.
    *
-   * The leaderboard prefs are stored in the existing notification_prefs row
-   * (matrix JSON field). If no row exists, one is created with default matrix values.
-   * This approach avoids a separate gamification_prefs table and reuses the established
-   * NotificationPref schema (confirmed present in prisma/schema.prisma).
+   * Writes the dedicated columns and NEVER touches `matrix`. Writing these two flags
+   * into the matrix JSON is what corrupted the notification preferences contract
+   * (see getGamificationPrefs above); creating a row here must therefore leave `matrix`
+   * at its schema default so GET /me/notification-prefs still resolves to the server
+   * default type×channel matrix rather than an object the PUT DTO would reject.
    */
   async upsertGamificationPrefs(
     tenantId: string,
@@ -422,39 +424,28 @@ export class GamificationRepository {
       leaderboardDisplayName?: string | null;
     },
   ): Promise<{ leaderboardOptIn: boolean; leaderboardDisplayName: string | null }> {
-    // Load existing matrix
-    const existing = await this.prisma.client.notificationPref.findFirst({
-      where: { userId, deletedAt: null },
-      select: { matrix: true },
-    });
-
-    const prevMatrix: Record<string, unknown> = (existing?.matrix as Record<string, unknown>) ?? {};
-    const newMatrix: Record<string, unknown> = { ...prevMatrix };
-
-    if (prefs.leaderboardOptIn !== undefined) {
-      newMatrix["leaderboardOptIn"] = prefs.leaderboardOptIn;
-    }
-    if (prefs.leaderboardDisplayName !== undefined) {
-      newMatrix["leaderboardDisplayName"] = prefs.leaderboardDisplayName;
-    }
-
-    // Upsert the notification_prefs row
-    await this.prisma.client.notificationPref.upsert({
+    const row = await this.prisma.client.notificationPref.upsert({
       where: { userId },
       create: {
         tenantId,
         userId,
-        matrix: newMatrix as Prisma.InputJsonValue,
+        ...(prefs.leaderboardOptIn !== undefined ? { leaderboardOptIn: prefs.leaderboardOptIn } : {}),
+        ...(prefs.leaderboardDisplayName !== undefined
+          ? { leaderboardDisplayName: prefs.leaderboardDisplayName }
+          : {}),
       },
       update: {
-        matrix: newMatrix as Prisma.InputJsonValue,
+        ...(prefs.leaderboardOptIn !== undefined ? { leaderboardOptIn: prefs.leaderboardOptIn } : {}),
+        ...(prefs.leaderboardDisplayName !== undefined
+          ? { leaderboardDisplayName: prefs.leaderboardDisplayName }
+          : {}),
       },
+      select: { leaderboardOptIn: true, leaderboardDisplayName: true },
     });
 
     return {
-      leaderboardOptIn: (newMatrix["leaderboardOptIn"] as boolean | undefined) ?? false,
-      leaderboardDisplayName:
-        (newMatrix["leaderboardDisplayName"] as string | null | undefined) ?? null,
+      leaderboardOptIn: row.leaderboardOptIn,
+      leaderboardDisplayName: row.leaderboardDisplayName,
     };
   }
 
@@ -533,19 +524,16 @@ export class GamificationRepository {
 
     const userIds = studentProfiles.map((s) => s.userId);
 
-    // Fetch notification_prefs for these users (leaderboard prefs live in matrix)
+    // Fetch notification_prefs for these users. The leaderboard prefs are dedicated
+    // columns, not keys inside `matrix` (see getGamificationPrefs).
     const prefs = await this.prisma.client.notificationPref.findMany({
       where: { userId: { in: userIds }, deletedAt: null },
-      select: { userId: true, matrix: true },
+      select: { userId: true, leaderboardOptIn: true, leaderboardDisplayName: true },
     });
     const prefMap = new Map(
       prefs.map((p) => [
         p.userId,
-        {
-          optIn: ((p.matrix as Record<string, unknown>)["leaderboardOptIn"] as boolean | undefined) ?? false,
-          displayName:
-            ((p.matrix as Record<string, unknown>)["leaderboardDisplayName"] as string | null | undefined) ?? null,
-        },
+        { optIn: p.leaderboardOptIn, displayName: p.leaderboardDisplayName },
       ]),
     );
 

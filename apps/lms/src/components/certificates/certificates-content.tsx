@@ -24,7 +24,6 @@ import {
   CardFooter,
   CertificateCard,
   EmptyState,
-  PageHeader,
   Skeleton,
 } from "@repo/ui";
 import type { CertificateListItem } from "@repo/types";
@@ -229,8 +228,7 @@ export function CertificatesContent({ holderName }: CertificatesContentProps): R
   }
 
   return (
-    <div data-testid="certificates-content" className="space-y-6 md:space-y-8">
-      <PageHeader title="My Certificates" />
+    <div data-testid="certificates-content">
       <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="My certificates">
         {certificates.map((cert) => (
           <CertificateItem key={cert.id} cert={cert} holderName={holderName} />

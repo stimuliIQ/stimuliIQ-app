@@ -68,10 +68,13 @@ export class ForumApi {
   async listThreads(
     query: Partial<ListThreadsQuery> = {},
   ): Promise<{ items: ThreadDto[]; meta: PaginationMeta }> {
+    // toQueryString already returns a leading "?" (or ""), so append it directly —
+    // wrapping it again as `?${qs}` double-prefixed to "??batchId=..." and the API saw
+    // no batchId at all, so every LMS forum list 400d (same bug as notifications.list).
     const qs = toQueryString(query as Record<string, string | number | boolean | undefined>);
     return this.client.requestCursorPaginated<ThreadDto>(
       "GET",
-      `/api/v1/forum/threads${qs ? `?${qs}` : ""}`,
+      `/api/v1/forum/threads${qs}`,
     );
   }
 
@@ -130,10 +133,11 @@ export class ForumApi {
     threadId: string,
     query: Partial<ListPostsQuery> = {},
   ): Promise<{ items: PostDto[]; meta: OffsetPaginationMeta }> {
+    // toQueryString already returns a leading "?" (or "") — append directly.
     const qs = toQueryString(query as Record<string, string | number | boolean | undefined>);
     return this.client.requestPaginated<PostDto>(
       "GET",
-      `/api/v1/forum/threads/${threadId}/posts${qs ? `?${qs}` : ""}`,
+      `/api/v1/forum/threads/${threadId}/posts${qs}`,
     );
   }
 
@@ -293,10 +297,11 @@ export class ForumApi {
   async getModerationQueue(
     query: Partial<ListModerationQueueQuery> = {},
   ): Promise<{ items: PostDto[]; meta: OffsetPaginationMeta }> {
+    // toQueryString already returns a leading "?" (or "") — append directly.
     const qs = toQueryString(query as Record<string, string | number | boolean | undefined>);
     return this.client.requestPaginated<PostDto>(
       "GET",
-      `/api/v1/crm/forum/moderation${qs ? `?${qs}` : ""}`,
+      `/api/v1/crm/forum/moderation${qs}`,
     );
   }
 }
