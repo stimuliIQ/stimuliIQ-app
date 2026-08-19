@@ -475,9 +475,19 @@ export class CampaignsService {
     const recipient = await this.repo.findRecipientByProviderMessageId(dto.providerMessageId);
 
     // AC-40: unknown providerMessageId (race condition) — silently discard.
+    //
+    // In practice the commonest reason to land here is NOT a race: it is a TRANSACTIONAL
+    // email (welcome credentials, password reset, invoice), which has no
+    // campaign_recipients row at all. Those receipts are the only delivery signal we get
+    // for that mail, so the event type is logged rather than dropped — without it,
+    // "the student never got the email" is unanswerable, because a `delivered` and a
+    // `bounced` receipt looked identical in the log. Pair this with the message ID
+    // ResendMailProvider logs at send time to follow one email end to end.
     if (!recipient) {
       this.logger.warn(
-        `[Campaigns] webhook: no recipient found for providerMessageId="${dto.providerMessageId}" — discarding.`,
+        `[Campaigns] webhook: no campaign recipient for providerMessageId="${dto.providerMessageId}" ` +
+          `event="${dto.event}"${dto.errorDetail ? ` detail="${dto.errorDetail}"` : ""} — ` +
+          "discarding (expected for transactional mail).",
       );
       return;
     }

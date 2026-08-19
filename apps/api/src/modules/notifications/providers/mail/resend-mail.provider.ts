@@ -136,6 +136,17 @@ export class ResendMailProvider implements MailProvider {
       throw new Error(`ResendMailProvider send failed: ${errorMsg}`);
     }
 
+    // Log the accepted message ID. Until this existed the log recorded only that a send
+    // was ATTEMPTED (the line above) and, on failure, that it threw — so a send that
+    // Resend accepted and then bounced was indistinguishable from one that arrived, and
+    // "the student never got the email" could not be answered from the logs at all. The
+    // ID is the join key: Resend's delivery receipt comes back to
+    // POST /campaigns/webhooks/email carrying the same ID, which CampaignsService logs
+    // with its event type for mail that has no campaign_recipients row (all
+    // transactional mail). Grep one ID to follow an email end to end.
+    // Safe to log: an opaque provider handle, not a credential and not PII.
+    this.logger.log(`[ResendMailProvider] accepted: id=${data.id} to=${input.to}`);
+
     return { providerMessageId: data.id };
   }
 
