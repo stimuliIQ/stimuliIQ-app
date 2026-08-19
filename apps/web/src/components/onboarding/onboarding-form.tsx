@@ -25,7 +25,7 @@ import { OnboardingQuestion } from "./onboarding-question";
 
 export function OnboardingForm() {
   const { load, submitState, answers, fieldErrors, setAnswer, submit, reload, requestUploadUrl } = useOnboardingForm();
-  const { token: captchaToken, setToken, resetToken } = useCaptchaToken();
+  const { token: captchaToken, setToken, resetToken, hasToken: hasCaptcha } = useCaptchaToken();
   // Remounts every question so uploaded files and radio selections reset together —
   // clearing only `answers` would leave a FileUpload still showing an attached receipt.
   const [formNonce, setFormNonce] = useState(0);
@@ -141,6 +141,12 @@ export function OnboardingForm() {
       <div className="rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6">
         <TurnstileWidget onToken={setToken} onExpire={resetToken} onError={resetToken} data-testid="onboarding-captcha" />
 
+        {!hasCaptcha && !isSubmitting ? (
+          <p id="onboarding-captcha-pending" className="mt-3 text-sm text-fg-muted">
+            Waiting for the security check to finish — Submit will enable once it does.
+          </p>
+        ) : null}
+
         {submitState.kind === "error" ? (
           <p role="alert" className="mt-4 text-sm text-danger" data-testid="onboarding-submit-error">
             {submitState.message}
@@ -148,9 +154,20 @@ export function OnboardingForm() {
         ) : null}
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+          {/*
+            Gated on hasCaptcha as well as isSubmitting. Without it, pressing Submit
+            before the challenge resolves (or after it expires, which clears the token)
+            posted the literal string "noop" — a dev-mode fallback that is simply an
+            invalid token in production, so the server answered `invalid-input-response`
+            and the form said "complete the captcha challenge" to somebody staring at a
+            widget that had not finished. In noop/dev mode the widget fires
+            onToken("noop") immediately, so this stays true there and dev flows are
+            unaffected.
+          */}
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !hasCaptcha}
+            aria-describedby={!hasCaptcha && !isSubmitting ? "onboarding-captcha-pending" : undefined}
             className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-brand-500 px-8 text-sm font-semibold text-white transition-colors hover:bg-brand-600 active:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             data-testid="onboarding-submit"
           >

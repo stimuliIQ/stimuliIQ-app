@@ -41,7 +41,7 @@ export function CareerApplyForm({ role, onClose }: CareerApplyFormProps) {
   const [resumeStorageKey, setResumeStorageKey] = useState<string | null>(null);
 
   const { state, fieldErrors, submit, reset, requestResumeUploadUrl } = useCareerApply();
-  const { token: captchaToken, setToken, resetToken } = useCaptchaToken();
+  const { token: captchaToken, setToken, resetToken, hasToken: hasCaptcha } = useCaptchaToken();
 
   const isSubmitting = state.kind === "submitting";
   const isSuccess = state.kind === "success";
@@ -200,7 +200,10 @@ export function CareerApplyForm({ role, onClose }: CareerApplyFormProps) {
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          disabled={isSubmitting || !resumeStorageKey || name.trim().length === 0 || email.trim().length === 0}
+          // hasCaptcha gates the button for the same reason as the onboarding form: without it,
+          // submitting before the challenge resolves posts the literal "noop" fallback, which is
+          // just an invalid token in production.
+          disabled={isSubmitting || !hasCaptcha || !resumeStorageKey || name.trim().length === 0 || email.trim().length === 0}
           className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-brand-500 px-6 text-sm font-semibold text-white transition-colors hover:bg-brand-600 active:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           data-testid="career-apply-submit"
         >

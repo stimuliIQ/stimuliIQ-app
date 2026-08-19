@@ -71,6 +71,8 @@ import { CAPTCHA_PROVIDER, type CaptchaProvider } from "./captcha-provider.inter
 import { NoopCaptchaProvider } from "./noop-captcha.provider";
 import { TurnstileCaptchaProvider } from "./turnstile-captcha.provider";
 import { FailClosedCaptchaProvider } from "./fail-closed-captcha.provider";
+import { ReplayTolerantCaptchaProvider } from "./replay-tolerant-captcha.provider";
+import { RedisService } from "../../../../redis/redis.service";
 
 const bootLogger = new Logger("CaptchaProviderModule");
 
@@ -166,7 +168,20 @@ function createCaptchaProvider(): CaptchaProvider {
   providers: [
     {
       provide: CAPTCHA_PROVIDER,
-      useFactory: createCaptchaProvider,
+      // The selected adapter is WRAPPED in ReplayTolerantCaptchaProvider (see that
+      // file's header). A Turnstile token is single-use, but /onboarding and
+      // /careers each spend one token on TWO captcha-gated calls — mint a signed
+      // upload URL, then submit — so the second call always died with
+      // `timeout-or-duplicate` and the form told the visitor to solve a captcha
+      // they had already solved. Wrapping here rather than in each service means
+      // every consumer of CAPTCHA_PROVIDER gets the fix and the vendor adapters
+      // stay pure vendor calls.
+      //
+      // RedisService is injected (RedisModule is @Global) rather than resolved
+      // inside the factory, so the memo participates in normal DI/test wiring.
+      useFactory: (redis: RedisService): CaptchaProvider =>
+        new ReplayTolerantCaptchaProvider(createCaptchaProvider(), redis),
+      inject: [RedisService],
     },
   ],
   // Export only the token — consumers inject CAPTCHA_PROVIDER, never the concrete class.
