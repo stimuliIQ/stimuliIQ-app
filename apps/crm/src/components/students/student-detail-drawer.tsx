@@ -98,11 +98,11 @@ export function StudentDetailDrawer({ studentId, onOpenChange, me }: StudentDeta
     if (!student) return;
     try {
       const result = await resendCredentials.mutateAsync(student.id);
-      toast({ title: "Credentials sent", description: `New credentials sent to ${result.email}`, variant: "success" });
+      toast({ title: "Reset link sent", description: `A single-use password reset link was emailed to ${result.email}.`, variant: "success" });
       setConfirmResendOpen(false);
     } catch (error) {
       toast({
-        title: "Couldn't resend credentials",
+        title: "Couldn't send the reset link",
         description: error instanceof Error ? error.message : undefined,
         variant: "destructive",
       });
@@ -278,14 +278,15 @@ export function StudentDetailDrawer({ studentId, onOpenChange, me }: StudentDeta
                     // action only appears from payment_completed onward — showing it for a
                     // payment-pending student would let staff hand out access early
                     // (resendCredentials rotates/activates unconditionally). Destructive
-                    // from the student's POV (rotates their current password immediately),
-                    // hence the confirm dialog below.
+                    // from the student's POV (their current password stops working at once
+                    // and every session is revoked), hence the confirm dialog below. The
+                    // email carries a single-use reset LINK, never a password.
                     <Button
                       variant="secondary"
                       onClick={() => setConfirmResendOpen(true)}
                       data-testid="student-resend-credentials-button"
                     >
-                      Resend LMS credentials
+                      Send password reset link
                     </Button>
                   ) : null}
                 </>
@@ -315,13 +316,15 @@ export function StudentDetailDrawer({ studentId, onOpenChange, me }: StudentDeta
       <ConfirmDialog
         open={confirmResendOpen}
         onOpenChange={setConfirmResendOpen}
-        title="Resend LMS credentials?"
+        title="Send a password reset link?"
         description={
           student
-            ? `This immediately invalidates ${student.name}'s current password and emails a new temporary one to ${student.email}.`
+            ? `This immediately invalidates ${student.name}'s current password and signs them out everywhere. ` +
+              `A single-use link is emailed to ${student.email}, valid for 24 hours, for them to set a new password. ` +
+              `No password is sent by email.`
             : undefined
         }
-        confirmLabel="Resend"
+        confirmLabel="Send link"
         tone="danger"
         loading={resendCredentials.isPending}
         onConfirm={handleResendCredentials}

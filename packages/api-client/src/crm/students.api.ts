@@ -57,10 +57,11 @@ export class StudentsApi {
   }
 
   /**
-   * POST /api/v1/crm/students/:id/resend-credentials — rotates the student's LMS
-   * password to a fresh temp password, sets `mustChangePassword`, and re-emails the
-   * welcome email. Destructive from the student's POV (invalidates their current
-   * password immediately) — callers must confirm before firing this.
+   * POST /api/v1/crm/students/:id/resend-credentials — invalidates the student's LMS
+   * password, revokes every live session, and emails them a SINGLE-USE reset link
+   * (valid 24h) to set a new one. No password is ever emailed. Destructive from the
+   * student's POV (they are signed out, and locked out until they use the link) —
+   * callers must confirm before firing this.
    */
   async resendCredentials(
     id: string,

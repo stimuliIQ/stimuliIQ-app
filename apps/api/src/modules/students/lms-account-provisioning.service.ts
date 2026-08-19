@@ -17,6 +17,15 @@
 //
 // The temporary password is emailed and NEVER logged or returned. The forced first-login
 // change (must_change_password gate + POST /auth/change-password) rotates it immediately.
+//
+// TWO DIFFERENT ACTIONS LIVE HERE, and they no longer work the same way:
+//
+//   provisionForStudentProfile / provisionQuiet — FIRST contact, on enrollment. Still
+//     mints a temporary password and emails it, because the student has no account to
+//     reset yet and no way to prove they own the mailbox.
+//
+//   resendCredentials — STAFF re-issuing access for a lost/compromised login. Emails a
+//     single-use, 24-hour reset LINK and never a password (see that method for why).
 
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import * as argon2 from "argon2";
@@ -24,6 +33,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { ARGON2_HASH_OPTIONS } from "../auth/lib/argon2-params";
 import { generateTemporaryPassword } from "../auth/lib/temporary-password";
 import { AuthRepository } from "../auth/auth.repository";
+import { PasswordResetStore, STAFF_ISSUED_TOKEN_TTL_SECONDS } from "../auth/lib/password-reset-store";
 import { MAIL_PROVIDER, type MailProvider } from "../notifications/providers/mail/mail-provider.interface";
 import { renderBrandedEmail, escapeEmailHtml } from "../notifications/dispatch/email-layout";
 import { validateEnv } from "../../config/env";
@@ -36,6 +46,7 @@ export class LmsAccountProvisioningService {
     private readonly prisma: PrismaService,
     @Inject(MAIL_PROVIDER) private readonly mail: MailProvider,
     private readonly authRepository: AuthRepository,
+    private readonly passwordResetStore: PasswordResetStore,
   ) {}
 
   /**
@@ -98,24 +109,47 @@ export class LmsAccountProvisioningService {
   }
 
   /**
-   * Reissue LMS login credentials for the student behind `studentProfileId` — a
-   * staff-triggered action (CRM "resend credentials"), for a lost/bounced/compromised
-   * temporary password. Returns `{ email }` on success, `null` when the profile/user was
-   * not found (in this tenant) — the caller maps that to a 404.
+   * Reissue LMS access for the student behind `studentProfileId` — a staff-triggered
+   * action (CRM "Resend LMS credentials"), for a lost/bounced/compromised login. Returns
+   * `{ email }` on success, `null` when the profile/user was not found (in this tenant) —
+   * the caller maps that to a 404.
    *
-   * UNLIKE `provisionForStudentProfile`, this is explicit and NOT gated on
-   * `passwordHash === ""` — it rotates the credential whether the account was never
-   * provisioned, provisioned-but-unused, or already fully onboarded. Reissuing always
-   * re-raises `mustChangePassword: true`, which is the correct security posture for a
-   * credential reset (the old password, whatever it was, must stop working). This is a
-   * direct staff action (not a concurrent-enrollment race), so it uses a plain `update`
-   * rather than the guarded `updateMany` idempotency dance in `provisionForStudentProfile`.
+   * ─── SENDS A SINGLE-USE LINK, NOT A PASSWORD ────────────────────────────────────────
    *
-   * SECURITY (post-review fix): also revokes every live session for this user, same as
-   * the student's own `AuthService.changePassword()` does. Without this, an attacker (or
-   * anyone) holding the OLD access/refresh token would keep a working session even after
-   * staff rotate the password specifically because it was lost/compromised — the whole
-   * point of a forced reissue is to kill that old credential, not just its password half.
+   * This used to mint a temporary password and email it in plain text. Two things were
+   * wrong with that, and both bit in production:
+   *
+   *   1. SECURITY. The password sat in the student's mailbox indefinitely, readable by
+   *      anyone who ever gained access to it, and in whatever mail logs and backups it
+   *      passed through. A reset link is single-use and expires; once used it is worthless.
+   *
+   *   2. DELIVERABILITY. "Here is your password" is one of the strongest spam signals a
+   *      transactional email can carry. Staff clicked Resend, Resend reported `delivered`,
+   *      and the student still never saw it — because it was filtered. A link-only email
+   *      is scored far more kindly, which is the difference between an email that exists
+   *      and an email that arrives.
+   *
+   * The old password is still invalidated IMMEDIATELY, which is the whole point of the
+   * action — it is used when a credential is lost or compromised, so it must stop working
+   * whether or not the student ever opens the mail. We do that by overwriting the hash
+   * with a fresh random secret that is never disclosed to anyone, rather than by blanking
+   * it: `passwordHash === ""` is the "never provisioned" sentinel `provisionQuiet` gates
+   * on, and blanking it here would make a later enrollment silently re-provision the
+   * account. The student regains access through the emailed link, or through the ordinary
+   * "Forgot password" flow, which still works because the account stays active with a
+   * (non-empty) hash.
+   *
+   * `mustChangePassword` is deliberately CLEARED rather than raised. The link IS the
+   * password-setting step: completing it proves control of the mailbox and lets the
+   * student choose their own password, which is strictly stronger than the temporary-
+   * password screen the gate exists to force. Leaving it raised would have demanded a
+   * temporary password that no longer exists — the same deadlock PasswordResetService
+   * documents at its own `setPasswordAndClearMustChange` call.
+   *
+   * SECURITY: also revokes every live session, same as the student's own
+   * `AuthService.changePassword()`. Without it, anyone holding the OLD access/refresh
+   * token would keep a working session after staff reset the account precisely because it
+   * was compromised — killing the password alone is only half the credential.
    */
   async resendCredentials(tenantId: string, studentProfileId: string): Promise<{ email: string } | null> {
     const profile = await this.prisma.client.studentProfile.findFirst({
@@ -127,20 +161,62 @@ export class LmsAccountProvisioningService {
     }
 
     const { user } = profile;
-    const tempPassword = generateTemporaryPassword();
-    const passwordHash = await argon2.hash(tempPassword, ARGON2_HASH_OPTIONS);
+    // Never disclosed, never logged, never returned — this exists only so the previous
+    // password stops working while leaving a non-empty hash behind (see the doc above).
+    const unusablePasswordHash = await argon2.hash(generateTemporaryPassword(), ARGON2_HASH_OPTIONS);
 
     await this.prisma.client.user.update({
       where: { id: user.id },
-      data: { passwordHash, mustChangePassword: true, status: "active" },
+      data: { passwordHash: unusablePasswordHash, mustChangePassword: false, status: "active" },
     });
     await this.authRepository.revokeAllSessionsForUser(user.id);
 
+    // 24h rather than the self-service 30 minutes: nobody warned the student this was
+    // coming, so reading it the same evening must still work. See
+    // STAFF_ISSUED_TOKEN_TTL_SECONDS.
+    const token = await this.passwordResetStore.issue(user.id, STAFF_ISSUED_TOKEN_TTL_SECONDS);
+
     // Same failure isolation as provisionForStudentProfile (never fail the caller-facing
-    // action just because the email bounced) — the credential rotation itself already
-    // succeeded, so this always returns the email regardless of send outcome.
-    await this.sendWelcomeEmail(user.email, user.name, tempPassword);
+    // action just because the email bounced) — the credential was already invalidated, so
+    // this returns the email regardless of send outcome.
+    await this.sendSetPasswordEmail(user.email, user.name, token);
     return { email: user.email };
+  }
+
+  /**
+   * The staff-triggered "set your password" email — a link, never a credential.
+   * Deliberately kept separate from `sendWelcomeEmail`: that one still carries a
+   * temporary password because it is the FIRST contact after enrollment, where the
+   * student has no account to reset yet and no way to prove ownership.
+   */
+  private async sendSetPasswordEmail(email: string, name: string, token: string): Promise<void> {
+    const env = validateEnv();
+    const resetUrl = `${env.LMS_APP_URL}/reset-password?token=${encodeURIComponent(token)}`;
+    try {
+      await this.mail.send({
+        to: email,
+        subject: "Set your stimuliIQ password",
+        html: renderBrandedEmail({
+          title: "Set your password",
+          greeting: `Hi ${escapeEmailHtml(name)},`,
+          paragraphs: [
+            "Your stimuliIQ learning account is ready. Use the button below to choose your password and sign in.",
+            "This link works once and expires in 24 hours. Your previous password no longer works.",
+          ],
+          button: { label: "Set my password", url: resetUrl },
+          footnote:
+            "If you did not expect this email, you can ignore it — the link cannot be used to read anything " +
+            "about your account, and nobody can sign in until a new password is set.",
+        }),
+        tags: [{ name: "category", value: "lms_set_password" }],
+      });
+    } catch (err) {
+      // The credential was already invalidated and the token already issued — the student
+      // can still use "Forgot password". Logged (without the token) for follow-up.
+      this.logger.error(
+        `[LmsProvisioning] set-password email failed for ${email}: ${err instanceof Error ? err.message : "unknown error"}`,
+      );
+    }
   }
 
   private async sendWelcomeEmail(email: string, name: string, tempPassword: string): Promise<void> {

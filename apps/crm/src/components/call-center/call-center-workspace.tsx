@@ -11,7 +11,7 @@
 //   - leads    → lead drawer (stage moves, follow-ups, bookings, CONVERT)
 //
 // Passwords are one-way hashed and can never be shown; the "forgot my
-// password" call is served inside the Student 360 via "Resend LMS credentials".
+// password" call is served inside the Student 360 via "Send password reset link".
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, Input, PageHeader, Skeleton } from "@repo/ui";

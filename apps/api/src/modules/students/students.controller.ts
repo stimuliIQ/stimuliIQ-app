@@ -106,7 +106,9 @@ export class StudentsController {
 
   /**
    * POST /crm/students/:id/resend-credentials (gap-closing pass) — reissue a student's
-   * LMS login when the welcome email bounced/was lost, or a credential needs rotating.
+   * LMS access when the welcome email bounced/was lost, or a credential needs rotating.
+   * Emails a single-use reset LINK, never a password (see LmsAccountProvisioningService
+   * .resendCredentials for why the temporary-password version was replaced).
    * Reuses `students.edit` (the existing gate for "mutates a student's account state" —
    * same permission `restore` above uses) rather than a new one-off permission key.
    *

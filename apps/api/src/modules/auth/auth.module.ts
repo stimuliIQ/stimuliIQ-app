@@ -79,6 +79,9 @@ import { TwoFactorRecoveryStore } from "./lib/two-factor-recovery-store";
     // AdminModule's UsersAdminService injects this for the `twofa.reset` admin rescue
     // path (clearing a user's 2FA credential when they've lost device AND inbox).
     TwoFactorStore,
+    // LmsAccountProvisioningService injects this for the CRM "Resend LMS credentials"
+    // action, which mints a single-use reset link instead of emailing a password.
+    PasswordResetStore,
     // Re-export the whole module (NOT just the SMS_PROVIDER token — Nest requires
     // re-exporting the providing module itself for a token that isn't declared in
     // THIS module's own `providers` array) so DispatchModule (and any future

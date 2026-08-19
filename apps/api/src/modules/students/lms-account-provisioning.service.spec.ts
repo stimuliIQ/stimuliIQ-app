@@ -9,6 +9,7 @@ jest.mock("../../config/env", () => ({
 import * as argon2 from "argon2";
 import { LmsAccountProvisioningService } from "./lms-account-provisioning.service";
 import type { MailProvider } from "../notifications/providers/mail/mail-provider.interface";
+import { STAFF_ISSUED_TOKEN_TTL_SECONDS } from "../auth/lib/password-reset-store";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 const PROFILE_ID = "22222222-2222-2222-2222-222222222222";
@@ -42,6 +43,11 @@ function makeAuthRepository() {
   return { revokeAllSessionsForUser: jest.fn().mockResolvedValue(undefined) };
 }
 
+// resendCredentials now mints a single-use reset token instead of a temp password.
+function makePasswordResetStore() {
+  return { issue: jest.fn().mockResolvedValue("reset-token-abc"), consume: jest.fn() };
+}
+
 describe("LmsAccountProvisioningService", () => {
   it("provisions a temp password + sends a welcome email for a never-provisioned account", async () => {
     const { prisma, updateMany } = makePrisma(makeProfile({ passwordHash: "" }));
@@ -50,6 +56,7 @@ describe("LmsAccountProvisioningService", () => {
       prisma as never,
       mail as unknown as MailProvider,
       makeAuthRepository() as never,
+      makePasswordResetStore() as never,
     );
 
     const result = await svc.provisionForStudentProfile(TENANT_ID, PROFILE_ID);
@@ -85,6 +92,7 @@ describe("LmsAccountProvisioningService", () => {
       prisma as never,
       mail as unknown as MailProvider,
       makeAuthRepository() as never,
+      makePasswordResetStore() as never,
     );
 
     const result = await svc.provisionForStudentProfile(TENANT_ID, PROFILE_ID);
@@ -101,6 +109,7 @@ describe("LmsAccountProvisioningService", () => {
       prisma as never,
       mail as unknown as MailProvider,
       makeAuthRepository() as never,
+      makePasswordResetStore() as never,
     );
 
     const result = await svc.provisionForStudentProfile(TENANT_ID, PROFILE_ID);
@@ -116,6 +125,7 @@ describe("LmsAccountProvisioningService", () => {
       prisma as never,
       mail as unknown as MailProvider,
       makeAuthRepository() as never,
+      makePasswordResetStore() as never,
     );
 
     await expect(svc.provisionForStudentProfile(TENANT_ID, PROFILE_ID)).resolves.toBe(false);
@@ -130,45 +140,56 @@ describe("LmsAccountProvisioningService", () => {
       prisma as never,
       mail as unknown as MailProvider,
       makeAuthRepository() as never,
+      makePasswordResetStore() as never,
     );
 
     await expect(svc.provisionForStudentProfile(TENANT_ID, PROFILE_ID)).resolves.toBe(true);
   });
 
-  describe("resendCredentials (gap-closing pass: CRM 'resend credentials' action)", () => {
-    it("rotates the password + re-raises mustChangePassword + emails the student, even when already onboarded", async () => {
+  describe("resendCredentials (CRM 'Resend LMS credentials' — issues a single-use reset LINK)", () => {
+    it("invalidates the old password, revokes sessions, and emails a reset link — never a password", async () => {
       // Unlike provisionForStudentProfile, an EXISTING (non-empty) passwordHash must NOT
-      // block this â€” it's an explicit staff-triggered reissue.
+      // block this — it's an explicit staff-triggered reissue.
       const { prisma, update } = makePrisma(makeProfile({ passwordHash: "$argon2id$existing" }));
       const mail = makeMail();
       const authRepository = makeAuthRepository();
+      const store = makePasswordResetStore();
       const svc = new LmsAccountProvisioningService(
         prisma as never,
         mail as unknown as MailProvider,
         authRepository as never,
+        store as never,
       );
 
       const result = await svc.resendCredentials(TENANT_ID, PROFILE_ID);
 
       expect(result).toEqual({ email: "asha@example.com" });
-      expect(update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: USER_ID },
-          data: expect.objectContaining({ mustChangePassword: true, status: "active" }),
-        }),
-      );
-      const hash = update.mock.calls[0][0].data.passwordHash as string;
-      expect(hash).toMatch(/^\$argon2/);
 
-      // SECURITY: reissuing credentials must kill any live session using the old password.
+      // The old password must stop working immediately — that is the point of the action.
+      // The replacement hash is random and never disclosed, so nobody can sign in with it.
+      const data = update.mock.calls[0][0].data as { passwordHash: string; mustChangePassword: boolean; status: string };
+      expect(data.passwordHash).toMatch(/^\$argon2/);
+      expect(data.passwordHash).not.toBe("$argon2id$existing");
+      expect(data.status).toBe("active");
+      // NOT re-raised: the emailed link IS the password-setting step. Raising it would
+      // demand a temporary password that no longer exists.
+      expect(data.mustChangePassword).toBe(false);
+      // Never blank — "" is provisionQuiet's never-provisioned sentinel.
+      expect(data.passwordHash).not.toBe("");
+
+      // SECURITY: reissuing must kill any live session using the old credential.
       expect(authRepository.revokeAllSessionsForUser).toHaveBeenCalledWith(USER_ID);
+
+      // A staff-issued link gets the long TTL, not the 30-minute self-service one.
+      expect(store.issue).toHaveBeenCalledWith(USER_ID, STAFF_ISSUED_TOKEN_TTL_SECONDS);
 
       expect(mail.send).toHaveBeenCalledTimes(1);
       const sent = mail.send.mock.calls[0][0];
       expect(sent.to).toBe("asha@example.com");
-      const emailedPw = /Temporary password<\/td>\s*<td[^>]*>([^<]+)</.exec(sent.html)?.[1];
-      expect(emailedPw).toBeTruthy();
-      await expect(argon2.verify(hash, emailedPw as string)).resolves.toBe(true);
+      expect(sent.html).toContain("https://lms.stimuliiq.test/reset-password?token=reset-token-abc");
+      // THE POINT OF THE CHANGE: no credential in the mailbox.
+      expect(sent.html).not.toMatch(/Temporary password/i);
+      expect(sent.html).not.toContain(data.passwordHash);
     });
 
     it("also works for a NEVER-provisioned account (passwordHash === '')", async () => {
@@ -178,6 +199,7 @@ describe("LmsAccountProvisioningService", () => {
         prisma as never,
         mail as unknown as MailProvider,
         makeAuthRepository() as never,
+        makePasswordResetStore() as never,
       );
 
       const result = await svc.resendCredentials(TENANT_ID, PROFILE_ID);
@@ -191,19 +213,23 @@ describe("LmsAccountProvisioningService", () => {
       const { prisma, update } = makePrisma(null);
       const mail = makeMail();
       const authRepository = makeAuthRepository();
+      const store = makePasswordResetStore();
       const svc = new LmsAccountProvisioningService(
         prisma as never,
         mail as unknown as MailProvider,
         authRepository as never,
+        store as never,
       );
 
       await expect(svc.resendCredentials(TENANT_ID, PROFILE_ID)).resolves.toBeNull();
       expect(update).not.toHaveBeenCalled();
       expect(mail.send).not.toHaveBeenCalled();
       expect(authRepository.revokeAllSessionsForUser).not.toHaveBeenCalled();
+      // No token may be minted for a user we never found.
+      expect(store.issue).not.toHaveBeenCalled();
     });
 
-    it("still returns { email } (never throws) even if the welcome email fails to send", async () => {
+    it("still returns { email } (never throws) even if the email fails to send", async () => {
       const { prisma } = makePrisma(makeProfile({ passwordHash: "$argon2id$existing" }));
       const mail = makeMail();
       mail.send.mockRejectedValueOnce(new Error("Resend down"));
@@ -212,6 +238,7 @@ describe("LmsAccountProvisioningService", () => {
         prisma as never,
         mail as unknown as MailProvider,
         authRepository as never,
+        makePasswordResetStore() as never,
       );
 
       await expect(svc.resendCredentials(TENANT_ID, PROFILE_ID)).resolves.toEqual({ email: "asha@example.com" });
