@@ -1,15 +1,23 @@
-// `job_openings` block fields (docs/specs/phase-10-page-builder.md block #9).
-// Empty `items` is valid (`CareersRoleList` already handles the empty state) — no
-// minimum-items nudge, unlike the other list blocks.
+// `job_openings` block fields — the Open Roles section of the careers page.
+//
+// THERE IS NO ROLE EDITOR HERE ANY MORE, and its absence is the point. This form used to
+// carry an add/remove/reorder list of roles typed straight into the page. Openings are now
+// CRM rows (Careers ▸ Openings, ADR-0066) resolved live at render time, so those fields
+// would have been controls that look like they publish a job and in fact do nothing — the
+// exact "save does nothing" trap that got `stats.headline` deleted in P10-2. Removing them
+// is what keeps the legacy `items` field in @repo/types honest: it is tolerated in stored
+// data so old page versions still parse, and no human can write to it.
+//
+// What remains is what genuinely belongs to the PAGE rather than to the roles: the section
+// heading, and the line shown when nothing is open.
 import * as React from "react";
+import { Link } from "@tanstack/react-router";
 import type { Control, FieldErrors, UseFormRegister, UseFormSetValue, UseFormWatch } from "react-hook-form";
-import { useFieldArray } from "react-hook-form";
-import { Button, Input } from "@repo/ui";
+import { Callout, Input } from "@repo/ui";
 
 import { JobOpeningsBlockDataSchema, type JobOpeningsBlockData } from "@repo/types";
 import type { z } from "zod";
 
-import { ArrayItemControls } from "./shared-fields";
 import { OptionalHeadingFields } from "./heading-fields";
 
 export type JobOpeningsFormValues = z.input<typeof JobOpeningsBlockDataSchema>;
@@ -23,47 +31,35 @@ export interface BlockFieldsProps {
 }
 
 export function JobOpeningsFields({ control, register, errors, watch, setValue }: BlockFieldsProps): React.JSX.Element {
-  const { fields, append, remove, move } = useFieldArray({ control, name: "items" });
-
   return (
     <div className="flex flex-col gap-3">
-      <OptionalHeadingFields control={control} register={register} errors={errors} watch={watch} setValue={setValue} variant="minimal" testIdPrefix="job-openings" />
+      <OptionalHeadingFields
+        control={control}
+        register={register}
+        errors={errors}
+        watch={watch}
+        setValue={setValue}
+        variant="minimal"
+        testIdPrefix="job-openings"
+      />
 
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-fg-muted">Open roles ({fields.length}/30) — empty is valid</p>
-        {fields.length < 30 ? (
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => append({ title: "", employmentType: "", location: "", description: "" })}
-            data-testid="job-openings-item-add"
-          >
-            + Add role
-          </Button>
-        ) : null}
-      </div>
-      {fields.map((field, index) => (
-        <div key={field.id} className="flex flex-col gap-2 rounded-md border border-border p-2">
-          <div className="grid grid-cols-3 gap-2">
-            <Input label="Title" required {...register(`items.${index}.title`)} error={errors.items?.[index]?.title?.message} data-testid={`job-openings-item-${index}-title`} />
-            <Input label="Employment type" required placeholder="Full-time" {...register(`items.${index}.employmentType`)} error={errors.items?.[index]?.employmentType?.message} data-testid={`job-openings-item-${index}-type`} />
-            <Input label="Location" required {...register(`items.${index}.location`)} error={errors.items?.[index]?.location?.message} data-testid={`job-openings-item-${index}-location`} />
-          </div>
-          <Input label="Description" required {...register(`items.${index}.description`)} error={errors.items?.[index]?.description?.message} data-testid={`job-openings-item-${index}-description`} />
-          <ArrayItemControls
-            index={index}
-            count={fields.length}
-            onMoveUp={() => move(index, index - 1)}
-            onMoveDown={() => move(index, index + 1)}
-            onRemove={() => remove(index)}
-            itemLabel={`role ${index + 1}`}
-            testIdPrefix="job-openings-item"
-          />
-        </div>
-      ))}
+      <Callout tone="info" data-testid="job-openings-managed-elsewhere">
+        The roles themselves live in{" "}
+        <Link to="/careers/openings" className="font-medium underline underline-offset-2">
+          Careers ▸ Openings
+        </Link>
+        . Publishing an opening there puts it on this page straight away — there is nothing to
+        save here for it.
+      </Callout>
 
-      <Input label="Empty-state message" required {...register("emptyStateMessage")} error={errors.emptyStateMessage?.message} data-testid="job-openings-empty-message" />
+      <Input
+        label="Shown when no roles are open"
+        required
+        {...register("emptyStateMessage")}
+        error={errors.emptyStateMessage?.message}
+        helperText="Visitors see this line whenever every opening is closed or lapsed."
+        data-testid="job-openings-empty-message"
+      />
     </div>
   );
 }

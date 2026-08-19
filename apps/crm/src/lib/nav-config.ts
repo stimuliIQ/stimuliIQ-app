@@ -55,6 +55,7 @@ import {
   Headset,
   ClipboardList,
   KeyRound,
+  Briefcase,
 } from "lucide-react";
 
 export interface NavLeaf {
@@ -275,6 +276,22 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       { label: "Campaign Performance", to: "/analytics/campaigns", permission: "reports.campaigns.view" },
       { label: "Exports", to: "/analytics/exports", permission: "reports.export" },
+    ],
+  },
+  {
+    // Hiring (docs/specs/careers-hiring.md, ADR-0066). Sits next to Leave Management: both
+    // are staff/people areas rather than parts of the student business.
+    //
+    // Gated on `careers.*`, NOT `content.*`, even though Openings edits the public website
+    // — an application carries a stranger's resume and phone number, so whoever may rewrite
+    // the homepage does not thereby get to read CVs. Openings is visible to anyone who can
+    // work the queue (`careers.view`) because Applications filters by role; only the writes
+    // need `careers.openings.manage`, which the server enforces.
+    label: "Careers",
+    icon: Briefcase,
+    children: [
+      { label: "Applications", to: "/careers/applications", permission: "careers.view" },
+      { label: "Openings", to: "/careers/openings", permission: "careers.view" },
     ],
   },
   {

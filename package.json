@@ -33,6 +33,7 @@
     "db:seed:psychology": "ts-node --project prisma/tsconfig.seed.json prisma/seed-psychology-curriculum.ts",
     "db:seed:onboarding": "ts-node --project prisma/tsconfig.seed.json prisma/seed-onboarding.ts",
     "db:seed:leave": "ts-node --project prisma/tsconfig.seed.json prisma/seed-leave.ts",
+    "db:seed:careers": "ts-node --project prisma/tsconfig.seed.json prisma/seed-careers.ts",
     "db:seed:twofa-reset": "ts-node --project prisma/tsconfig.seed.json prisma/seed-two-factor-reset.ts",
     "db:seed:audit-permissions": "ts-node --project prisma/tsconfig.seed.json prisma/seed-audit-permissions.ts",
     "db:seed:user-delete": "ts-node --project prisma/tsconfig.seed.json prisma/seed-user-delete.ts",

@@ -298,6 +298,10 @@ const AUDITED_MODELS = new Set<string>([
   "NewsletterSubscription",
   "ContactSubmission",
   "CareerApplication",
+  // Careers/hiring (ADR-0066). Publishing, closing or editing a live job advert is a
+  // public-facing change, and every application decision (hold/shortlist/offer/reject)
+  // mails a real person — both belong in the audit trail.
+  "JobOpening",
   "Setting",
   "Bookmark",
   "LessonNote",

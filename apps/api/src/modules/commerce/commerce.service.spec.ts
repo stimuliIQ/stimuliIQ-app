@@ -191,6 +191,7 @@ describe("CommerceService", () => {
     putObject: jest.fn(),
     delete: jest.fn(),
     head: jest.fn().mockResolvedValue({ exists: false }),
+    getObject: jest.fn().mockResolvedValue({ body: Buffer.from("stub"), contentType: "application/pdf", size: 4 }),
   };
 
   beforeEach(async () => {

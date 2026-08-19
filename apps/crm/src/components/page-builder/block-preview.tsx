@@ -182,21 +182,18 @@ function BlockPreview({ block, index }: { block: ResolvedPageBuilderBlock; index
       );
     }
     case "job_openings": {
+      // A REFERENCE block (ADR-0066): the roles are live CRM rows, not page content, so
+      // there is nothing stored here to preview. Showing the legacy `items` would preview
+      // data the published page does not render — a preview that disagrees with the page is
+      // worse than one that admits it has nothing to show.
       const d = block.data;
       return (
         <div className="flex flex-col gap-2 rounded-md bg-surface p-4">
           {d.heading ? <h3 className="text-lg font-semibold text-fg">{d.heading.title}</h3> : null}
-          {d.items.length === 0 ? (
-            <p className="text-sm text-fg-muted">{d.emptyStateMessage}</p>
-          ) : (
-            d.items.map((item, i) => (
-              <div key={i} className="rounded-md border border-border p-2">
-                <p className="text-sm font-medium text-fg">
-                  {item.title} <span className="text-xs text-fg-muted">— {item.employmentType}, {item.location}</span>
-                </p>
-              </div>
-            ))
-          )}
+          <p className="text-sm text-fg-muted">
+            The open roles are pulled live from Careers ▸ Openings when this page is viewed.
+          </p>
+          <p className="text-xs text-fg-subtle">When nothing is open: &ldquo;{d.emptyStateMessage}&rdquo;</p>
         </div>
       );
     }

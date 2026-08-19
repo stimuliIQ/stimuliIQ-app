@@ -122,6 +122,23 @@ admits no fixed DTO. It ships as ONE route on the existing marketing site
 dropped, since it needed DNS + a Vercel domain attachment and ran edge middleware on every
 request to the whole site to serve one page.
 
+ADR 0066 was decided/implemented for careers/hiring (`docs/specs/careers-hiring.md`),
+closing a loop that had been half-built: job openings were free text typed into the careers
+page, applications landed in a table with NO CRM screen at all, and not one email was ever
+sent — a candidate uploaded a resume into silence. Openings become a CRM-managed table
+surfaced live on the site (the P11 colleges pattern), so an application can reference a real
+opening; the `job_openings` page-builder block becomes a second reference block beside
+`live_collection_ref` and loses its role editor entirely, so no control remains that looks
+like it publishes a job and does not. Review is FOUR VERBS — hold / shortlist / offer /
+reject — rather than a status picker, following ADR-0064's and P4's precedent for a stronger
+reason: three of the four email a person outside the company and one attaches a signed offer
+letter, so an irreversible message must not ride on a dropdown. The offer letter is ATTACHED
+rather than linked (the owner's call), which is why `MailProvider` gained `attachments` and
+`StorageProvider` gained a size-capped `getObject` — the only server-side byte read in the
+codebase. Careers also gets its own permission domain (`careers.view/review/openings.manage`)
+rather than reusing `content.*` like the colleges screen next door: an application carries a
+stranger's resume, and whoever may rewrite the homepage should not thereby read CVs.
+
 Security follow-ups and deferred work from each phase's security review and build are
 tracked separately in the relevant followups file (`docs/phase-0-followups.md`,
 `docs/phase-1-followups.md`, `docs/phase-2-followups.md`, `docs/phase-3-followups.md`,

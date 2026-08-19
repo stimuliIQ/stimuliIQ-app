@@ -505,6 +505,41 @@ function buildOnboardingPermissionCatalog(): Array<{ key: string; label: string 
 }
 
 /**
+ * Careers / hiring (docs/specs/careers-hiring.md, ADR-0066).
+ *
+ * THREE keys, and the split is the design — see careers.controller.ts's header for the
+ * long version. In short:
+ *
+ *   careers.view            — read the application queue. This is the one that matters.
+ *                             An application carries a stranger's name, phone number,
+ *                             resume and cover letter, none of it solicited. A content
+ *                             editor who can rewrite the homepage has no business reading
+ *                             CVs, which is exactly why careers does NOT reuse `content.*`
+ *                             the way the colleges screen next door does.
+ *   careers.review          — decide an application. Every verb behind this key emails a
+ *                             real person, so the authority to send that mail is separate
+ *                             from the ability to read the queue.
+ *   careers.openings.manage — write the job adverts (create/edit/publish/close). Changing
+ *                             what the public careers page says is a different privilege
+ *                             from working the candidate queue, the same way
+ *                             `onboarding.fields.manage` is separate from
+ *                             `onboarding.view` (P12).
+ *
+ * Grants below follow the P9/P10 discipline — every key reaches at least one non-admin
+ * role, so none of them is the "@RequirePermission key with zero grants = 403 for
+ * everybody" bug the catalog specs exist to prevent.
+ */
+const CAREERS_PERMISSIONS: Array<{ key: string; label: string }> = [
+  { key: "careers.view", label: "View Career Applications" },
+  { key: "careers.review", label: "Decide Career Applications (hold/shortlist/offer/reject)" },
+  { key: "careers.openings.manage", label: "Manage Job Openings" },
+];
+
+function buildCareersPermissionCatalog(): Array<{ key: string; label: string }> {
+  return CAREERS_PERMISSIONS;
+}
+
+/**
  * Staff leave management (docs/specs/leave-management.md).
  *
  * Only THREE keys live in the catalog. The two AUTHORITY keys — `leave.approve` and
@@ -691,6 +726,7 @@ async function main(): Promise<void> {
     ...buildP9PermissionCatalog(),
     ...buildP10PermissionCatalog(),
     ...buildOnboardingPermissionCatalog(),
+    ...buildCareersPermissionCatalog(),
     ...buildLeavePermissionCatalog(),
   ];
   const permissions = await Promise.all(
@@ -1126,6 +1162,27 @@ async function main(): Promise<void> {
   await Promise.all(
     [counsellorRole, supportRole].flatMap((role) =>
       ["onboarding.view", "onboarding.edit"].map((key) => grant(role.id, permId(key), RolePermissionScope.all)),
+    ),
+  );
+
+  // ── Careers grants (hiring) ──────────────────────────────────────────────────────
+  //
+  // admin + super_admin already hold all three keys through the catch-all catalog grant
+  // above — hiring decisions sit with them by default, since this company has no separate
+  // HR role.
+  //
+  // `branch_manager` is the one non-admin role that gets careers.view + careers.review:
+  // a branch manager is who actually interviews a counsellor or a faculty hire for their
+  // centre, and routing every hold/shortlist through a super admin would mean nobody
+  // touches the queue for a week. They do NOT get careers.openings.manage — what the
+  // public careers page advertises, and at what compensation, stays with admin.
+  //
+  // scope=all, not branch: an application arrives from an anonymous public form and has no
+  // branch to be partitioned by (same reasoning as onboarding directly above). The service
+  // fails closed on any narrowed scope rather than silently widening it.
+  await Promise.all(
+    ["careers.view", "careers.review"].map((key) =>
+      grant(branchManagerRole.id, permId(key), RolePermissionScope.all),
     ),
   );
 
@@ -4959,6 +5016,7 @@ async function main(): Promise<void> {
   console.log(`[seed]   --- Onboarding form (onboarding.stimuliiq.com) ---`);
   // eslint-disable-next-line no-console
   console.log(`[seed]   onboarding perms:  ${ONBOARDING_PERMISSIONS.length} (onboarding.view/edit/delete + onboarding.fields.manage)`);
+  console.log(`[seed]   careers perms:     ${CAREERS_PERMISSIONS.length} (careers.view/review + careers.openings.manage)`);
   // eslint-disable-next-line no-console
   console.log(`[seed]   onboarding_fields: ${onboardingFieldDefs.length} seeded questions (all CRM-editable; existing rows never overwritten)`);
 

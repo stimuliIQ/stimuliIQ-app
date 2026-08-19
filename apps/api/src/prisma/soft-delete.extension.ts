@@ -102,6 +102,10 @@ const SOFT_DELETE_MODELS = new Set<string>([
   "NewsletterSubscription",
   "ContactSubmission",
   "CareerApplication",
+  // Careers/hiring (ADR-0066). An opening is soft-deleted so the applications that
+  // reference it keep their FK — and so its slug frees up for reuse via the partial
+  // unique index (see the migration).
+  "JobOpening",
   "Setting",
   "Bookmark",
   "LessonNote",

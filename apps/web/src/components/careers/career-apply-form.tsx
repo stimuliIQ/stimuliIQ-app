@@ -6,6 +6,11 @@
  * `mailto:`/contact-page-redirect placeholder with a real, zod-validated,
  * captcha-gated submission to `client.public.careers.apply`.
  *
+ * The form is opened from one live opening in `CareersRoleList`, so it submits that
+ * opening's id alongside the role title. Submitting triggers an automatic "thanks for
+ * applying" email (ADR-0066) — the success panel says so, because a form that promises an
+ * email and does not send one is worse than a form that promises nothing.
+ *
  * Resume upload uses the `FileUpload` primitive (@repo/ui) wired to
  * `useCareerApply().requestResumeUploadUrl`, which calls the PUBLIC
  * `client.public.careers.getResumeUploadUrl()` endpoint (captcha + rate-limited,
@@ -24,11 +29,14 @@ const inputClass = [
 ].join(" ");
 
 export interface CareerApplyFormProps {
+  /** The CRM opening this form applies to (ADR-0066). */
+  jobOpeningId?: string;
+  /** The opening's title, shown to the candidate and snapshotted onto the application. */
   role: string;
   onClose?: () => void;
 }
 
-export function CareerApplyForm({ role, onClose }: CareerApplyFormProps) {
+export function CareerApplyForm({ jobOpeningId, role, onClose }: CareerApplyFormProps) {
   const nameId = useId();
   const emailId = useId();
   const phoneId = useId();
@@ -53,6 +61,7 @@ export function CareerApplyForm({ role, onClose }: CareerApplyFormProps) {
       name,
       email,
       phone,
+      jobOpeningId,
       role,
       resumeStorageKey,
       coverLetter,
@@ -70,6 +79,10 @@ export function CareerApplyForm({ role, onClose }: CareerApplyFormProps) {
       >
         <p className="font-semibold text-success">
           {state.kind === "success" ? state.message : "Application received!"}
+        </p>
+        <p className="mt-2 text-sm text-fg-muted">
+          We have emailed you a confirmation. Someone from our team reads every application,
+          and you will hear from us either way.
         </p>
         {onClose ? (
           <button

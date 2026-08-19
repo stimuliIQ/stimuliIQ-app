@@ -57,6 +57,7 @@ function mockStorage() {
     putObject: jest.fn(),
     delete: jest.fn(),
     head: jest.fn(),
+    getObject: jest.fn().mockResolvedValue({ body: Buffer.from("stub"), contentType: "application/pdf", size: 4 }),
   };
 }
 

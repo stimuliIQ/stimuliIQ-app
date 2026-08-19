@@ -78,7 +78,10 @@ export class NoopMailProvider implements MailProvider {
     // Log to + subject only — never the HTML body (may contain personal data).
     this.logger.log(
       `[NoopMailProvider] send: to=${input.to} subject="${input.subject}" ` +
-        `tags=${JSON.stringify(input.tags ?? [])} (no network call)`,
+        `tags=${JSON.stringify(input.tags ?? [])} ` +
+        // Attachment NAMES only — never the bytes, and never a byte count that would
+        // fingerprint the document. Enough to confirm the offer letter was attached.
+        `attachments=${JSON.stringify((input.attachments ?? []).map((a) => a.filename))} (no network call)`,
     );
 
     const providerMessageId = `${NOOP_MAIL_ID_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;

@@ -1,9 +1,16 @@
 // apps/api/src/modules/content/live-collection-resolver.service.ts
 //
-// Server-side resolver for the page-builder's ONE reference block type,
-// `live_collection_ref` (docs/specs/phase-10-page-builder.md block #10). Used by BOTH
-// read paths that must resolve identically (AC 4 — preview must render "exactly what
-// the public site would"):
+// Server-side resolver for the page-builder's reference block types — the blocks whose
+// content is NOT stored in the page:
+//   `live_collection_ref` (docs/specs/phase-10-page-builder.md block #10) — testimonials,
+//                           partners, programs, mentors.
+//   `job_openings`        (ADR-0066) — the live roles on /careers, from CRM ▸ Careers ▸
+//                           Openings. Roles used to be typed into this block; they are a
+//                           managed table now, and the block keeps only its heading and
+//                           empty-state copy.
+//
+// Used by BOTH read paths that must resolve identically (AC 4 — preview must render
+// "exactly what the public site would"):
 //   - `ContentPagesService.getPublicBySlug` (GET /public/pages/:slug, isBuilderManaged rows)
 //   - `ContentPagesBuilderService.preview` (POST /crm/content-pages/:id/preview)
 //
@@ -26,11 +33,13 @@ import type {
   LiveCollectionRefBlockData,
   ResolvedLiveCollectionRefBlockData,
   ResolvedPartnerItem,
+  PublicJobOpening,
 } from "@repo/types";
 import { PageBuilderBlockSchema } from "@repo/types";
 import { TestimonialsRepository, type PublishedTestimonialRow } from "./testimonials.repository";
 import { PartnersRepository, type PartnerRow } from "./partners.repository";
 import { PublicCatalogService } from "../public/public-catalog.service";
+import { JobOpeningsService } from "../careers/job-openings.service";
 import { mintCdnUrl } from "./content.util";
 
 function toPublicTestimonial(row: PublishedTestimonialRow): PublicTestimonial {
@@ -65,6 +74,7 @@ export class LiveCollectionResolverService {
     private readonly testimonialsRepository: TestimonialsRepository,
     private readonly partnersRepository: PartnersRepository,
     private readonly publicCatalogService: PublicCatalogService,
+    private readonly jobOpeningsService: JobOpeningsService,
   ) {}
 
   /**
@@ -99,13 +109,40 @@ export class LiveCollectionResolverService {
   }
 
   private async resolveOne(tenantId: string, block: PageBuilderBlock): Promise<ResolvedPageBuilderBlock> {
+    if (block.type === "job_openings") {
+      return { type: "job_openings", data: { ...block.data, resolvedItems: await this.resolveJobOpenings(tenantId) } };
+    }
     if (block.type !== "live_collection_ref") {
-      // Every non-reference block type has an IDENTICAL shape on the resolved union.
+      // Every other block type has an IDENTICAL shape on the resolved union.
       return block;
     }
     const data: LiveCollectionRefBlockData = block.data;
     const resolvedItems = await this.resolveSelection(tenantId, data);
     return { type: "live_collection_ref", data: { ...data, resolvedItems } as ResolvedLiveCollectionRefBlockData };
+  }
+
+  /**
+   * Live roles for the careers page's Open Roles section.
+   *
+   * Delegates to JobOpeningsService's tenant-scoped read so the published-only +
+   * not-past-closesOn filter exists in exactly one place — the site and
+   * `GET /public/careers/openings` must never disagree about which roles are open.
+   *
+   * Degrades to an empty list on any failure, matching this file's standing rule: a
+   * resolution problem hides one section (the renderer drops a block with no items), it
+   * never 500s the whole careers page.
+   */
+  private async resolveJobOpenings(tenantId: string): Promise<PublicJobOpening[]> {
+    try {
+      // 30 is the block's own historical ceiling on hand-typed roles; keeping it means a
+      // runaway list cannot turn the careers page into an unbounded query.
+      return await this.jobOpeningsService.listPublicForTenant(tenantId, { limit: 30 });
+    } catch (err) {
+      this.logger.warn(
+        `[LiveCollectionResolver] Job-opening resolution failed, resolving to empty list: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return [];
+    }
   }
 
   private async resolveSelection(tenantId: string, data: LiveCollectionRefBlockData): Promise<unknown[]> {

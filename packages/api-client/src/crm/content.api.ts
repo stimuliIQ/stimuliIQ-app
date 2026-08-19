@@ -1,6 +1,7 @@
 // Typed headless-CMS admin SDK (CRM/staff surface) — Phase 9 Completion, T14/T22
 // (docs/plans/phase-9-completion.md). Draft/publish CRUD for blog, testimonials,
-// partners, faculty bios, content pages, plus newsletter/contact/career admin lists.
+// partners, faculty bios, content pages, plus the newsletter/contact admin lists.
+// Careers moved to `client.crm.careers` (crm/careers.api.ts, ADR-0066).
 // Public read counterparts live on `client.public.content.*`.
 // Exposed on the SDK as `client.crm.content.*` (nested, mirrors `client.crm.admin.*`).
 
@@ -55,10 +56,6 @@ import type {
   UpdateContactSubmissionStatusRequest,
   ListContactSubmissionsQuery,
   ContactSubmission,
-  UpdateCareerApplicationStatusRequest,
-  ListCareerApplicationsQuery,
-  CareerApplicationSummary,
-  CareerApplicationDetail,
 } from "@repo/types";
 import type { ApiClient } from "../http/client.js";
 import { toQueryString } from "../http/query.js";
@@ -307,35 +304,6 @@ export class ContactAdminApi {
   }
 }
 
-export class CareersAdminApi {
-  constructor(private readonly client: ApiClient) {}
-
-  /** GET /api/v1/crm/career-applications */
-  async list(query: ListCareerApplicationsQuery) {
-    return this.client.requestPaginated<CareerApplicationSummary>(
-      "GET",
-      `/api/v1/crm/career-applications${toQueryString(query)}`,
-    );
-  }
-
-  /** GET /api/v1/crm/career-applications/:id — includes a signed resume download URL. */
-  async get(id: string): Promise<CareerApplicationDetail> {
-    return this.client.request<CareerApplicationDetail>("GET", `/api/v1/crm/career-applications/${id}`);
-  }
-
-  /** PATCH /api/v1/crm/career-applications/:id */
-  async updateStatus(
-    id: string,
-    body: UpdateCareerApplicationStatusRequest,
-    idempotencyKey: string = crypto.randomUUID(),
-  ): Promise<CareerApplicationDetail> {
-    return this.client.request<CareerApplicationDetail>("PATCH", `/api/v1/crm/career-applications/${id}`, {
-      body,
-      idempotencyKey,
-    });
-  }
-}
-
 /** Nested namespace → `client.crm.content.blog` / `.testimonials` / `.partners` / etc. */
 export class ContentApi {
   readonly blog: BlogApi;
@@ -349,7 +317,6 @@ export class ContentApi {
   readonly pages: ContentPagesApi;
   readonly newsletter: NewsletterAdminApi;
   readonly contact: ContactAdminApi;
-  readonly careers: CareersAdminApi;
 
   constructor(client: ApiClient) {
     this.blog = new BlogApi(client);
@@ -360,6 +327,5 @@ export class ContentApi {
     this.pages = new ContentPagesApi(client);
     this.newsletter = new NewsletterAdminApi(client);
     this.contact = new ContactAdminApi(client);
-    this.careers = new CareersAdminApi(client);
   }
 }

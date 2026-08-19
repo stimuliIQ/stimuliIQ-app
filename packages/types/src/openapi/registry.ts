@@ -5476,13 +5476,26 @@ import {
 import {
   SubmitCareerApplicationRequestSchema,
   SubmitCareerApplicationResponseSchema,
-  UpdateCareerApplicationStatusRequestSchema,
   ListCareerApplicationsQuerySchema,
   CareerApplicationSummarySchema,
   CareerApplicationDetailSchema,
   PublicCareerResumeUploadUrlRequestSchema,
   PublicCareerResumeUploadUrlResponseSchema,
+  HoldCareerApplicationRequestSchema,
+  ShortlistCareerApplicationRequestSchema,
+  OfferCareerApplicationRequestSchema,
+  RejectCareerApplicationRequestSchema,
+  OfferLetterUploadUrlRequestSchema,
+  ResendAcknowledgementResponseSchema,
 } from "../content/careers.schemas.js";
+import {
+  PublicJobOpeningSchema,
+  ListPublicJobOpeningsQuerySchema,
+  JobOpeningSchema,
+  CreateJobOpeningRequestSchema,
+  UpdateJobOpeningRequestSchema,
+  ListJobOpeningsQuerySchema,
+} from "../content/job-openings.schemas.js";
 
 // -- Blog --
 const CreateBlogCategoryRequest = registry.register("CreateBlogCategoryRequest", CreateBlogCategoryRequestSchema);
@@ -5665,7 +5678,7 @@ registry.registerPath({ method: "patch", path: "/api/v1/crm/contact-submissions/
 const SubmitCareerApplicationRequest = registry.register("SubmitCareerApplicationRequest", SubmitCareerApplicationRequestSchema);
 const SubmitCareerApplicationResponse = registry.register("SubmitCareerApplicationResponse", SubmitCareerApplicationResponseSchema);
 const SubmitCareerApplicationEnvelope = envelopeOf("SubmitCareerApplication", SubmitCareerApplicationResponse);
-const UpdateCareerApplicationStatusRequest = registry.register("UpdateCareerApplicationStatusRequest", UpdateCareerApplicationStatusRequestSchema);
+
 const CareerApplicationSummary = registry.register("CareerApplicationSummary", CareerApplicationSummarySchema);
 const CareerApplicationDetail = registry.register("CareerApplicationDetail", CareerApplicationDetailSchema);
 const CareerApplicationDetailEnvelope = envelopeOf("CareerApplicationDetail", CareerApplicationDetail);
@@ -5677,9 +5690,46 @@ const PublicCareerResumeUploadUrlEnvelope = envelopeOf("PublicCareerResumeUpload
 
 registry.registerPath({ method: "post", path: "/api/v1/public/careers/resume-upload-url", summary: "Mint a signed resume-upload URL for an anonymous applicant (captcha-gated, rate-limited)", tags: ["public", "careers"], request: { body: { content: { "application/json": { schema: PublicCareerResumeUploadUrlRequest } } } }, responses: { 200: { description: "Signed upload URL.", content: { "application/json": { schema: PublicCareerResumeUploadUrlEnvelope } } }, ...errorResponses } });
 registry.registerPath({ method: "post", path: "/api/v1/public/careers/apply", summary: "Submit a career application (resume via StorageProvider signed upload; captcha-gated)", tags: ["public", "careers"], request: { body: { content: { "application/json": { schema: SubmitCareerApplicationRequest } } } }, responses: { 201: { description: "Submitted.", content: { "application/json": { schema: SubmitCareerApplicationEnvelope } } }, ...errorResponses } });
-registry.registerPath({ method: "get", path: "/api/v1/crm/career-applications", summary: "List career applications (admin)", tags: ["crm", "careers"], security: [{ cookieAuth: [] }], ...requiredPermission("content.view"), request: { query: ListCareerApplicationsQuerySchema }, responses: { 200: { description: "Application list.", content: { "application/json": { schema: CareerApplicationListEnvelope } } }, ...errorResponses } });
-registry.registerPath({ method: "get", path: "/api/v1/crm/career-applications/{id}", summary: "Get a career application incl. signed resume download URL", tags: ["crm", "careers"], security: [{ cookieAuth: [] }], ...requiredPermission("content.view"), request: { params: z.object({ id: z.string().uuid() }) }, responses: { 200: { description: "Application detail.", content: { "application/json": { schema: CareerApplicationDetailEnvelope } } }, ...errorResponses } });
-registry.registerPath({ method: "patch", path: "/api/v1/crm/career-applications/{id}", summary: "Update a career application's status", tags: ["crm", "careers"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("content.manage"), request: { params: z.object({ id: z.string().uuid() }), body: { content: { "application/json": { schema: UpdateCareerApplicationStatusRequest } } }, headers: idempotencyKeyHeader }, responses: { 200: { description: "Application updated.", content: { "application/json": { schema: CareerApplicationDetailEnvelope } } }, ...errorResponses } });
+// Openings — public read, CRM CRUD. Note the permission split described in
+// careers.controller.ts: reading the roster is careers.view (the applications screen filters
+// by opening), writing an advert is careers.openings.manage.
+const PublicJobOpening = registry.register("PublicJobOpening", PublicJobOpeningSchema);
+const PublicJobOpeningListEnvelope = envelopeOf("PublicJobOpeningList", z.array(PublicJobOpening));
+const JobOpening = registry.register("JobOpening", JobOpeningSchema);
+const JobOpeningEnvelope = envelopeOf("JobOpening", JobOpening);
+const JobOpeningListEnvelope = paginatedEnvelopeOf("JobOpening", JobOpening);
+const CreateJobOpeningRequest = registry.register("CreateJobOpeningRequest", CreateJobOpeningRequestSchema);
+const UpdateJobOpeningRequest = registry.register("UpdateJobOpeningRequest", UpdateJobOpeningRequestSchema);
+
+registry.registerPath({ method: "get", path: "/api/v1/public/careers/openings", summary: "List the live job openings (published, not past their closing date)", tags: ["public", "careers"], request: { query: ListPublicJobOpeningsQuerySchema }, responses: { 200: { description: "Open roles.", content: { "application/json": { schema: PublicJobOpeningListEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "get", path: "/api/v1/crm/job-openings", summary: "List job openings incl. applicant counts (admin)", tags: ["crm", "careers"], security: [{ cookieAuth: [] }], ...requiredPermission("careers.view"), request: { query: ListJobOpeningsQuerySchema }, responses: { 200: { description: "Opening list.", content: { "application/json": { schema: JobOpeningListEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "get", path: "/api/v1/crm/job-openings/{id}", summary: "Get a job opening", tags: ["crm", "careers"], security: [{ cookieAuth: [] }], ...requiredPermission("careers.view"), request: { params: z.object({ id: z.string().uuid() }) }, responses: { 200: { description: "Opening.", content: { "application/json": { schema: JobOpeningEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/crm/job-openings", summary: "Create a job opening", tags: ["crm", "careers"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("careers.openings.manage"), request: { body: { content: { "application/json": { schema: CreateJobOpeningRequest } } } }, responses: { 201: { description: "Created.", content: { "application/json": { schema: JobOpeningEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "patch", path: "/api/v1/crm/job-openings/{id}", summary: "Update a job opening", tags: ["crm", "careers"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("careers.openings.manage"), request: { params: z.object({ id: z.string().uuid() }), body: { content: { "application/json": { schema: UpdateJobOpeningRequest } } } }, responses: { 200: { description: "Updated.", content: { "application/json": { schema: JobOpeningEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "delete", path: "/api/v1/crm/job-openings/{id}", summary: "Soft-delete a job opening (prefer closing it)", tags: ["crm", "careers"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("careers.openings.manage"), request: { params: z.object({ id: z.string().uuid() }) }, responses: { 200: { description: "Deleted.", content: { "application/json": { schema: envelopeOf("DeleteJobOpening", z.object({ deleted: z.literal(true) })) } } }, ...errorResponses } });
+
+// Applications — reads under careers.view, every decision under careers.review.
+registry.registerPath({ method: "get", path: "/api/v1/crm/career-applications", summary: "List career applications (admin)", tags: ["crm", "careers"], security: [{ cookieAuth: [] }], ...requiredPermission("careers.view"), request: { query: ListCareerApplicationsQuerySchema }, responses: { 200: { description: "Application list.", content: { "application/json": { schema: CareerApplicationListEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "get", path: "/api/v1/crm/career-applications/{id}", summary: "Get a career application incl. signed resume + offer-letter download URLs", tags: ["crm", "careers"], security: [{ cookieAuth: [] }], ...requiredPermission("careers.view"), request: { params: z.object({ id: z.string().uuid() }) }, responses: { 200: { description: "Application detail.", content: { "application/json": { schema: CareerApplicationDetailEnvelope } } }, ...errorResponses } });
+
+// THE FOUR REVIEW VERBS. Deliberately four endpoints rather than one status PATCH — each
+// sends a different email (or, for hold, none at all) and carries what only it needs. See
+// careers.schemas.ts's file header.
+const HoldCareerApplicationRequest = registry.register("HoldCareerApplicationRequest", HoldCareerApplicationRequestSchema);
+const ShortlistCareerApplicationRequest = registry.register("ShortlistCareerApplicationRequest", ShortlistCareerApplicationRequestSchema);
+const OfferCareerApplicationRequest = registry.register("OfferCareerApplicationRequest", OfferCareerApplicationRequestSchema);
+const RejectCareerApplicationRequest = registry.register("RejectCareerApplicationRequest", RejectCareerApplicationRequestSchema);
+const OfferLetterUploadUrlRequest = registry.register("OfferLetterUploadUrlRequest", OfferLetterUploadUrlRequestSchema);
+const ResendAcknowledgementResponse = registry.register("ResendAcknowledgementResponse", ResendAcknowledgementResponseSchema);
+const ResendAcknowledgementEnvelope = envelopeOf("ResendAcknowledgement", ResendAcknowledgementResponse);
+
+registry.registerPath({ method: "post", path: "/api/v1/crm/career-applications/{id}/hold", summary: "Put a candidate on hold (the one verb that sends no email)", tags: ["crm", "careers"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("careers.review"), request: { params: z.object({ id: z.string().uuid() }), body: { content: { "application/json": { schema: HoldCareerApplicationRequest } } } }, responses: { 200: { description: "Held.", content: { "application/json": { schema: CareerApplicationDetailEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/crm/career-applications/{id}/shortlist", summary: "Move a candidate to a further round and email them the details", tags: ["crm", "careers"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("careers.review"), request: { params: z.object({ id: z.string().uuid() }), body: { content: { "application/json": { schema: ShortlistCareerApplicationRequest } } } }, responses: { 200: { description: "Shortlisted.", content: { "application/json": { schema: CareerApplicationDetailEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/crm/career-applications/{id}/offer", summary: "Offer the role and email the uploaded offer letter as an attachment", tags: ["crm", "careers"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("careers.review"), request: { params: z.object({ id: z.string().uuid() }), body: { content: { "application/json": { schema: OfferCareerApplicationRequest } } } }, responses: { 200: { description: "Offered.", content: { "application/json": { schema: CareerApplicationDetailEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/crm/career-applications/{id}/reject", summary: "Decline a candidate and email them (the internal reason is never sent)", tags: ["crm", "careers"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("careers.review"), request: { params: z.object({ id: z.string().uuid() }), body: { content: { "application/json": { schema: RejectCareerApplicationRequest } } } }, responses: { 200: { description: "Rejected.", content: { "application/json": { schema: CareerApplicationDetailEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/crm/career-applications/{id}/offer-letter-upload-url", summary: "Mint a signed PUT URL for a staff-uploaded offer letter", tags: ["crm", "careers"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("careers.review"), request: { params: z.object({ id: z.string().uuid() }), body: { content: { "application/json": { schema: OfferLetterUploadUrlRequest } } } }, responses: { 200: { description: "Signed upload URL.", content: { "application/json": { schema: PublicCareerResumeUploadUrlEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/crm/career-applications/{id}/resend-acknowledgement", summary: "Re-send the acknowledgement when the automatic one failed", tags: ["crm", "careers"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("careers.review"), request: { params: z.object({ id: z.string().uuid() }) }, responses: { 200: { description: "Send outcome.", content: { "application/json": { schema: ResendAcknowledgementEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "delete", path: "/api/v1/crm/career-applications/{id}", summary: "Soft-delete a career application (spam, duplicate, or an erasure request)", tags: ["crm", "careers"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("careers.review"), request: { params: z.object({ id: z.string().uuid() }) }, responses: { 200: { description: "Deleted.", content: { "application/json": { schema: envelopeOf("DeleteCareerApplication", z.object({ deleted: z.literal(true) })) } } }, ...errorResponses } });
 
 // ── Settings ─────────────────────────────────────────────────────────────
 

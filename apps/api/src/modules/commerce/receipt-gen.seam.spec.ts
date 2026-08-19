@@ -22,6 +22,7 @@ function mockStorage(): Mocked<StorageProvider> {
     putObject: jest.fn().mockResolvedValue(undefined),
     delete: jest.fn(),
     head: jest.fn(),
+    getObject: jest.fn().mockResolvedValue({ body: Buffer.from("stub"), contentType: "application/pdf", size: 4 }),
   } as unknown as Mocked<StorageProvider>;
 }
 

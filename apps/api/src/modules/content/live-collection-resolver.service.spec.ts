@@ -12,6 +12,7 @@ import { LiveCollectionResolverService } from "./live-collection-resolver.servic
 import { TestimonialsRepository, type TestimonialRow } from "./testimonials.repository";
 import { PartnersRepository, type PartnerRow } from "./partners.repository";
 import { PublicCatalogService } from "../public/public-catalog.service";
+import { JobOpeningsService } from "../careers/job-openings.service";
 import type { PageBuilderBlock } from "@repo/types";
 
 type Mocked<T> = { [K in keyof T]: T[K] extends (...args: never[]) => unknown ? jest.Mock : T[K] };
@@ -73,15 +74,20 @@ describe("LiveCollectionResolverService", () => {
   let testimonialsRepo: Mocked<TestimonialsRepository>;
   let partnersRepo: Mocked<PartnersRepository>;
   let publicCatalog: Mocked<PublicCatalogService>;
+  let jobOpenings: Mocked<JobOpeningsService>;
 
   beforeEach(() => {
     testimonialsRepo = mockTestimonialsRepository();
     partnersRepo = mockPartnersRepository();
     publicCatalog = mockPublicCatalogService();
+    // The careers page's Open Roles section is the second reference block this service
+    // resolves (ADR-0066) — empty by default, overridden per-test.
+    jobOpenings = { listPublicForTenant: jest.fn().mockResolvedValue([]) } as unknown as Mocked<JobOpeningsService>;
     service = new LiveCollectionResolverService(
       testimonialsRepo as unknown as TestimonialsRepository,
       partnersRepo as unknown as PartnersRepository,
       publicCatalog as unknown as PublicCatalogService,
+      jobOpenings as unknown as JobOpeningsService,
     );
   });
 

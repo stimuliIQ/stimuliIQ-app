@@ -203,6 +203,42 @@ export interface DeleteInput {
   key: string;
 }
 
+/**
+ * Read an object's BYTES into the API process.
+ *
+ * Deliberately narrow. Presigned URLs are the default for every download in this codebase
+ * precisely so that large files never occupy the API's memory — this method is the
+ * exception, for the one case where the server itself must hold the bytes: attaching an
+ * offer letter to the candidate's email (docs/specs/careers-hiring.md). A signed link would
+ * have been cheaper, but an offer letter is a document somebody keeps, and a link that
+ * expires is not that.
+ *
+ * Callers MUST bound the size before calling (see `maxBytes`) — an unbounded read of a
+ * caller-supplied key is a memory-exhaustion primitive.
+ */
+export interface GetObjectInput {
+  /** The storage key to read. */
+  key: string;
+
+  /**
+   * Hard ceiling on the object size, in bytes. The adapter HEADs the object first and
+   * throws without downloading when it is larger. Required — there is no safe default for
+   * "read this whole thing into memory".
+   */
+  maxBytes: number;
+}
+
+export interface GetObjectResult {
+  /** The object's full contents. */
+  body: Buffer;
+
+  /** MIME type stored on the object, when the provider reported one. */
+  contentType: string | null;
+
+  /** Object size in bytes (`body.length`). */
+  size: number;
+}
+
 export interface HeadInput {
   /**
    * The storage key to probe.
@@ -293,6 +329,18 @@ export interface StorageProvider {
    * FAIL CLOSED: throws if credentials are absent.
    */
   head(input: HeadInput): Promise<HeadResult>;
+
+  /**
+   * Downloads an object's bytes into the API process.
+   *
+   * Throws when the key does not exist, and throws when the object exceeds
+   * `input.maxBytes` WITHOUT downloading it. Use only where the server genuinely needs
+   * the bytes (email attachments) — every client-facing download goes through
+   * getSignedDownloadUrl instead. See GetObjectInput.
+   *
+   * FAIL CLOSED: throws if credentials are absent.
+   */
+  getObject(input: GetObjectInput): Promise<GetObjectResult>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

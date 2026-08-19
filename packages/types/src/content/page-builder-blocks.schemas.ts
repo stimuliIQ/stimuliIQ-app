@@ -29,6 +29,7 @@
 // `PublicContentPageSchema` / `PreviewBuilderPageBlocksResponseSchema`).
 
 import { z } from "zod";
+import { PublicJobOpeningSchema } from "./job-openings.schemas.js";
 import { UuidSchema, ObjectKeySchema, HrefSchema } from "../common/primitives.js";
 import { PublicTestimonialSchema } from "./testimonials.schemas.js";
 import { PublicPartnerSchema } from "./partners.schemas.js";
@@ -438,6 +439,18 @@ export type MediaGalleryBlock = z.infer<typeof MediaGalleryBlockSchema>;
 // 9. `job_openings`
 // ─────────────────────────────────────────────────────────────────────────
 
+/**
+ * LEGACY. Roles used to be typed straight into this block, one `items` entry per opening.
+ * They are now CRM-managed rows (`model JobOpening`, CRM ▸ Careers ▸ Openings) resolved
+ * live at read time — see ADR-0066 and `ResolvedJobOpeningsBlockDataSchema` below.
+ *
+ * The shape is retained ONLY so pages and `ContentPageVersion` snapshots stored before that
+ * change still parse: the block union is `.strict()`, and a stored body carrying `items`
+ * would otherwise fail its safe-parse and take the whole Open Roles section off the careers
+ * page (Edge case #9). Nothing reads it. No editor writes it — the CRM builder form for this
+ * block offers no item fields at all, so this is not a "save does nothing" trap: there is no
+ * control that appears to fill it.
+ */
 export const JobOpeningItemSchema = z
   .object({
     title: z.string().min(1).max(100),
@@ -450,8 +463,8 @@ export const JobOpeningItemSchema = z
 export const JobOpeningsBlockDataSchema = z
   .object({
     heading: HeadingMinimalSchema.optional(),
-    /** Empty is valid (`CareersRoleList` already handles the empty state). */
-    items: z.array(JobOpeningItemSchema).max(30).default([]),
+    /** @deprecated Legacy tolerance only — see JobOpeningItemSchema. Never rendered. */
+    items: z.array(JobOpeningItemSchema).max(30).optional(),
     emptyStateMessage: z.string().min(1).max(200).default("No open roles right now"),
   })
   .strict();
@@ -459,6 +472,28 @@ export type JobOpeningsBlockData = z.infer<typeof JobOpeningsBlockDataSchema>;
 
 export const JobOpeningsBlockSchema = z.object({ type: z.literal("job_openings"), data: JobOpeningsBlockDataSchema }).strict();
 export type JobOpeningsBlock = z.infer<typeof JobOpeningsBlockSchema>;
+
+/**
+ * The RESOLVED form — what the public read path and the CRM preview path return. The
+ * heading and empty-state copy stay editorial (page-builder fields); the roles themselves
+ * come from the live `job_openings` table, filtered to genuinely-live rows, exactly the way
+ * `live_collection_ref` resolves partners and mentors. Never stored.
+ *
+ * This block is a SECOND reference block, deliberately kept separate from
+ * `live_collection_ref` rather than folded in as a fifth collection: that block's four
+ * collections are all interchangeable showcase grids sharing one `layout`/`selection`
+ * shape, whereas open roles have their own card, their own apply affordance and no layout
+ * choice to make.
+ */
+export const ResolvedJobOpeningsBlockDataSchema = JobOpeningsBlockDataSchema.extend({
+  resolvedItems: z.array(PublicJobOpeningSchema),
+});
+export type ResolvedJobOpeningsBlockData = z.infer<typeof ResolvedJobOpeningsBlockDataSchema>;
+
+export const ResolvedJobOpeningsBlockSchema = z
+  .object({ type: z.literal("job_openings"), data: ResolvedJobOpeningsBlockDataSchema })
+  .strict();
+export type ResolvedJobOpeningsBlock = z.infer<typeof ResolvedJobOpeningsBlockSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────
 // 10. `live_collection_ref` — the reference block
@@ -704,7 +739,7 @@ export const ResolvedPageBuilderBlockSchema = z.discriminatedUnion("type", [
   FaqBlockSchema,
   CtaBandBlockSchema,
   MediaGalleryBlockSchema,
-  JobOpeningsBlockSchema,
+  ResolvedJobOpeningsBlockSchema,
   ResolvedLiveCollectionRefBlockSchema,
   BrainShowcaseBlockSchema,
 ]);

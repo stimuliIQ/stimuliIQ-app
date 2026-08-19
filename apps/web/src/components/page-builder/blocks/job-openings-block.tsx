@@ -1,22 +1,28 @@
 /**
- * JobOpeningsBlock — page-builder block #9 (docs/specs/phase-10-page-builder.md
- * §"9. job_openings"). Reuses `CareersRoleList` as-is (spec: "already handles the
- * populated + empty states").
+ * JobOpeningsBlock — the Open Roles section of /careers (page-builder block #9).
+ *
+ * A REFERENCE block, like `live_collection_ref`: the heading and the empty-state line are
+ * page-builder fields staff edit, but the roles themselves are resolved server-side from
+ * the live `job_openings` table (CRM ▸ Careers ▸ Openings) into `data.resolvedItems`
+ * (ADR-0066). Nothing about a role is stored in the page, so publishing, closing or
+ * editing an advert takes effect without touching the page at all.
+ *
+ * The legacy `data.items` field is deliberately not read — see JobOpeningItemSchema in
+ * @repo/types for why it still exists in the stored shape.
  */
-import type { JobOpeningsBlockData } from "@repo/types";
+import type { ResolvedJobOpeningsBlockData } from "@repo/types";
 import { CareersRoleList } from "../../careers/careers-role-list";
+import { SUPPORT_EMAIL } from "../../../lib/contact";
 
-export function JobOpeningsBlock({ data }: { data: JobOpeningsBlockData }): React.JSX.Element {
-  const roles = data.items.map((item, i) => ({
-    id: `role-${i}`,
-    title: item.title,
-    type: item.employmentType,
-    location: item.location,
-    description: item.description,
-  }));
+export function JobOpeningsBlock({ data }: { data: ResolvedJobOpeningsBlockData }): React.JSX.Element {
+  const roles = data.resolvedItems;
 
   return (
-    <section aria-label={data.heading?.title ?? "Open roles"} data-testid="page-builder-job-openings" className="py-12 lg:py-16">
+    <section
+      aria-label={data.heading?.title ?? "Open roles"}
+      data-testid="page-builder-job-openings"
+      className="py-12 lg:py-16"
+    >
       <div className="mx-auto max-w-4xl px-4 md:px-6">
         {data.heading ? (
           <div className="mb-8">
@@ -28,9 +34,22 @@ export function JobOpeningsBlock({ data }: { data: JobOpeningsBlockData }): Reac
         {roles.length > 0 ? (
           <CareersRoleList roles={roles} />
         ) : (
+          // No open roles is a normal state, not an error — and it is worth giving a
+          // visitor who arrived here something to do, since somebody browsing a careers
+          // page with nothing on it is exactly the person worth hearing from.
           <div className="rounded-xl border border-border bg-card p-12 text-center" data-testid="careers-empty">
             <p className="text-lg font-medium text-fg">{data.emptyStateMessage}</p>
-            <p className="mt-2 text-sm text-fg-muted">Send your CV to hello@stimuliiq.com — we are always looking for great people.</p>
+            <p className="mt-2 text-sm text-fg-muted">
+              Send your CV to{" "}
+              <a
+                href={`mailto:${SUPPORT_EMAIL}`}
+                className="font-medium text-brand-500 underline hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {SUPPORT_EMAIL}
+              </a>{" "}
+              — we are always glad to hear from good people, and we will get in touch when
+              something fits.
+            </p>
           </div>
         )}
       </div>

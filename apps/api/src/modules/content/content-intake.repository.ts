@@ -2,18 +2,19 @@
 //
 // Prisma data access ONLY (CLAUDE.md §3.3). ContentIntakeService is the only caller.
 // Soft-delete + audit handled transparently by the Prisma client extensions
-// (`NewsletterSubscription`/`ContactSubmission`/`CareerApplication` already registered).
+// (`NewsletterSubscription`/`ContactSubmission` already registered).
+//
+// Career applications moved to modules/careers (ADR-0066).
 
 import { Injectable } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { resolveTenantIdCached } from "../../common/tenant/tenant-id-cache";
 
-// NOTE: `status` on both `contact_submissions` and `career_applications` is a plain
-// `String` column in the shipped schema (no Prisma enum — matches the CertificateTemplate
-// .status / Resource.type "open editor/event-driven set" precedent), constrained at the
-// API boundary by the zod enums (`ContactSubmissionStatus` / `CareerApplicationStatus`
-// from @repo/types), not by the DB column type.
+// NOTE: `status` on `contact_submissions` is a plain `String` column in the shipped schema
+// (no Prisma enum — matches the CertificateTemplate.status / Resource.type "open editor/
+// event-driven set" precedent), constrained at the API boundary by the zod enum
+// (`ContactSubmissionStatus` from @repo/types), not by the DB column type.
 
 export interface NewsletterSubscriptionRow {
   id: string;
@@ -31,18 +32,6 @@ export interface ContactSubmissionRow {
   phone: string | null;
   subject: string | null;
   message: string;
-  status: string;
-  createdAt: Date;
-}
-
-export interface CareerApplicationRow {
-  id: string;
-  name: string;
-  email: string;
-  phone: string | null;
-  role: string;
-  resumeStorageKey: string;
-  coverLetter: string | null;
   status: string;
   createdAt: Date;
 }
@@ -157,35 +146,6 @@ export class ContentIntakeRepository {
     await this.prisma.client.contactSubmission.update({ where: { id }, data: { status } });
   }
 
-  // ── Careers ──────────────────────────────────────────────────────────────
-
-  async createCareerApplication(tenantId: string, data: { name: string; email: string; phone: string | null; role: string; resumeStorageKey: string; coverLetter: string | null }): Promise<{ id: string }> {
-    const row = await this.prisma.client.careerApplication.create({ data: { tenantId, ...data } });
-    return { id: row.id };
-  }
-
-  async listCareerApplications(filters: { tenantId: string; status?: string; role?: string; search?: string; page: number; pageSize: number }): Promise<{ rows: CareerApplicationRow[]; total: number }> {
-    const where: Prisma.CareerApplicationWhereInput = {
-      tenantId: filters.tenantId,
-      deletedAt: null,
-      ...(filters.status ? { status: filters.status } : {}),
-      ...(filters.role ? { role: filters.role } : {}),
-      ...(filters.search ? { OR: [{ name: { contains: filters.search, mode: "insensitive" } }, { email: { contains: filters.search, mode: "insensitive" } }] } : {}),
-    };
-    const [rows, total] = await Promise.all([
-      this.prisma.client.careerApplication.findMany({ where, orderBy: { createdAt: "desc" }, skip: (filters.page - 1) * filters.pageSize, take: filters.pageSize }),
-      this.prisma.client.careerApplication.count({ where }),
-    ]);
-    return { rows, total };
-  }
-
-  async findCareerApplicationById(tenantId: string, id: string): Promise<CareerApplicationRow | null> {
-    return this.prisma.client.careerApplication.findFirst({ where: { id, tenantId, deletedAt: null } });
-  }
-
-  async updateCareerApplicationStatus(id: string, status: string): Promise<void> {
-    await this.prisma.client.careerApplication.update({ where: { id }, data: { status } });
-  }
 
   // ── Shared tenant resolution ─────────────────────────────────────────────
 

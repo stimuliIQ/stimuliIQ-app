@@ -1,13 +1,13 @@
 // apps/api/src/modules/content/content-intake.service.ts
 //
 // Business logic for the PUBLIC content-intake surface (docs/plans/phase-9-completion.md
-// T22/T32): newsletter subscribe/unsubscribe, contact form, career application. Mirrors
+// T22): newsletter subscribe/unsubscribe and the contact form. Mirrors
 // public-funnel.service.ts's security posture EXACTLY (same module, same P-3/P-5/P-6
 // precedent), since these are the SAME class of anonymous, UGC-bearing public write:
 //   - Every public write is captcha-gated (CaptchaProvider) + rate-limited (per-IP).
 //   - Consent is SERVER-COMPUTED (timestamp + ip_hash); never trusted from the client.
 //   - Raw IP is NEVER stored — only SHA-256(ip) (DPDP compliance, mirrors AC-37).
-//   - Free-text fields (message/coverLetter/subject) are SANITIZED at write time
+//   - Free-text fields (message/subject) are SANITIZED at write time
 //     (strip-HTML + trim + truncate) — UNLIKE the CRM-authored content types in this same
 //     module (blog/testimonials/etc, ADR-0045 "sanitize at render sink"), this is
 //     ANONYMOUS, UNTRUSTED input with no render-sink-only posture assumed safe; the
@@ -15,31 +15,23 @@
 //     public-funnel.service.ts's own `sanitize()` helper precedent for the exact same
 //     reason (P2 M-4).
 //   - Admin (CRM) reads/status-updates are content.view/content.edit gated, scope=all.
+//
+// Career applications moved out to modules/careers (ADR-0066) — same posture, own module.
 
 import { ForbiddenException, Inject, Injectable, Logger, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type {
-  CareerApplicationDetail,
-  CareerApplicationStatus,
-  CareerApplicationSummary,
   ContactSubmission,
   ContactSubmissionStatus,
-  ListCareerApplicationsQuery,
   ListContactSubmissionsQuery,
   ListNewsletterSubscriptionsQuery,
   NewsletterSubscription,
-  PublicCareerResumeUploadUrlRequest,
-  PublicCareerResumeUploadUrlResponse,
-  SubmitCareerApplicationRequest,
   SubmitContactRequest,
   SubscribeNewsletterRequest,
-  UpdateCareerApplicationStatusRequest,
   UpdateContactSubmissionStatusRequest,
 } from "@repo/types";
-import { S3StorageProvider, type BuildKeyOptions } from "../storage/providers/storage/s3-storage.provider";
 import {
   ContentIntakeRepository,
-  type CareerApplicationRow,
   type ContactSubmissionRow,
   type NewsletterSubscriptionRow,
 } from "./content-intake.repository";
@@ -47,7 +39,6 @@ import { PaginatedResult } from "../../common/dto/paginated-result";
 import { requireScopeContext } from "../auth/lib/scope-context";
 import { CAPTCHA_PROVIDER, type CaptchaProvider } from "../captcha/providers/captcha/captcha-provider.interface";
 import { PublicBookingRateLimiter } from "../leads/lib/public-booking-rate-limiter";
-import { STORAGE_PROVIDER, type StorageProvider } from "../storage/providers/storage/storage-provider.interface";
 import { validateEnv } from "../../config/env";
 import { TENANT_SLUG } from "./content.util";
 
@@ -72,7 +63,6 @@ export class ContentIntakeService {
   constructor(
     private readonly repository: ContentIntakeRepository,
     @Inject(CAPTCHA_PROVIDER) private readonly captchaProvider: CaptchaProvider,
-    @Inject(STORAGE_PROVIDER) private readonly storageProvider: StorageProvider,
     private readonly rateLimiter: PublicBookingRateLimiter,
   ) {}
 
@@ -205,107 +195,6 @@ export class ContentIntakeService {
     return toContactDto(updated);
   }
 
-  // ── Careers (public + admin) ─────────────────────────────────────────────
-
-  /**
-   * POST /api/v1/public/careers/resume-upload-url (Phase-9-completion gap #3).
-   *
-   * Mints a short-lived signed PUT URL scoped to careers/{tenantId}/... for an
-   * ANONYMOUS applicant's resume — the public counterpart to the authenticated
-   * POST /storage/upload-url (JwtAuthGuard) that students/faculty use. Captcha
-   * verification + rate limiting are enforced by the controller BEFORE this is
-   * called (same posture as every other anonymous write in this module).
-   *
-   * Fail-closed: StorageProvider throws (real S3/R2 adapter, unconfigured
-   * credentials) → propagates as 503 via the global exception filter (never a
-   * raw/unsigned fallback URL). The Noop adapter returns a deterministic fake
-   * URL for tests/local dev.
-   */
-  async getCareerResumeUploadUrl(dto: PublicCareerResumeUploadUrlRequest): Promise<PublicCareerResumeUploadUrlResponse> {
-    const tenantId = await this.resolveTenantId();
-    const { randomUUID } = await import("node:crypto");
-    const buildKeyOpts: BuildKeyOptions = {
-      namespace: "careers",
-      tenantId,
-      uniqueId: randomUUID(),
-      filename: dto.fileName,
-    };
-    const key = S3StorageProvider.buildKey(buildKeyOpts);
-
-    const result = await this.storageProvider.getSignedUploadUrl({
-      key,
-      contentType: dto.contentType,
-      maxBytes: dto.sizeBytes,
-      ttlSeconds: 900, // 15 min — same ceiling as the authenticated upload-url endpoint.
-    });
-
-    return {
-      storageKey: result.storageKey,
-      uploadUrl: result.url,
-      expiresAt: result.expiresAt.toISOString(),
-      additionalHeaders: result.requiredHeaders,
-      maxSizeBytes: dto.sizeBytes,
-    };
-  }
-
-  async submitCareerApplication(dto: SubmitCareerApplicationRequest): Promise<{ id: string; message: string }> {
-    const tenantId = await this.resolveTenantId();
-
-    // SECURITY (Wave 6 M3): the schema already forces a `careers/` prefix; here we pin it
-    // to THIS tenant's namespace so an anonymous applicant can't submit a key pointing at
-    // another tenant's resume object (which the CRM detail view would later sign a
-    // download URL for). buildKey() issues exactly `careers/{tenantId}/...`.
-    const requiredPrefix = `careers/${tenantId}/`;
-    if (!dto.resumeStorageKey.startsWith(requiredPrefix)) {
-      throw new UnprocessableEntityException({
-        code: "content.invalid_resume_key",
-        title: "Invalid resume reference",
-        detail: "The resume upload reference is not valid. Please re-upload your resume and try again.",
-      });
-    }
-
-    const created = await this.repository.createCareerApplication(tenantId, {
-      name: sanitize(dto.name, 200) ?? dto.name,
-      email: dto.email,
-      phone: dto.phone ?? null,
-      role: sanitize(dto.role, 200) ?? dto.role,
-      resumeStorageKey: dto.resumeStorageKey,
-      coverLetter: dto.coverLetter ? (sanitize(dto.coverLetter, 4000) ?? dto.coverLetter) : null,
-    });
-    return { id: created.id, message: "Application received — thanks for applying!" };
-  }
-
-  async listCareerApplications(tenantId: string, query: ListCareerApplicationsQuery): Promise<PaginatedResult<CareerApplicationSummary>> {
-    this.assertAllScope();
-    const { rows, total } = await this.repository.listCareerApplications({ tenantId, status: query.status, role: query.role, search: query.search, page: query.page, pageSize: query.pageSize });
-    return new PaginatedResult(rows.map(toCareerSummary), { page: query.page, pageSize: query.pageSize, total, hasMore: query.page * query.pageSize < total });
-  }
-
-  async getCareerApplicationById(tenantId: string, id: string): Promise<CareerApplicationDetail> {
-    this.assertAllScope();
-    const row = await this.repository.findCareerApplicationById(tenantId, id);
-    if (!row) throw new NotFoundException({ code: "content.not_found", title: "Career application not found" });
-    // Signed download URL minted server-side, on demand — NEVER a raw storage key (matches
-    // StorageProvider's documented contract).
-    let resumeDownloadUrl: string | null = null;
-    try {
-      const signed = await this.storageProvider.getSignedDownloadUrl({ key: row.resumeStorageKey });
-      resumeDownloadUrl = signed.url;
-    } catch (err) {
-      this.logger.warn(`[ContentIntake] Failed to mint resume download URL (non-fatal): ${String(err)}`);
-    }
-    return { ...toCareerSummary(row), coverLetter: row.coverLetter, resumeDownloadUrl };
-  }
-
-  async updateCareerApplicationStatus(tenantId: string, id: string, body: UpdateCareerApplicationStatusRequest): Promise<CareerApplicationSummary> {
-    this.assertAllScope();
-    const existing = await this.repository.findCareerApplicationById(tenantId, id);
-    if (!existing) throw new NotFoundException({ code: "content.not_found", title: "Career application not found" });
-    await this.repository.updateCareerApplicationStatus(id, body.status);
-    const updated = await this.repository.findCareerApplicationById(tenantId, id);
-    if (!updated) throw new NotFoundException({ code: "content.not_found", title: "Career application not found after update" });
-    return toCareerSummary(updated);
-  }
 }
 
 function toNewsletterDto(row: NewsletterSubscriptionRow): NewsletterSubscription {
@@ -318,6 +207,3 @@ function toContactDto(row: ContactSubmissionRow): ContactSubmission {
   return { id: row.id, name: row.name, email: row.email, phone: row.phone, subject: row.subject, message: row.message, status: row.status as ContactSubmissionStatus, createdAt: row.createdAt.toISOString() };
 }
 
-function toCareerSummary(row: CareerApplicationRow): CareerApplicationSummary {
-  return { id: row.id, name: row.name, email: row.email, phone: row.phone, role: row.role, status: row.status as CareerApplicationStatus, createdAt: row.createdAt.toISOString() };
-}

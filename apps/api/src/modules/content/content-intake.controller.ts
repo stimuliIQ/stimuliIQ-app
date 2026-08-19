@@ -2,9 +2,13 @@
 //
 // HTTP boundary only (CLAUDE.md §3.3). Two controller classes (ADR-0019 pattern):
 //   PublicContentIntakeController — anonymous writes (newsletter subscribe/unsubscribe,
-//     contact submit, career apply). NO guards; captcha-gated + rate-limited (mirrors
+//     contact submit). NO guards; captcha-gated + rate-limited (mirrors
 //     PublicAnonymousWriteController in public.controller.ts exactly).
 //   ContentIntakeController — CRM admin reads/status-updates (content.view/content.edit).
+//
+// Career applications used to live here too. They moved to modules/careers (ADR-0066) when
+// hiring grew a lifecycle, four candidate emails and a permission boundary of its own — see
+// careers.module.ts. The public URLs did not change.
 
 import {
   Body,
@@ -47,18 +51,6 @@ import {
   ListContactSubmissionsQuerySchema,
   type ListContactSubmissionsQuery,
   type ContactSubmission,
-  SubmitCareerApplicationRequestSchema,
-  type SubmitCareerApplicationRequest,
-  type SubmitCareerApplicationResponse,
-  UpdateCareerApplicationStatusRequestSchema,
-  type UpdateCareerApplicationStatusRequest,
-  ListCareerApplicationsQuerySchema,
-  type ListCareerApplicationsQuery,
-  type CareerApplicationSummary,
-  type CareerApplicationDetail,
-  PublicCareerResumeUploadUrlRequestSchema,
-  type PublicCareerResumeUploadUrlRequest,
-  type PublicCareerResumeUploadUrlResponse,
 } from "./dto";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,27 +91,6 @@ export class PublicContentIntakeController {
     return this.service.submitContact(body, ip);
   }
 
-  @Post("careers/resume-upload-url")
-  @HttpCode(HttpStatus.OK)
-  async getCareerResumeUploadUrl(
-    @Ip() ip: string,
-    @Body(new ZodValidationPipe(PublicCareerResumeUploadUrlRequestSchema)) body: PublicCareerResumeUploadUrlRequest,
-  ): Promise<PublicCareerResumeUploadUrlResponse> {
-    await this.service.verifyCaptcha(body.captchaToken, ip);
-    await this.service.checkRateLimit(ip, "content.careers.rate_limited");
-    return this.service.getCareerResumeUploadUrl(body);
-  }
-
-  @Post("careers/apply")
-  @HttpCode(HttpStatus.CREATED)
-  async applyCareer(
-    @Ip() ip: string,
-    @Body(new ZodValidationPipe(SubmitCareerApplicationRequestSchema)) body: SubmitCareerApplicationRequest,
-  ): Promise<SubmitCareerApplicationResponse> {
-    await this.service.verifyCaptcha(body.captchaToken, ip);
-    await this.service.checkRateLimit(ip, "content.careers.rate_limited");
-    return this.service.submitCareerApplication(body);
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -160,28 +131,4 @@ export class ContentIntakeController {
     return this.service.updateContactSubmissionStatus(user.tenantId, id, body);
   }
 
-  @Get("career-applications")
-  @RequirePermission("content.view")
-  async listCareerApplications(
-    @CurrentUser() user: RequestUser,
-    @Query(new ZodValidationPipe(ListCareerApplicationsQuerySchema)) query: ListCareerApplicationsQuery,
-  ): Promise<PaginatedResult<CareerApplicationSummary>> {
-    return this.service.listCareerApplications(user.tenantId, query);
-  }
-
-  @Get("career-applications/:id")
-  @RequirePermission("content.view")
-  async getCareerApplication(@CurrentUser() user: RequestUser, @Param("id", new ParseUUIDPipe()) id: string): Promise<CareerApplicationDetail> {
-    return this.service.getCareerApplicationById(user.tenantId, id);
-  }
-
-  @Patch("career-applications/:id")
-  @RequirePermission("content.edit")
-  async updateCareerApplication(
-    @CurrentUser() user: RequestUser,
-    @Param("id", new ParseUUIDPipe()) id: string,
-    @Body(new ZodValidationPipe(UpdateCareerApplicationStatusRequestSchema)) body: UpdateCareerApplicationStatusRequest,
-  ): Promise<CareerApplicationSummary> {
-    return this.service.updateCareerApplicationStatus(user.tenantId, id, body);
-  }
 }

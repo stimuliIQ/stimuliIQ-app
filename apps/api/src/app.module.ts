@@ -56,6 +56,10 @@ import { StorageModule } from "./modules/storage/storage.module";
 import { LiveClassesModule } from "./modules/live-classes/live-classes.module";
 import { TicketsModule } from "./modules/tickets/tickets.module";
 import { ContentModule } from "./modules/content/content.module";
+// Hiring (ADR-0066): CRM-managed job openings, the public apply flow and the four-verb
+// application review. Split out of ContentModule because it holds candidate PII and has its
+// own permission boundary — see careers.module.ts.
+import { CareersModule } from "./modules/careers/careers.module";
 import { PlatformModule } from "./modules/platform/platform.module";
 import { ReferralsModule } from "./modules/referrals/referrals.module";
 import { EmiModule } from "./modules/emi/emi.module";
@@ -136,6 +140,7 @@ import { LeaveModule } from "./modules/leave/leave.module";
     // bios/pages (CRM CRUD + public published-only read) + intake forms (newsletter/
     // contact/careers).
     ContentModule,
+    CareersModule,
     // Phase-9 Completion T23: Feature flags (admin CRUD + any-authenticated cached
     // evaluate) + system/company settings (admin CRUD).
     PlatformModule,

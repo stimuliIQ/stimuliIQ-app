@@ -124,6 +124,19 @@ export class ResendMailProvider implements MailProvider {
       ...(input.tags && input.tags.length > 0
         ? { tags: input.tags.map((t) => ({ name: t.name, value: t.value })) }
         : {}),
+      // Resend takes attachment bytes as a Buffer under `content`. Filenames are passed
+      // through as-is; the caller is responsible for having sanitised them (a filename is
+      // recipient-visible text, and for offer letters it is server-composed, never taken
+      // from an uploader).
+      ...(input.attachments && input.attachments.length > 0
+        ? {
+            attachments: input.attachments.map((a) => ({
+              filename: a.filename,
+              content: a.content,
+              contentType: a.contentType,
+            })),
+          }
+        : {}),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
 

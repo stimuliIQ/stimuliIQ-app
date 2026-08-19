@@ -7,6 +7,10 @@
  * Validates against `SubmitCareerApplicationRequestSchema` (@repo/types) before
  * calling `client.public.careers.apply()`. Captcha-gated (Turnstile; "noop" in dev).
  *
+ * The application references the CRM opening by id (ADR-0066) as well as carrying the role
+ * TITLE, which the API snapshots — so renaming or closing the opening later can never
+ * rewrite what this person applied for.
+ *
  * Resume upload uses the PUBLIC, captcha-gated, rate-limited
  * `client.public.careers.getResumeUploadUrl()` (POST /public/careers/resume-upload-url)
  * — unlike `client.learning.storage.getUploadUrl()`, this does NOT require a session,
@@ -22,6 +26,8 @@ export interface CareerApplyInput {
   name: string;
   email: string;
   phone: string;
+  /** The opening being applied to. See the submit() comment on why this may be absent. */
+  jobOpeningId?: string;
   role: string;
   resumeStorageKey: string;
   coverLetter: string;
@@ -78,6 +84,10 @@ export function useCareerApply(): UseCareerApplyReturn {
       name: input.name.trim(),
       email: input.email.trim(),
       phone: toE164Phone(phone) || undefined,
+      // Sent when the form was opened from a live opening. The API re-checks that the
+      // opening is still open and, if it closed since this page loaded, records the
+      // application against the role title alone rather than turning the candidate away.
+      jobOpeningId: input.jobOpeningId,
       role: input.role,
       resumeStorageKey: input.resumeStorageKey,
       coverLetter: input.coverLetter.trim() || undefined,

@@ -44,6 +44,8 @@ import type {
   DeleteInput,
   HeadInput,
   HeadResult,
+  GetObjectInput,
+  GetObjectResult,
 } from "./storage-provider.interface";
 import {
   DEFAULT_STORAGE_UPLOAD_TTL_SECONDS,
@@ -168,6 +170,25 @@ export class NoopStorageProvider implements StorageProvider {
       size: this.headSize,
       contentType: this.headContentType,
     };
+  }
+
+  /**
+   * Returns deterministic fake bytes so a caller that attaches a stored document to an
+   * email (careers offer letters) can be exercised end to end without a bucket. The
+   * `maxBytes` ceiling is still enforced, because a test that never hits the guard would
+   * not tell us the guard works.
+   */
+  async getObject(input: GetObjectInput): Promise<GetObjectResult> {
+    if (!this.headExists) {
+      throw new Error(`NoopStorageProvider.getObject: object not found for key "${input.key}"`);
+    }
+    const body = Buffer.from(`noop-object:${input.key}`, "utf8");
+    if (body.length > input.maxBytes) {
+      throw new Error(
+        `NoopStorageProvider.getObject: object is ${body.length} bytes, exceeding the ${input.maxBytes}-byte ceiling`,
+      );
+    }
+    return { body, contentType: this.headContentType ?? null, size: body.length };
   }
 
   // ─────────────────────────────────────────────────────────────────────────

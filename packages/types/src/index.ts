@@ -138,6 +138,8 @@ export * from "./content/pages.schemas.js";
 export * from "./content/page-templates.schemas.js";
 export * from "./content/newsletter.schemas.js";
 export * from "./content/contact.schemas.js";
+// Careers/hiring (ADR-0066): CRM-managed openings + the four-verb application review.
+export * from "./content/job-openings.schemas.js";
 export * from "./content/careers.schemas.js";
 // Phase-10 page builder: SiteSetting (nav/footer/SEO/contact/stats primitives).
 export * from "./content/site-settings.schemas.js";

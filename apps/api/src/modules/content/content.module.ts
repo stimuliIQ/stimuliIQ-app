@@ -17,6 +17,10 @@
 //                              `live_collection_ref(collection=programs|mentors)` blocks
 //                              through the SAME public-projection query/mapping every
 //                              other `/public/programs`, `/public/mentors` caller uses.
+//   CareersModule            — exports JobOpeningsService, which LiveCollectionResolverService
+//                              calls to fill the careers page's `job_openings` block with the
+//                              live CRM-managed roles (ADR-0066), through the SAME
+//                              published-only query `GET /public/careers/openings` uses.
 //   PublicBookingRateLimiter — reused directly (RedisService is @Global), same pattern as
 //                              public.module.ts.
 
@@ -25,6 +29,7 @@ import { AuthModule } from "../auth/auth.module";
 import { CaptchaProviderModule } from "../captcha/providers/captcha/captcha-provider.module";
 import { StorageProviderModule } from "../storage/providers/storage/storage-provider.module";
 import { PublicModule } from "../public/public.module";
+import { CareersModule } from "../careers/careers.module";
 import { PublicBookingRateLimiter } from "../leads/lib/public-booking-rate-limiter";
 
 import { BlogController, PublicBlogController } from "./blog.controller";
@@ -68,7 +73,7 @@ import { SiteSettingsService } from "./site-settings.service";
 import { SiteSettingsRepository } from "./site-settings.repository";
 
 @Module({
-  imports: [AuthModule, CaptchaProviderModule, StorageProviderModule, PublicModule],
+  imports: [AuthModule, CaptchaProviderModule, StorageProviderModule, PublicModule, CareersModule],
   controllers: [
     BlogController,
     PublicBlogController,

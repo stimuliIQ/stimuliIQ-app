@@ -11,7 +11,6 @@ import type {
   CreatePartnerRequest,
   CreateTestimonialRequest,
   ListBlogPostsQuery,
-  ListCareerApplicationsQuery,
   ListContactSubmissionsQuery,
   ListContentPagesQuery,
   ListFacultyBiosQuery,
@@ -20,7 +19,6 @@ import type {
   ListTestimonialsQuery,
   UpdateBlogCategoryRequest,
   UpdateBlogPostRequest,
-  UpdateCareerApplicationStatusRequest,
   UpdateContactSubmissionStatusRequest,
   UpdateContentPageRequest,
   UpdateFacultyBioRequest,
@@ -318,27 +316,3 @@ export function useUpdateContactSubmissionStatus() {
   });
 }
 
-export function useCareerApplicationsList(query: ListCareerApplicationsQuery) {
-  return useQuery({
-    queryKey: ["content", "careers", "list", query] as const,
-    queryFn: () => apiClient.crm.content.careers.list(query),
-    placeholderData: (previousData) => previousData,
-  });
-}
-
-export function useCareerApplication(id: string | undefined) {
-  return useQuery({
-    queryKey: ["content", "careers", "detail", id ?? ""] as const,
-    queryFn: () => apiClient.crm.content.careers.get(id as string),
-    enabled: Boolean(id),
-  });
-}
-
-export function useUpdateCareerApplicationStatus() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: UpdateCareerApplicationStatusRequest }) =>
-      apiClient.crm.content.careers.updateStatus(id, body),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["content", "careers"] }),
-  });
-}

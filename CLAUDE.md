@@ -268,6 +268,42 @@ db foundation). Then execute it, delegating each task to the named specialist su
   run the full `pnpm db:seed` against a live DB — it upserts demo students/programs/
   campaigns; `seed-onboarding.ts` writes only the permissions + the nine questions, and
   skips any question a staff member has already edited.
+- **P14 Careers / Hiring (DONE):** the careers surface finally closes its loop. It was
+  half-built: job openings were free text typed into the careers page's `job_openings`
+  block, applications landed in `career_applications` with **no CRM screen at all**, and
+  **not one email was ever sent** — somebody uploaded a resume into silence and never heard
+  back. Now: openings are a CRM-managed table (**CRM ▸ Careers ▸ Openings**, `JobOpening`)
+  rendered LIVE on `/careers`, following the P11 colleges pattern, so an application
+  references a real opening instead of a string. The `job_openings` block becomes the SECOND
+  reference block beside `live_collection_ref` and **loses its role editor entirely** — no
+  control may look like it publishes a job and not (the `stats.headline` lesson, P10-2).
+  `closesOn` is an INCLUSIVE date that hides a lapsed advert **without changing its status**,
+  because "close it on the 30th" is the chore nobody does on the 30th.
+  **Review is FOUR VERBS, not a status picker** — `hold` (silent; the internal parking
+  state) / `shortlist` (emails the round + the reviewer's details) / `offer` (requires an
+  uploaded letter and emails it **ATTACHED**) / `reject` (polite decline; `internalNotes` is
+  stored and NEVER sent). Same reasoning as P4 grade/send-back and P12 accept/reject, only
+  sharper: three of the four mail a person outside the company. An offer or rejection is
+  terminal, re-checked in the UPDATE's WHERE so two reviewers cannot both decide one
+  application. `offer` is the ONE verb that reads storage BEFORE writing status — a
+  candidate must never be marked offered with nothing sent. Applying always fires an
+  automatic acknowledgement; a failed send leaves `acknowledgedAt` null, which is what the
+  CRM flags. Attaching the letter is why `MailProvider` gained `attachments` and
+  `StorageProvider` gained a size-capped `getObject` (the only server-side byte read here).
+  Careers has its OWN permission domain — `careers.view` / `careers.review` /
+  `careers.openings.manage`, deliberately **not** `content.*` like the colleges screen next
+  door: an application carries a stranger's resume, and whoever may rewrite the homepage
+  should not thereby read CVs. It also moved out of `ContentModule` into `modules/careers`
+  (public URLs unchanged). `CareersPageFallback` no longer lists roles — it carried three
+  hardcoded openings which, once openings became real, were fabricated job adverts shown
+  whenever the API was unreachable.
+  Spec: `docs/specs/careers-hiring.md`, ADR-0066.
+  **DB setup on an existing/live database:** `prisma migrate deploy` (additive — one new
+  table, nine new columns, a partial unique index; plus a rewrite of the two retired status
+  values `reviewing`/`hired`, which nothing had ever written) then `pnpm db:seed:careers`.
+  Do NOT run the full `pnpm db:seed` against a live DB. **No sample openings are seeded on
+  purpose** — a seeded opening is not placeholder data, it is a live advert on a live website
+  for a job that does not exist.
 
 Do **not** jump ahead. Each phase ends with tests green + a demo path.
 
@@ -302,5 +338,6 @@ Do **not** jump ahead. Each phase ends with tests green + a demo path.
 | Locked page-templates plan (P11) | `docs/plans/phase-11-locked-templates.md` |
 | Onboarding form spec (CRM-authored questions, subdomain) | `docs/specs/onboarding-form.md` |
 | Staff leave spec (allowances, approvals, holidays, calendar) | `docs/specs/leave-management.md` |
+| Careers/hiring spec (CRM openings, four-verb review, candidate emails) | `docs/specs/careers-hiring.md` |
 | Lead ownership + accountability (assignment notify, owner picker, per-rep report) | `docs/specs/lead-ownership-accountability.md` |
 | Agent roster & protocol | `.claude/agents/README.md` |

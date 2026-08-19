@@ -1,33 +1,19 @@
 /**
- * CareersPageFallback — the pre-Phase-10 hardcoded Careers page body, preserved verbatim
- * as the resilience fallback for `app/careers/page.tsx`
- * (docs/specs/phase-10-page-builder.md item B).
+ * CareersPageFallback — what /careers renders when the page-builder row cannot be fetched
+ * (API down, page unpublished, row not builder-managed).
+ *
+ * IT LISTS NO ROLES, and that is the change ADR-0066 forced. This file used to carry three
+ * hardcoded openings, preserved verbatim from the pre-Phase-10 page. Once openings became
+ * real CRM rows, those three stopped being harmless placeholder markup and became FABRICATED
+ * JOB ADVERTS: a fallback rendering "Senior Clinical Research Instructor — Hyderabad" while
+ * the real list is empty invites real people to apply for a job that does not exist, and to
+ * hand us a resume on the strength of it. A fallback may degrade; it may not lie.
+ *
+ * So the degraded state says what is actually true — we could not load the roles — and gives
+ * the visitor a way to reach a human. The other page fallbacks keep their static copy because
+ * static copy is what they legitimately are.
  */
-import { CareersRoleList } from "../../careers/careers-role-list";
-
-const OPEN_ROLES = [
-  {
-    id: "r1",
-    title: "Senior Clinical Research Instructor",
-    type: "Full-time",
-    location: "Hyderabad / Remote",
-    description: "Lead live and recorded clinical research training for cohorts of 20 to 30 students. 3+ years of hospital or industry research experience required.",
-  },
-  {
-    id: "r2",
-    title: "Career Counsellor",
-    type: "Full-time",
-    location: "Hyderabad / Remote",
-    description: "Guide medical students through program selection and placement preparation. Strong communication skills and a healthcare or edtech background preferred.",
-  },
-  {
-    id: "r3",
-    title: "Full Stack Engineer (NestJS + Next.js)",
-    type: "Full-time",
-    location: "Hyderabad",
-    description: "Build and maintain our LMS, CRM, and marketing platforms. 2+ years with TypeScript, Node.js, React, and PostgreSQL.",
-  },
-];
+import { SUPPORT_EMAIL } from "../../../lib/contact";
 
 export function CareersPageFallback() {
   return (
@@ -36,17 +22,24 @@ export function CareersPageFallback() {
         <h1 className="text-3xl font-bold text-fg sm:text-4xl">
           Careers at <span className="text-chart-3">Stimuli IQ</span>
         </h1>
-        <p className="mt-3 text-lg text-fg-muted">Help us build the future of medical training in India. We are a remote-friendly team.</p>
+        <p className="mt-3 text-lg text-fg-muted">
+          Help us build the future of medical training in India. We are a remote-friendly team.
+        </p>
       </header>
 
-      {OPEN_ROLES.length > 0 ? (
-        <CareersRoleList roles={OPEN_ROLES} />
-      ) : (
-        <div className="rounded-xl border border-border bg-card p-12 text-center" data-testid="careers-empty">
-          <p className="text-lg font-medium text-fg">No open roles right now</p>
-          <p className="mt-2 text-sm text-fg-muted">Send your CV to hello@stimuliiq.com. We are always looking for great people.</p>
-        </div>
-      )}
+      <div className="rounded-xl border border-border bg-card p-12 text-center" data-testid="careers-unavailable">
+        <p className="text-lg font-medium text-fg">We could not load our open roles just now</p>
+        <p className="mt-2 text-sm text-fg-muted">
+          Please try again in a few minutes. If you would rather not wait, send your CV to{" "}
+          <a
+            href={`mailto:${SUPPORT_EMAIL}`}
+            className="font-medium text-brand-500 underline hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {SUPPORT_EMAIL}
+          </a>{" "}
+          and tell us what you are looking for — a real person reads it.
+        </p>
+      </div>
     </>
   );
 }

@@ -76,3 +76,20 @@ export function onboardingFormDisplayUrl(): string {
     return "/onboarding";
   }
 }
+
+/** A published job opening's public deep link (apps/web /careers#<slug>) — the URL staff
+ *  paste into a LinkedIn post or send to a candidate. Built against the web origin like
+ *  every other outward link here. */
+export function jobOpeningUrl(slug: string): string {
+  return `${WEB_APP_URL}/careers#${encodeURIComponent(slug)}`;
+}
+
+/** Host + path + anchor, no protocol — e.g. "stimuliiq.com/careers#senior-counsellor" —
+ *  for showing staff the exact link before they publish. */
+export function jobOpeningDisplayUrl(slug: string): string {
+  try {
+    return `${new URL(WEB_APP_URL).host}/careers#${slug}`;
+  } catch {
+    return `/careers#${slug}`;
+  }
+}

@@ -87,6 +87,28 @@ export interface MailTag {
   value: string;
 }
 
+/**
+ * A file attached to an outgoing email.
+ *
+ * Attachments are the EXCEPTION, not the norm. Everything this platform sends a person —
+ * receipts, certificates, invoices — is a signed link, because a link keeps large bytes off
+ * the API process and lets access be revoked. The one thing that earns an attachment is a
+ * document the recipient is expected to KEEP and act on outside our system, where a link
+ * that expires makes the message worthless: the offer letter a candidate signs
+ * (docs/specs/careers-hiring.md, ADR-0066).
+ *
+ * Keep them small. Providers cap total message size (Resend: 40 MB), and the bytes sit in
+ * the API's memory for the duration of the send.
+ */
+export interface MailAttachment {
+  /** Filename the recipient sees, e.g. "Offer-Letter-Priya-Sharma.pdf". */
+  filename: string;
+  /** The file's bytes. */
+  content: Buffer;
+  /** MIME type, e.g. "application/pdf". */
+  contentType: string;
+}
+
 /** Input to MailProvider.send(). */
 export interface SendMailInput {
   /** Recipient email address. */
@@ -103,6 +125,12 @@ export interface SendMailInput {
    * Never include PII (name, phone, address) in tag values.
    */
   tags?: MailTag[];
+
+  /**
+   * Files to attach. See MailAttachment for when this is appropriate — the answer is
+   * "almost never; prefer a signed link".
+   */
+  attachments?: MailAttachment[];
 }
 
 /** Result returned by MailProvider.send(). */

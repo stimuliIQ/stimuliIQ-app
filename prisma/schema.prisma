@@ -609,6 +609,7 @@ model Tenant {
   newsletterSubscriptions NewsletterSubscription[]
   contactSubmissions      ContactSubmission[]
   careerApplications      CareerApplication[]
+  jobOpenings             JobOpening[]
   settingRecords          Setting[]
   siteSettings            SiteSetting[]
   bookmarks               Bookmark[]
@@ -657,25 +658,25 @@ model Branch {
 }
 
 model User {
-  id           String     @id @default(uuid()) @db.Uuid
-  tenantId     String     @map("tenant_id") @db.Uuid
-  email        String
-  phone        String?
-  passwordHash String     @map("password_hash")
-  name         String
-  avatar       String?
-  status       UserStatus @default(active)
-  lastLoginAt  DateTime?  @map("last_login_at")
-  twoFaEnabled Boolean    @default(false) @map("two_fa_enabled")
+  id                 String     @id @default(uuid()) @db.Uuid
+  tenantId           String     @map("tenant_id") @db.Uuid
+  email              String
+  phone              String?
+  passwordHash       String     @map("password_hash")
+  name               String
+  avatar             String?
+  status             UserStatus @default(active)
+  lastLoginAt        DateTime?  @map("last_login_at")
+  twoFaEnabled       Boolean    @default(false) @map("two_fa_enabled")
   // First-login onboarding gate (lifecycle-redesign P3). Set true when an LMS
   // account is auto-provisioned with a system-generated TEMPORARY password (on
   // enrollment). While true the LMS forces a password change before any content
   // is accessible; the change-password flow clears it. Default false so every
   // existing/staff account is unaffected.
-  mustChangePassword Boolean @default(false) @map("must_change_password")
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
-  deletedAt    DateTime?  @map("deleted_at")
+  mustChangePassword Boolean    @default(false) @map("must_change_password")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+  deletedAt          DateTime?  @map("deleted_at")
 
   tenant              Tenant          @relation(fields: [tenantId], references: [id])
   userRoles           UserRole[]
@@ -721,19 +722,19 @@ model User {
   completedBatches     Batch[]       @relation("BatchCompletedBy")
 
   // Phase-9 Completion reverse relations (docs/plans/phase-9-completion.md T6-T12)
-  hostedLiveClasses LiveClass[]     @relation("LiveClassHost")
-  raisedTickets     Ticket[]        @relation("TicketRaisedBy")
-  assignedTickets   Ticket[]        @relation("TicketAssignee")
-  ticketMessages    TicketMessage[]
-  blogPosts         BlogPost[]
-  referralsMade     Referral[]      @relation("ReferralReferrer")
-  bookmarks         Bookmark[]
-  lessonNotes       LessonNote[]
+  hostedLiveClasses          LiveClass[]           @relation("LiveClassHost")
+  raisedTickets              Ticket[]              @relation("TicketRaisedBy")
+  assignedTickets            Ticket[]              @relation("TicketAssignee")
+  ticketMessages             TicketMessage[]
+  blogPosts                  BlogPost[]
+  referralsMade              Referral[]            @relation("ReferralReferrer")
+  bookmarks                  Bookmark[]
+  lessonNotes                LessonNote[]
   createdContentPageVersions ContentPageVersion[]
   // One-to-many at the Prisma level; "one ACTIVE credential per user" is enforced by
   // the raw-SQL partial-unique index (user_id WHERE deleted_at IS NULL) so a user can
   // re-enrol after a soft-deleted disable.
-  twoFactorCredentials TwoFactorCredential[]
+  twoFactorCredentials       TwoFactorCredential[]
 
   // Staff member who last moved an onboarding submission out of `new`.
   reviewedOnboardingSubmissions OnboardingSubmission[] @relation("OnboardingSubmissionReviewer")
@@ -742,6 +743,11 @@ model User {
   // so the two sides need distinct relation names.
   leaveRequests         LeaveRequest[] @relation("LeaveRequester")
   reviewedLeaveRequests LeaveRequest[] @relation("LeaveReviewer")
+
+  // Hiring — the staff member who last decided a career application (hold / next round /
+  // offer / reject). Nullable on the application side: rows that predate the review surface,
+  // and rows still sitting at `new`, have no decider yet.
+  decidedCareerApplications CareerApplication[] @relation("CareerApplicationDecider")
 
   @@unique([tenantId, email])
   @@index([phone])
@@ -872,8 +878,8 @@ model Session {
 // ────────────────────────────────────────────────────────────────────────────
 
 model Program {
-  id            String        @id @default(uuid()) @db.Uuid
-  tenantId      String        @map("tenant_id") @db.Uuid
+  id                  String        @id @default(uuid()) @db.Uuid
+  tenantId            String        @map("tenant_id") @db.Uuid
   // slug: SEO URL segment for /programs/:slug. Per-tenant unique (same slug can exist
   // across tenants). Uniqueness is enforced by the raw-SQL partial-unique index
   // `programs_active_tenant_slug_key` on (tenant_id, slug) WHERE deleted_at IS NULL
@@ -885,23 +891,23 @@ model Program {
   // docs-writer note: docs/05 §4 listed "(slug) uniq" as a global single-column unique;
   // the P5 decision is (tenant_id, slug) partial-unique WHERE deleted_at IS NULL —
   // docs/05 §4 should be updated to reflect this choice.
-  slug          String
-  title         String
-  domain        String
-  level         String?
-  mode          ProgramMode   @default(recorded)
-  durationWeeks Int?          @map("duration_weeks")
-  pricePaise    Int           @map("price_paise")
+  slug                String
+  title               String
+  domain              String
+  level               String?
+  mode                ProgramMode   @default(recorded)
+  durationWeeks       Int?          @map("duration_weeks")
+  pricePaise          Int           @map("price_paise")
   // Struck-through "was" price shown beside pricePaise on the public site. NULLABLE —
   // null means "no strike, show one price". NEVER used in any money calculation: orders,
   // coupons and invoices all derive from pricePaise alone (CLAUDE.md §3.6), so this is a
   // display-only column and cannot change what a student is charged.
-  compareAtPricePaise Int?     @map("compare_at_price_paise")
-  currency      String        @default("INR")
-  emi           Json?
-  summary       String?
-  seo           Json?
-  status        ProgramStatus @default(draft)
+  compareAtPricePaise Int?          @map("compare_at_price_paise")
+  currency            String        @default("INR")
+  emi                 Json?
+  summary             String?
+  seo                 Json?
+  status              ProgramStatus @default(draft)
 
   // ── Phase-5 SEO / marketing columns (docs/plans/phase-5.md §2, all nullable/defaulted
   //    so P1–P4 rows validate without a data migration) ──────────────────────────────────
@@ -920,20 +926,20 @@ model Program {
   //   "is_public" is a MARKETING flag (published does NOT automatically make a program publicly
   //   listable on the site). A program must be explicitly marked is_public=true to appear on
   //   GET /public/programs. This prevents accidental draft/internal-program leakage. (Risk #6).
-  seoTitle       String? @map("seo_title")
-  seoDescription String? @map("seo_description")
-  ogImageKey     String? @map("og_image_key")
+  seoTitle             String? @map("seo_title")
+  seoDescription       String? @map("seo_description")
+  ogImageKey           String? @map("og_image_key")
   // brochureKey: S3/R2 object key for the downloadable course brochure (PDF) staff upload
   //   in the CRM. Same contract as ogImageKey — the raw key is NEVER returned to a client;
   //   a public asset URL is minted at serve time (mintCdnUrl). Null = no brochure, and the
   //   website simply omits the "Download brochure" button rather than linking to nothing.
-  brochureKey    String? @map("brochure_key")
-  cardSummary    String? @map("card_summary")
-  outcomes       Json?
+  brochureKey          String? @map("brochure_key")
+  cardSummary          String? @map("card_summary")
+  outcomes             Json?
   // ratingAvg: integer 0–50 = 0.0–5.0 stars (×10 scale — no float per CLAUDE.md §3.6-adjacent).
-  ratingAvg      Int?    @map("rating_avg")
-  ratingCount    Int?    @map("rating_count")
-  isPublic       Boolean @default(false) @map("is_public")
+  ratingAvg            Int?    @map("rating_avg")
+  ratingCount          Int?    @map("rating_count")
+  isPublic             Boolean @default(false) @map("is_public")
   // scholarshipAvailable: marketing flag — when true the public website renders a
   // "Scholarship available" badge on the course card and detail page (links to
   // /scholarship). Display-only; actual waivers are handled in the leads/commerce flow.
@@ -952,7 +958,7 @@ model Program {
   // already sellable; defaulting false would silently pull the Enroll button from all of
   // them on deploy. This is the opposite choice to `isPublic`, which fails CLOSED because
   // there the risk runs the other way (accidental publication).
-  enrollmentEnabled Boolean @default(true) @map("enrollment_enabled")
+  enrollmentEnabled    Boolean @default(true) @map("enrollment_enabled")
 
   // order: staff-curated display order (ascending) used by every public program listing
   // (nav mega-menu, homepage grid, /programs default, related-programs) AND the CRM's own
@@ -986,30 +992,30 @@ model Program {
   // because it models the staff workflow directly: configure a badge once, then flip it on
   // and off seasonally without retyping it. The public API never exposes this flag — it
   // nulls colour+label out when false, so a configured-but-disabled badge cannot leak.
-  badgeColor   String?  @map("badge_color") @db.VarChar(7)
-  badgeLabel   String?  @map("badge_label") @db.VarChar(24)
-  badgeEnabled Boolean  @default(false) @map("badge_enabled")
+  badgeColor   String? @map("badge_color") @db.VarChar(7)
+  badgeLabel   String? @map("badge_label") @db.VarChar(24)
+  badgeEnabled Boolean @default(false) @map("badge_enabled")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  tenant       Tenant        @relation(fields: [tenantId], references: [id])
-  modules      Module[]
-  batches      Batch[]
-  enrollments  Enrollment[]
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id])
+  modules               Module[]
+  batches               Batch[]
+  enrollments           Enrollment[]
   // Phase-2 reverse relations
-  orders       Order[]
-  leads        Lead[]
-  bookings     Booking[]
+  orders                Order[]
+  leads                 Lead[]
+  bookings              Booking[]
   // Phase-4: certificates denormalize program_id for direct lookup.
-  certificates Certificate[]
+  certificates          Certificate[]
   // Phase-6: forum threads scoped to this program (course-level discussions)
-  forumThreads ForumThread[]
+  forumThreads          ForumThread[]
   // Phase-9 Completion reverse relations
-  liveClasses  LiveClass[]
-  testimonials Testimonial[]
-  leadForms    LeadForm[]
+  liveClasses           LiveClass[]
+  testimonials          Testimonial[]
+  leadForms             LeadForm[]
   // Onboarding-form submissions tagged with the program the student picked.
   onboardingSubmissions OnboardingSubmission[]
 
@@ -1082,33 +1088,33 @@ model Lesson {
 // ────────────────────────────────────────────────────────────────────────────
 
 model StudentProfile {
-  id         String               @id @default(uuid()) @db.Uuid
-  tenantId   String               @map("tenant_id") @db.Uuid
-  userId     String               @unique @map("user_id") @db.Uuid
-  college    String?
-  courseType StudentCourseType    @map("course_type")
-  year       Int?
+  id             String               @id @default(uuid()) @db.Uuid
+  tenantId       String               @map("tenant_id") @db.Uuid
+  userId         String               @unique @map("user_id") @db.Uuid
+  college        String?
+  courseType     StudentCourseType    @map("course_type")
+  year           Int?
   // lifecycle-redesign (registration step): secondary/guardian contact captured
   // when a lead-contact completes full registration. users.phone stays primary.
-  alternatePhone String? @map("alternate_phone")
-  city       String?
-  source     String?
-  status     StudentProfileStatus @default(lead)
-  createdAt  DateTime             @default(now()) @map("created_at")
-  updatedAt  DateTime             @updatedAt @map("updated_at")
-  deletedAt  DateTime?            @map("deleted_at")
+  alternatePhone String?              @map("alternate_phone")
+  city           String?
+  source         String?
+  status         StudentProfileStatus @default(lead)
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+  deletedAt      DateTime?            @map("deleted_at")
 
-  tenant             Tenant              @relation(fields: [tenantId], references: [id])
-  user               User                @relation(fields: [userId], references: [id])
-  enrollments        Enrollment[]
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id])
+  user                  User                   @relation(fields: [userId], references: [id])
+  enrollments           Enrollment[]
   // Phase-2 reverse relations
-  orders             Order[]
-  activities         Activity[]
-  convertedFromLead  Lead?               @relation("LeadConvertedStudent")
+  orders                Order[]
+  activities            Activity[]
+  convertedFromLead     Lead?                  @relation("LeadConvertedStudent")
   // Phase-4: certificates denormalize student_id for direct lookup.
-  certificates       Certificate[]
+  certificates          Certificate[]
   // Phase-6: campaign recipients that target this student
-  campaignRecipients CampaignRecipient[]
+  campaignRecipients    CampaignRecipient[]
   // Onboarding submissions whose approval created/activated this student.
   onboardingSubmissions OnboardingSubmission[]
 
@@ -2325,17 +2331,26 @@ model Notification {
 // when absent. The @unique Prisma constraint creates a full unique index; no partial
 // variant needed since user_id is never null and we only care about the active prefs row.
 model NotificationPref {
-  id         String    @id @default(uuid()) @db.Uuid
-  tenantId   String    @map("tenant_id") @db.Uuid
-  userId     String    @unique @map("user_id") @db.Uuid
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenantId               String    @map("tenant_id") @db.Uuid
+  userId                 String    @unique @map("user_id") @db.Uuid
   // matrix: type×channel preference booleans. Absent key = server default (typically true).
-  matrix     Json      @default("{}")
+  // ONLY NotificationType keys belong here — the column's contract
+  // (NotificationPrefMatrixSchema in @repo/types) is `.strict()`.
+  matrix                 Json      @default("{}")
+  // Leaderboard opt-in + alias (gamification). FIRST-CLASS COLUMNS, deliberately not
+  // keys inside `matrix`: they used to live there, which put non-NotificationType keys
+  // into the matrix and made GET /me/notification-prefs return a body that
+  // PUT /me/notification-prefs rejected with 400. Migration
+  // 20260819120000_leaderboard_prefs_out_of_matrix moved them out.
+  leaderboardOptIn       Boolean   @default(false) @map("leaderboard_opt_in")
+  leaderboardDisplayName String?   @map("leaderboard_display_name")
   // quiet_hours: { start: "HH:MM", end: "HH:MM", tz: "IANA timezone" }.
   // null = no quiet hours configured (all channels always active).
-  quietHours Json?     @map("quiet_hours")
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
-  deletedAt  DateTime? @map("deleted_at")
+  quietHours             Json?     @map("quiet_hours")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  deletedAt              DateTime? @map("deleted_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
@@ -3270,11 +3285,11 @@ model Testimonial {
 }
 
 model Partner {
-  id        String        @id @default(uuid()) @db.Uuid
-  tenantId  String        @map("tenant_id") @db.Uuid
-  name      String
-  logoKey   String?       @map("logo_key")
-  url       String?
+  id          String        @id @default(uuid()) @db.Uuid
+  tenantId    String        @map("tenant_id") @db.Uuid
+  name        String
+  logoKey     String?       @map("logo_key")
+  url         String?
   // category: open-ended string (e.g. "hiring_partner", "tech_partner") — matches the
   // Resource.type / CertificateTemplate.status "no enum for an open editor-driven set"
   // precedent.
@@ -3291,11 +3306,11 @@ model Partner {
   focus       String?
   established Int?
   city        String?
-  status    ContentStatus @default(draft)
-  order     Int           @default(0)
-  createdAt DateTime      @default(now()) @map("created_at")
-  updatedAt DateTime      @updatedAt @map("updated_at")
-  deletedAt DateTime?     @map("deleted_at")
+  status      ContentStatus @default(draft)
+  order       Int           @default(0)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  deletedAt   DateTime?     @map("deleted_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
@@ -3338,13 +3353,13 @@ model FacultyBio {
 // (e.g. [{type:"hero", data:{...}}, {type:"richtext", data:{html:"..."}}]) rendered
 // through the DOMPurify sink (@repo/ui rich-text/MDX render sink, T19).
 model ContentPage {
-  id             String        @id @default(uuid()) @db.Uuid
-  tenantId       String        @map("tenant_id") @db.Uuid
-  slug           String
-  title          String
-  body           Json
-  seoTitle       String?       @map("seo_title")
-  seoDescription String?       @map("seo_description")
+  id               String        @id @default(uuid()) @db.Uuid
+  tenantId         String        @map("tenant_id") @db.Uuid
+  slug             String
+  title            String
+  body             Json
+  seoTitle         String?       @map("seo_title")
+  seoDescription   String?       @map("seo_description")
   // seoImagePath — Phase-11 locked templates (docs/plans/phase-11-locked-templates.md
   // "SEO: ... add a new per-page OG image"). Prisma field name matches the DTO 1:1
   // (`seoImagePath`, packages/types/src/content/pages.schemas.ts) rather than the sitewide
@@ -3356,9 +3371,9 @@ model ContentPage {
   // Value is still a StorageProvider object key (ObjectKeySchema), never a raw URL —
   // same "stored key, CDN URL minted at serve time" contract as every `*ImageKey` field.
   // Nullable/additive: every existing row is unaffected (null until a super_admin sets one).
-  seoImagePath   String?       @map("seo_image_path")
-  status         ContentStatus @default(draft)
-  publishedAt    DateTime?     @map("published_at")
+  seoImagePath     String?       @map("seo_image_path")
+  status           ContentStatus @default(draft)
+  publishedAt      DateTime?     @map("published_at")
   // isBuilderManaged — Phase-10 page-builder spec (docs/specs/phase-10-page-builder.md):
   // pages authored through the CRM block-based page builder are "save-is-live" (every
   // save publishes immediately), which is a DIFFERENT lifecycle from the generic CMS
@@ -3374,10 +3389,10 @@ model ContentPage {
   // in the builder's page list" and "route an edit request to the right permission check"
   // without an unreliable heuristic (e.g. sniffing `body`'s block shape). Defaults
   // `false` — every existing content_pages row (T8) is unaffected; no-op migration.
-  isBuilderManaged Boolean @default(false) @map("is_builder_managed")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
-  deletedAt      DateTime?     @map("deleted_at")
+  isBuilderManaged Boolean       @default(false) @map("is_builder_managed")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  deletedAt        DateTime?     @map("deleted_at")
 
   tenant   Tenant               @relation(fields: [tenantId], references: [id])
   versions ContentPageVersion[]
@@ -3476,32 +3491,122 @@ model ContactSubmission {
   @@map("contact_submissions")
 }
 
-// CareerApplication — public "Careers" apply form (docs/plans/phase-9-completion.md T32).
-// resumeStorageKey: S3/R2 object key — NOT a raw URL (docs/05 §7); signed download URL
-// minted on demand for HR/admin readers.
-model CareerApplication {
+// JobOpening — one advertised role, authored in CRM ▸ Careers ▸ Openings and rendered
+// live on /careers (docs/specs/careers-hiring.md, ADR-0066). The site never stores a copy:
+// the careers page's `job_openings` template section resolves published rows at read time,
+// the same way partner colleges resolve through `live_collection_ref` (P11 precedent).
+//
+// `status` is a plain String constrained at the app boundary by `JobOpeningStatusSchema`
+// (draft | published | closed) — the same convention CareerApplication.status already
+// follows in this file, chosen so a lifecycle value can be added without a DB enum
+// migration. Only `published` rows are ever visible publicly, and `closesOn` (a DATE,
+// inclusive) additionally hides a row once it lapses WITHOUT mutating status: a lapsed
+// opening must stop taking applications on its own, because "close it on the 30th" is
+// exactly the chore nobody remembers to do on the 30th.
+//
+// `slug` is the stable public identifier (/careers#<slug> and the apply deep-link). Unique
+// per tenant among LIVE rows only — the partial unique index lives in the migration SQL
+// (`WHERE deleted_at IS NULL`), not here, so a soft-deleted opening never blocks reusing
+// its slug. See docs/05-database-design.md on partial unique indexes.
+model JobOpening {
   id               String    @id @default(uuid()) @db.Uuid
   tenantId         String    @map("tenant_id") @db.Uuid
-  name             String
-  email            String
-  phone            String?
-  role             String
-  resumeStorageKey String    @map("resume_storage_key")
-  coverLetter      String?   @map("cover_letter")
-  status           String    @default("new")
+  title            String
+  slug             String
+  department       String?
+  employmentType   String    @map("employment_type")
+  location         String
+  /// onsite | hybrid | remote — app-boundary constrained (JobOpeningWorkModeSchema).
+  workMode         String?   @map("work_mode")
+  experienceLevel  String?   @map("experience_level")
+  /// Short card blurb shown in the /careers list.
+  summary          String
+  /// Long-form body shown on the expanded role. Plain text, newline-separated.
+  description      String?
+  /// string[] — bullet lists. JSON rather than a child table: they are display copy with no
+  /// identity, are never queried, and are always read as a whole with their parent row.
+  responsibilities Json      @default("[]")
+  requirements     Json      @default("[]")
+  compensationNote String?   @map("compensation_note")
+  status           String    @default("draft")
+  /// Display order in the /careers list; ties break on createdAt desc.
+  order            Int       @default(0)
+  openingsCount    Int       @default(1) @map("openings_count")
+  /// Inclusive last day to apply (DATE, not timestamp — "applications close on the 30th"
+  /// means the whole of the 30th, in every timezone a candidate might be in).
+  closesOn         DateTime? @map("closes_on") @db.Date
+  publishedAt      DateTime? @map("published_at")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   deletedAt        DateTime? @map("deleted_at")
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant       Tenant              @relation(fields: [tenantId], references: [id])
+  applications CareerApplication[]
 
   @@index([tenantId, status])
   @@index([tenantId, deletedAt])
+  @@map("job_openings")
+}
+
+// CareerApplication — one candidate's application to one opening. Created by the public
+// apply form (docs/plans/phase-9-completion.md T32); reviewed in CRM ▸ Careers ▸
+// Applications (docs/specs/careers-hiring.md, ADR-0066).
+//
+// resumeStorageKey / offerLetterStorageKey: S3/R2 object keys — NOT raw URLs (docs/05 §7);
+// a signed download URL is minted on demand for the reviewer, and the offer letter is
+// additionally read server-side and ATTACHED to the candidate's email.
+//
+// `jobOpeningId` is NULLABLE and `role` is a SNAPSHOT of the opening's title at apply
+// time, deliberately both: the FK powers the per-opening queue and the applicant counts,
+// while the snapshot means renaming or deleting an opening can never rewrite what somebody
+// actually applied for — the same self-describing-answer discipline as onboarding (P12).
+//
+// `status` (new | on_hold | shortlisted | selected | rejected) is never PATCHed as a free
+// choice. It is the residue of a REVIEW VERB — hold / shortlist / offer / reject — each with
+// its own endpoint and its own candidate email, so no dropdown can silently mail a person.
+model CareerApplication {
+  id                    String    @id @default(uuid()) @db.Uuid
+  tenantId              String    @map("tenant_id") @db.Uuid
+  jobOpeningId          String?   @map("job_opening_id") @db.Uuid
+  name                  String
+  email                 String
+  phone                 String?
+  /// Snapshot of the opening title at apply time — see the model comment.
+  role                  String
+  resumeStorageKey      String    @map("resume_storage_key")
+  coverLetter           String?   @map("cover_letter")
+  status                String    @default("new")
+  /// Reviewer-only. NEVER rendered to the candidate and never quoted in any email — the
+  /// same posture as OnboardingSubmission.reviewNotes (P12).
+  internalNotes         String?   @map("internal_notes")
+  /// What the candidate was actually TOLD when moved to the next round, kept so a reviewer
+  /// opening the record later reads the message that went out rather than guessing.
+  nextRoundName         String?   @map("next_round_name")
+  nextRoundDetails      String?   @map("next_round_details")
+  offerLetterStorageKey String?   @map("offer_letter_storage_key")
+  offerLetterFileName   String?   @map("offer_letter_file_name")
+  /// Set when the "thanks for applying" acknowledgement was handed to the mail provider.
+  /// Its absence is the signal that the acknowledgement never went out (a bounced or
+  /// misconfigured mailer must not fail the application itself), and it is what makes the
+  /// resend path idempotent by inspection.
+  acknowledgedAt        DateTime? @map("acknowledged_at")
+  decidedAt             DateTime? @map("decided_at")
+  decidedByUserId       String?   @map("decided_by_user_id") @db.Uuid
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  deletedAt             DateTime? @map("deleted_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  jobOpening JobOpening? @relation(fields: [jobOpeningId], references: [id])
+  decidedBy  User?       @relation("CareerApplicationDecider", fields: [decidedByUserId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([tenantId, jobOpeningId])
   @@map("career_applications")
 }
 
 // ── T9: Setting (system/company scope) ──────────────────────────────────────────────
-
 
 model Setting {
   id        String       @id @default(uuid()) @db.Uuid
@@ -3858,34 +3963,34 @@ model OnboardingField {
 }
 
 model OnboardingSubmission {
-  id          String                     @id @default(uuid()) @db.Uuid
-  tenantId    String                     @map("tenant_id") @db.Uuid
-  fullName    String?                    @map("full_name")
-  email       String?
-  phone       String?
-  programId   String?                    @map("program_id") @db.Uuid
-  answers     Json
+  id               String                     @id @default(uuid()) @db.Uuid
+  tenantId         String                     @map("tenant_id") @db.Uuid
+  fullName         String?                    @map("full_name")
+  email            String?
+  phone            String?
+  programId        String?                    @map("program_id") @db.Uuid
+  answers          Json
   // Arrives ON HOLD, not "pending": the CRM offers exactly two decisions (accept / reject),
   // so "nobody has ruled yet" and "held" are the same state and having two of them only
   // ever produced a filter nobody could reason about. `pending` stays in the enum for old
   // rows / backups (dropping a Postgres enum value is not a safe forward-only migration) —
   // see migration `onboarding_default_hold`, which also moved every existing row.
-  status      OnboardingSubmissionStatus @default(hold)
-  reviewNotes String?                    @map("review_notes")
+  status           OnboardingSubmissionStatus @default(hold)
+  reviewNotes      String?                    @map("review_notes")
   // WHO decided, and when. Set on every approve/reject/hold — the audit trail lives in
   // `audit_logs` too, but a reviewer is asked "who approved this?" often enough that it
   // belongs on the row rather than behind a log query.
-  reviewedById String?                   @map("reviewed_by_id") @db.Uuid
-  reviewedAt  DateTime?                  @map("reviewed_at")
+  reviewedById     String?                    @map("reviewed_by_id") @db.Uuid
+  reviewedAt       DateTime?                  @map("reviewed_at")
   // The student this submission activated, set on approve. Nullable because a pending,
   // rejected or held submission has no student yet — and because approval is what creates
   // the link, this doubles as the idempotency guard against double-activation.
-  studentProfileId String?               @map("student_profile_id") @db.Uuid
+  studentProfileId String?                    @map("student_profile_id") @db.Uuid
   // Hashed, never raw — DPDP posture, matches Lead/ContactSubmission consent handling.
-  ipHash      String?                    @map("ip_hash")
-  createdAt   DateTime                   @default(now()) @map("created_at")
-  updatedAt   DateTime                   @updatedAt @map("updated_at")
-  deletedAt   DateTime?                  @map("deleted_at")
+  ipHash           String?                    @map("ip_hash")
+  createdAt        DateTime                   @default(now()) @map("created_at")
+  updatedAt        DateTime                   @updatedAt @map("updated_at")
+  deletedAt        DateTime?                  @map("deleted_at")
 
   tenant         Tenant          @relation(fields: [tenantId], references: [id])
   program        Program?        @relation(fields: [programId], references: [id])
@@ -4018,15 +4123,15 @@ model Holiday {
 // week is read on every duration calculation, including inside the request-creation
 // transaction, and it needs a typed column rather than a JSON lookup.
 model LeaveSetting {
-  id String @id @default(uuid()) @db.Uuid
-  tenantId String @map("tenant_id") @db.Uuid
+  id            String    @id @default(uuid()) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
   // Non-working weekdays, 0 = Sunday … 6 = Saturday. Excluded from every duration count and
   // shaded on the calendar. Default `[0]` — a six-day week is still the norm in this market,
   // so a Sunday-only default is the one that surprises the fewest people.
-  weeklyOffDays Int[] @default([0]) @map("weekly_off_days")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
+  weeklyOffDays Int[]     @default([0]) @map("weekly_off_days")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
@@ -4036,32 +4141,32 @@ model LeaveSetting {
 }
 
 model LeaveRequest {
-  id          String             @id @default(uuid()) @db.Uuid
-  tenantId    String             @map("tenant_id") @db.Uuid
+  id           String             @id @default(uuid()) @db.Uuid
+  tenantId     String             @map("tenant_id") @db.Uuid
   // The applicant. ALWAYS the authenticated actor — the API never accepts a user id on
   // create, so nobody can file leave in a colleague's name.
-  userId      String             @map("user_id") @db.Uuid
-  leaveTypeId String             @map("leave_type_id") @db.Uuid
-  startDate   DateTime           @map("start_date") @db.Date
-  endDate     DateTime           @map("end_date") @db.Date
+  userId       String             @map("user_id") @db.Uuid
+  leaveTypeId  String             @map("leave_type_id") @db.Uuid
+  startDate    DateTime           @map("start_date") @db.Date
+  endDate      DateTime           @map("end_date") @db.Date
   // Half-day markers on the boundary days. On a single-day request `endDayPart` mirrors
   // `startDayPart` and only one of them is read.
-  startDayPart LeaveDayPart      @default(full) @map("start_day_part")
-  endDayPart   LeaveDayPart      @default(full) @map("end_day_part")
+  startDayPart LeaveDayPart       @default(full) @map("start_day_part")
+  endDayPart   LeaveDayPart       @default(full) @map("end_day_part")
   // Working half-days, computed SERVER-SIDE from the tenant's weekly offs and holidays.
   // Stored rather than recomputed on read so that changing next year's holiday list cannot
   // silently rewrite the length of leave somebody already took.
-  halfDays    Int                @map("half_days")
-  reason      String
-  status      LeaveRequestStatus @default(pending)
-  reviewedById String?           @map("reviewed_by_id") @db.Uuid
-  reviewedAt  DateTime?          @map("reviewed_at")
+  halfDays     Int                @map("half_days")
+  reason       String
+  status       LeaveRequestStatus @default(pending)
+  reviewedById String?            @map("reviewed_by_id") @db.Uuid
+  reviewedAt   DateTime?          @map("reviewed_at")
   // The approver's note, or — on a rejection — the mandatory reason shown to the applicant.
-  reviewNote  String?            @map("review_note")
-  cancelledAt DateTime?          @map("cancelled_at")
-  createdAt   DateTime           @default(now()) @map("created_at")
-  updatedAt   DateTime           @updatedAt @map("updated_at")
-  deletedAt   DateTime?          @map("deleted_at")
+  reviewNote   String?            @map("review_note")
+  cancelledAt  DateTime?          @map("cancelled_at")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+  deletedAt    DateTime?          @map("deleted_at")
 
   tenant     Tenant    @relation(fields: [tenantId], references: [id])
   user       User      @relation("LeaveRequester", fields: [userId], references: [id])

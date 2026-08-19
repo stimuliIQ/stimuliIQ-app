@@ -30,6 +30,9 @@ import { MentorDashboardApi } from "./mentor-dashboard.api.js";
 import { LiveClassesApi } from "./live-classes.api.js";
 import { TicketsApi, CannedResponsesApi, KbArticlesApi } from "./support.api.js";
 import { ContentApi, ContentPagesApi, CollegesApi } from "./content.api.js";
+// Hiring (ADR-0066) — deliberately NOT under content.*: it is gated by careers.* rather
+// than content.*, because an application carries a stranger's resume.
+import { CareersApi } from "./careers.api.js";
 import { SiteSettingsApi } from "./site-settings.api.js";
 import { SettingsApi } from "./settings.api.js";
 import { ReferralsApi } from "./referrals.api.js";
@@ -94,6 +97,8 @@ export class CrmApi {
   // (Phase-11 locked templates: "own screen", mirrors mentors/courses). `client.crm.
   // content.colleges.*` keeps working unchanged for every existing caller.
   readonly colleges: CollegesApi;
+  /** Job openings + the application review queue: .careers.openings / .careers.applications. */
+  readonly careers: CareersApi;
   // Phase-10 page builder (docs/specs/phase-10-page-builder.md) — SiteSetting
   // (nav/footer/SEO/contact/stats), super_admin-only (`site_settings.view`/`.edit`).
   // Page-builder block CRUD itself lives on `content.pages.*` (extends the existing
@@ -141,6 +146,7 @@ export class CrmApi {
     this.content = new ContentApi(client);
     this.contentPages = this.content.pages;
     this.colleges = this.content.colleges;
+    this.careers = new CareersApi(client);
     this.siteSettings = new SiteSettingsApi(client);
     this.settings = new SettingsApi(client);
     this.referrals = new ReferralsApi(client);
@@ -183,3 +189,4 @@ export * from "./saved-views.api.js";
 export * from "./video-library.api.js";
 export * from "./onboarding.api.js";
 export * from "./leave.api.js";
+export * from "./careers.api.js";

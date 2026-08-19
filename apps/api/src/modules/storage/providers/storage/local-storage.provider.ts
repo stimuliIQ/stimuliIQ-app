@@ -20,6 +20,8 @@ import type {
   DeleteInput,
   HeadInput,
   HeadResult,
+  GetObjectInput,
+  GetObjectResult,
 } from "./storage-provider.interface";
 import {
   DEFAULT_STORAGE_UPLOAD_TTL_SECONDS,
@@ -95,5 +97,23 @@ export class LocalStorageProvider implements StorageProvider {
     } catch {
       return { exists: false };
     }
+  }
+
+  /** Reads the file off disk, refusing anything past the caller's ceiling (see GetObjectInput). */
+  async getObject(input: GetObjectInput): Promise<GetObjectResult> {
+    const path = resolveObjectPath(this.config.baseDir, input.key);
+    let size: number;
+    try {
+      ({ size } = await stat(path));
+    } catch {
+      throw new Error(`LocalStorageProvider.getObject: object not found for key "${input.key}"`);
+    }
+    if (size > input.maxBytes) {
+      throw new Error(
+        `LocalStorageProvider.getObject: object is ${size} bytes, exceeding the ${input.maxBytes}-byte ceiling`,
+      );
+    }
+    const body = await readFile(path);
+    return { body, contentType: null, size: body.length };
   }
 }

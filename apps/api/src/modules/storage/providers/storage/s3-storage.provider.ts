@@ -96,6 +96,8 @@ import type {
   DeleteInput,
   HeadInput,
   HeadResult,
+  GetObjectInput,
+  GetObjectResult,
 } from "./storage-provider.interface";
 import {
   DEFAULT_STORAGE_UPLOAD_TTL_SECONDS,
@@ -123,6 +125,13 @@ const ALLOWED_KEY_PREFIXES = [
   // Phase-9-completion gap #3: anonymous career-application resume uploads (public,
   // captcha-gated). Key shape: careers/{tenantId}/{uuid}-{sanitisedFilename}.
   "careers/",
+  // Hiring (ADR-0066): staff-uploaded offer letters. Key shape:
+  // offer-letters/{tenantId}/{uuid}-{sanitisedFilename}. A SEPARATE namespace from
+  // careers/ on purpose — that one is written by anonymous strangers through a public
+  // endpoint, this one only by authenticated staff, and keeping them apart means neither
+  // path's prefix guard can ever be satisfied by the other's key. Private: signed URLs
+  // only, never CDN.
+  "offer-letters/",
   // Phase-8 WS-1 (mentors.service.ts#getPhotoUploadUrl) / courses "OG image"
   // (courses.service.ts#getImageUploadUrl): public marketing images, served via CDN.
   // Key shape: {namespace}/{tenantId}/{uuid}-{sanitisedFilename}. These two namespaces
@@ -279,6 +288,7 @@ export type StorageKeyNamespace =
   | "exports"
   | "receipts"
   | "careers"
+  | "offer-letters"
   | "mentor_photos"
   | "program_images"
   | "program_brochures"
@@ -360,6 +370,16 @@ export function buildStorageKey(opts: BuildKeyOptions): string {
       // No scopeId: an anonymous applicant has no enrollment/lesson to scope to —
       // uniqueness comes from uniqueId (a fresh UUID per upload-url request).
       const safeFilename = filename ? sanitiseFilename(filename) : "resume";
+      return `${namespace}/${safeTenantId}/${safeUniqueId}-${safeFilename}`;
+    }
+
+    case "offer-letters": {
+      // Staff-uploaded offer letters (ADR-0066). No scopeId: the letter is uploaded before
+      // the offer verb runs, so the application it will belong to is not yet linked to it —
+      // uniqueness comes from the per-request uniqueId, and CareerApplicationsService
+      // re-checks the tenant segment before trusting a submitted key, exactly as the
+      // careers/ and onboarding/ paths above do.
+      const safeFilename = filename ? sanitiseFilename(filename) : "offer-letter";
       return `${namespace}/${safeTenantId}/${safeUniqueId}-${safeFilename}`;
     }
 
@@ -660,6 +680,62 @@ export class S3StorageProvider implements StorageProvider {
       }
       throw err;
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // getObject
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Reads an object's bytes into memory. See GetObjectInput for why this exists at all
+   * and why it is not the general download path.
+   *
+   * The size ceiling is checked with a HEAD *before* the GET, so an oversized object costs
+   * one metadata round-trip rather than a partial download of something huge. The streamed
+   * body is additionally counted as it arrives and aborted past the ceiling, because a HEAD
+   * and a GET are two requests and the object can be replaced between them.
+   */
+  async getObject(input: GetObjectInput): Promise<GetObjectResult> {
+    validateStorageKey(input.key);
+    if (!Number.isInteger(input.maxBytes) || input.maxBytes <= 0) {
+      throw new Error("S3StorageProvider.getObject: maxBytes must be a positive integer");
+    }
+
+    const meta = await this.head({ key: input.key });
+    if (!meta.exists) {
+      throw new Error(`S3StorageProvider.getObject: object not found for key "${input.key}"`);
+    }
+    if (typeof meta.size === "number" && meta.size > input.maxBytes) {
+      throw new Error(
+        `S3StorageProvider.getObject: object is ${meta.size} bytes, exceeding the ${input.maxBytes}-byte ceiling`,
+      );
+    }
+
+    const client = this.getClient();
+    const bucket = this.getBucket(input.key);
+    const response = await client.send(new GetObjectCommand({ Bucket: bucket, Key: input.key }));
+
+    if (!response.Body) {
+      throw new Error(`S3StorageProvider.getObject: empty body for key "${input.key}"`);
+    }
+
+    const chunks: Buffer[] = [];
+    let total = 0;
+    // The SDK's Body is a Node Readable in this runtime; async-iterate it so the ceiling is
+    // enforced DURING the transfer rather than after a full buffer has already been built.
+    const stream = response.Body as AsyncIterable<Uint8Array>;
+    for await (const chunk of stream) {
+      total += chunk.length;
+      if (total > input.maxBytes) {
+        throw new Error(
+          `S3StorageProvider.getObject: object exceeded the ${input.maxBytes}-byte ceiling mid-transfer`,
+        );
+      }
+      chunks.push(Buffer.from(chunk));
+    }
+
+    const body = Buffer.concat(chunks);
+    return { body, contentType: response.ContentType ?? null, size: body.length };
   }
 
   // ─────────────────────────────────────────────────────────────────────────
