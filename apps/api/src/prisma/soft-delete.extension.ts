@@ -119,6 +119,15 @@ const SOFT_DELETE_MODELS = new Set<string>([
   // `answers` snapshot); a deleted submission must stay recoverable.
   "OnboardingField",
   "OnboardingSubmission",
+  // Staff leave management. Every one of these is soft-deleted so the partial-unique
+  // indexes stay re-usable (delete the "Casual" type or a wrongly-dated holiday and add
+  // it back), and so a deleted leave request stays recoverable — it is the evidence
+  // behind an absence somebody's payroll may depend on.
+  "LeaveType",
+  "LeaveQuota",
+  "Holiday",
+  "LeaveSetting",
+  "LeaveRequest",
 ]);
 
 function isSoftDeletable(model: string | undefined): boolean {

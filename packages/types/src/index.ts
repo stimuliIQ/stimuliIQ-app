@@ -186,3 +186,9 @@ export * from "./lms/video-library.schemas.js";
 // public submissions. The question set is DATA, so the shared answer validator
 // (`buildOnboardingAnswerIssues`) is exported alongside the schemas and run on BOTH sides.
 export * from "./onboarding/onboarding.schemas.js";
+
+// Staff leave management. `computeLeaveDuration` ships alongside the schemas and is run on
+// BOTH sides for the same reason `buildOnboardingAnswerIssues` is: weekly offs, holidays and
+// half-days are one rule the apply form must preview live and the API must enforce, and two
+// implementations of it would disagree the day somebody adds a Saturday to the weekly offs.
+export * from "./crm/leave.schemas.js";

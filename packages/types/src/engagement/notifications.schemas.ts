@@ -58,6 +58,19 @@ export const NotificationTypeSchema = z.enum([
    * bulk assign, and 30 emails would train them to ignore the channel.
    */
   "lead_assigned",
+  /**
+   * STAFF-facing, staff leave (docs/specs/leave-management.md). `leave_requested` goes to
+   * every active super_admin — the approval queue has one audience and it must not depend
+   * on somebody remembering to open the CRM; the other two go back to the applicant, and
+   * `leave_rejected` carries the reviewer's mandatory reason.
+   *
+   * Unlike `lead_assigned` these default to EMAIL as well as in-app. Volume is a handful a
+   * month rather than one per lead, and people book travel off the answer — an unread bell
+   * is not good enough for a decision somebody is waiting on.
+   */
+  "leave_requested",
+  "leave_approved",
+  "leave_rejected",
 ]);
 export type NotificationType = z.infer<typeof NotificationTypeSchema>;
 
@@ -275,6 +288,9 @@ export const NotificationPrefMatrixSchema = z
     payment_receipt: ChannelPrefsSchema.optional(),
     welcome: ChannelPrefsSchema.optional(),
     lead_assigned: ChannelPrefsSchema.optional(),
+    leave_requested: ChannelPrefsSchema.optional(),
+    leave_approved: ChannelPrefsSchema.optional(),
+    leave_rejected: ChannelPrefsSchema.optional(),
   })
   .strict();
 export type NotificationPrefMatrix = z.infer<typeof NotificationPrefMatrixSchema>;

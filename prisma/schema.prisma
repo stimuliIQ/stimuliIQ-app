@@ -296,6 +296,14 @@ enum NotificationType {
   // (see DEFAULT_PREFS_MATRIX in notifications.service.ts) — assignment is a
   // work-queue signal, not something worth an email per lead.
   lead_assigned
+  // Staff leave (docs/specs/leave-management.md). `leave_requested` fans out to every
+  // active super_admin — the approval queue has exactly one audience and it must not
+  // depend on somebody remembering to open the CRM. The other two go to the requester.
+  // Unlike lead_assigned these DO default to email as well as in-app: a leave decision
+  // is low-volume and people plan travel around it. See migration `leave_notifications`.
+  leave_requested
+  leave_approved
+  leave_rejected
 }
 
 // NotificationChannel: the delivery channel used (stored in notifications.channels JSON
@@ -616,6 +624,13 @@ model Tenant {
   onboardingFields      OnboardingField[]
   onboardingSubmissions OnboardingSubmission[]
 
+  // Staff leave management
+  leaveTypes    LeaveType[]
+  leaveQuotas   LeaveQuota[]
+  holidays      Holiday[]
+  leaveSettings LeaveSetting[]
+  leaveRequests LeaveRequest[]
+
   @@map("tenants")
 }
 
@@ -722,6 +737,11 @@ model User {
 
   // Staff member who last moved an onboarding submission out of `new`.
   reviewedOnboardingSubmissions OnboardingSubmission[] @relation("OnboardingSubmissionReviewer")
+
+  // Leave management — the same user is both an applicant and (if super_admin) a reviewer,
+  // so the two sides need distinct relation names.
+  leaveRequests         LeaveRequest[] @relation("LeaveRequester")
+  reviewedLeaveRequests LeaveRequest[] @relation("LeaveReviewer")
 
   @@unique([tenantId, email])
   @@index([phone])
@@ -3877,4 +3897,183 @@ model OnboardingSubmission {
   @@index([tenantId, email])
   @@index([tenantId, deletedAt])
   @@map("onboarding_submissions")
+}
+
+// ── Leave management (docs/specs/leave-management.md, ADR-0065) ───────────────────────
+//
+// Staff time off: anyone applies, the super_admin decides, and one shared calendar shows
+// holidays, weekly offs and who is out. Five tables — four of them configuration the
+// super_admin authors once a year, one of them the actual work queue.
+//
+// DURATIONS ARE INTEGER HALF-DAY UNITS (`half_days`), never a float or a Decimal. Half-day
+// leave is a hard requirement, `0.5` is not representable in binary floating point, and
+// this schema contains no Decimal column anywhere — the same discipline that stores money
+// as integer paise (CLAUDE.md §3.6). The API divides by two on the way out; the database
+// only ever sees whole numbers, so a balance can never drift by a rounding error.
+//
+// BALANCES ARE DERIVED, NOT LEDGERED. Remaining = the year's LeaveQuota minus the SUM of
+// `half_days` over that user's APPROVED requests for that type and year. There is
+// deliberately no balance column and no ledger table: with a staff-sized table the
+// aggregate is trivial, and a stored balance is a second source of truth that drifts the
+// first time a request is cancelled by a path that forgets to credit it back.
+//
+// A request may not span a calendar year — the quota is per year, so one row cannot
+// deduct from two. The API rejects it with a 422 asking the applicant to split it.
+
+// Which part of the boundary day is being taken. Only the FIRST and LAST day of a request
+// can be half — a half day in the middle of a range is not a thing anyone means.
+enum LeaveDayPart {
+  full
+  first_half
+  second_half
+}
+
+// `pending` is the only state the system sets by itself. `approved`/`rejected` are always a
+// named super_admin's decision (recorded in `reviewed_by_id`); `cancelled` is the
+// requester withdrawing, and is the only transition the applicant can make themselves.
+// There is no path back to `pending`: re-opening a decided request would erase who decided.
+enum LeaveRequestStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+// A category of leave (Casual / Sick / Earned / Unpaid). CRM-authored data rather than an
+// enum, because the set of categories is an HR policy decision that changes without a
+// deploy — the same reasoning as the onboarding question set (P12).
+model LeaveType {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  // Stable snake_case identifier. Immutable after create (the CRM edits `name`) so the
+  // seed can stay idempotent and reports can join on something that does not move.
+  key          String
+  name         String
+  description  String?
+  // `false` for unpaid leave: it needs no allocation and is never blocked on balance.
+  paid         Boolean   @default(true)
+  allowHalfDay Boolean   @default(true) @map("allow_half_day")
+  active       Boolean   @default(true)
+  sortOrder    Int       @default(0) @map("sort_order")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id])
+  quotas   LeaveQuota[]
+  requests LeaveRequest[]
+
+  // Partial-unique `(tenant_id, key) WHERE deleted_at IS NULL` lives in raw migration SQL.
+  @@index([tenantId, active, sortOrder])
+  @@index([tenantId, deletedAt])
+  @@map("leave_types")
+}
+
+// The yearly allocation for one leave type. Tenant-wide rather than per-staff-member: the
+// user chose a single company-wide quota per type, so a per-user override table would be
+// four tables of machinery for a policy nobody asked for. Add one later if it is needed —
+// the balance calculation is the only thing that would have to learn about it.
+model LeaveQuota {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  leaveTypeId String    @map("leave_type_id") @db.Uuid
+  year        Int
+  halfDays    Int       @map("half_days")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  // Partial-unique `(tenant_id, year, leave_type_id) WHERE deleted_at IS NULL` in raw SQL.
+  @@index([tenantId, year])
+  @@index([tenantId, deletedAt])
+  @@map("leave_quotas")
+}
+
+// A company holiday. Everyone sees these; only the super_admin writes them. `optional` marks
+// a restricted/optional holiday — shown on the calendar but still counted as a working day,
+// because taking it is a choice the person makes by applying for leave.
+model Holiday {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  date        DateTime  @db.Date
+  name        String
+  description String?
+  optional    Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  // Partial-unique `(tenant_id, date) WHERE deleted_at IS NULL` in raw SQL.
+  @@index([tenantId, date])
+  @@index([tenantId, deletedAt])
+  @@map("holidays")
+}
+
+// Exactly one row per tenant. Kept out of the generic `settings` store because the working
+// week is read on every duration calculation, including inside the request-creation
+// transaction, and it needs a typed column rather than a JSON lookup.
+model LeaveSetting {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  // Non-working weekdays, 0 = Sunday … 6 = Saturday. Excluded from every duration count and
+  // shaded on the calendar. Default `[0]` — a six-day week is still the norm in this market,
+  // so a Sunday-only default is the one that surprises the fewest people.
+  weeklyOffDays Int[] @default([0]) @map("weekly_off_days")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  // Partial-unique `(tenant_id) WHERE deleted_at IS NULL` in raw SQL.
+  @@index([tenantId, deletedAt])
+  @@map("leave_settings")
+}
+
+model LeaveRequest {
+  id          String             @id @default(uuid()) @db.Uuid
+  tenantId    String             @map("tenant_id") @db.Uuid
+  // The applicant. ALWAYS the authenticated actor — the API never accepts a user id on
+  // create, so nobody can file leave in a colleague's name.
+  userId      String             @map("user_id") @db.Uuid
+  leaveTypeId String             @map("leave_type_id") @db.Uuid
+  startDate   DateTime           @map("start_date") @db.Date
+  endDate     DateTime           @map("end_date") @db.Date
+  // Half-day markers on the boundary days. On a single-day request `endDayPart` mirrors
+  // `startDayPart` and only one of them is read.
+  startDayPart LeaveDayPart      @default(full) @map("start_day_part")
+  endDayPart   LeaveDayPart      @default(full) @map("end_day_part")
+  // Working half-days, computed SERVER-SIDE from the tenant's weekly offs and holidays.
+  // Stored rather than recomputed on read so that changing next year's holiday list cannot
+  // silently rewrite the length of leave somebody already took.
+  halfDays    Int                @map("half_days")
+  reason      String
+  status      LeaveRequestStatus @default(pending)
+  reviewedById String?           @map("reviewed_by_id") @db.Uuid
+  reviewedAt  DateTime?          @map("reviewed_at")
+  // The approver's note, or — on a rejection — the mandatory reason shown to the applicant.
+  reviewNote  String?            @map("review_note")
+  cancelledAt DateTime?          @map("cancelled_at")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+  deletedAt   DateTime?          @map("deleted_at")
+
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  user       User      @relation("LeaveRequester", fields: [userId], references: [id])
+  reviewedBy User?     @relation("LeaveReviewer", fields: [reviewedById], references: [id])
+  leaveType  LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  // (tenantId, status, startDate) drives the approval queue; (tenantId, userId, startDate)
+  // drives both "my leave" and the balance aggregate; (tenantId, startDate, endDate) drives
+  // the calendar's date-range overlap scan.
+  @@index([tenantId, status, startDate])
+  @@index([tenantId, userId, startDate])
+  @@index([tenantId, startDate, endDate])
+  @@index([tenantId, deletedAt])
+  @@map("leave_requests")
 }

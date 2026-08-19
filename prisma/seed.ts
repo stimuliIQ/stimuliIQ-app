@@ -504,6 +504,34 @@ function buildOnboardingPermissionCatalog(): Array<{ key: string; label: string 
   return ONBOARDING_PERMISSIONS;
 }
 
+/**
+ * Staff leave management (docs/specs/leave-management.md).
+ *
+ * Only THREE keys live in the catalog. The two AUTHORITY keys — `leave.approve` and
+ * `leave.manage` — are deliberately seeded in a dedicated block further down, outside the
+ * array the admin+super_admin catch-all loop iterates, so `admin` does NOT inherit them.
+ * The product decision is explicit that only the super admin signs off on leave and sets the
+ * yearly allowance; routing those through the catalog would silently hand the same authority
+ * to every operational admin.
+ *
+ * `leave.calendar.view` is a SEPARATE key from `leave.view`, and that split is the design.
+ * `leave.view` at scope=own shows you YOUR requests, reasons included.
+ * `leave.calendar.view` at scope=all shows you WHO IS OUT WHEN across the company, and the
+ * endpoint behind it returns a projection with no reason field at all. Folding the calendar
+ * into `leave.view` would force a choice between "you cannot see your colleagues" and
+ * "everybody can read everybody's reason for being off", and a leave reason is exactly the
+ * kind of thing that is nobody else's business.
+ */
+const LEAVE_PERMISSIONS: Array<{ key: string; label: string }> = [
+  { key: "leave.view", label: "View Leave Requests" },
+  { key: "leave.request", label: "Apply For / Cancel Own Leave" },
+  { key: "leave.calendar.view", label: "View the Team Leave Calendar" },
+];
+
+function buildLeavePermissionCatalog(): Array<{ key: string; label: string }> {
+  return LEAVE_PERMISSIONS;
+}
+
 function p3Key(mod: P3Module, action: P3Action): string {
   return `${mod}.${action}`;
 }
@@ -663,6 +691,7 @@ async function main(): Promise<void> {
     ...buildP9PermissionCatalog(),
     ...buildP10PermissionCatalog(),
     ...buildOnboardingPermissionCatalog(),
+    ...buildLeavePermissionCatalog(),
   ];
   const permissions = await Promise.all(
     permissionCatalog.map((perm) =>
@@ -891,6 +920,41 @@ async function main(): Promise<void> {
   });
   await grant(superAdminRole.id, usersResetPasswordPermission.id, RolePermissionScope.all);
 
+  // ── Leave approval + configuration — super_admin ONLY (deliberate narrowing) ─────────
+  //
+  // Same dedicated-block device as PAGE_BUILDER_PERMISSIONS above, for the same reason:
+  // these two keys are upserted OUTSIDE `permissionCatalog`/`permissions` — the array the
+  // admin+super_admin catch-all loop near the top of main() iterates — so `admin` does NOT
+  // inherit them. Signing off on somebody's leave and setting the yearly allowance are the
+  // owner's calls (docs/specs/leave-management.md); putting them in the catalog would hand
+  // every operational admin the same authority without anyone deciding to.
+  //
+  // `leave.manage` is one key rather than four because leave types, yearly allocations,
+  // holidays and the working week are a single policy surface — there is no coherent role
+  // that should be able to add a holiday but not set the allowance it is measured against.
+  //
+  // The other three leave keys (leave.view / leave.request / leave.calendar.view) DO live in
+  // the catalog and are granted to every staff role in the block further down. Only the two
+  // AUTHORITY keys are narrowed here.
+  const LEAVE_ADMIN_PERMISSIONS: Array<{ key: string; label: string }> = [
+    { key: "leave.approve", label: "Approve / Reject Staff Leave" },
+    { key: "leave.manage", label: "Manage Leave Types, Allowances, Holidays & Weekly Offs" },
+  ];
+  const leaveAdminPermissions = await Promise.all(
+    LEAVE_ADMIN_PERMISSIONS.map((perm) =>
+      prisma.permission.upsert({
+        where: { key: perm.key },
+        update: { label: perm.label },
+        create: perm,
+      }),
+    ),
+  );
+  await Promise.all(
+    leaveAdminPermissions.map((permission) =>
+      grant(superAdminRole.id, permission.id, RolePermissionScope.all),
+    ),
+  );
+
   // branch_manager: docs/03 §9 row "BranchMgr" — students/faculty/batches = branch;
   // courses = view; payments(not in P1)/reports(not in P1) skipped; admin = none;
   // audit = none. roles/branches not in BranchMgr's §9 row -> no grant.
@@ -1063,6 +1127,40 @@ async function main(): Promise<void> {
     [counsellorRole, supportRole].flatMap((role) =>
       ["onboarding.view", "onboarding.edit"].map((key) => grant(role.id, permId(key), RolePermissionScope.all)),
     ),
+  );
+
+  // ── Leave grants (staff HR) ──────────────────────────────────────────────────────
+  //
+  // Every STAFF role gets `leave.view` + `leave.request` at scope=own — their own history,
+  // their own applications — and `leave.calendar.view` at scope=all, because the calendar is
+  // deliberately company-wide. The two "all"s are not the same "all": the calendar endpoint
+  // returns a projection with no reason field, so seeing that a colleague is out on Thursday
+  // never reveals why.
+  //
+  // `student` and `mentor` are excluded. Neither is staff on the payroll this runs for —
+  // mentors are external hires (docs/specs/phase-8-mentor.md), not employees with an
+  // annual leave allowance.
+  //
+  // `admin` and `super_admin` are excluded FROM THIS LOOP ON PURPOSE. They already hold all
+  // three at scope=all from the catch-all near the top of main(), and `grant()` is an upsert
+  // that UPDATES the scope — re-granting here would silently DOWNGRADE admin from `all` to
+  // `own` and break the approval queue for the one role that has to see everybody. Their
+  // scope=all on `leave.request` is harmless: the create endpoint always writes the session
+  // user's id and never a client-supplied one.
+  await Promise.all(
+    [
+      branchManagerRole,
+      counsellorRole,
+      facultyRole,
+      financeRole,
+      marketingRole,
+      supportRole,
+      contentEditorRole,
+    ].flatMap((role) => [
+      grant(role.id, permId("leave.view"), RolePermissionScope.own),
+      grant(role.id, permId("leave.request"), RolePermissionScope.own),
+      grant(role.id, permId("leave.calendar.view"), RolePermissionScope.all),
+    ]),
   );
 
   // content_editor: not in the docs/03 §9 table verbatim (table lists Owner..Support),

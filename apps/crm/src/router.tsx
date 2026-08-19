@@ -84,6 +84,13 @@ import { leadsImportRoute } from "./routes/leads-import-route";
 // Student onboarding form (stimuliiq.com/onboarding) — submissions + the CRM-authored
 // question set that drives the public form.
 import { onboardingRoute } from "./routes/onboarding-route";
+// Staff leave. Four screens rather than one tabbed page because they have different
+// audiences: everyone gets My Leave and the Calendar, only a super admin sees Approvals and
+// Setup, and the sidebar hides what the viewer's permissions don't cover.
+import { leaveRoute } from "./routes/leave-route";
+import { leaveApprovalsRoute } from "./routes/leave-approvals-route";
+import { leaveCalendarRoute } from "./routes/leave-calendar-route";
+import { leaveSetupRoute } from "./routes/leave-setup-route";
 
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
@@ -151,6 +158,10 @@ const routeTree = rootRoute.addChildren([
   mentorsRoute,
   mentorDashboardRoute,
   onboardingRoute,
+  leaveRoute,
+  leaveApprovalsRoute,
+  leaveCalendarRoute,
+  leaveSetupRoute,
 ]);
 
 export const router = createRouter({ routeTree });

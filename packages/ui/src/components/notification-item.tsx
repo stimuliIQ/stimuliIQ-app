@@ -9,6 +9,9 @@ import {
   Calendar,
   Receipt,
   Check,
+  CalendarCheck,
+  CalendarClock,
+  CalendarX2,
   Undo2,
   UserPlus,
 } from "lucide-react";
@@ -53,11 +56,14 @@ export type NotificationType =
   | "booking_confirmation"
   | "payment_receipt"
   | "welcome"
-  // The only STAFF-facing type: a lead was assigned to you. Mirrors the Prisma
+  // STAFF-facing types (every other one above targets a student). Mirrors the Prisma
   // NotificationType enum and NotificationTypeSchema — this union must stay in step with
-  // both, or the CRM bell falls through to the generic icon for the one notification it
-  // exists to show.
-  | "lead_assigned";
+  // both, or the CRM bell falls through to the generic icon for exactly the notifications
+  // it exists to show.
+  | "lead_assigned"
+  | "leave_requested"
+  | "leave_approved"
+  | "leave_rejected";
 
 const typeIconMap: Record<NotificationType, React.ComponentType<{ className?: string; "aria-hidden"?: "true" | boolean }>> = {
   grade_ready: BookOpen,
@@ -71,6 +77,9 @@ const typeIconMap: Record<NotificationType, React.ComponentType<{ className?: st
   payment_receipt: Receipt,
   welcome: Bell,
   lead_assigned: UserPlus,
+  leave_requested: CalendarClock,
+  leave_approved: CalendarCheck,
+  leave_rejected: CalendarX2,
 };
 
 const typeLabelMap: Record<NotificationType, string> = {
@@ -85,6 +94,9 @@ const typeLabelMap: Record<NotificationType, string> = {
   payment_receipt: "Payment receipt",
   welcome: "Welcome",
   lead_assigned: "Lead assigned",
+  leave_requested: "Leave request",
+  leave_approved: "Leave approved",
+  leave_rejected: "Leave not approved",
 };
 
 export interface NotificationItemProps {

@@ -236,6 +236,32 @@ db foundation). Then execute it, delegating each task to the named specialist su
   the student to contact support and deliberately omits the internal `reviewNotes`. If the
   money leg fails the student is still enrolled and emailed: access never depends on paperwork.
   Spec: `docs/specs/onboarding-form.md`, ADR-0064.
+- **P13 Leave Management (DONE):** staff time off is in the product. Any member of staff
+  applies from **CRM ▸ Leave Management ▸ My Leave**; the **super admin** — and nobody else,
+  not even `admin` — approves or rejects, and authors the yearly allowances, the leave types,
+  the holiday list and the working week. One shared calendar shows holidays, weekly offs, the
+  viewer's own leave and everyone else's.
+  **Durations are integer HALF-DAY units** (`half_days = 7` means 3.5 days), never a Decimal:
+  0.5 is not representable in binary floating point and this schema has no Decimal column —
+  same discipline as money-in-paise. **Balances are DERIVED**, not ledgered: remaining =
+  quota − approved − pending, aggregated on read, because a stored balance drifts the first
+  time a cancel path forgets to credit it back. Pending counts against remaining, so nobody
+  queues five ten-day requests against a twelve-day allowance. A request may not span two
+  calendar years (422, split it).
+  **The super-admin narrowing is implemented by WHERE the permissions are seeded:**
+  `leave.approve` and `leave.manage` are upserted in a dedicated block OUTSIDE the catalog in
+  `prisma/seed.ts`, so the admin+super_admin catch-all cannot grant them. A permission-catalog
+  spec and an integration test both guard it. Note `grant()` is an upsert that UPDATES scope —
+  re-granting a key to `adminRole` in a staff loop silently downgrades admin from `all`.
+  **The calendar has its own key** (`leave.calendar.view`, `scope=all` for every staff role)
+  behind a projection that never fetches `reason`: the team sees WHEN somebody is out, never
+  WHY. `computeLeaveDuration` (`@repo/types`) is run identically by the apply form and the
+  API, the same way `buildOnboardingAnswerIssues` is.
+  Spec: `docs/specs/leave-management.md`, ADR-0065.
+  **DB setup on an existing/live database:** `prisma migrate deploy` (additive — five new
+  tables, two enums, three NotificationType values) then `pnpm db:seed:leave`. Do NOT run the
+  full `pnpm db:seed` against a live DB. No holidays are seeded on purpose: a wrong holiday
+  fails silently in the direction nobody checks, by making leave across it cost a day less.
   **DB setup on an existing/live database:** `prisma migrate deploy` (additive — two new
   tables + three enums, nothing existing touched; plus `onboarding_default_hold`, which only
   changes a column default and moves `pending` rows to `hold`) then `pnpm db:seed:onboarding`. Do NOT
@@ -275,5 +301,6 @@ Do **not** jump ahead. Each phase ends with tests green + a demo path.
 | Page-builder spec (blocks, ACs, edge cases — authoring UX superseded by P11) | `docs/specs/phase-10-page-builder.md` |
 | Locked page-templates plan (P11) | `docs/plans/phase-11-locked-templates.md` |
 | Onboarding form spec (CRM-authored questions, subdomain) | `docs/specs/onboarding-form.md` |
+| Staff leave spec (allowances, approvals, holidays, calendar) | `docs/specs/leave-management.md` |
 | Lead ownership + accountability (assignment notify, owner picker, per-rep report) | `docs/specs/lead-ownership-accountability.md` |
 | Agent roster & protocol | `.claude/agents/README.md` |

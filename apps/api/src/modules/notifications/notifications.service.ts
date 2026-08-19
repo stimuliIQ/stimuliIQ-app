@@ -186,6 +186,13 @@ const DEFAULT_PREFS_MATRIX: NotificationPrefMatrix = {
   // and stop reading the ones that matter. The bell carries it instead; a rep who wants
   // email can opt in per-type from their notification preferences.
   lead_assigned: { ...DEFAULT_CHANNEL_PREFS, email: false },
+  // Staff leave. Email stays ON, unlike lead_assigned above, because the volume is a handful
+  // a month rather than one per lead — and because somebody is waiting on each of these.
+  // An approval request that only rings a bell blocks a colleague's travel plans until the
+  // next time an admin happens to open the CRM.
+  leave_requested: { ...DEFAULT_CHANNEL_PREFS, email: true },
+  leave_approved: { ...DEFAULT_CHANNEL_PREFS, email: true },
+  leave_rejected: { ...DEFAULT_CHANNEL_PREFS, email: true },
 };
 
 // ─── Notification signing (AC-21, AC-24, AC-77) ───────────────────────────────

@@ -491,6 +491,7 @@ export {
   type CalendarProps,
   type CalendarEvent,
   type CalendarView,
+  type CalendarDayTone,
 } from "./components/calendar";
 
 export {

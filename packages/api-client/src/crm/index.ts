@@ -40,6 +40,7 @@ import { BulkActionsApi } from "./bulk-actions.api.js";
 import { SavedViewsApi } from "./saved-views.api.js";
 import { VideoLibraryApi } from "./video-library.api.js";
 import { OnboardingApi } from "./onboarding.api.js";
+import { LeaveApi } from "./leave.api.js";
 
 /** Admin sub-namespace → `client.crm.admin.roles` / `.branches` / `.users`. */
 export class AdminApi {
@@ -113,6 +114,9 @@ export class CrmApi {
   // question set (staff add/edit/reorder/delete, no deploy) and `onboarding.submissions.*`
   // reads and triages what students sent. The public form is `client.public.onboarding.*`.
   readonly onboarding: OnboardingApi;
+  // Staff leave — `leave.requests.*` (apply, withdraw, look), `leave.approvals.*`
+  // (super_admin only) and `leave.setup.*` (types, allowances, holidays, working week).
+  readonly leave: LeaveApi;
 
   constructor(client: ApiClient) {
     this.students = new StudentsApi(client);
@@ -147,6 +151,7 @@ export class CrmApi {
     this.savedViews = new SavedViewsApi(client);
     this.videoLibrary = new VideoLibraryApi(client);
     this.onboarding = new OnboardingApi(client);
+    this.leave = new LeaveApi(client);
   }
 }
 
@@ -177,3 +182,4 @@ export * from "./bulk-actions.api.js";
 export * from "./saved-views.api.js";
 export * from "./video-library.api.js";
 export * from "./onboarding.api.js";
+export * from "./leave.api.js";

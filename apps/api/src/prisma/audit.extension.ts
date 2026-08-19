@@ -332,6 +332,17 @@ const AUDITED_MODELS = new Set<string>([
   //   Note the free-form `answers` snapshot can itself contain PII in staff-defined
   //   fields; see the registry comment for why that is bounded, not ignored.
   "OnboardingSubmission",
+  // Staff leave management (docs/specs/leave-management.md). All five audited, and this is
+  // the whole accountability story for the feature — "who approved this", "who changed the
+  // 2026 allocation after the year started", "who removed that holiday" are the questions
+  // an HR trail exists to answer, and the module writes no log of its own. No secrets and
+  // no PII: the applicant and the reviewer are both foreign keys, and `reason` /
+  // `review_note` are work-context free text, not personal data by any other route.
+  "LeaveType",
+  "LeaveQuota",
+  "Holiday",
+  "LeaveSetting",
+  "LeaveRequest",
 ]);
 
 // --- Secret redaction (Wave 6 security audit H-1/H-2) ----------------------------------

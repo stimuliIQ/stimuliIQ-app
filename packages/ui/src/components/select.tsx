@@ -61,6 +61,11 @@ export function Select({
   const selectId = id ?? generatedId;
   const errorId = `${selectId}-error`;
   const helperId = `${selectId}-helper`;
+  // The trigger is a <button role="combobox">, and `<label for>` does NOT give a name to a
+  // button — only to native form controls. Without this the control has an accessible name
+  // only while its value happens to render as text, which is never true before the listbox
+  // has been opened once. `aria-labelledby` is what actually names it.
+  const labelId = `${selectId}-label`;
   const describedBy =
     [error ? errorId : null, !error && helperText ? helperId : null]
       .filter(Boolean)
@@ -69,7 +74,7 @@ export function Select({
   return (
     <div className={cn("flex flex-col gap-1.5", wrapperClassName)}>
       {label ? (
-        <Label htmlFor={selectId}>
+        <Label id={labelId} htmlFor={selectId}>
           {label}
           {required ? (
             <span aria-hidden="true" className="text-danger">
@@ -90,6 +95,7 @@ export function Select({
           id={selectId}
           data-testid={testId ?? "select-trigger"}
           aria-label={!label ? ariaLabel : undefined}
+          aria-labelledby={label ? labelId : undefined}
           aria-invalid={Boolean(error) || undefined}
           aria-describedby={describedBy}
           className={cn(

@@ -145,3 +145,58 @@ describe("Calendar — loading/error", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Failed to load calendar");
   });
 });
+
+describe("Calendar — day tone", () => {
+  // Weekly offs and holidays cannot be modelled as events: 52 Sundays a year would exhaust
+  // the two-events-per-day slots real events need. Hence a per-day tint instead.
+  const isSunday = (d: Date) => d.getDay() === 0;
+
+  it("tints the days the caller marks as non-working", () => {
+    render(
+      <Calendar
+        events={[]}
+        defaultAnchorDate={ANCHOR}
+        dayTone={(d) => (isSunday(d) ? "nonWorking" : "default")}
+      />,
+    );
+    const shaded = screen.getAllByTestId("calendar-day").filter((c) => c.dataset.tone === "nonWorking");
+    // July 2026 shows 5 Sundays across the rendered 6-week grid (incl. adjacent months).
+    expect(shaded.length).toBeGreaterThanOrEqual(4);
+    for (const cell of shaded) {
+      expect(new Date(`${cell.dataset.date}T00:00:00`).getDay()).toBe(0);
+    }
+  });
+
+  it("leaves every day untinted when no dayTone is given", () => {
+    render(<Calendar events={[]} defaultAnchorDate={ANCHOR} />);
+    for (const cell of screen.getAllByTestId("calendar-day")) {
+      expect(cell.dataset.tone).toBeUndefined();
+    }
+  });
+
+  // Colour is never the only signal — a screen-reader user gets the same information.
+  it("appends the caller's day label to the cell's accessible name", () => {
+    render(
+      <Calendar
+        events={[]}
+        defaultAnchorDate={ANCHOR}
+        dayTone={(d) => (d.getDate() === 9 ? "highlight" : "default")}
+        dayLabel={(d) => (d.getDate() === 9 ? "holiday: Test Day" : undefined)}
+      />,
+    );
+    expect(screen.getByRole("gridcell", { name: /9 July 2026, holiday: Test Day/i })).toBeInTheDocument();
+  });
+
+  it("keeps the event count in the accessible name alongside the day label", () => {
+    render(
+      <Calendar
+        events={EVENTS}
+        defaultAnchorDate={ANCHOR}
+        dayLabel={(d) => (d.getDate() === 9 ? "weekly off" : undefined)}
+      />,
+    );
+    expect(
+      screen.getByRole("gridcell", { name: /9 July 2026, weekly off, 1 event/i }),
+    ).toBeInTheDocument();
+  });
+});

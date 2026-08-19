@@ -425,6 +425,104 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
     whatsappBody: "New lead assigned to you: *{{leadName}}* — {{leadPhone}} (source: {{leadSource}}).",
     whatsappDltTemplateId: "DLT_PENDING",
   },
+
+  // ── Staff leave (docs/specs/leave-management.md) ────────────────────────────────────
+  //
+  // Staff-facing like lead_assigned, so the same rules apply: no marketing voice, and no
+  // `lmsUrl` — staff live in the CRM and the student portal would be a dead end for them.
+  // Unlike lead_assigned these DO default to email (see DEFAULT_PREFS_MATRIX): each one is a
+  // single decision somebody is waiting on, not a stream.
+  //
+  // `{{days}}` arrives pre-formatted ("half a day", "1 day", "3.5 days") from
+  // formatLeaveDays in @repo/types, so the wording reads correctly for a half-day request
+  // without the template needing to pluralise anything.
+  leave_requested: {
+    inAppBody: "{{applicantName}} has applied for {{leaveTypeName}} — {{dateRange}} ({{days}}).",
+
+    emailSubject: "Leave request from {{applicantName}} — {{dateRange}}",
+    emailBody: renderBrandedEmail({
+      title: "A leave request needs your decision",
+      greeting: "Hi,",
+      paragraphs: [
+        "<strong>{{applicantName}}</strong> has applied for leave and is waiting to hear back. " +
+          "Open the CRM to approve or turn it down.",
+      ],
+      details: [
+        { label: "Who", value: "{{applicantName}}" },
+        { label: "Type", value: "{{leaveTypeName}}" },
+        { label: "Dates", value: "{{dateRange}}" },
+        { label: "Length", value: "{{days}}" },
+        { label: "Reason", value: "{{reason}}" },
+      ],
+      unsubscribeUrl: "{{unsubscribeUrl}}",
+    }),
+
+    smsBody: `${BRAND_NAME}: {{applicantName}} applied for {{leaveTypeName}} — {{dateRange}} ({{days}}). Approve in the CRM.`,
+    smsDltTemplateId: "DLT_PENDING",
+
+    whatsappTemplateName: "leave_requested_notification",
+    whatsappBody:
+      "*{{applicantName}}* has applied for {{leaveTypeName}} — {{dateRange}} ({{days}}). Open the CRM to decide.",
+    whatsappDltTemplateId: "DLT_PENDING",
+  },
+
+  leave_approved: {
+    inAppBody: "Your {{leaveTypeName}} for {{dateRange}} was approved.",
+
+    emailSubject: "Your leave is approved — {{dateRange}}",
+    emailBody: renderBrandedEmail({
+      title: "Your leave is approved",
+      greeting: "Hi {{applicantName}},",
+      paragraphs: [
+        "Your request for <strong>{{leaveTypeName}}</strong> has been approved. Enjoy the time off.",
+      ],
+      details: [
+        { label: "Dates", value: "{{dateRange}}" },
+        { label: "Length", value: "{{days}}" },
+        { label: "Approved by", value: "{{reviewerName}}" },
+      ],
+      footnote: "Your remaining allowance is on the My Leave page in the CRM.",
+      unsubscribeUrl: "{{unsubscribeUrl}}",
+    }),
+
+    smsBody: `${BRAND_NAME}: Your {{leaveTypeName}} for {{dateRange}} ({{days}}) is approved.`,
+    smsDltTemplateId: "DLT_PENDING",
+
+    whatsappTemplateName: "leave_approved_notification",
+    whatsappBody: "Your *{{leaveTypeName}}* for {{dateRange}} ({{days}}) is approved.",
+    whatsappDltTemplateId: "DLT_PENDING",
+  },
+
+  // Carries `{{reason}}` in every channel, and that is the point of the message. A rejection
+  // with no explanation is what makes somebody apply for the same dates again next week.
+  leave_rejected: {
+    inAppBody: "Your {{leaveTypeName}} for {{dateRange}} wasn't approved: {{reason}}",
+
+    emailSubject: "Your leave request wasn't approved — {{dateRange}}",
+    emailBody: renderBrandedEmail({
+      title: "Your leave request wasn't approved",
+      greeting: "Hi {{applicantName}},",
+      paragraphs: [
+        "Your request for <strong>{{leaveTypeName}}</strong> on {{dateRange}} hasn't been approved. " +
+          "The reason is below — have a word with your manager if you need to work something out.",
+      ],
+      details: [
+        { label: "Dates", value: "{{dateRange}}" },
+        { label: "Length", value: "{{days}}" },
+        { label: "Reason", value: "{{reason}}" },
+        { label: "Decided by", value: "{{reviewerName}}" },
+      ],
+      footnote: "Nothing has come off your allowance — you can apply again for different dates.",
+      unsubscribeUrl: "{{unsubscribeUrl}}",
+    }),
+
+    smsBody: `${BRAND_NAME}: Your {{leaveTypeName}} for {{dateRange}} wasn't approved. Reason: {{reason}}`,
+    smsDltTemplateId: "DLT_PENDING",
+
+    whatsappTemplateName: "leave_rejected_notification",
+    whatsappBody: "Your *{{leaveTypeName}}* for {{dateRange}} wasn't approved. Reason: {{reason}}",
+    whatsappDltTemplateId: "DLT_PENDING",
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -65,6 +65,7 @@ import { SearchModule } from "./modules/search/search.module";
 import { BulkActionsModule } from "./modules/bulk-actions/bulk-actions.module";
 import { GrowthModule } from "./modules/growth/growth.module";
 import { OnboardingModule } from "./modules/onboarding/onboarding.module";
+import { LeaveModule } from "./modules/leave/leave.module";
 
 @Module({
   imports: [
@@ -162,6 +163,7 @@ import { OnboardingModule } from "./modules/onboarding/onboarding.module";
     // (staff add/edit/reorder fields — no deploy) and the anonymous submissions it
     // collects, surfaced in the CRM under Onboarding.
     OnboardingModule,
+    LeaveModule,
   ],
   providers: [
     AuditContextMiddleware,

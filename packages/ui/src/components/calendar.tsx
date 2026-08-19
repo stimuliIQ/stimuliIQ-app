@@ -51,6 +51,17 @@ import { Tabs, TabsList, TabsTrigger } from "./tabs";
 
 export type CalendarView = "month" | "agenda";
 
+/**
+ * How a day cell is tinted in the month grid.
+ *
+ * `nonWorking` shades a day the viewer is not expected to be at work — a weekly off or a
+ * public holiday. It exists because such days cannot be modelled as events: a Sunday-off
+ * calendar would need 52 events a year, and they would consume the two-per-day slots real
+ * events need. Tone is never the only signal — `dayLabel` puts the same information into the
+ * cell's `aria-label`, so a screen-reader user and a colour-blind user get it too.
+ */
+export type CalendarDayTone = "default" | "nonWorking" | "highlight";
+
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -81,6 +92,16 @@ export interface CalendarProps {
   /** Seam for "Add to calendar" — caller wires this to an `ics` export. */
   onExportEvent?: (event: CalendarEvent) => void;
   renderEvent?: (event: CalendarEvent) => React.ReactNode;
+  /**
+   * Per-day tint in the month grid — e.g. shading weekly offs and public holidays. Called
+   * once per rendered cell; keep it cheap (a Set lookup, not a scan). Ignored in agenda view.
+   */
+  dayTone?: (date: Date) => CalendarDayTone;
+  /**
+   * Extra wording appended to a day cell's `aria-label`, e.g. "weekly off" or
+   * "holiday: Diwali". Pair it with `dayTone` so the tint is never the only signal.
+   */
+  dayLabel?: (date: Date) => string | undefined;
   /** 0 = Sunday (default), 1 = Monday. */
   weekStartsOn?: 0 | 1;
   loading?: boolean;
@@ -174,6 +195,8 @@ export function Calendar({
   onEventClick,
   onExportEvent,
   renderEvent,
+  dayTone,
+  dayLabel,
   weekStartsOn = 0,
   loading = false,
   error,
@@ -390,6 +413,8 @@ export function Calendar({
                 const isToday = isSameDay(day, today);
                 const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
                 const isFocusTarget = isSameDay(day, focusedDate);
+                const tone = dayTone?.(day) ?? "default";
+                const toneLabel = dayLabel?.(day);
 
                 return (
                   <button
@@ -404,10 +429,13 @@ export function Calendar({
                     aria-selected={isSelected || undefined}
                     aria-current={isToday ? "date" : undefined}
                     aria-label={`${day.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}${
+                      toneLabel ? `, ${toneLabel}` : ""
+                    }${
                       dayEvents.length > 0 ? `, ${dayEvents.length} event${dayEvents.length === 1 ? "" : "s"}` : ""
                     }`}
                     data-testid="calendar-day"
                     data-date={key}
+                    data-tone={tone === "default" ? undefined : tone}
                     onClick={() => selectDate(day)}
                     onFocus={() => setFocusedDate(day)}
                     className={cn(
@@ -415,6 +443,10 @@ export function Calendar({
                       "transition-colors duration-fast ease-out hover:bg-surface",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                       !isCurrentMonth && "bg-surface/50 text-fg-subtle",
+                      // Ordered after the out-of-month rule so a shaded weekly off still reads
+                      // as shaded in the leading/trailing days of a month.
+                      tone === "nonWorking" && "bg-surface text-fg-subtle",
+                      tone === "highlight" && "bg-warning/10",
                       isSelected && "bg-brand-50 dark:bg-brand-500/10",
                     )}
                   >
