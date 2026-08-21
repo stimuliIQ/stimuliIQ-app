@@ -124,7 +124,9 @@ describe("Careers module permission catalog (regression: P6 forum.read 403 bug c
     // The standalone seed grants by role key, so the pairing is checkable directly.
     // Terminated on the closing "]," of the ROLE's array rather than a lazy "]", the inner
     // grant tuples each contain one, and a lazy match stops at the first of those.
-    const branchBlock = careersSeedSource.match(/branch_manager:\s*\[([\s\S]*?)\n  \],/);
+    // `\n {2}\[` rather than two literal spaces: eslint's no-regex-spaces is right that a
+    // run of spaces in a pattern is impossible to count by eye.
+    const branchBlock = careersSeedSource.match(/branch_manager:\s*\[([\s\S]*?)\n {2}\],/);
     expect(branchBlock).not.toBeNull();
     expect(branchBlock![1]).toContain('"careers.view"');
     expect(branchBlock![1]).toContain('"careers.review"');
