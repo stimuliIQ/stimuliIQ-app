@@ -8,10 +8,14 @@
 
 ```
 CRM ▸ Careers ▸ Openings          stimuliiq.com/careers
-  author an advert  ──publish──►  role appears live
+  author an advert  ──publish──►  role card appears, grouped by department
                                        │
-                                   candidate clicks Apply
-                                       │  uploads resume (signed PUT, captcha-gated)
+                                   click through to /careers/<slug>
+                                       │  full advert; Apply at top AND bottom
+                                       ▼
+                                   apply modal
+                                       │  solve captcha, THEN upload resume
+                                       │  (signed PUT straight to R2)
                                        ▼
                                   POST /public/careers/apply
                                        │
@@ -36,9 +40,9 @@ table with no screen, and no email was ever sent.
 
 | Field | Notes |
 |---|---|
-| `title`, `slug` | `slug` is the public handle (`/careers#<slug>`). Unique among LIVE rows via a **partial unique index in the migration SQL** (`WHERE deleted_at IS NULL`), not in `schema.prisma`. |
+| `title`, `slug` | `slug` is the public handle — its own route, `/careers/<slug>`. Unique among LIVE rows via a **partial unique index in the migration SQL** (`WHERE deleted_at IS NULL`), not in `schema.prisma`. |
 | `department`, `employmentType`, `location`, `workMode`, `experienceLevel` | `employmentType` is free text — "Full-time", "Internship", "Contract — 6 months" are all legitimate and a fixed list would be wrong within a month. |
-| `summary` | The line shown before a candidate expands the role. Required. |
+| `summary` | The line on the role card, and the lead paragraph on its page. Required. |
 | `description` | Long form, plain text, blank line = paragraph. |
 | `responsibilities`, `requirements` | `Json` string arrays. JSON rather than a child table: display copy with no identity, never queried, always read whole with the parent. |
 | `compensationNote`, `openingsCount` | Both public. |
@@ -85,6 +89,13 @@ table with no screen, and no email was ever sent.
   null, the CRM flags it, and a reviewer can send it by hand.
 - AC-12 Applying to a role that closed since the page loaded still records the application
   (unlinked, against its role snapshot). See §5.
+- AC-22 Each live role has its own page at `/careers/<slug>`, with Apply at the top and the
+  bottom. A draft, closed or lapsed role 404s there and is `noindex` — a filled job must
+  stop ranking, not keep collecting applications.
+- AC-23 **The captcha is solved BEFORE the resume upload.** See §11 — this is a rule, not a
+  layout preference.
+- AC-24 A block whose `resolvedItems` is missing renders as an empty section, never a
+  failed page. See §12.
 
 **Review**
 
@@ -186,7 +197,52 @@ programs and campaigns.
 holidays: a seeded opening is not placeholder data, it is a live advert on a live website
 inviting real people to apply for a job that does not exist.
 
-## 10. Known limitations / follow-ups
+## 11. The captcha must be solved before the resume uploads
+
+Applying spends **one Turnstile token on two captcha-gated calls**: minting the signed PUT
+for the resume, then submitting the application.
+
+The form originally put the Turnstile widget at the BOTTOM, under the file field. Filling a
+form top to bottom therefore picked the resume while the token was still undefined, and the
+upload call went out carrying the literal string `"noop"` — a dev-only token the Noop
+provider accepts and production Turnstile rejects. Every real applicant hit *"Please
+complete the captcha challenge and try again"* on the resume step, pointing at a control
+further down the page, and solving it afterwards did not help because the upload had
+already failed. **No resume could be attached on the live site.**
+
+So, as a standing rule for this form and any other that uploads before it submits:
+
+1. The challenge renders **first**.
+2. The file field is **disabled** until it resolves, and says why.
+3. The upload helper **throws a readable error** rather than substituting `"noop"`. A
+   request that cannot succeed should not be sent, and its failure should not be worded as
+   the visitor's mistake.
+
+The server half of the same problem — one token, two calls — is handled by
+`ReplayTolerantCaptchaProvider`, which lets the second call reuse the first's verification.
+That is what makes solving the challenge *once* sufficient; the rules above are what make
+sure it is solved *before* the first call rather than after it. Both halves are required.
+
+## 12. A missing `resolvedItems` must not take the page down
+
+The page components hand the block renderer `page.body as ResolvedPageBuilderBlock[]` — a
+**cast** of untyped API JSON, not a parse. The compiler's guarantee is therefore only as
+good as the payload, and the payload can legitimately lack `resolvedItems`:
+
+- `web` deployed ahead of the API, so the resolver that adds the field is not live yet;
+- a stale Next.js fetch cache holding a response from before that resolver existed.
+
+Both used to crash the entire page with *"Cannot read properties of undefined (reading
+'length')"*, and did — it broke the production build of `/careers`. `BlockErrorBoundary`
+does not save you here: it is a client error boundary, and this throws during server render
+and static prerender.
+
+`PageBlocks` now normalises both reference block types (`job_openings`,
+`live_collection_ref`) so an absent resolution renders as an empty section. That matches
+what the server-side resolver already does with a failed lookup: **degrade the section,
+never the page.**
+
+## 13. Known limitations / follow-ups
 
 - No pagination controls on either CRM screen yet (`pageSize: 100`, newest first). Fine at
   current volume; revisit past a few hundred applications.
