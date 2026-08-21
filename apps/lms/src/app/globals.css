@@ -68,3 +68,41 @@
   animation: auth-brain-float 7s ease-in-out infinite;
   will-change: transform;
 }
+
+/*
+ * Slim scrollbar for the LMS side nav — the same treatment the CRM nav gets
+ * (apps/crm/src/index.css). The platform scrollbar on Windows is ~17px with stepper
+ * arrows, which is a quarter of a 64px rail.
+ *
+ * Two rules for two engines, and they must not both apply: Chrome IGNORES
+ * `::-webkit-scrollbar` the moment `scrollbar-width` is set, and its `thin` is ~11px. So
+ * `scrollbar-width` is fenced behind a feature query only Firefox falls into, leaving
+ * Chrome, Edge and Safari on the 6px webkit rules below.
+ */
+@supports not selector(::-webkit-scrollbar) {
+  .lms-nav-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--border)) transparent;
+  }
+
+  .lms-nav-scroll:hover {
+    scrollbar-color: rgb(var(--fg-subtle) / 0.55) transparent;
+  }
+}
+
+.lms-nav-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.lms-nav-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.lms-nav-scroll::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background-color: rgb(var(--border));
+}
+
+.lms-nav-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--fg-subtle) / 0.55);
+}

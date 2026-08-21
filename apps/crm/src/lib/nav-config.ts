@@ -38,28 +38,74 @@
 import type { ComponentType } from "react";
 import type { PermissionGrant } from "@repo/types";
 import {
-  LayoutDashboard,
-  Users,
-  GraduationCap,
-  BookOpen,
-  FolderKanban,
-  Wallet,
-  Megaphone,
-  Globe,
-  LifeBuoy,
+  Award,
   BarChart3,
-  ShieldCheck,
-  Calendar,
-  CalendarDays,
-  UserCog,
-  Headset,
-  ClipboardList,
-  KeyRound,
+  BookMarked,
+  BookOpen,
   Briefcase,
+  Building2,
+  Calendar,
+  CalendarClock,
+  CalendarDays,
+  CalendarOff,
+  CheckCheck,
+  ClipboardList,
+  CreditCard,
+  Download,
+  FileQuestion,
+  FileText,
+  FileUser,
+  Filter,
+  FolderGit2,
+  FolderKanban,
+  GitBranch,
+  Globe,
+  GraduationCap,
+  Headset,
+  IndianRupee,
+  KeyRound,
+  Layers,
+  LayoutDashboard,
+  LayoutTemplate,
+  LifeBuoy,
+  ListChecks,
+  Mail,
+  Megaphone,
+  MessagesSquare,
+  MousePointerClick,
+  Newspaper,
+  Paperclip,
+  School,
+  ScrollText,
+  Send,
+  Settings,
+  Settings2,
+  Share2,
+  ShieldCheck,
+  ShoppingCart,
+  SlidersHorizontal,
+  Star,
+  Target,
+  Ticket,
+  TicketPercent,
+  TrendingUp,
+  Trophy,
+  Undo2,
+  Upload,
+  UserCog,
+  Users,
+  Video,
+  Wallet,
 } from "lucide-react";
 
 export interface NavLeaf {
   label: string;
+  /**
+   * Shown beside the label in the flyout. Required, not optional: the flyout is a list of
+   * up to nine items and an icon is what makes it scannable, so a leaf without one would
+   * leave a ragged gap rather than degrade gracefully.
+   */
+  icon: ComponentType<{ className?: string }>;
   /** Route path when wired; omit (or leave undefined) for not-yet-built leaves. */
   to?: string;
   /** RBAC gate: only rendered if the user holds this `module.action` permission. Omit for always-visible (e.g. Dashboard). */
@@ -86,6 +132,13 @@ export interface NavLeaf {
 
 export interface NavSection {
   label: string;
+  /**
+   * Presentational grouping only — the sidebar prints this as a caption above the
+   * first section that carries it, and as a hairline divider in the collapsed rail
+   * where there is no room for words. It changes nothing about routing or RBAC, and
+   * it deliberately does NOT reorder the tree: the order below is still the IA.
+   */
+  group?: string;
   icon: ComponentType<{ className?: string }>;
   /** Section-level route (e.g. Dashboard has no children, just a direct link). */
   to?: string;
@@ -97,7 +150,7 @@ export interface NavSection {
 }
 
 export const NAV_SECTIONS: NavSection[] = [
-  { label: "Dashboard", icon: LayoutDashboard, to: "/", comingSoon: false },
+  { label: "Dashboard", icon: LayoutDashboard, to: "/", comingSoon: false, group: "Overview" },
   {
     // Phase 8 (docs/specs/phase-8-mentor.md WS-4, LOCK-3): a standalone,
     // role-aware landing page for the Mentor role. Gated on the `mentor` ROLE,
@@ -112,6 +165,7 @@ export const NAV_SECTIONS: NavSection[] = [
     role: "mentor",
   },
   {
+    group: "Operations",
     label: "Leads",
     icon: FolderKanban,
     // lifecycle-redesign P2: the five Leads pages collapse to three. Counselling,
@@ -128,11 +182,11 @@ export const NAV_SECTIONS: NavSection[] = [
     //   { label: "Contact Messages", to: "/leads/contact-messages", permission: "content.view" }
     // (same convention as the Analytics list slimmed above).
     children: [
-      { label: "Pipeline", to: "/leads", permission: "leads.view" },
-      { label: "My Work", to: "/leads/counselling", permission: "leads.view" },
+      { label: "Pipeline", icon: GitBranch, to: "/leads", permission: "leads.view" },
+      { label: "My Work", icon: ListChecks, to: "/leads/counselling", permission: "leads.view" },
       // Bulk intake: Excel/CSV upload → validated preview → per-row selection →
       // created via the same POST /crm/leads contract (server validates each row).
-      { label: "Import", to: "/leads/import", permission: "leads.create" },
+      { label: "Import", icon: Upload, to: "/leads/import", permission: "leads.create" },
     ],
   },
   {
@@ -151,10 +205,10 @@ export const NAV_SECTIONS: NavSection[] = [
       // One page with an in-page status toggle (All / Admissions / Active /
       // Alumni) instead of three sub-pages — the old /students/admissions and
       // /students/alumni URLs redirect into the toggle.
-      { label: "Directory", to: "/students", permission: "students.view" },
+      { label: "Directory", icon: Users, to: "/students", permission: "students.view" },
       // Bulk intake: Excel/CSV upload → validated preview → per-row selection →
       // created via the same POST /crm/students contract.
-      { label: "Import", to: "/students/import", permission: "students.create" },
+      { label: "Import", icon: Upload, to: "/students/import", permission: "students.create" },
     ],
   },
   {
@@ -175,43 +229,50 @@ export const NAV_SECTIONS: NavSection[] = [
     children: [
       // scope `all` ONLY — faculty's `assigned` grant is rejected by the API
       // (courses.scope_unresolvable), so showing them this leaf leads nowhere.
-      { label: "Courses", to: "/courses", permission: "courses.view", permissionScopes: ["all"] },
-      { label: "Faculty", to: "/faculty", permission: "faculty.view" },
-      { label: "Mentors", to: "/mentors", permission: "mentors.view" },
-      { label: "Batches", to: "/batches", permission: "batches.view" },
-      { label: "Assignments", to: "/academics/assignments", permission: "assignments.view" },
-      { label: "Projects", to: "/academics/projects", permission: "assignments.view" },
-      { label: "Assessments", to: "/academics/assessments", permission: "assessments.view" },
-      { label: "Forum Moderation", to: "/academics/forum-moderation", permission: "forum.moderate" },
+      { label: "Courses", icon: BookOpen, to: "/courses", permission: "courses.view", permissionScopes: ["all"] },
+      { label: "Faculty", icon: GraduationCap, to: "/faculty", permission: "faculty.view" },
+      { label: "Mentors", icon: UserCog, to: "/mentors", permission: "mentors.view" },
+      { label: "Batches", icon: Layers, to: "/batches", permission: "batches.view" },
+      { label: "Assignments", icon: ClipboardList, to: "/academics/assignments", permission: "assignments.view" },
+      { label: "Projects", icon: FolderGit2, to: "/academics/projects", permission: "assignments.view" },
+      { label: "Assessments", icon: FileQuestion, to: "/academics/assessments", permission: "assessments.view" },
+      { label: "Forum Moderation", icon: MessagesSquare, to: "/academics/forum-moderation", permission: "forum.moderate" },
     ],
   },
   {
+    group: "Catalog & revenue",
     label: "Content",
     icon: BookOpen,
     children: [
-      { label: "Video Library", to: "/content/videos", permission: "videolib.view" },
-      { label: "Resources", to: "/content/resources", permission: "content.view" },
-      { label: "Certificates", to: "/content/certificates", permission: "certificates.view" },
+      { label: "Video Library", icon: Video, to: "/content/videos", permission: "videolib.view" },
+      { label: "Resources", icon: Paperclip, to: "/content/resources", permission: "content.view" },
+      { label: "Certificates", icon: Award, to: "/content/certificates", permission: "certificates.view" },
     ],
   },
   {
     label: "Commerce",
     icon: Wallet,
     children: [
-      { label: "Payments", to: "/commerce/payments", permission: "payments.view" },
-      { label: "Orders", to: "/commerce/orders", permission: "orders.view" },
-      { label: "Invoices", to: "/commerce/invoices", permission: "invoices.view" },
-      { label: "Refunds", to: "/commerce/refunds", permission: "refunds.view" },
-      { label: "Coupons", to: "/commerce/coupons", permission: "coupons.view" },
-      { label: "Plans", to: "/commerce/plans", permission: "emi.view" },
+      { label: "Payments", icon: CreditCard, to: "/commerce/payments", permission: "payments.view" },
+      { label: "Orders", icon: ShoppingCart, to: "/commerce/orders", permission: "orders.view" },
+      { label: "Invoices", icon: FileText, to: "/commerce/invoices", permission: "invoices.view" },
+      { label: "Refunds", icon: Undo2, to: "/commerce/refunds", permission: "refunds.view" },
+      { label: "Coupons", icon: TicketPercent, to: "/commerce/coupons", permission: "coupons.view" },
+      { label: "Plans", icon: CalendarClock, to: "/commerce/plans", permission: "emi.view" },
     ],
   },
   {
+    group: "Marketing",
     label: "Marketing",
     icon: Megaphone,
     children: [
-      { label: "Campaigns", to: "/marketing/campaigns", permission: "campaigns.view" },
-      { label: "Referrals", to: "/marketing/referrals", permission: "referrals.view" },
+      { label: "Campaigns", icon: Send, to: "/marketing/campaigns", permission: "campaigns.view" },
+      { label: "Referrals", icon: Share2, to: "/marketing/referrals", permission: "referrals.view" },
+      // Monthly targets (ADR-0067). Gated on `marketing_targets.manage`, which is seeded to
+      // super_admin ALONE outside the permission catalog — so this leaf is invisible to
+      // admin, to marketing, and to everyone else. The marketing team does not need it:
+      // their own number is a card on their dashboard, not a screen they navigate to.
+      { label: "Targets", icon: Target, to: "/marketing/targets", permission: "marketing_targets.manage" },
     ],
   },
   {
@@ -225,12 +286,12 @@ export const NAV_SECTIONS: NavSection[] = [
       // rest of Content/Marketing: `content.builder`/`site_settings.view` are super_admin-
       // only, NOT granted to Marketing/Admin/Content Editor by default (spec "Data/
       // permissions impact" — a narrower grant than `content.edit`/`content.publish`).
-      { label: "Page Builder", to: "/marketing/page-builder", permission: "content.builder" },
-      { label: "Site Settings", to: "/marketing/site-settings", permission: "site_settings.view" },
+      { label: "Page Builder", icon: LayoutTemplate, to: "/marketing/page-builder", permission: "content.builder" },
+      { label: "Site Settings", icon: Settings2, to: "/marketing/site-settings", permission: "site_settings.view" },
       // Phase-11 locked templates (docs/plans/phase-11-locked-templates.md) — colleges are
       // the "items" behind the page builder's colleges_live template sections; managed on
       // their own screen, same `content.*` permissions as Blog CMS's Partners tab.
-      { label: "Colleges", to: "/marketing/colleges", permission: "content.view" },
+      { label: "Colleges", icon: School, to: "/marketing/colleges", permission: "content.view" },
       // Reviews — promoted out of the Blog CMS tab strip to its own screen
       // (same shape as Colleges): the homepage "What Our Students Say" section
       // pulls the published rows via /public/testimonials.
@@ -239,17 +300,18 @@ export const NAV_SECTIONS: NavSection[] = [
       // still `testimonial(s)`, which is why the route below has not moved — the URL is
       // shared with existing bookmarks and the rename is a labelling change, not a
       // re-modelling one.
-      { label: "Reviews", to: "/marketing/testimonials", permission: "content.view" },
-      { label: "Blog CMS", to: "/marketing/blog-cms", permission: "content.view" },
-      { label: "Landing Pages", to: "/marketing/landing-pages", permission: "landing_pages.view" },
+      { label: "Reviews", icon: Star, to: "/marketing/testimonials", permission: "content.view" },
+      { label: "Blog CMS", icon: Newspaper, to: "/marketing/blog-cms", permission: "content.view" },
+      { label: "Landing Pages", icon: MousePointerClick, to: "/marketing/landing-pages", permission: "landing_pages.view" },
     ],
   },
   {
+    group: "Service & insights",
     label: "Support",
     icon: LifeBuoy,
     children: [
-      { label: "Tickets", to: "/support/tickets", permission: "tickets.view" },
-      { label: "Knowledge Base", to: "/support/kb", permission: "kb.view" },
+      { label: "Tickets", icon: Ticket, to: "/support/tickets", permission: "tickets.view" },
+      { label: "Knowledge Base", icon: BookMarked, to: "/support/kb", permission: "kb.view" },
     ],
   },
   {
@@ -263,19 +325,20 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Analytics",
     icon: BarChart3,
     children: [
-      { label: "Overview", to: "/analytics" },
-      { label: "Revenue", to: "/analytics/revenue", permission: "reports.revenue.view" },
-      { label: "Enrollment Trend", to: "/analytics/enrollment", permission: "reports.enrollment.view" },
-      { label: "Lead Funnel", to: "/analytics/funnel", permission: "reports.funnel.view" },
+      { label: "Overview", icon: LayoutDashboard, to: "/analytics" },
+      { label: "Revenue", icon: IndianRupee, to: "/analytics/revenue", permission: "reports.revenue.view" },
+      { label: "Enrollment Trend", icon: TrendingUp, to: "/analytics/enrollment", permission: "reports.enrollment.view" },
+      { label: "Lead Funnel", icon: Filter, to: "/analytics/funnel", permission: "reports.funnel.view" },
       // Sits next to the funnel because it answers the follow-up question: the funnel
       // says how many converted, this says who converted them.
       {
         label: "Team Performance",
+        icon: Trophy,
         to: "/analytics/lead-performance",
         permission: "reports.lead_performance.view",
       },
-      { label: "Campaign Performance", to: "/analytics/campaigns", permission: "reports.campaigns.view" },
-      { label: "Exports", to: "/analytics/exports", permission: "reports.export" },
+      { label: "Campaign Performance", icon: BarChart3, to: "/analytics/campaigns", permission: "reports.campaigns.view" },
+      { label: "Exports", icon: Download, to: "/analytics/exports", permission: "reports.export" },
     ],
   },
   {
@@ -287,11 +350,12 @@ export const NAV_SECTIONS: NavSection[] = [
     // the homepage does not thereby get to read CVs. Openings is visible to anyone who can
     // work the queue (`careers.view`) because Applications filters by role; only the writes
     // need `careers.openings.manage`, which the server enforces.
+    group: "People",
     label: "Careers",
     icon: Briefcase,
     children: [
-      { label: "Applications", to: "/careers/applications", permission: "careers.view" },
-      { label: "Openings", to: "/careers/openings", permission: "careers.view" },
+      { label: "Applications", icon: FileUser, to: "/careers/applications", permission: "careers.view" },
+      { label: "Openings", icon: Briefcase, to: "/careers/openings", permission: "careers.view" },
     ],
   },
   {
@@ -308,22 +372,23 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Leave Management",
     icon: CalendarDays,
     children: [
-      { label: "My Leave", to: "/leave", permission: "leave.view" },
-      { label: "Approvals", to: "/leave/approvals", permission: "leave.approve" },
-      { label: "Calendar", to: "/leave/calendar", permission: "leave.calendar.view" },
-      { label: "Setup", to: "/leave/setup", permission: "leave.manage" },
+      { label: "My Leave", icon: CalendarOff, to: "/leave", permission: "leave.view" },
+      { label: "Approvals", icon: CheckCheck, to: "/leave/approvals", permission: "leave.approve" },
+      { label: "Calendar", icon: CalendarDays, to: "/leave/calendar", permission: "leave.calendar.view" },
+      { label: "Setup", icon: SlidersHorizontal, to: "/leave/setup", permission: "leave.manage" },
     ],
   },
   {
+    group: "Administration",
     label: "Admin",
     icon: ShieldCheck,
     children: [
-      { label: "Users", to: "/admin/users", permission: "users.view" },
-      { label: "Roles & Permissions", to: "/admin/roles", permission: "roles.view" },
-      { label: "Branches", to: "/admin/branches", permission: "branches.view" },
-      { label: "Audit Logs", to: "/admin/audit-logs", permission: "audit_logs.view" },
-      { label: "Message Templates", to: "/admin/notifications", permission: "campaigns.view" },
-      { label: "Settings", to: "/admin/settings", permission: "settings.view" },
+      { label: "Users", icon: Users, to: "/admin/users", permission: "users.view" },
+      { label: "Roles & Permissions", icon: ShieldCheck, to: "/admin/roles", permission: "roles.view" },
+      { label: "Branches", icon: Building2, to: "/admin/branches", permission: "branches.view" },
+      { label: "Audit Logs", icon: ScrollText, to: "/admin/audit-logs", permission: "audit_logs.view" },
+      { label: "Message Templates", icon: Mail, to: "/admin/notifications", permission: "campaigns.view" },
+      { label: "Settings", icon: Settings, to: "/admin/settings", permission: "settings.view" },
     ],
   },
   {

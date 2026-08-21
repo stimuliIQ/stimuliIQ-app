@@ -9,6 +9,9 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    // jest-dom matchers + RTL cleanup + a matchMedia stub, so component tests behave the
+    // same here as they do in apps/crm.
+    setupFiles: ["./src/test/setup.ts"],
     css: false,
     // e2e/ holds @playwright/test specs (R13, docs/plans/phase-9-completion.md T41) —
     // they use Playwright's own `test`/`test.describe`/`test.skip` API (run via

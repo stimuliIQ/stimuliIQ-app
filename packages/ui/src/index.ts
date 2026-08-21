@@ -8,6 +8,18 @@ export const PACKAGE_NAME = "@repo/ui" as const;
 
 export { cn } from "./lib/cn";
 
+// The interaction behind a rail/column nav whose sections open a flyout panel. Headless, so
+// the CRM sidebar and the LMS side nav share the fiddly part (hover intent, touch fallback,
+// escape, outside-click) while keeping their own very different layouts.
+export { useFlyoutNav } from "./lib/use-flyout-nav";
+export type { UseFlyoutNavOptions, UseFlyoutNavResult } from "./lib/use-flyout-nav";
+
+// Where a flyout card sits. Split from useFlyoutNav because it is the LAYOUT half and needs
+// a measured panel height; see its header for why capping height instead of sliding the card
+// up is the wrong fix (it grows a scrollbar on any section near the bottom of the column).
+export { useFlyoutPosition } from "./lib/use-flyout-position";
+export type { UseFlyoutPositionOptions, FlyoutPosition } from "./lib/use-flyout-position";
+
 export {
   PHONE_LOCAL_LENGTH,
   PHONE_COUNTRY_CODE,

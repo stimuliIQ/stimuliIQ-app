@@ -5,7 +5,7 @@
 // `branches.view`. The notifications bell stays a disabled placeholder (the
 // notification center lives at the sidebar's Notifications route).
 import * as React from "react";
-import { Building2 } from "lucide-react";
+import { Building2, Menu } from "lucide-react";
 import { Select, SelectItem } from "@repo/ui";
 import type { MeResponse } from "@repo/types";
 
@@ -19,25 +19,41 @@ interface TopbarProps {
   me: MeResponse | undefined;
   onLogout: () => void;
   loggingOut: boolean;
+  /** Opens the off-canvas sidebar. Only rendered below `lg`, where the nav is a drawer. */
+  onOpenMobileNav: () => void;
 }
 
-export function Topbar({ me, onLogout, loggingOut }: TopbarProps): React.JSX.Element {
+export function Topbar({ me, onLogout, loggingOut, onOpenMobileNav }: TopbarProps): React.JSX.Element {
   const { branches, canFilterBranch, selectedBranchId, setSelectedBranchId } = useBranchScope();
   const [changePasswordOpen, setChangePasswordOpen] = React.useState(false);
 
   return (
     <header
       data-testid="crm-topbar"
-      className="flex h-14 items-center gap-4 border-b border-border bg-card px-4"
+      className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-card px-3 sm:gap-4 sm:px-4"
     >
-      <div className="flex-1">
+      {/* The only way into the nav below `lg`. It carries `aria-controls` rather than
+          `aria-expanded` because the sidebar is always mounted (it slides), so "expanded"
+          would be a claim about position, not about existence. */}
+      <button
+        type="button"
+        onClick={onOpenMobileNav}
+        aria-label="Open menu"
+        aria-controls="crm-sidebar"
+        data-testid="topbar-menu-button"
+        className="-ml-1 shrink-0 rounded-md p-2 text-fg-muted transition-colors duration-fast hover:bg-surface hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg lg:hidden"
+      >
+        <Menu className="size-5" aria-hidden="true" />
+      </button>
+
+      <div className="min-w-0 flex-1">
         <CommandPalette />
       </div>
 
       {/* Global branch scope — picking a branch here filters every branch-aware
           screen in the CRM. Only shown to users who can view branches. */}
       {canFilterBranch ? (
-        <div className="flex items-center gap-1.5 text-fg-subtle">
+        <div className="hidden items-center gap-1.5 text-fg-subtle md:flex">
           <Building2 className="size-4 shrink-0" aria-hidden="true" />
           <Select
             aria-label="Branch scope"

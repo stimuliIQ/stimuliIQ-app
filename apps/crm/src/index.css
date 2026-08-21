@@ -90,3 +90,48 @@ body,
 .auth-card input:focus {
   background-color: #ffffff;
 }
+
+/*
+ * Slim scrollbar for the side nav (components/layout/sidebar.tsx).
+ *
+ * The platform scrollbar on Windows Chrome is ~17px with stepper arrows. Inside a
+ * 64px icon rail that is a quarter of the column, and it shoved the icons off
+ * centre.
+ *
+ * Two rules for two engines, and they must not both apply: Chrome IGNORES
+ * `::-webkit-scrollbar` the moment `scrollbar-width` is set, and its `thin` is
+ * ~11px — better than 17, still twice what this needs. So `scrollbar-width` is
+ * fenced behind a feature query that only Firefox (which has no
+ * `::-webkit-scrollbar`) falls into, leaving Chrome, Edge and Safari on the
+ * 6px webkit rules below.
+ *
+ * The thumb is the border token at rest and darkens while the pointer is over the
+ * nav, so a column that does not need scrolling never advertises that it could.
+ */
+@supports not selector(::-webkit-scrollbar) {
+  .nav-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--border)) transparent;
+  }
+
+  .nav-scroll:hover {
+    scrollbar-color: rgb(var(--fg-subtle) / 0.55) transparent;
+  }
+}
+
+.nav-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nav-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nav-scroll::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background-color: rgb(var(--border));
+}
+
+.nav-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--fg-subtle) / 0.55);
+}

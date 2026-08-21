@@ -27,6 +27,11 @@ export function AppShell({ children }: { children: React.ReactNode }): React.JSX
   const { me, isLoading, isSignedOut, isError, error, refetch } = useMe();
   const logout = useLogout();
   const [collapsed, setCollapsed] = React.useState(false);
+  // Below `lg` the sidebar is an off-canvas drawer; the topbar owns the button that
+  // opens it and the sidebar owns every way of closing it, so the state sits here,
+  // between them. `useCallback` because the sidebar route-change effect depends on it.
+  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
+  const closeMobileNav = React.useCallback(() => setMobileNavOpen(false), []);
 
   if (PUBLIC_PATHS.has(location.pathname)) {
     return <>{children}</>;
@@ -72,9 +77,20 @@ export function AppShell({ children }: { children: React.ReactNode }): React.JSX
   return (
     <BranchScopeProvider me={me}>
       <div className="fixed inset-0 flex overflow-hidden bg-bg" data-density="compact" data-testid="app-shell">
-        <Sidebar me={me} collapsed={collapsed} onToggleCollapsed={() => setCollapsed((c) => !c)} />
+        <Sidebar
+          me={me}
+          collapsed={collapsed}
+          onToggleCollapsed={() => setCollapsed((c) => !c)}
+          mobileOpen={mobileNavOpen}
+          onCloseMobile={closeMobileNav}
+        />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <Topbar me={me} onLogout={() => logout.mutate()} loggingOut={logout.isPending} />
+          <Topbar
+            me={me}
+            onLogout={() => logout.mutate()}
+            loggingOut={logout.isPending}
+            onOpenMobileNav={() => setMobileNavOpen(true)}
+          />
           {/* p-4, not p-6: the shell inset is paid on every page, and 24px on all four
               sides of a dense table pushed the first rows below the fold on a 900px-tall
               viewport. Matches the compact card inset. */}

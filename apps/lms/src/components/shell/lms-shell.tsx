@@ -22,11 +22,13 @@ import {
   Award,
   BookOpen,
   CalendarDays,
+  ChevronRight,
   ClipboardList,
   Download,
   FileQuestion,
   FolderGit2,
   Home,
+  Library,
   LifeBuoy,
   LogOut,
   MessageSquare,
@@ -44,7 +46,10 @@ import {
   DrawerContent,
   DrawerTrigger,
   NotificationBell,
+  useFlyoutNav,
+  useFlyoutPosition,
   type NotificationBellItem,
+  type UseFlyoutNavResult,
 } from "@repo/ui";
 
 import {
@@ -74,10 +79,26 @@ interface NavItem {
   testId: string;
 }
 
+/**
+ * A top-level entry in the desktop side nav.
+ *
+ * Either a DIRECT LINK (`item`) or a SECTION that opens a flyout (`items`), never both —
+ * exactly the shape the CRM sidebar uses, so the two apps read as one product.
+ *
+ * `Icon` is required on a section because the collapsed rail shows nothing else.
+ */
 interface NavSection {
-  /** Section heading; `null` renders the primary group with no heading. */
+  /** Section heading, and the flyout's caption. `null` only for the unlabelled primary group. */
   label: string | null;
+  Icon?: React.ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
+  /** Children shown in the flyout. Mutually exclusive with `directItems`. */
   items: NavItem[];
+  /**
+   * Rendered as top-level rows rather than behind a flyout. Home and My Courses are the two
+   * places a student goes constantly, and putting them one hover deeper to satisfy a pattern
+   * would cost a click on every visit.
+   */
+  direct?: boolean;
 }
 
 const NAV = {
@@ -107,10 +128,12 @@ function buildSections(hasProjects: boolean): NavSection[] {
     ? [NAV.assignments, NAV.projects, NAV.assessments]
     : [NAV.assignments, NAV.assessments];
   return [
-    { label: null, items: [NAV.home, NAV.courses] },
-    { label: "Coursework", items: coursework },
-    { label: "Achievements", items: [NAV.progress, NAV.certificates] },
-    { label: "Resources", items: [NAV.calendar, NAV.downloads, NAV.forum, NAV.support] },
+    // Direct rows: the two destinations a student opens on nearly every visit. Putting them
+    // behind a flyout to satisfy the pattern would cost a click every single time.
+    { label: null, items: [NAV.home, NAV.courses], direct: true },
+    { label: "Coursework", Icon: ClipboardList, items: coursework },
+    { label: "Achievements", Icon: Award, items: [NAV.progress, NAV.certificates] },
+    { label: "Resources", Icon: Library, items: [NAV.calendar, NAV.downloads, NAV.forum, NAV.support] },
   ];
 }
 
@@ -334,7 +357,7 @@ function TopBar({ effectiveCollapsed, onToggleSidenav }: TopBarProps): React.JSX
 
         <Link
           href="/"
-          aria-label="stimuliiq — go to dashboard"
+          aria-label="stimuliiq, go to dashboard"
           className="rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           {/* Black wordmark on a transparent PNG — flatten to white in dark theme. */}
@@ -421,9 +444,20 @@ interface SideNavProps {
   effectiveCollapsed: boolean;
 }
 
-function SideNav({ pathname, preference, effectiveCollapsed }: SideNavProps): React.JSX.Element {
+/**
+ * Exported for component tests only — `LmsShell` is the public surface and renders this
+ * itself. Testing the nav through the whole shell would mean standing up the top bar, the
+ * notification bell, the avatar menu and both auth gates to assert on a list of links.
+ */
+export function SideNav({ pathname, preference, effectiveCollapsed }: SideNavProps): React.JSX.Element {
   const { hasProjects, pendingCount: pendingProjects } = useMyProjects();
   const sections = React.useMemo(() => buildSections(hasProjects), [hasProjects]);
+
+  // The interaction is shared with the CRM sidebar (@repo/ui useFlyoutNav): hover intent on
+  // a mouse, click on touch, escape and outside-pointer to dismiss. Passing `pathname` as
+  // `closeOn` means navigating closes the panel, so a student never lands on a page with the
+  // menu they used still hanging over it.
+  const flyout = useFlyoutNav({ closeOn: pathname });
 
   // Each variant resolves to a literal class string so Tailwind's scanner keeps
   // it. `null` (auto) carries both the rail classes and their `lg:` overrides,
@@ -434,12 +468,9 @@ function SideNav({ pathname, preference, effectiveCollapsed }: SideNavProps): Re
   const widthClass = railed ? "w-16" : auto ? "w-16 lg:w-60" : "w-60";
   const navPadClass = railed ? "px-2" : auto ? "px-2 lg:px-3" : "px-3";
   const labelClass = railed ? "hidden" : auto ? "hidden truncate lg:inline" : "truncate";
-  // Section headings hide whenever labels do; a centred divider stands in for
-  // them in rail mode so the grouping still reads.
-  const headingClass = railed ? "hidden" : auto ? "hidden lg:block" : "block";
-  const railDividerClass = railed ? "block" : auto ? "block lg:hidden" : "hidden";
+  const chevronClass = railed ? "hidden" : auto ? "hidden lg:block" : "block";
 
-  const itemGeometry = railed
+  const rowGeometry = railed
     ? "justify-center px-0"
     : auto
       ? "justify-center px-0 lg:justify-start lg:gap-3 lg:px-3"
@@ -447,6 +478,7 @@ function SideNav({ pathname, preference, effectiveCollapsed }: SideNavProps): Re
 
   return (
     <aside
+      ref={flyout.containerRef as React.RefObject<HTMLElement>}
       className={cn(
         "hidden md:flex md:flex-col shrink-0 sticky top-14 self-start h-[calc(100vh-3.5rem)]",
         "border-r border-border transition-[width] duration-200 motion-reduce:transition-none",
@@ -460,79 +492,222 @@ function SideNav({ pathname, preference, effectiveCollapsed }: SideNavProps): Re
         role="navigation"
         aria-label="Primary"
         className={cn(
-          "flex flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden py-4",
+          "lms-nav-scroll flex flex-1 flex-col gap-1 overflow-y-auto py-4",
           navPadClass,
         )}
         data-testid="lms-sidenav"
       >
-        {sections.map((section, sectionIndex) => (
-          <div
-            key={section.label ?? "primary"}
-            role="group"
-            aria-label={section.label ?? "Primary"}
-            className={sectionIndex > 0 ? "mt-4" : undefined}
-          >
-            {section.label ? (
-              <>
-                <p
-                  className={cn(
-                    "px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle",
-                    headingClass,
-                  )}
-                >
-                  {section.label}
-                </p>
-                <div
-                  aria-hidden="true"
-                  className={cn("mx-auto mb-1 h-px w-6 bg-border", railDividerClass)}
+        <ul className="flex flex-col gap-1">
+          {sections.map((section, sectionIndex) => {
+            // The unlabelled primary group renders its items as top-level rows.
+            if (section.direct || !section.label || !section.Icon) {
+              return section.items.map((item) => (
+                <DirectNavRow
+                  key={item.href}
+                  item={item}
+                  pathname={pathname}
+                  pendingProjects={pendingProjects}
+                  labelClass={labelClass}
+                  rowGeometry={rowGeometry}
                 />
-              </>
-            ) : null}
-
-            {section.items.map(({ href, label, Icon, testId }) => {
-              const isActive = isItemActive(pathname, href);
-              // Outstanding project count — the one nav badge that maps to
-              // something blocking (a required final project gates the cert).
-              const badge = href === "/projects" && pendingProjects > 0 ? pendingProjects : null;
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  data-testid={testId}
-                  aria-current={isActive ? "page" : undefined}
-                  aria-label={badge ? `${label}, ${badge} pending` : label}
-                  title={label}
-                  className={navLinkClass(isActive, itemGeometry)}
-                >
-                  {/* Left accent bar for the active item (hidden in rail mode). */}
-                  {isActive ? (
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        "absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand-500",
-                        railed ? "hidden" : auto ? "hidden lg:block" : "block",
-                      )}
-                    />
-                  ) : null}
-                  <span className="relative shrink-0">
-                    <Icon aria-hidden="true" className="size-5" />
-                    {badge ? (
-                      <span
-                        aria-hidden="true"
-                        className="absolute -right-1.5 -top-1.5 flex min-w-4 items-center justify-center rounded-full bg-brand-500 px-1 text-[10px] font-semibold leading-4 text-white"
-                      >
-                        {badge}
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className={labelClass}>{label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        ))}
+              ));
+            }
+            return (
+              <FlyoutNavSection
+                key={section.label}
+                section={section}
+                pathname={pathname}
+                pendingProjects={pendingProjects}
+                flyout={flyout}
+                labelClass={labelClass}
+                chevronClass={chevronClass}
+                rowGeometry={rowGeometry}
+                className={sectionIndex > 0 ? "mt-2" : undefined}
+              />
+            );
+          })}
+        </ul>
       </nav>
     </aside>
+  );
+}
+
+/** A top-level row that navigates directly (Home, My Courses). */
+function DirectNavRow({
+  item,
+  pathname,
+  pendingProjects,
+  labelClass,
+  rowGeometry,
+}: {
+  item: NavItem;
+  pathname: string;
+  pendingProjects: number;
+  labelClass: string;
+  rowGeometry: string;
+}): React.JSX.Element {
+  const isActive = isItemActive(pathname, item.href);
+  const badge = item.href === "/projects" && pendingProjects > 0 ? pendingProjects : null;
+  return (
+    <li>
+      <Link
+        href={item.href}
+        data-testid={item.testId}
+        aria-current={isActive ? "page" : undefined}
+        aria-label={badge ? `${item.label}, ${badge} pending` : item.label}
+        title={item.label}
+        className={navLinkClass(isActive, rowGeometry)}
+      >
+        <NavRowIcon Icon={item.Icon} badge={badge} />
+        <span className={labelClass}>{item.label}</span>
+      </Link>
+    </li>
+  );
+}
+
+/**
+ * A top-level section whose children live in a flyout card.
+ *
+ * THE BADGE BUBBLES UP. The outstanding-project count is the one nav badge that maps to
+ * something blocking (a required final project gates the certificate). Moving Projects into
+ * a flyout would have hidden that count behind a hover, so the section row carries the sum
+ * of its children's badges and the child keeps its own.
+ */
+function FlyoutNavSection({
+  section,
+  pathname,
+  pendingProjects,
+  flyout,
+  labelClass,
+  chevronClass,
+  rowGeometry,
+  className,
+}: {
+  section: NavSection;
+  pathname: string;
+  pendingProjects: number;
+  flyout: UseFlyoutNavResult;
+  labelClass: string;
+  chevronClass: string;
+  rowGeometry: string;
+  className?: string;
+}): React.JSX.Element {
+  const key = section.label ?? "";
+  const Icon = section.Icon!;
+  const rowRef = React.useRef<HTMLLIElement | null>(null);
+  const buttonRef = React.useRef<HTMLButtonElement | null>(null);
+  const panelId = `lms-nav-panel-${key.toLowerCase()}`;
+  const isOpen = flyout.isOpen(key);
+
+  const childActive = section.items.some((item) => isItemActive(pathname, item.href));
+  const sectionBadge = section.items.reduce(
+    (sum, item) => sum + (item.href === "/projects" ? pendingProjects : 0),
+    0,
+  );
+
+  // Where the floating card sits. The shared hook SLIDES THE CARD UP when it would overhang
+  // the bottom rather than squeezing its height, so a section low in the column still shows
+  // its whole submenu instead of growing an internal scrollbar.
+  const panelRef = React.useRef<HTMLDivElement | null>(null);
+  const { top: floatTop, maxHeight: floatMaxHeight } = useFlyoutPosition({
+    enabled: isOpen,
+    rowRef,
+    panelRef,
+  });
+
+  return (
+    <li ref={rowRef} className={cn("relative", className)} {...flyout.hoverProps(key)}>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => (isOpen ? flyout.close() : flyout.open(key))}
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowRight") return;
+          event.preventDefault();
+          flyout.open(key);
+        }}
+        aria-expanded={isOpen}
+        aria-haspopup="true"
+        aria-controls={isOpen ? panelId : undefined}
+        aria-label={sectionBadge > 0 ? `${section.label}, ${sectionBadge} pending` : undefined}
+        title={section.label ?? undefined}
+        data-testid={`lms-nav-section-${key.toLowerCase()}`}
+        className={navLinkClass(childActive || isOpen, cn(rowGeometry, "w-full"))}
+      >
+        <NavRowIcon Icon={Icon} badge={sectionBadge > 0 ? sectionBadge : null} />
+        <span className={labelClass}>{section.label}</span>
+        <ChevronRight
+          aria-hidden="true"
+          className={cn("ml-auto size-4 shrink-0 text-fg-subtle", chevronClass)}
+        />
+      </button>
+
+      {isOpen ? (
+        <div
+          id={panelId}
+          {...flyout.panelHoverProps}
+          onKeyDown={(event) => {
+            if (event.key !== "ArrowLeft") return;
+            event.preventDefault();
+            flyout.close();
+            buttonRef.current?.focus();
+          }}
+          data-testid={`lms-nav-panel-${key.toLowerCase()}`}
+          // A floating card offset from the column, only as tall as its contents, anchored
+          // to the row that opened it. Same shape as the CRM sidebar's flyout.
+          ref={panelRef}
+          style={{ top: floatTop ?? 0, maxHeight: floatMaxHeight }}
+          className="fixed left-[calc(100%+0.5rem)] z-40 flex w-56 flex-col rounded-lg border border-border bg-card shadow-md"
+        >
+          <h2 className="shrink-0 truncate px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">
+            {section.label}
+          </h2>
+          <ul className="min-h-0 flex-1 overflow-y-auto p-2" aria-label={section.label ?? undefined}>
+            {section.items.map((item) => {
+              const isActive = isItemActive(pathname, item.href);
+              const badge = item.href === "/projects" && pendingProjects > 0 ? pendingProjects : null;
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    data-testid={item.testId}
+                    aria-current={isActive ? "page" : undefined}
+                    aria-label={badge ? `${item.label}, ${badge} pending` : item.label}
+                    className={navLinkClass(isActive, "gap-3 px-3")}
+                  >
+                    <NavRowIcon Icon={item.Icon} badge={badge} />
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+/** An icon with the optional outstanding-work badge pinned to its corner. */
+function NavRowIcon({
+  Icon,
+  badge,
+}: {
+  Icon: NavItem["Icon"];
+  badge: number | null;
+}): React.JSX.Element {
+  return (
+    <span className="relative shrink-0">
+      <Icon aria-hidden="true" className="size-5" />
+      {badge ? (
+        <span
+          aria-hidden="true"
+          className="absolute -right-1.5 -top-1.5 flex min-w-4 items-center justify-center rounded-full bg-brand-500 px-1 text-[10px] font-semibold leading-4 text-white"
+        >
+          {badge}
+        </span>
+      ) : null}
+    </span>
   );
 }
 
