@@ -56,7 +56,7 @@ export const UPCOMING_WORKSHOP: UpcomingWorkshop = {
   statusLabel: "Registrations open",
   title: "Clinical Research",
   summary:
-    "A live session with practising researchers on how clinical research actually runs — and the paths open to healthcare students who want to get into it.",
+    "A live session with practising researchers on how clinical research actually runs, and the paths open to healthcare students who want to get into it.",
   dateLabel: null,
   timeLabel: null,
   modeLabel: null,

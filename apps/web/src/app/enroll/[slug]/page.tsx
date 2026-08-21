@@ -33,13 +33,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   try {
     const program = await serverApiClient.public.programs.getBySlug(slug);
     return buildMetadata({
-      title: `Enroll in ${program.title} — Stimuli IQ`,
+      title: `Enroll in ${program.title} | Stimuli IQ`,
       description: `Enroll in ${program.title} and start your tech career journey with Stimuli IQ.`,
       canonicalPath: `/enroll/${slug}`,
       noIndex: true, // Enroll pages should not be indexed (funnel pages)
     });
   } catch {
-    return buildMetadata({ title: "Enroll — Stimuli IQ", noIndex: true });
+    return buildMetadata({ title: "Enroll | Stimuli IQ", noIndex: true });
   }
 }
 

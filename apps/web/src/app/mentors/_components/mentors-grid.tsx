@@ -191,7 +191,7 @@ export function MentorsGrid({ initialItems, initialCursor }: MentorsGridProps) {
   if (mentors.length === 0) {
     return (
       <p className="py-12 text-center text-fg-muted" role="status" data-testid="mentors-empty">
-        Our mentor directory is being updated — check back soon.
+        Our mentor directory is being updated. Check back soon.
       </p>
     );
   }
@@ -219,7 +219,7 @@ export function MentorsGrid({ initialItems, initialCursor }: MentorsGridProps) {
           </button>
         ) : (
           <p className="text-sm text-fg-subtle">
-            That&apos;s the whole team — and it keeps growing.
+            That&apos;s the whole team, and it keeps growing.
           </p>
         )}
         {error ? (

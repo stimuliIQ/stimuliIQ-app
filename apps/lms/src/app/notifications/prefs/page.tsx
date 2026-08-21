@@ -10,7 +10,7 @@ import { LmsShell } from "../../../components/shell/lms-shell";
 import { NotificationPrefsContent } from "../../../components/notifications/notification-prefs-content";
 
 export const metadata: Metadata = {
-  title: "Notification Preferences — stimuliiq",
+  title: "Notification Preferences | stimuliiq",
   description: "Configure which notifications you receive and on which channels.",
 };
 

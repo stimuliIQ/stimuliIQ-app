@@ -11,7 +11,7 @@ import { LmsShell } from "../../components/shell/lms-shell";
 import { ProjectsListContent } from "../../components/projects/projects-list-content";
 
 export const metadata: Metadata = {
-  title: "Projects — stimuliiq",
+  title: "Projects | stimuliiq",
 };
 
 export default function ProjectsPage() {

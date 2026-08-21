@@ -14,7 +14,7 @@ import { LmsShell } from "../components/shell/lms-shell";
 import { DashboardContent } from "../components/dashboard/dashboard-content";
 
 export const metadata: Metadata = {
-  title: "Dashboard — stimuliiq",
+  title: "Dashboard | stimuliiq",
   description: "Your learning dashboard: continue where you left off, track your progress.",
 };
 

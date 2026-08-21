@@ -280,7 +280,7 @@ function SubmissionForm({
       {/* Link */}
       <div>
         <label htmlFor="assignment-link" className="mb-2 block text-sm font-medium text-fg">
-          Link / URL <span className="text-fg-subtle">(optional — repo, demo, etc.)</span>
+          Link / URL <span className="text-fg-subtle">(optional: repo, demo, etc.)</span>
         </label>
         <input
           id="assignment-link"

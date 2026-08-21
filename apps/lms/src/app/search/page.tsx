@@ -7,7 +7,7 @@ import { LmsShell } from "../../components/shell/lms-shell";
 import { SearchContent } from "../../components/search/search-content";
 
 export const metadata: Metadata = {
-  title: "Search — stimuliiq",
+  title: "Search | stimuliiq",
   description: "Search lessons, resources, and forum discussions across your courses.",
 };
 

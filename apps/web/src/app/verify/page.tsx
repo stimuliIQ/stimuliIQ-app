@@ -16,12 +16,12 @@ const SITE_NAME = "stimuliiq";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://stimuliiq.com";
 
 export const metadata: Metadata = {
-  title: `Verify a Certificate — ${SITE_NAME}`,
+  title: `Verify a Certificate | ${SITE_NAME}`,
   description:
     "Verify the authenticity of a stimuliiq training certificate. Enter the certificate ID printed on the certificate to confirm the holder, program and issue date.",
   alternates: { canonical: `${SITE_URL}/verify` },
   openGraph: {
-    title: `Verify a Certificate — ${SITE_NAME}`,
+    title: `Verify a Certificate | ${SITE_NAME}`,
     description: "Confirm the authenticity of a stimuliiq training certificate.",
     url: `${SITE_URL}/verify`,
     siteName: SITE_NAME,

@@ -8,7 +8,7 @@ import { LmsShell } from "../../../components/shell/lms-shell";
 import { CourseDetailContent } from "../../../components/courses/course-detail-content";
 
 export const metadata: Metadata = {
-  title: "Course — stimuliiq",
+  title: "Course | stimuliiq",
 };
 
 interface Props {

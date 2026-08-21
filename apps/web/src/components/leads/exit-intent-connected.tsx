@@ -94,7 +94,7 @@ export function ExitIntentConnected() {
     <ExitIntentModal
       open={isOpen}
       onOpenChange={handleOpenChange}
-      heading="Wait — before you go!"
+      heading="Wait, before you go!"
       subheading="Get a free callback from a mentor and find the right program for you."
       fields={["name", "phone"]}
       captchaSlot={

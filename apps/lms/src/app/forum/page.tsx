@@ -15,7 +15,7 @@ import { LmsShell } from "../../components/shell/lms-shell";
 import { ForumBatchSelector } from "../../components/forum/forum-batch-selector";
 
 export const metadata: Metadata = {
-  title: "Forum — stimuliiq",
+  title: "Forum | stimuliiq",
   description: "Discuss topics, ask questions, and share knowledge with your batchmates.",
 };
 

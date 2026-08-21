@@ -149,7 +149,7 @@ export function useStreamUrl(lessonId: string | undefined): UseStreamUrlResult {
           setState({
             status: "video-not-ready",
             message:
-              "This video isn't available yet — it may still be processing or requires setup. Please check back later.",
+              "This video isn't available yet. It may still be processing or requires setup. Please check back later.",
           });
           return;
         }

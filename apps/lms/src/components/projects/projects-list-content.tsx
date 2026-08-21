@@ -109,7 +109,7 @@ export function ProjectsListContent(): React.JSX.Element {
       {projects.length === 0 ? (
         <EmptyState
           title="No projects in your programs"
-          description="This program doesn't require a project — finish your lessons and assessments and your certificate will be issued."
+          description="This program doesn't require a project. Finish your lessons and assessments and your certificate will be issued."
           action={
             <Button asChild variant="secondary" size="sm">
               <Link href="/courses">Back to My Courses</Link>

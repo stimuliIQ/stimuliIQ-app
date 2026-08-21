@@ -67,7 +67,7 @@ export default async function CitySeoPage({ params }: PageProps) {
   const courseJsonLds = detail.programs.slice(0, 12).map((program) =>
     buildCourseJsonLd({
       name: program.title,
-      description: program.cardSummary ?? `${program.title} — training program by Stimuli IQ in ${detail.city}`,
+      description: program.cardSummary ?? `${program.title}, a training program by Stimuli IQ in ${detail.city}`,
       url: `${SITE_URL}/programs/${program.slug}`,
       imageUrl: program.ogImageUrl ?? undefined,
       pricePaise: program.pricePaise,

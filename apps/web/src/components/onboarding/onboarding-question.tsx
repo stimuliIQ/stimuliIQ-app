@@ -110,7 +110,7 @@ export function OnboardingQuestion({
                 <span>Other:</span>
                 <input
                   type="text"
-                  aria-label={`${field.label} — other`}
+                  aria-label={`${field.label}, other`}
                   value={isOtherSelected ? text : ""}
                   disabled={disabled}
                   onChange={(e) => onChange(e.target.value)}

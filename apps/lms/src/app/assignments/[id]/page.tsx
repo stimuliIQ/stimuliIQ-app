@@ -7,7 +7,7 @@ import { LmsShell } from "../../../components/shell/lms-shell";
 import { AssignmentDetailContent } from "../../../components/assignments/assignment-detail-content";
 
 export const metadata: Metadata = {
-  title: "Assignment — stimuliiq",
+  title: "Assignment | stimuliiq",
   description: "View assignment details and submit your work.",
 };
 

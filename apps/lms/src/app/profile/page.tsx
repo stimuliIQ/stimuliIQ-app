@@ -5,7 +5,7 @@ import { LmsShell } from "../../components/shell/lms-shell";
 import { ProfileContent } from "../../components/profile/profile-content";
 
 export const metadata: Metadata = {
-  title: "Profile & Settings — stimuliiq",
+  title: "Profile & Settings | stimuliiq",
 };
 
 export default function ProfilePage() {

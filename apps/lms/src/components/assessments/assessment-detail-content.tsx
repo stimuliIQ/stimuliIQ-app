@@ -204,7 +204,7 @@ function PreAttemptView({
             />
           </div>
           <p className="mt-2 text-xs text-fg-muted">
-            Use this time to prepare — this page reopens on its own when the timer ends. No need to refresh.
+            Use this time to prepare. This page reopens on its own when the timer ends, so there is no need to refresh.
           </p>
         </div>
       ) : null}

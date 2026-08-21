@@ -10,7 +10,7 @@ import { LmsShell } from "../../components/shell/lms-shell";
 import { CalendarContent } from "../../components/calendar/calendar-content";
 
 export const metadata: Metadata = {
-  title: "Calendar — stimuliiq",
+  title: "Calendar | stimuliiq",
   description: "Your assignment deadlines in one place.",
 };
 

@@ -29,7 +29,7 @@ export function MediaGalleryBlock({ data }: { data: MediaGalleryBlockData }): Re
 
         {items.length === 0 ? (
           <p role="status" className="py-10 text-center text-sm text-fg-muted">
-            No photos yet — check back soon.
+            No photos yet. Check back soon.
           </p>
         ) : (
           <ul role="list" data-testid="gallery-list" className={`grid grid-cols-1 gap-4 ${cols}`}>

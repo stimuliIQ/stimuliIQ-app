@@ -33,7 +33,7 @@ export function useDownloadResource(): UseDownloadResourceResult {
     if (err.status === 404) {
       return {
         type: "not_found",
-        message: "This resource isn't available — it may have been removed, or you may not have access.",
+        message: "This resource isn't available. It may have been removed, or you may not have access.",
       };
     }
     return {

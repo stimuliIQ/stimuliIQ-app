@@ -91,7 +91,7 @@ export function EnrollPaymentStep({
             {isLoading ? "Retrying…" : "Retry Payment"}
           </button>
           <p className="text-xs text-fg-subtle text-center">
-            Retrying uses the same order — you will not be double-charged.
+            Retrying uses the same order, so you will not be double-charged.
           </p>
         </div>
       ) : null}

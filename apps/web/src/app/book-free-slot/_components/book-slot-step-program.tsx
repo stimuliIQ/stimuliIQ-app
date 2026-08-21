@@ -28,7 +28,7 @@ export function ProgramStep({ formData, onChange, errors, programs }: ProgramSte
   return (
     <div className="flex flex-col gap-4" data-testid="book-slot-step-program">
       <p className="text-sm text-fg-muted">
-        Tell us which program you're interested in (optional — you can choose later).
+        Tell us which program you're interested in. This is optional, you can choose later.
       </p>
 
       <div>

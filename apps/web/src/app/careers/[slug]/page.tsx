@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   try {
     const opening = await serverApiClient.public.careers.getOpening(slug);
     return buildMetadata({
-      title: `${opening.title} — Careers at Stimuli IQ`,
+      title: `${opening.title} | Careers at Stimuli IQ`,
       description: opening.summary,
       canonicalPath: `/careers/${opening.slug}`,
     });

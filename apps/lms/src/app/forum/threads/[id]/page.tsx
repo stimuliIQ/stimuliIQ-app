@@ -12,7 +12,7 @@ import { LmsShell } from "../../../../components/shell/lms-shell";
 import { ForumThreadDetailWrapper } from "../../../../components/forum/forum-thread-detail-wrapper";
 
 export const metadata: Metadata = {
-  title: "Thread — stimuliiq Forum",
+  title: "Thread | stimuliiq Forum",
   description: "View and reply to a forum thread.",
 };
 

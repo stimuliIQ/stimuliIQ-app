@@ -8,7 +8,7 @@ import { LmsShell } from "../../components/shell/lms-shell";
 import { DownloadsContent } from "../../components/downloads/downloads-content";
 
 export const metadata: Metadata = {
-  title: "Downloads & Resources — stimuliiq",
+  title: "Downloads & Resources | stimuliiq",
   description: "Notes, slides, datasets, and cheat-sheets from your enrolled courses.",
 };
 

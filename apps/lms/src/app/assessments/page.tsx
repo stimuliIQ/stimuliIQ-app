@@ -14,7 +14,7 @@ import { LmsShell } from "../../components/shell/lms-shell";
 import { AssessmentsListContent } from "../../components/assessments/assessments-list-content";
 
 export const metadata: Metadata = {
-  title: "My Assessments — stimuliiq",
+  title: "My Assessments | stimuliiq",
   description: "View and take your course quizzes and tests.",
 };
 

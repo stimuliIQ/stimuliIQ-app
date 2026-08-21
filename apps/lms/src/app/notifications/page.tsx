@@ -12,7 +12,7 @@ import { LmsShell } from "../../components/shell/lms-shell";
 import { NotificationCenterContent } from "../../components/notifications/notification-center-content";
 
 export const metadata: Metadata = {
-  title: "Notifications — stimuliiq",
+  title: "Notifications | stimuliiq",
   description: "Your in-app notification center.",
 };
 

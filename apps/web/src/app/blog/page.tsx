@@ -29,7 +29,7 @@ export const revalidate = 3600; // ISR: revalidate every hour
 export const metadata: Metadata = buildMetadata({
   title: "Career and clinical insights for healthcare students",
   description:
-    "Career guides, clinical explainers, and program FAQs for medical, psychology, and allied health science students — from the mentors who teach our programs.",
+    "Career guides, clinical explainers, and program FAQs for medical, psychology, and allied health science students, from the mentors who teach our programs.",
   canonicalPath: "/blog",
 });
 
@@ -191,7 +191,7 @@ export default async function BlogListingPage() {
             Insights for your <span className="text-chart-3">career</span>.
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-fg-muted">
-            Career guides, clinical explainers, and program FAQs — written by the
+            Career guides, clinical explainers, and program FAQs, written by the
             mentors who teach our programs.
           </p>
         </header>

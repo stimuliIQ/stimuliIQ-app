@@ -191,7 +191,7 @@ export function CoursesExplorer({ programs }: CoursesExplorerProps) {
         {/* Cards */}
         {visible.length === 0 ? (
           <p className="py-8 text-center text-fg-muted">
-            No courses in this category yet — check back soon.
+            No courses in this category yet. Check back soon.
           </p>
         ) : (
           <ul role="list" className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">

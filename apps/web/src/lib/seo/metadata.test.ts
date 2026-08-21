@@ -18,8 +18,8 @@ describe("buildMetadata", () => {
   });
 
   it("does not double-append site name when title already contains it", () => {
-    const meta = buildMetadata({ title: "Stimuli IQ — Programs" });
-    expect(meta.title).toBe("Stimuli IQ — Programs");
+    const meta = buildMetadata({ title: "Stimuli IQ | Programs" });
+    expect(meta.title).toBe("Stimuli IQ | Programs");
   });
 
   it("uses the site name as title when no title given", () => {

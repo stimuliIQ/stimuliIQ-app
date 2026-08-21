@@ -63,7 +63,7 @@ export function PayLinkClient({ token }: { token: string }) {
         if (cancelled) return;
         setOrder(o);
         setPhase(o.status === "created" ? "ready" : "error");
-        if (o.status === "paid") setError("This order is already paid — nothing to do here. Check your email for the invoice.");
+        if (o.status === "paid") setError("This order is already paid. Nothing to do here: check your email for the invoice.");
         else if (o.status !== "created") setError(`This order can no longer be paid (status: ${o.status}).`);
       })
       .catch((e: unknown) => {
@@ -105,7 +105,7 @@ export function PayLinkClient({ token }: { token: string }) {
               setPhase("done");
             } catch {
               setPhase("error");
-              setError("Payment verification failed. If money was deducted it will be reconciled — contact support with your order id.");
+              setError("Payment verification failed. If money was deducted it will be reconciled. Contact support with your order id.");
             }
           })();
         },

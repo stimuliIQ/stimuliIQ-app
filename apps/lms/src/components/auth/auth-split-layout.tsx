@@ -67,7 +67,7 @@ export function AuthSplitLayout({
            */}
           <Link
             href="/"
-            aria-label="stimuliiq Learning Platform — home"
+            aria-label="stimuliiq Learning Platform home"
             className="inline-flex items-center gap-3 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             {/* Black wordmark on a transparent PNG — flatten to white in dark theme. */}

@@ -222,7 +222,7 @@ export function CertificatesContent({ holderName }: CertificatesContentProps): R
         data-testid="certificates-empty"
         icon={<Award className="size-10" strokeWidth={1.5} />}
         title="No certificates yet"
-        description="Complete your course requirements — assessments passed, project approved — and your instructor will issue your certificate."
+        description="Complete your course requirements, with assessments passed and the project approved, and your instructor will issue your certificate."
       />
     );
   }

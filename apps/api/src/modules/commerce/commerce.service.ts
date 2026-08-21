@@ -976,7 +976,7 @@ export class CommerceService {
     const amount = `₹${(data.amountPaise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
     await this.mail.send({
       to,
-      subject: `Payment received — you're enrolled! Your LMS login is inside`,
+      subject: `Payment received. You're enrolled! Your LMS login is inside`,
       html: renderBrandedEmail({
         title: "Payment Received — You're Enrolled!",
         greeting: `Hi ${escapeEmailHtml(data.studentName)},`,

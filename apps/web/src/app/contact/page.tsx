@@ -185,7 +185,7 @@ export default function ContactPage() {
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-fg-muted">
             Questions about a program, pricing, or your career path? Our
-            counsellors reply within 24 hours — usually much faster.
+            counsellors reply within 24 hours, usually much faster.
           </p>
         </header>
       </div>
@@ -201,7 +201,7 @@ export default function ContactPage() {
             <ChannelCard
               icon={<MailIcon />}
               title="Email us"
-              description="Best for detailed questions — attach anything you like."
+              description="Best for detailed questions. Attach anything you like."
               action={
                 <a
                   href={`mailto:${CONTACT_EMAIL}`}
@@ -283,8 +283,8 @@ export default function ContactPage() {
                     className="text-fg underline underline-offset-4 hover:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded"
                   >
                     FAQ
-                  </a>{" "}
-                  — most questions are answered there.
+                  </a>
+                  , where most questions are answered.
                 </p>
               </div>
             </div>

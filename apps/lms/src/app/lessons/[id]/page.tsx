@@ -27,7 +27,7 @@ import { LessonDetailContent } from "../../../components/lessons/lesson-detail-c
 import { Skeleton } from "@repo/ui";
 
 export const metadata: Metadata = {
-  title: "Lesson — stimuliiq",
+  title: "Lesson | stimuliiq",
 };
 
 interface Props {

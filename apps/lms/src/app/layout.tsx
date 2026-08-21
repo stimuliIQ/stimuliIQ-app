@@ -25,8 +25,8 @@ import { ServiceWorkerRegister } from "../components/pwa/service-worker-register
 import { THEME_INIT_SCRIPT } from "../lib/user-prefs";
 
 export const metadata: Metadata = {
-  title: "stimuliiq — Student Portal",
-  description: "Your personal learning portal — courses, progress, and certificates.",
+  title: "Student Portal | stimuliiq",
+  description: "Your personal learning portal for courses, progress, and certificates.",
   // manifest is served by app/manifest.ts at /manifest.webmanifest
   manifest: "/manifest.webmanifest",
   appleWebApp: {

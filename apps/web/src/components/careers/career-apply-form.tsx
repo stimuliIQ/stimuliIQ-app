@@ -127,7 +127,7 @@ export function CareerApplyForm({ jobOpeningId, role, onClose, onSubmitted }: Ca
         <div className="mb-3 flex items-center gap-2">
           <ShieldCheckIcon className="size-4 text-brand-500" />
           <p className="text-sm font-medium text-fg">
-            {hasCaptcha ? "Verified — you can continue" : "Quick check first"}
+            {hasCaptcha ? "Verified. You can continue" : "Quick check first"}
           </p>
         </div>
         {!hasCaptcha ? (

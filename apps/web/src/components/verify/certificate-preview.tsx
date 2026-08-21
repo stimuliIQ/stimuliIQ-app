@@ -54,7 +54,7 @@ const CALLOUTS = [
   },
   {
     title: "Holder, programme and date",
-    body: "The name, the programme completed, and the date of issue are set when the certificate is awarded — they cannot be edited afterwards.",
+    body: "The name, the programme completed, and the date of issue are set when the certificate is awarded. They cannot be edited afterwards.",
   },
   {
     title: "Authorised signature",
@@ -104,7 +104,7 @@ CertificateSpecimens.displayName = "CertificateSpecimens";
 
 export function CertificatePreview({
   heading = "What a Stimuli IQ certificate looks like",
-  subheading = "Programmes finish with an internship certificate, a training certificate, or both. Each is a separate document with its own Certificate ID — the code you enter above to confirm it is genuine.",
+  subheading = "Programmes finish with an internship certificate, a training certificate, or both. Each is a separate document with its own Certificate ID, the code you enter above to confirm it is genuine.",
   className,
 }: {
   heading?: string;

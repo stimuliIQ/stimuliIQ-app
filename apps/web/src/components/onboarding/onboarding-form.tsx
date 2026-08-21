@@ -143,7 +143,7 @@ export function OnboardingForm() {
 
         {!hasCaptcha && !isSubmitting ? (
           <p id="onboarding-captcha-pending" className="mt-3 text-sm text-fg-muted">
-            Waiting for the security check to finish — Submit will enable once it does.
+            Waiting for the security check to finish. Submit will enable once it does.
           </p>
         ) : null}
 

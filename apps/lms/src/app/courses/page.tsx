@@ -10,7 +10,7 @@ import { LmsShell } from "../../components/shell/lms-shell";
 import { MyCoursesList } from "../../components/courses/my-courses-list";
 
 export const metadata: Metadata = {
-  title: "My Courses — stimuliiq",
+  title: "My Courses | stimuliiq",
   description: "All your enrolled programs and progress.",
 };
 

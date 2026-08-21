@@ -127,7 +127,7 @@ export function buildMetadata(opts: BuildMetadataOptions = {}): Metadata {
   const siteName = siteDefaults?.siteName ?? SITE_NAME;
   const description = opts.description ?? siteDefaults?.defaultDescription ?? DEFAULT_DESCRIPTION;
   const ogImage = opts.ogImage ?? (siteDefaults?.defaultOgImagePath ? `${SITE_URL}${siteDefaults.defaultOgImagePath}` : DEFAULT_OG_IMAGE);
-  const resolvedOgImageAlt = ogImageAlt ?? `${siteName} — internship & career training platform`;
+  const resolvedOgImageAlt = ogImageAlt ?? `${siteName} internship and career training platform`;
 
   // Title template: "Page Title | Stimuli IQ"
   // When no title given, fall back to the bare site name.

@@ -388,7 +388,7 @@ export function ProjectDetailContent({ assignmentId }: ProjectDetailContentProps
           <p className="text-sm text-fg-muted">{project.assignment.lessonTitle}</p>
           {project.assignment.isFinal ? (
             <p className="mt-1 text-xs font-medium text-brand-500">
-              Final project — required for certificate eligibility
+              Final project, required for certificate eligibility
             </p>
           ) : null}
         </div>

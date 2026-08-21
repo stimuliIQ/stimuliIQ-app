@@ -37,7 +37,7 @@ const ABOUT_SLUG = "about";
 const FALLBACK_METADATA = {
   title: "About Us",
   description:
-    "Stimuli IQ is a healthcare education and training platform for India's medical, psychology, and allied health science students — bridging the gap between academics and real practice.",
+    "Stimuli IQ is a healthcare education and training platform for India's medical, psychology, and allied health science students, bridging the gap between academics and real practice.",
 };
 
 /**
@@ -103,7 +103,7 @@ export default async function AboutPage() {
 
       <CertificatePreview
         heading="The certificate you finish with"
-        subheading="Every programme ends in a certificate carrying a unique ID. Anyone — an employer, a college, a hospital — can check it against our register in seconds."
+        subheading="Every programme ends in a certificate carrying a unique ID. An employer, a college or a hospital can check it against our register in seconds."
       />
     </>
   );

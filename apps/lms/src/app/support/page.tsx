@@ -8,7 +8,7 @@ import { LmsShell } from "../../components/shell/lms-shell";
 import { TicketsListContent } from "../../components/support/tickets-list-content";
 
 export const metadata: Metadata = {
-  title: "Support — stimuliiq",
+  title: "Support | stimuliiq",
   description: "Raise a support ticket and track its status.",
 };
 

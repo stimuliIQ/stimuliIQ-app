@@ -10,7 +10,7 @@ import { ContactLink, LegalContactCard, LegalHeader, LegalSection } from "../../
 export const metadata: Metadata = buildMetadata({
   title: "Terms of Service",
   description:
-    "Stimuli IQ Terms of Service — the rules and guidelines governing your use of our platform and programs.",
+    "Stimuli IQ Terms of Service: the rules and guidelines governing your use of our platform and programs.",
   canonicalPath: "/terms",
 });
 

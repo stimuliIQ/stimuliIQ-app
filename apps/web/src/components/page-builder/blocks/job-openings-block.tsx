@@ -51,9 +51,9 @@ export function JobOpeningsBlock({ data }: { data: ResolvedJobOpeningsBlockData 
                 className="font-medium text-brand-500 underline hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {SUPPORT_EMAIL}
-              </a>{" "}
-              — we are always glad to hear from good people, and we will get in touch when
-              something fits.
+              </a>
+              . We are always glad to hear from good people, and we will get in touch
+              when something fits.
             </p>
           </div>
         )}

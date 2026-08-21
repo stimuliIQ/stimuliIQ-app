@@ -37,7 +37,7 @@ export function CareersPageFallback() {
           >
             {SUPPORT_EMAIL}
           </a>{" "}
-          and tell us what you are looking for — a real person reads it.
+          and tell us what you are looking for. A real person reads it.
         </p>
       </div>
     </>

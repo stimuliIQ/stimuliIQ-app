@@ -76,7 +76,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const canonicalUrl = `${SITE_URL}/verify/${encodeURIComponent(certId)}`;
 
   if (result?.valid === true) {
-    const title = `${result.holderName} — ${result.program} Certificate | ${SITE_NAME}`;
+    const title = `${result.holderName}, ${result.program} Certificate | ${SITE_NAME}`;
     const description =
       `Verify the ${result.program} certificate issued by ${SITE_NAME} to ${result.holderName}.`;
     return {
@@ -109,7 +109,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   if (result?.valid === "revoked") {
-    const title = `Certificate Revoked — ${SITE_NAME}`;
+    const title = `Certificate Revoked | ${SITE_NAME}`;
     const description = `This ${result.program} certificate issued by ${SITE_NAME} has been revoked.`;
     return {
       title,
@@ -128,13 +128,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // Invalid / not-found cert — minimal metadata, no-index
   return {
-    title: `Certificate Verification — ${SITE_NAME}`,
+    title: `Certificate Verification | ${SITE_NAME}`,
     description: `Verify a ${SITE_NAME} certificate using its unique verification ID.`,
     alternates: { canonical: canonicalUrl },
     openGraph: {
       type: "website",
       url: canonicalUrl,
-      title: `Certificate Verification — ${SITE_NAME}`,
+      title: `Certificate Verification | ${SITE_NAME}`,
       description: `Verify a ${SITE_NAME} certificate using its unique verification ID.`,
       siteName: SITE_NAME,
     },

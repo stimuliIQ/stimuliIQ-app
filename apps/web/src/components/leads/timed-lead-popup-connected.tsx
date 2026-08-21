@@ -90,7 +90,7 @@ export function TimedLeadPopupConnected(): React.JSX.Element {
       open={isOpen}
       onOpenChange={handleOpenChange}
       heading="Have Questions?"
-      subheading="Share your number — we'll call you back."
+      subheading="Share your number and we'll call you back."
       imageSlot={
         <div className="relative h-full overflow-hidden rounded-r-xl bg-white">
           {/* call-person.jpg — opaque 1600x1066 landscape photo (caller occupying roughly

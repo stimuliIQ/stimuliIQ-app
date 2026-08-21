@@ -17,7 +17,7 @@ import { ContactLink, LegalContactCard, LegalHeader, LegalItemList } from "../..
 export const metadata: Metadata = buildMetadata({
   title: "Refund Policy",
   description:
-    "Stimuli IQ's refund policy — programs are non-refundable once enrolled. What that covers, the limited exceptions we do honour, and how to reach us.",
+    "Stimuli IQ's refund policy: programs are non-refundable once enrolled. What that covers, the limited exceptions we do honour, and how to reach us.",
   canonicalPath: "/refund-policy",
 });
 

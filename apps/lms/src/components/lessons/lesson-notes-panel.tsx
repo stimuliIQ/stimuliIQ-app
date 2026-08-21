@@ -136,7 +136,7 @@ export function LessonNotesPanel({
         <EmptyState
           data-testid="lesson-notes-empty"
           title="No notes yet"
-          description="Jot down a thought while you watch — it'll be saved here at the timestamp."
+          description="Jot down a thought while you watch. It'll be saved here at the timestamp."
         />
       ) : (
         <ul className="mb-4 flex flex-col gap-2" aria-label="Your notes on this lesson" data-testid="lesson-notes-list">

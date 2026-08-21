@@ -79,7 +79,7 @@ export class CareersNotificationService {
 
     return this.trySend("Acknowledgement", candidate.email, {
       to: candidate.email,
-      subject: `We received your application — ${candidate.role}`,
+      subject: `We received your application: ${candidate.role}`,
       html: renderBrandedEmail({
         title: "Thanks for applying",
         greeting: `Hi ${name},`,
@@ -109,7 +109,7 @@ export class CareersNotificationService {
 
     return this.trySend("Next-round", candidate.email, {
       to: candidate.email,
-      subject: `Next step in your application — ${candidate.role}`,
+      subject: `Next step in your application: ${candidate.role}`,
       html: renderBrandedEmail({
         title: "You're through to the next round",
         greeting: `Hi ${name},`,
@@ -148,7 +148,7 @@ export class CareersNotificationService {
 
     return this.trySend("Offer", candidate.email, {
       to: candidate.email,
-      subject: `Your offer from Stimuli IQ — ${candidate.role}`,
+      subject: `Your offer from Stimuli IQ: ${candidate.role}`,
       html: renderBrandedEmail({
         title: "We'd like to offer you the role",
         greeting: `Hi ${name},`,
@@ -180,7 +180,7 @@ export class CareersNotificationService {
 
     return this.trySend("Rejection", candidate.email, {
       to: candidate.email,
-      subject: `About your application — ${candidate.role}`,
+      subject: `About your application: ${candidate.role}`,
       html: renderBrandedEmail({
         title: "An update on your application",
         greeting: `Hi ${name},`,

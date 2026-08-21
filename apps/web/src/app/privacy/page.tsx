@@ -10,7 +10,7 @@ import { ContactLink, LegalContactCard, LegalHeader, LegalItemList, LegalSection
 export const metadata: Metadata = buildMetadata({
   title: "Privacy Policy",
   description:
-    "Stimuli IQ Privacy Policy — how we collect, use, and protect your personal data under DPDP and applicable Indian law.",
+    "Stimuli IQ Privacy Policy: how we collect, use, and protect your personal data under DPDP and applicable Indian law.",
   canonicalPath: "/privacy",
 });
 
@@ -28,7 +28,7 @@ const DATA_COLLECTED = [
   },
   {
     title: "Usage data",
-    body: "Pages visited and time on site, via analytics — only after your consent.",
+    body: "Pages visited and time on site, via analytics, and only after your consent.",
   },
   {
     title: "Payment information",

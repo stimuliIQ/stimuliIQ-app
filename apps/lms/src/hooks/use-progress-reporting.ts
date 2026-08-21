@@ -211,7 +211,7 @@ export function useProgressReporting({
       if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
         toast({
           title: "Access error",
-          description: "Unable to mark complete — please check your enrollment.",
+          description: "Unable to mark complete. Please check your enrollment.",
           variant: "destructive",
         });
       } else {

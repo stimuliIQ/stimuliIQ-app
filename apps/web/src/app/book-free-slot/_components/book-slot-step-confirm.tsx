@@ -76,7 +76,7 @@ export function ConfirmStep({ formData }: ConfirmStepProps) {
 
       <p className="text-xs text-fg-subtle">
         A counsellor will call you at the selected time. You&apos;ll also receive a
-        confirmation (P6 — notification sending). No spam, ever.
+        confirmation by email. No spam, ever.
       </p>
     </div>
   );

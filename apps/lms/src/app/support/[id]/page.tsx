@@ -5,7 +5,7 @@ import { LmsShell } from "../../../components/shell/lms-shell";
 import { TicketDetailContent } from "../../../components/support/ticket-detail-content";
 
 export const metadata: Metadata = {
-  title: "Ticket — stimuliiq Support",
+  title: "Ticket | stimuliiq Support",
 };
 
 interface TicketPageProps {

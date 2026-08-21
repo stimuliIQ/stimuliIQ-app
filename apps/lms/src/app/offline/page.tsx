@@ -6,7 +6,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Offline — stimuliiq",
+  title: "Offline | stimuliiq",
 };
 
 export default function OfflinePage() {
@@ -41,7 +41,7 @@ export default function OfflinePage() {
       </div>
       <h1 className="text-xl font-bold text-fg">You&apos;re offline</h1>
       <p className="text-sm text-fg-muted">
-        We couldn&apos;t reach the network. Your progress is saved automatically —
+        We couldn&apos;t reach the network. Your progress is saved automatically, so
         reconnect to keep learning. Videos and live data need a connection.
       </p>
       <a

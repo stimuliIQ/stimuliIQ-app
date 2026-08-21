@@ -11,10 +11,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "stimuliiq — Student Portal",
+    name: "stimuliiq Student Portal",
     short_name: "stimuliiq",
     description:
-      "Your personal learning portal — courses, progress, and certificates.",
+      "Your personal learning portal for courses, progress, and certificates.",
     start_url: "/",
     scope: "/",
     display: "standalone",

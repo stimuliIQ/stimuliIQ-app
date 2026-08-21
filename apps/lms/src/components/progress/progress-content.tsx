@@ -98,7 +98,7 @@ function ProgramProgressCard({
             value={program.progressPct}
             size="lg"
             tone={tone}
-            label={`${program.programTitle} — ${program.progressPct}% complete`}
+            label={`${program.programTitle}, ${program.progressPct}% complete`}
             data-testid="program-progress-ring"
           />
 
@@ -181,7 +181,7 @@ function OverallSummary({
             value={overallProgressPct}
             size="lg"
             tone={overallProgressPct === 100 ? "success" : "brand"}
-            label={`Overall progress — ${overallProgressPct}% complete`}
+            label={`Overall progress, ${overallProgressPct}% complete`}
             data-testid="overall-progress-ring"
           />
           <div>

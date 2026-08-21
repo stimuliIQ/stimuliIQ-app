@@ -225,7 +225,7 @@ export class LmsAccountProvisioningService {
     try {
       await this.mail.send({
         to: email,
-        subject: "Welcome to stimuliIQ — your learning account is ready",
+        subject: "Welcome to stimuliIQ: your learning account is ready",
         html: renderBrandedEmail({
           title: "Your learning account is ready",
           greeting: `Hi ${escapeEmailHtml(name)},`,

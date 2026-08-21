@@ -42,7 +42,7 @@ export function useNewsletterSignup(): UseNewsletterSignupReturn {
     // "invalid-input-response" — so hold the submit client-side until a token exists.
     // (In dev/noop mode the widget fires onToken("noop") immediately, so this never trips.)
     if (!input.captchaToken) {
-      setFieldError("Still verifying you're human — please try again in a moment.");
+      setFieldError("Still verifying you're human. Please try again in a moment.");
       return;
     }
 

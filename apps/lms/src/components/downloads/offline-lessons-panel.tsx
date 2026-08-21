@@ -101,7 +101,7 @@ export function OfflineLessonsPanel(): React.JSX.Element {
       {items.length === 0 ? (
         <EmptyState
           title="No lessons saved for offline yet"
-          description="Open a video lesson and choose “Save offline” to watch it here without a connection. Saved lessons stay inside the app — they aren't downloaded as files."
+          description="Open a video lesson and choose “Save offline” to watch it here without a connection. Saved lessons stay inside the app and are not downloaded as files."
           action={
             <Button asChild variant="secondary" size="sm">
               <Link href="/courses">Go to My Courses</Link>

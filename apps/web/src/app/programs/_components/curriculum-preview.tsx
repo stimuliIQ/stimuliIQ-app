@@ -139,7 +139,7 @@ export function CurriculumPreview({
         {previewCount > 0 ? (
           <p className="text-sm text-fg-muted" data-testid="curriculum-preview-count">
             <span className="font-medium text-success">{previewCount} free preview{previewCount === 1 ? "" : "s"}</span>{" "}
-            — watch before you enrol
+            to watch before you enrol
           </p>
         ) : null}
       </div>

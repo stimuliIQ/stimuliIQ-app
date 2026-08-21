@@ -77,7 +77,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const mentor = await serverApiClient.public.mentors.get(id);
     const role = mentor.title ?? mentor.expertise[0] ?? "Industry Mentor";
     return buildMetadata({
-      title: `${mentor.fullName} — ${role}`,
+      title: `${mentor.fullName} | ${role}`,
       description:
         mentor.bio ??
         `${mentor.fullName} is a mentor at Stimuli IQ, hired from ${mentor.externalInstitute}. Learn from active industry experts on project-based internship programs.`,

@@ -13,7 +13,7 @@ import { LmsShell } from "../../components/shell/lms-shell";
 import { ProgressContent } from "../../components/progress/progress-content";
 
 export const metadata: Metadata = {
-  title: "My Progress — stimuliiq",
+  title: "My Progress | stimuliiq",
   description: "Track your lesson completion, and module progress across all enrolled programs.",
 };
 
