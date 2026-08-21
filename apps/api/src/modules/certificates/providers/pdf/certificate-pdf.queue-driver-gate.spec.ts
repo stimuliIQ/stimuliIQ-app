@@ -3,7 +3,7 @@
 // Verifies CertificatePdfModule's QUEUE_DRIVER gate (docs/plans/phase-9-completion.md
 // T18/R1): QUEUE_DRIVER=bullmq binds BullMqCertificatePdfAdapter instead of
 // SyncCertificatePdfAdapter (outside NODE_ENV=test, which always wins with Noop).
-// `bullmq` is mocked — no real Redis connection is opened.
+// `bullmq` is mocked, no real Redis connection is opened.
 
 jest.mock("bullmq", () => ({
   Queue: jest.fn().mockImplementation((name: string) => ({ name, add: jest.fn() })),

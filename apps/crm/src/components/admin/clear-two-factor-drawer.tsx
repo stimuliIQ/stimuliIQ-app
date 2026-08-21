@@ -67,7 +67,7 @@ export function ClearTwoFactorDrawer({ user, onOpenChange }: ClearTwoFactorDrawe
       <DrawerContent
         position="center"
         title="Clear two-factor authentication"
-        description={user ? `${user.name} — ${user.email}` : undefined}
+        description={user ? `${user.name} · ${user.email}` : undefined}
         data-testid="user-clear-2fa-drawer"
       >
         <DrawerBody className="flex flex-col gap-4">
@@ -82,7 +82,7 @@ export function ClearTwoFactorDrawer({ user, onOpenChange }: ClearTwoFactorDrawe
             rows={3}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="e.g. Verified over a video call — lost phone and no access to their inbox."
+            placeholder="e.g. Verified over a video call. Lost phone and no access to their inbox."
             helperText={`Recorded in the audit log against your account. At least ${MIN_REASON_LENGTH} characters.`}
             data-testid="user-clear-2fa-reason"
           />

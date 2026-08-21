@@ -278,7 +278,7 @@ export function BatchDetailDrawer({ batchId, onOpenChange, me }: BatchDetailDraw
                   <div className="flex flex-col gap-3">
                     <p className="text-sm text-fg-muted">
                       Active and completed enrollments for this batch. Students are enrolled here automatically once they
-                      pay for this program — assign the program and record payment from the student&apos;s profile.
+                      pay for this program. Assign the program and record payment from the student&apos;s profile.
                     </p>
                     {rosterError ? (
                       <EmptyState
@@ -302,7 +302,7 @@ export function BatchDetailDrawer({ batchId, onOpenChange, me }: BatchDetailDraw
                         emptyState={{
                           title: "No students enrolled yet",
                           description:
-                            "Students appear here once they pay for this program's order — assign the program and record payment from the student's profile.",
+                            "Students appear here once they pay for this program's order. Assign the program and record payment from the student's profile.",
                         }}
                         rowActions={
                           canManageEnrollments || canWithdraw

@@ -1,4 +1,4 @@
-// use-notifications hook tests — Phase 6, Task #10.
+// use-notifications hook tests, Phase 6, Task #10.
 //
 // Tests:
 //   - Query key structure (regression guard)
@@ -39,7 +39,7 @@ describe("notification query keys", () => {
 });
 
 // ---------------------------------------------------------------------------
-// DOMPurify sanitization — notification body sanitization (AC-70)
+// DOMPurify sanitization, notification body sanitization (AC-70)
 // Announcement notifications can carry user-authored content.
 // Any content rendered via dangerouslySetInnerHTML MUST go through sanitizeHtml.
 // ---------------------------------------------------------------------------
@@ -83,7 +83,7 @@ describe("notification body sanitization (AC-70)", () => {
 // SSE cleanup contract
 // The hook MUST call EventSource.close() in its useEffect cleanup.
 // We verify the contract by checking that the exported hook factory references
-// EventSource usage — the actual runtime behavior is covered by integration tests.
+// EventSource usage, the actual runtime behavior is covered by integration tests.
 // ---------------------------------------------------------------------------
 
 describe("SSE EventSource cleanup contract", () => {

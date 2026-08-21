@@ -1,11 +1,11 @@
 // apps/api/src/modules/faculty/faculty.service.spec.ts
 //
 // Unit tests for FacultyService scope-resolution + RBAC allow/deny, per CLAUDE.md §3 DoD
-// rule 10. Unlike students, faculty's "branch" and "own" scopes ARE resolvable in P1 — these
+// rule 10. Unlike students, faculty's "branch" and "own" scopes ARE resolvable in P1, these
 // tests prove both the positive (branch/own correctly filter) and negative (assigned fails
 // closed) paths, plus the 404-for-IDOR pattern on cross-branch access.
 //
-// resetPassword's email uses validateEnv().CRM_APP_URL — mocked so this spec is
+// resetPassword's email uses validateEnv().CRM_APP_URL, mocked so this spec is
 // self-contained (mirrors lms-account-provisioning.service.spec.ts's LMS_APP_URL mock).
 jest.mock("../../config/env", () => ({
   validateEnv: jest.fn(() => ({ CRM_APP_URL: "https://crm.stimuliiq.test" })),
@@ -160,7 +160,7 @@ describe("FacultyService", () => {
     });
   });
 
-  describe("create — branch-scoped creators restricted to their own branch", () => {
+  describe("create, branch-scoped creators restricted to their own branch", () => {
     it("rejects creating faculty in a branch the caller does not manage", async () => {
       repo.listCallerBranchIds.mockResolvedValue(["branch-hyderabad"]);
       repo.findUserByEmail.mockResolvedValue(null);
@@ -179,7 +179,7 @@ describe("FacultyService", () => {
     });
   });
 
-  describe("resetPassword (admin 'reset password' action — mirrors students' resend-credentials)", () => {
+  describe("resetPassword (admin 'reset password' action, mirrors students' resend-credentials)", () => {
     it("rotates the password, re-raises mustChangePassword, revokes sessions, emails the faculty member, and returns { email }", async () => {
       repo.findById.mockResolvedValue(ROW);
       const { prisma, update } = makePrisma();

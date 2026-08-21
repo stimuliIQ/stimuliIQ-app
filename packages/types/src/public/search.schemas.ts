@@ -50,7 +50,7 @@ export type PublicSearchQuery = z.infer<typeof PublicSearchQuerySchema>;
 export const PublicSearchResultItemSchema = z.object({
   type: PublicSearchResultTypeSchema,
   id: UuidSchema,
-  slug: z.string().describe("SEO slug — /programs/:slug or /blog/:slug depending on `type`."),
+  slug: z.string().describe("SEO slug. /programs/:slug or /blog/:slug depending on `type`."),
   title: z.string(),
   snippet: z.string().nullable().describe("Short excerpt (program cardSummary or blog excerpt)."),
   imageUrl: z.string().url().nullable().describe("CDN URL (program ogImageUrl or blog coverImageUrl)."),

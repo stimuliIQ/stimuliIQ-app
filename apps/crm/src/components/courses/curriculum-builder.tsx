@@ -377,7 +377,7 @@ export function CurriculumBuilder({
                                   ? `Stop offering ${lesson.title} as a free preview`
                                   : `Offer ${lesson.title} as a free preview on the website`
                               }
-                              title={lesson.isPreview ? "Free preview — visible on the website" : "Locked — enrol to watch"}
+                              title={lesson.isPreview ? "Free preview, visible on the website" : "Locked, enrol to watch"}
                               aria-pressed={lesson.isPreview}
                               disabled={updateLesson.isPending}
                               onClick={() => handleTogglePreview(moduleNode.id, lesson.id, lesson.isPreview)}

@@ -1,7 +1,7 @@
 // apps/api/src/modules/common-scope/enrollment-scope.repository.spec.ts
 //
 // Unit tests for `EnrollmentScopeRepository.resolveBatchIdsForMentor` (docs/specs/
-// phase-8-mentor.md LOCK-2/Rule M-1) — the M:N analogue of `resolveBatchIdsForFaculty`.
+// phase-8-mentor.md LOCK-2/Rule M-1), the M:N analogue of `resolveBatchIdsForFaculty`.
 // Fail-closed contract: no `mentors` row for the caller's userId, or zero active
 // `batch_mentors` rows, both resolve to `[]` (never "all").
 

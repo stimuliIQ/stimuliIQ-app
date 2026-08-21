@@ -1,6 +1,6 @@
 import { maskEmail, maskPhone, maskPiiString, maskPiiDeep } from "./pii-mask";
 
-describe("maskEmail — AC-48", () => {
+describe("maskEmail, AC-48", () => {
   it("masks a typical email as j***@e***.com-style", () => {
     expect(maskEmail("jane@example.com")).toBe("j***@e***.com");
   });
@@ -17,7 +17,7 @@ describe("maskEmail — AC-48", () => {
   });
 });
 
-describe("maskPhone — AC-48", () => {
+describe("maskPhone, AC-48", () => {
   it("masks a +91-prefixed Indian mobile number, preserving the prefix and last 4 digits", () => {
     const out = maskPhone("+919876541234");
     expect(out).not.toContain("9876541234");

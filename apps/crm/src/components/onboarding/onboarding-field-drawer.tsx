@@ -186,7 +186,7 @@ export function OnboardingFieldDrawer({ open, onOpenChange, field }: OnboardingF
               }}
               helperText={
                 isEdit
-                  ? "The key can't change — every answer already collected is stored against it. Edit the question wording above instead."
+                  ? "The key can't change. Every answer already collected is stored against it. Edit the question wording above instead."
                   : "Lowercase letters, numbers and underscores. Used to store answers; can't be changed later."
               }
               data-testid="onboarding-field-key"

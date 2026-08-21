@@ -85,7 +85,7 @@ describe("isTimeInWindow", () => {
     });
 
     it("at end boundary → false (end is inclusive = NOT in window)", () => {
-      // AC-9 Part 4: "end is inclusive — treat end as 'now exiting quiet'; send"
+      // AC-9 Part 4: "end is inclusive, treat end as 'now exiting quiet'; send"
       expect(isTimeInWindow(1080, start, end)).toBe(false); // 18:00 exactly → outside
     });
 
@@ -165,7 +165,7 @@ describe("getLocalMinutesOfDay", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isInQuietHours — main function
+// isInQuietHours, main function
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("isInQuietHours", () => {

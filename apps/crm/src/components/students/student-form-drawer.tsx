@@ -259,7 +259,7 @@ export function StudentFormDrawer({ open, onOpenChange, student, onCreated }: St
       <DrawerContent
         position="center"
         title="Add student contact"
-        description="Step 1 of 2 — capture the contact. The registration form opens next."
+        description="Step 1 of 2. Capture the contact. The registration form opens next."
         data-testid="student-create-drawer"
       >
         <form onSubmit={onSubmitCreate} className="flex flex-1 flex-col overflow-hidden">

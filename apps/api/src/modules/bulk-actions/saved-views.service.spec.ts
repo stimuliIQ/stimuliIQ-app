@@ -1,6 +1,6 @@
 // apps/api/src/modules/bulk-actions/saved-views.service.spec.ts
 //
-// Unit tests for SavedViewsService — own-scope create/list/remove + IDOR->404.
+// Unit tests for SavedViewsService, own-scope create/list/remove + IDOR->404.
 
 import { NotFoundException } from "@nestjs/common";
 import { SavedViewsService } from "./saved-views.service";

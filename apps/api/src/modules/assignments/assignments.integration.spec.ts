@@ -2,7 +2,7 @@
 //
 // Integration tests for the Assignments + Submissions module (P4 Wave 4 task #6).
 // Follows the `.integration.spec.ts` pattern (unit jest config, self-skip when
-// DATABASE_URL is absent — same as appmodule-p4-boot.integration.spec.ts).
+// DATABASE_URL is absent, same as appmodule-p4-boot.integration.spec.ts).
 //
 // COVERAGE:
 //   - Student submits and views only their own submission (IDOR cross-student → 404, AC-J1).
@@ -43,13 +43,13 @@ describeIfDb("AssignmentsService integration tests", () => {
   let lessonId: string;
   let assignmentId: string;
 
-  // Student A (in Batch A — faculty assigned)
+  // Student A (in Batch A, faculty assigned)
   let userA_id: string;
   let studentA_id: string;
   let enrollmentA_id: string;
   let batchA_id: string;
 
-  // Student B (in Batch B — faculty NOT assigned)
+  // Student B (in Batch B, faculty NOT assigned)
   let userB_id: string;
   let studentB_id: string;
   let enrollmentB_id: string;
@@ -69,7 +69,7 @@ describeIfDb("AssignmentsService integration tests", () => {
 
     repo = new AssignmentsRepository(prismaService);
     const storage = new NoopStorageProvider();
-    // T31/R3: notifyGradeReady is best-effort (caught by the service) — a stub is
+    // T31/R3: notifyGradeReady is best-effort (caught by the service), a stub is
     // sufficient here since this suite's coverage is the grading/scope/audit flow, not
     // the notification fan-out itself (that's covered by assignments.service.spec.ts's
     // dedicated T31/R3 tests + notifications.service.spec.ts).
@@ -166,7 +166,7 @@ describeIfDb("AssignmentsService integration tests", () => {
     });
     facultyProfileId = facProf.id;
 
-    // Batch A — faculty is assigned.
+    // Batch A, faculty is assigned.
     const batchA = await base.batch.create({
       data: {
         tenantId,
@@ -180,7 +180,7 @@ describeIfDb("AssignmentsService integration tests", () => {
     });
     batchA_id = batchA.id;
 
-    // Batch B — faculty NOT assigned.
+    // Batch B, faculty NOT assigned.
     const batchB = await base.batch.create({
       data: {
         tenantId,
@@ -266,7 +266,7 @@ describeIfDb("AssignmentsService integration tests", () => {
     expect(result.text).toBe("My answer here");
   });
 
-  // ─── AC-J1: IDOR — Student B cannot see Student A's submission ────────────
+  // ─── AC-J1: IDOR, Student B cannot see Student A's submission ────────────
 
   it("AC-J1: Student B has no submission, not Student A's (own-scope isolation)", async () => {
     // Student B accessing getMySubmission → their own enrollment has no submission.
@@ -300,7 +300,7 @@ describeIfDb("AssignmentsService integration tests", () => {
     const subB = await repo.findLatestSubmission(tenantId, assignmentId, enrollmentB_id);
     expect(subB).not.toBeNull();
 
-    // Faculty only assigned to batch A — Student B is in batch B.
+    // Faculty only assigned to batch A, Student B is in batch B.
     await expect(
       service.gradeSubmission(facultyUserId, tenantId, subB!.id, { score: 70 }, "assigned"),
     ).rejects.toThrow(NotFoundException);
@@ -388,7 +388,7 @@ describeIfDb("AssignmentsService integration tests", () => {
     const subA = await repo.findLatestSubmission(tenantId, assignmentId, enrollmentA_id);
     expect(subA).not.toBeNull();
 
-    // Query from tenant2 context — should NOT find the submission.
+    // Query from tenant2 context, should NOT find the submission.
     const crossTenantResult = await repo.findSubmissionById(tenant2Id, subA!.id);
     expect(crossTenantResult).toBeNull();
   });

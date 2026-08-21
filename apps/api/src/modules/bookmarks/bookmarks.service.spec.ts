@@ -1,6 +1,6 @@
 // apps/api/src/modules/bookmarks/bookmarks.service.spec.ts
 //
-// Unit tests for BookmarksService — own-scope create/list/remove + IDOR->404 +
+// Unit tests for BookmarksService, own-scope create/list/remove + IDOR->404 +
 // duplicate-bookmark 409.
 
 import { ConflictException, NotFoundException } from "@nestjs/common";

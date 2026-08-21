@@ -1,11 +1,11 @@
-// Unit tests for `buildOnboardingAnswerIssues` — the shared answer validator that BOTH the
+// Unit tests for `buildOnboardingAnswerIssues`, the shared answer validator that BOTH the
 // public form (inline errors, before submit) and the API (the 422 body) run.
 //
 // It is worth being explicit about why this one function has its own spec: an onboarding
 // form whose questions live in a database cannot be validated by a fixed zod object, so the
 // usual "one schema, two consumers" guarantee doesn't apply. This function is what replaces
 // it. If it drifts, the browser and the server start disagreeing about what a valid
-// submission is — and the failure mode is a form that looks fine and then 422s.
+// submission is, and the failure mode is a form that looks fine and then 422s.
 //
 // Runs under @repo/types' own vitest (the package is ESM).
 
@@ -42,7 +42,7 @@ describe("buildOnboardingAnswerIssues", () => {
       expect(buildOnboardingAnswerIssues(fields, { consent: true })).toEqual([]);
     });
 
-    it("leaves an empty OPTIONAL answer alone — and does not then format-check it", () => {
+    it("leaves an empty OPTIONAL answer alone, and does not then format-check it", () => {
       const fields = [field({ key: "referrals", type: "email" })];
       expect(buildOnboardingAnswerIssues(fields, { referrals: "" })).toEqual([]);
     });
@@ -84,7 +84,7 @@ describe("buildOnboardingAnswerIssues", () => {
       expect(keys(buildOnboardingAnswerIssues(fields, { month: "Marchember" }))).toEqual(["month"]);
     });
 
-    // Google Forms' "Other:" escape hatch — the whole point is that free text passes.
+    // Google Forms' "Other:" escape hatch, the whole point is that free text passes.
     it("accepts any free text when Other IS allowed", () => {
       const fields = [field({ key: "month", type: "radio", required: true, options: choices, allowOther: true })];
       expect(buildOnboardingAnswerIssues(fields, { month: "January next year" })).toEqual([]);

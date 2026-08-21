@@ -34,7 +34,7 @@ export function InvoiceDetailDrawer({ invoiceId, onOpenChange }: InvoiceDetailDr
     if (download.stubMode || !download.url) {
       toast({
         title: "Invoice PDF generation pending",
-        description: "Storage is stubbed in this phase — the invoice row exists but no PDF has been rendered yet.",
+        description: "Storage is stubbed in this phase. The invoice row exists but no PDF has been rendered yet.",
         variant: "default",
       });
       return;

@@ -14,7 +14,7 @@ const steps: MultiStep[] = [
 // Rendering
 // ---------------------------------------------------------------------------
 
-describe("MultiStepForm — rendering", () => {
+describe("MultiStepForm, rendering", () => {
   it("renders with default data-testid='multi-step-form'", () => {
     render(<MultiStepForm steps={steps} currentStep={0} />);
     expect(screen.getByTestId("multi-step-form")).toBeInTheDocument();
@@ -56,7 +56,7 @@ describe("MultiStepForm — rendering", () => {
 // Navigation
 // ---------------------------------------------------------------------------
 
-describe("MultiStepForm — navigation", () => {
+describe("MultiStepForm, navigation", () => {
   it("calls onNext when Continue is clicked", async () => {
     const user = userEvent.setup();
     const onNext = vi.fn();
@@ -131,7 +131,7 @@ describe("MultiStepForm — navigation", () => {
 // Error display
 // ---------------------------------------------------------------------------
 
-describe("MultiStepForm — errors", () => {
+describe("MultiStepForm, errors", () => {
   it("renders global form error with role=alert", () => {
     render(
       <MultiStepForm
@@ -146,10 +146,10 @@ describe("MultiStepForm — errors", () => {
 });
 
 // ---------------------------------------------------------------------------
-// a11y — live region
+// a11y, live region
 // ---------------------------------------------------------------------------
 
-describe("MultiStepForm — a11y", () => {
+describe("MultiStepForm, a11y", () => {
   it("has an aria-live='polite' region for step announcements", () => {
     const { container } = render(
       <MultiStepForm steps={steps} currentStep={0} />,

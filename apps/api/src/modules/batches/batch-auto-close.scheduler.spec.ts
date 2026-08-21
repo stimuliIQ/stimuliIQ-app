@@ -1,6 +1,6 @@
 // apps/api/src/modules/batches/batch-auto-close.scheduler.spec.ts
 //
-// Unit tests for BatchAutoCloseScheduler — the sweep that closes batches once their end
+// Unit tests for BatchAutoCloseScheduler, the sweep that closes batches once their end
 // date has passed. Mirrors mv-refresh.scheduler.spec.ts's harness.
 //
 // Coverage:
@@ -57,7 +57,7 @@ describe("BatchAutoCloseScheduler", () => {
     jest.restoreAllMocks();
   });
 
-  describe("onModuleInit() — test-safety gate", () => {
+  describe("onModuleInit(), test-safety gate", () => {
     it("registers NO interval when SCHEDULER_ENABLED=false", () => {
       __resetEnvCacheForTests();
       setMinimalEnv();
@@ -67,7 +67,7 @@ describe("BatchAutoCloseScheduler", () => {
       scheduler.onModuleInit();
 
       expect(registry.addInterval).not.toHaveBeenCalled();
-      // Nor the boot-time sweep — a disabled scheduler must touch nothing at all.
+      // Nor the boot-time sweep, a disabled scheduler must touch nothing at all.
       expect(repo.findExpiredOpenBatches).not.toHaveBeenCalled();
     });
   });
@@ -92,7 +92,7 @@ describe("BatchAutoCloseScheduler", () => {
       });
     });
 
-    it("closes a still-PLANNED batch too — an unstarted batch whose end date passed is not enrollable either", async () => {
+    it("closes a still-PLANNED batch too, an unstarted batch whose end date passed is not enrollable either", async () => {
       repo.findExpiredOpenBatches.mockResolvedValue([{ ...EXPIRED_BATCH, status: "planned" }]);
 
       await expect(scheduler.closeExpiredOnce()).resolves.toBe(1);
@@ -108,7 +108,7 @@ describe("BatchAutoCloseScheduler", () => {
       expect(repo.recordAutoCloseAudit).not.toHaveBeenCalled();
     });
 
-    it("keeps going when ONE batch fails — a single bad row must not strand the rest", async () => {
+    it("keeps going when ONE batch fails, a single bad row must not strand the rest", async () => {
       repo.findExpiredOpenBatches.mockResolvedValue([
         { ...EXPIRED_BATCH, id: "batch-1" },
         { ...EXPIRED_BATCH, id: "batch-2" },
@@ -123,7 +123,7 @@ describe("BatchAutoCloseScheduler", () => {
       expect(repo.markExpiredComplete).toHaveBeenCalledTimes(3);
     });
 
-    it("never throws when the lookup itself fails — the next tick retries", async () => {
+    it("never throws when the lookup itself fails, the next tick retries", async () => {
       repo.findExpiredOpenBatches.mockRejectedValue(new Error("db unreachable"));
       await expect(scheduler.closeExpiredOnce()).resolves.toBe(0);
     });

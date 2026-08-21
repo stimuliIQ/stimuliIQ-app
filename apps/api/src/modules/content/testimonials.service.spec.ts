@@ -4,7 +4,7 @@
 // marketing homepage's "What Our Students Say" carousel consumes.
 //
 // The homepage renders that section ONLY from CRM-published testimonials (there is no
-// hardcoded stand-in — see apps/web/.../fallbacks/home-fallback.tsx), so this projection
+// hardcoded stand-in, see apps/web/.../fallbacks/home-fallback.tsx), so this projection
 // is the whole contract between the CRM and what a visitor sees. Two things it must get
 // right and had wrong before: carrying the joined program title through, and never
 // leaking draft/archived rows.
@@ -45,7 +45,7 @@ const PUBLISHED_ROW: PublishedTestimonialRow = {
 
 const ALL_SCOPE: ScopeContext = { scope: "all" } as ScopeContext;
 
-describe("TestimonialsService — public projection", () => {
+describe("TestimonialsService, public projection", () => {
   let repository: Mocked<TestimonialsRepository>;
   let service: TestimonialsService;
 
@@ -74,7 +74,7 @@ describe("TestimonialsService — public projection", () => {
 
     const [dto] = await service.listPublic();
 
-    // programId is optional in the CRM form, so this is a normal record, not an error —
+    // programId is optional in the CRM form, so this is a normal record, not an error,
     // the card just omits the program line.
     expect(dto?.programTitle).toBeNull();
   });
@@ -89,7 +89,7 @@ describe("TestimonialsService — public projection", () => {
     expect(dto).not.toHaveProperty("programId");
   });
 
-  it("returns an empty list when nothing is published — the homepage then omits the section", async () => {
+  it("returns an empty list when nothing is published, the homepage then omits the section", async () => {
     repository.listPublished.mockResolvedValue([]);
 
     await expect(service.listPublic()).resolves.toEqual([]);
@@ -101,7 +101,7 @@ describe("TestimonialsService — public projection", () => {
     await service.listPublic("33333333-3333-4333-8333-333333333333");
 
     // Draft/archived exclusion is a WHERE clause (repository.listPublished), not a
-    // post-fetch .filter() — an unpublished quote must never leave the database.
+    // post-fetch .filter(), an unpublished quote must never leave the database.
     expect(repository.listPublished).toHaveBeenCalledWith(
       "tenant-1",
       "33333333-3333-4333-8333-333333333333",
@@ -109,7 +109,7 @@ describe("TestimonialsService — public projection", () => {
   });
 });
 
-describe("TestimonialsService — CRM surface", () => {
+describe("TestimonialsService, CRM surface", () => {
   let repository: Mocked<TestimonialsRepository>;
   let service: TestimonialsService;
 
@@ -118,7 +118,7 @@ describe("TestimonialsService — CRM surface", () => {
     service = new TestimonialsService(repository as unknown as TestimonialsRepository);
   });
 
-  it("create() never publishes directly — a new testimonial lands as a draft", async () => {
+  it("create() never publishes directly, a new testimonial lands as a draft", async () => {
     repository.create.mockResolvedValue({ id: PUBLISHED_ROW.id });
     repository.findById.mockResolvedValue({ ...PUBLISHED_ROW, status: "draft" });
 
@@ -143,7 +143,7 @@ describe("TestimonialsService — CRM surface", () => {
   //
   // The bug this pins: update() used to DROP `status: "published"` from the patch and
   // return 200. The CRM's status dropdown offered "published", the toast said
-  // "Testimonial updated", and the row stayed a draft — so nothing staff marked as
+  // "Testimonial updated", and the row stayed a draft, so nothing staff marked as
   // published ever reached the homepage, with no error anywhere to explain why.
 
   it("rejects publishing via update() instead of silently ignoring it", async () => {
@@ -160,7 +160,7 @@ describe("TestimonialsService — CRM surface", () => {
     expect(repository.update).not.toHaveBeenCalled();
   });
 
-  it("allows UNPUBLISHING via update() — hiding a live testimonial is a plain patch", async () => {
+  it("allows UNPUBLISHING via update(), hiding a live testimonial is a plain patch", async () => {
     repository.findById.mockResolvedValue({ ...PUBLISHED_ROW, status: "draft" });
 
     await scopeContextStorage.run(ALL_SCOPE, () =>

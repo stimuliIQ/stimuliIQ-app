@@ -40,7 +40,7 @@ export const CreateSavedViewRequestSchema = z
     name: z.string().min(1).max(80),
     filters: z
       .record(z.string(), z.unknown())
-      .describe("Opaque filter-set — echoed back verbatim, never interpreted server-side."),
+      .describe("Opaque filter-set. Echoed back verbatim, never interpreted server-side."),
   })
   .strict();
 export type CreateSavedViewRequest = z.infer<typeof CreateSavedViewRequestSchema>;

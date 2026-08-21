@@ -64,7 +64,7 @@ describe("StickyLeadBarConnected", () => {
       vi.advanceTimersByTime(AUTO_DISMISS_MS);
     });
 
-    // The whole bar is gone — not merely back to its idle form.
+    // The whole bar is gone, not merely back to its idle form.
     expect(screen.queryByTestId("sticky-lead-bar")).not.toBeInTheDocument();
   });
 

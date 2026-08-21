@@ -187,7 +187,7 @@ export function OnboardingSubmissionDrawer({
             {data ? (
               <>
                 <DetailGrid columns={2}>
-                  <DetailRow label="Name">{data.fullName ?? "—"}</DetailRow>
+                  <DetailRow label="Name">{data.fullName ?? "-"}</DetailRow>
                   <DetailRow label="Status">
                     <StatusChip
                       tone={submissionStatusTone(data.status)}
@@ -195,9 +195,9 @@ export function OnboardingSubmissionDrawer({
                       size="sm"
                     />
                   </DetailRow>
-                  <DetailRow label="Email">{data.email ?? "—"}</DetailRow>
-                  <DetailRow label="Phone">{data.phone ?? "—"}</DetailRow>
-                  <DetailRow label="Program">{data.programTitle ?? "—"}</DetailRow>
+                  <DetailRow label="Email">{data.email ?? "-"}</DetailRow>
+                  <DetailRow label="Phone">{data.phone ?? "-"}</DetailRow>
+                  <DetailRow label="Program">{data.programTitle ?? "-"}</DetailRow>
                   <DetailRow label="Submitted">{new Date(data.createdAt).toLocaleString()}</DetailRow>
                   {data.reviewedByName ? (
                     <DetailRow label="Last reviewed by">
@@ -232,7 +232,7 @@ export function OnboardingSubmissionDrawer({
                       rows={3}
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      helperText="Only staff see this. The student is never shown these notes — not even in the rejection email."
+                      helperText="Only staff see this. The student is never shown these notes. Not even in the rejection email."
                       data-testid="onboarding-notes-input"
                     />
                     {notesDirty && !decision ? (
@@ -385,7 +385,7 @@ export function OnboardingSubmissionDrawer({
             <span>
               {data?.email
                 ? `We'll email ${data.email} to say we couldn't accept their application, and ask them to contact support.`
-                : "This submission has no email address, so nobody will be notified — the decision is only recorded here."}
+                : "This submission has no email address, so nobody will be notified. The decision is only recorded here."}
             </span>
             <span>
               Your internal notes are not included in that email. No student account is created and nothing is charged.
@@ -416,7 +416,7 @@ function AnswerValue({
 }): React.JSX.Element {
   if (answer.storageKey) {
     const url = attachmentUrls[answer.storageKey];
-    if (!url) return <span className="text-fg-subtle">Attachment unavailable — try reopening this submission.</span>;
+    if (!url) return <span className="text-fg-subtle">Attachment unavailable, try reopening this submission.</span>;
     return (
       <a
         href={url}
@@ -431,7 +431,7 @@ function AnswerValue({
       </a>
     );
   }
-  if (answer.value === null || answer.value === "") return <span className="text-fg-subtle">—</span>;
+  if (answer.value === null || answer.value === "") return <span className="text-fg-subtle">-</span>;
   // `whitespace-pre-line` so a multi-line textarea answer (e.g. the referrals question)
   // keeps the line breaks the student typed.
   return <span className="whitespace-pre-line">{answer.value}</span>;

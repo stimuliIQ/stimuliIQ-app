@@ -8,7 +8,7 @@ import { CourseCard } from "./course-card";
 // Rendering
 // ---------------------------------------------------------------------------
 
-describe("CourseCard — rendering", () => {
+describe("CourseCard, rendering", () => {
   it("renders the course title", () => {
     render(<CourseCard title="Python for Data Science" />);
     expect(screen.getByText("Python for Data Science")).toBeInTheDocument();
@@ -61,10 +61,10 @@ describe("CourseCard — rendering", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Interaction — onClick
+// Interaction, onClick
 // ---------------------------------------------------------------------------
 
-describe("CourseCard — onClick interaction", () => {
+describe("CourseCard, onClick interaction", () => {
   it("renders as role='button' when onClick is provided", () => {
     render(<CourseCard title="Python" onClick={vi.fn()} />);
     expect(screen.getByRole("button")).toBeInTheDocument();
@@ -113,10 +113,10 @@ describe("CourseCard — onClick interaction", () => {
 });
 
 // ---------------------------------------------------------------------------
-// asChild — renders styling onto a child element
+// asChild, renders styling onto a child element
 // ---------------------------------------------------------------------------
 
-describe("CourseCard — asChild (link mode)", () => {
+describe("CourseCard, asChild (link mode)", () => {
   it("renders the outer element as an <a> when asChild is true", () => {
     render(
       <CourseCard asChild title="Python" data-testid="link-card">

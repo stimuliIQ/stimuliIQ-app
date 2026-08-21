@@ -118,17 +118,17 @@ export function FacultyDetailDrawer({ facultyId, onOpenChange, me }: FacultyDeta
                 <dl className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <dt className="text-fg-muted">Phone</dt>
-                    <dd className="mt-1 text-fg">{faculty.phone ?? "—"}</dd>
+                    <dd className="mt-1 text-fg">{faculty.phone ?? "-"}</dd>
                   </div>
                   <div>
                     <dt className="text-fg-muted">Rating</dt>
-                    <dd className="mt-1 text-fg">{faculty.rating ?? "—"}</dd>
+                    <dd className="mt-1 text-fg">{faculty.rating ?? "-"}</dd>
                   </div>
                   <div className="col-span-2">
                     <dt className="text-fg-muted">Expertise</dt>
                     <dd className="mt-1 flex flex-wrap gap-1.5">
                       {faculty.expertise.length === 0 ? (
-                        <span className="text-fg">—</span>
+                        <span className="text-fg">-</span>
                       ) : (
                         faculty.expertise.map((skill) => (
                           <span
@@ -143,7 +143,7 @@ export function FacultyDetailDrawer({ facultyId, onOpenChange, me }: FacultyDeta
                   </div>
                   <div className="col-span-2">
                     <dt className="text-fg-muted">Bio</dt>
-                    <dd className="mt-1 text-fg">{faculty.bio ?? "—"}</dd>
+                    <dd className="mt-1 text-fg">{faculty.bio ?? "-"}</dd>
                   </div>
                 </dl>
 

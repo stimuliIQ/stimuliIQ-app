@@ -40,8 +40,8 @@ export function CounsellingWorkspace({ me: _me }: CounsellingWorkspaceProps): Re
   }, [tasksQuery.data]);
 
   const bookingColumns: Array<DataTableColumn<BookingSummary>> = [
-    { id: "leadName", header: "Lead", cell: (row) => row.leadName ?? "—" },
-    { id: "programTitle", header: "Program", cell: (row) => row.programTitle ?? "—" },
+    { id: "leadName", header: "Lead", cell: (row) => row.leadName ?? "-" },
+    { id: "programTitle", header: "Program", cell: (row) => row.programTitle ?? "-" },
     {
       id: "slotAt",
       header: "Slot",

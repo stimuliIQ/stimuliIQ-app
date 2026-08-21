@@ -25,7 +25,7 @@ const ITEMS: NotificationBellItem[] = [
 // Rendering
 // ---------------------------------------------------------------------------
 
-describe("NotificationBell — rendering", () => {
+describe("NotificationBell, rendering", () => {
   it("renders with default data-testid='notification-bell'", () => {
     render(
       <NotificationBell items={ITEMS} onMarkRead={vi.fn()} />,
@@ -60,7 +60,7 @@ describe("NotificationBell — rendering", () => {
 // Open/close
 // ---------------------------------------------------------------------------
 
-describe("NotificationBell — open/close", () => {
+describe("NotificationBell, open/close", () => {
   it("opens dropdown when bell is clicked", async () => {
     const user = userEvent.setup();
     render(<NotificationBell items={ITEMS} onMarkRead={vi.fn()} />);
@@ -104,10 +104,10 @@ describe("NotificationBell — open/close", () => {
 });
 
 // ---------------------------------------------------------------------------
-// a11y — live-region
+// a11y, live-region
 // ---------------------------------------------------------------------------
 
-describe("NotificationBell — a11y live-region", () => {
+describe("NotificationBell, a11y live-region", () => {
   it("renders a live-region with role='status' and aria-live='polite'", () => {
     render(<NotificationBell items={ITEMS} onMarkRead={vi.fn()} />);
     const region = screen.getByTestId("notification-live-region");
@@ -160,7 +160,7 @@ describe("NotificationBell — a11y live-region", () => {
 // Mark-all-read
 // ---------------------------------------------------------------------------
 
-describe("NotificationBell — mark all read", () => {
+describe("NotificationBell, mark all read", () => {
   it("calls onMarkAllRead when 'All read' button is clicked", async () => {
     const user = userEvent.setup();
     const onMarkAllRead = vi.fn();
@@ -177,7 +177,7 @@ describe("NotificationBell — mark all read", () => {
 // Empty + loading states
 // ---------------------------------------------------------------------------
 
-describe("NotificationBell — empty state", () => {
+describe("NotificationBell, empty state", () => {
   it("shows empty state when no items", async () => {
     const user = userEvent.setup();
     render(<NotificationBell items={[]} onMarkRead={vi.fn()} />);

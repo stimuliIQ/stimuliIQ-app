@@ -229,7 +229,7 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
     });
     studentProfileId = profileA.id;
 
-    // Student B (another student — for IDOR tests)
+    // Student B (another student, for IDOR tests)
     const userB = await base.user.create({
       data: {
         tenantId,
@@ -473,7 +473,7 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
 
   // ─── 5. Coupon validate paise math ───────────────────────────────────────────
 
-  describe("5. Coupon validate (P-5) — paise math + no internals leaked", () => {
+  describe("5. Coupon validate (P-5), paise math + no internals leaked", () => {
     it("10% coupon computes correct discount (150000 * 10% = 15000 paise)", async () => {
       const funnelSvc = new PublicFunnelService(
         repo,
@@ -533,7 +533,7 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
 
   // ─── 6. Register enumeration-resistant ───────────────────────────────────────
 
-  describe("6. Register — enumeration-resistant (AC-13)", () => {
+  describe("6. Register, enumeration-resistant (AC-13)", () => {
     it("new user registration creates a user + student_profile in DB", async () => {
       const newEmail = `new-reg-${Date.now()}@example.com`;
       const funnelSvc = new PublicFunnelService(
@@ -617,10 +617,10 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
         "6.6.6.6",
       );
 
-      // C-1 (account-takeover guard): an existing email must NOT mint a session — the
+      // C-1 (account-takeover guard): an existing email must NOT mint a session, the
       // OTP only proved the caller's phone, not ownership of the existing account.
       expect(result.tokens).toBeUndefined();
-      // The body is 201-shaped but built ONLY from caller input — no victim DB data leaks.
+      // The body is 201-shaped but built ONLY from caller input, no victim DB data leaks.
       expect(result.session.user.id).toBe("");
       expect(result.session.user.id).not.toBe(studentUserId); // never the victim's real id
       expect(result.session.user.email).toBe(existingUser.email); // echoes caller input only
@@ -768,9 +768,9 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
     });
   });
 
-  // ─── 8. CommerceService reused — amount server-derived ───────────────────────
+  // ─── 8. CommerceService reused, amount server-derived ───────────────────────
 
-  describe("8. CommerceService reused — amount server-derived", () => {
+  describe("8. CommerceService reused, amount server-derived", () => {
     it("createEnrollOrder: studentId is from DB (profile), not from client DTO", async () => {
       const commerceSvc = makeCommerceService();
       const funnelSvc = new PublicFunnelService(
@@ -811,7 +811,7 @@ describeIfDb("PublicModule integration tests (DB required)", () => {
   // ─── 9. No secret in checkout response ───────────────────────────────────────
 
   describe("9. No Razorpay KEY_SECRET in checkout response", () => {
-    it("initiateCheckout returns public keyId only — never KEY_SECRET", async () => {
+    it("initiateCheckout returns public keyId only, never KEY_SECRET", async () => {
       const commerceSvc = makeCommerceService();
       const funnelSvc = new PublicFunnelService(
         repo,

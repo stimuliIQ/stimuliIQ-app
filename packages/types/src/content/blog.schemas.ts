@@ -117,7 +117,7 @@ export const PublicBlogPostSummarySchema = z.object({
 export type PublicBlogPostSummary = z.infer<typeof PublicBlogPostSummarySchema>;
 
 export const PublicBlogPostDetailSchema = PublicBlogPostSummarySchema.extend({
-  body: z.string().describe("Raw authored content — MUST be sanitized (DOMPurify) at the render sink."),
+  body: z.string().describe("Raw authored content. MUST be sanitized (DOMPurify) at the render sink."),
   seoTitle: z.string().nullable(),
   seoDescription: z.string().nullable(),
   authorName: z.string().nullable(),

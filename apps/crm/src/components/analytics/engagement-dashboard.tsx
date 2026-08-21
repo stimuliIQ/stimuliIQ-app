@@ -97,7 +97,7 @@ export function EngagementDashboard({ me }: EngagementDashboardProps): React.JSX
 
           <BarChart
             title="Lesson completion"
-            description="Curriculum order — a materially lower bar than its predecessor marks a drop-off."
+            description="Curriculum order. A materially lower bar than its predecessor marks a drop-off."
             data={(data?.lessons ?? []).map((lesson) => ({
               lesson: lesson.title,
               completion: lesson.completionPercent,

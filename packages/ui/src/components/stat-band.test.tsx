@@ -43,7 +43,7 @@ afterEach(() => {
 // Rendering
 // ---------------------------------------------------------------------------
 
-describe("StatBand — rendering", () => {
+describe("StatBand, rendering", () => {
   it("renders with default data-testid='stat-band'", () => {
     render(<StatBand stats={stats} />);
     expect(screen.getByTestId("stat-band")).toBeInTheDocument();
@@ -75,7 +75,7 @@ describe("StatBand — rendering", () => {
 // immediately without needing animation frames
 // ---------------------------------------------------------------------------
 
-describe("StatBand — reduced-motion", () => {
+describe("StatBand, reduced-motion", () => {
   it("renders stat label text in reduced-motion environment", () => {
     // Mock matchMedia to return prefers-reduced-motion: reduce
     const mockMatchMedia = vi.fn().mockImplementation((query: string) => ({

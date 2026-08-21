@@ -53,13 +53,13 @@ const CERT_ID = "CERT-test-uid-abc123";
 // Valid state tests
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("VerifyPanel — valid state", () => {
+describe("VerifyPanel, valid state", () => {
   it("renders the verify-panel-valid testid", () => {
     render(<VerifyPanel state={VALID_STATE} certId={CERT_ID} />);
     expect(screen.getByTestId("verify-panel-valid")).toBeInTheDocument();
   });
 
-  it("shows 'Certificate Verified' status label (text, not color-only — a11y)", () => {
+  it("shows 'Certificate Verified' status label (text, not color-only, a11y)", () => {
     render(<VerifyPanel state={VALID_STATE} certId={CERT_ID} />);
     expect(screen.getByTestId("verify-status-label")).toHaveTextContent("Certificate Verified");
   });
@@ -71,7 +71,7 @@ describe("VerifyPanel — valid state", () => {
     );
   });
 
-  it("renders the holder name (the only PII field — AC-H7)", () => {
+  it("renders the holder name (the only PII field, AC-H7)", () => {
     render(<VerifyPanel state={VALID_STATE} certId={CERT_ID} />);
     expect(screen.getByTestId("verify-holder")).toHaveTextContent("Aditi Sharma");
   });
@@ -125,13 +125,13 @@ describe("VerifyPanel — valid state", () => {
 // Revoked state tests
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("VerifyPanel — revoked state", () => {
+describe("VerifyPanel, revoked state", () => {
   it("renders the verify-panel-revoked testid", () => {
     render(<VerifyPanel state={REVOKED_STATE} certId={CERT_ID} />);
     expect(screen.getByTestId("verify-panel-revoked")).toBeInTheDocument();
   });
 
-  it("shows 'Certificate Revoked' status label (text — not color-only — a11y)", () => {
+  it("shows 'Certificate Revoked' status label (text, not color-only, a11y)", () => {
     render(<VerifyPanel state={REVOKED_STATE} certId={CERT_ID} />);
     expect(screen.getByTestId("verify-status-label")).toHaveTextContent("Certificate Revoked");
   });
@@ -141,7 +141,7 @@ describe("VerifyPanel — revoked state", () => {
     expect(screen.getByTestId("verify-program")).toHaveTextContent("Data Science Bootcamp");
   });
 
-  it("renders the holder name for context (AC-H2 — minimal info still shown)", () => {
+  it("renders the holder name for context (AC-H2, minimal info still shown)", () => {
     render(<VerifyPanel state={REVOKED_STATE} certId={CERT_ID} />);
     expect(screen.getByTestId("verify-holder")).toHaveTextContent("Rahul Gupta");
   });
@@ -173,10 +173,10 @@ describe("VerifyPanel — revoked state", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Invalid state tests (fabricated / tampered / not-found certId — AC-H3/H4/H5)
+// Invalid state tests (fabricated / tampered / not-found certId, AC-H3/H4/H5)
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("VerifyPanel — invalid state", () => {
+describe("VerifyPanel, invalid state", () => {
   it("renders the verify-panel-invalid testid", () => {
     render(<VerifyPanel state={INVALID_STATE} certId={CERT_ID} />);
     expect(screen.getByTestId("verify-panel-invalid")).toBeInTheDocument();
@@ -224,7 +224,7 @@ describe("VerifyPanel — invalid state", () => {
 // Root wrapper tests
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("VerifyPanel — root element", () => {
+describe("VerifyPanel, root element", () => {
   it("renders the custom data-testid if provided", () => {
     render(
       <VerifyPanel state={VALID_STATE} certId={CERT_ID} data-testid="custom-verify-panel" />,

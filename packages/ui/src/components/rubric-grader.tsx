@@ -132,7 +132,7 @@ export function RubricGrader({
             "font-mono text-lg font-semibold",
             allScored ? "text-fg" : "text-fg-muted",
           )}
-          aria-label={`${awardedTotal} out of ${maxTotal} points${allScored ? "" : " — not all criteria scored"}`}
+          aria-label={`${awardedTotal} out of ${maxTotal} points${allScored ? "" : ", not all criteria scored"}`}
         >
           {awardedTotal}
           <span className="text-sm font-normal text-fg-muted">/{maxTotal}</span>

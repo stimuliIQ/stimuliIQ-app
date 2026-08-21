@@ -1,11 +1,11 @@
 /**
- * JSON-LD helper tests — core escaping + builder functions.
+ * JSON-LD helper tests, core escaping + builder functions.
  *
  * Critical security assertion: AC-33 / P4 L-1
  *   - `escapeJsonLd` MUST NOT allow `</script>` to appear in output.
  *   - Any `<` character in user-controlled strings must be escaped as `<`.
  *
- * No DOM/React required — pure string/function tests.
+ * No DOM/React required, pure string/function tests.
  */
 
 import { describe, expect, it } from "vitest";
@@ -26,7 +26,7 @@ type _FaqJsonLdItem = FaqJsonLdItem;
 type _BreadcrumbItem = BreadcrumbItem;
 
 // ---------------------------------------------------------------------------
-// escapeJsonLd — the core security invariant
+// escapeJsonLd, the core security invariant
 // ---------------------------------------------------------------------------
 
 describe("escapeJsonLd", () => {
@@ -35,7 +35,7 @@ describe("escapeJsonLd", () => {
     expect(JSON.parse(result)).toEqual({ hello: "world" });
   });
 
-  it("escapes `<` to \\u003c — preventing </script> breakout (AC-33 / P4 L-1)", () => {
+  it("escapes `<` to \\u003c, preventing </script> breakout (AC-33 / P4 L-1)", () => {
     const malicious = { name: "</script><script>alert(1)</script>" };
     const result = escapeJsonLd(malicious);
     // The literal string `</script>` must NOT appear anywhere in the output.
@@ -218,7 +218,7 @@ describe("buildBreadcrumbJsonLd", () => {
     const parsed = JSON.parse(buildBreadcrumbJsonLd(BREADCRUMBS)) as {
       itemListElement: Array<{ position: number; name: string }>;
     };
-    // Use non-null assertions — we control the breadcrumbs fixture (3 items)
+    // Use non-null assertions, we control the breadcrumbs fixture (3 items)
     expect(parsed.itemListElement[0]!.position).toBe(1);
     expect(parsed.itemListElement[1]!.position).toBe(2);
     expect(parsed.itemListElement[2]!.position).toBe(3);

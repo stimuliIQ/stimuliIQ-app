@@ -112,7 +112,7 @@ export class VideoWebhookController {
 
     if (!isValid) {
       this.logger.warn(
-        "[VideoWebhook] Signature verification failed — rejecting webhook (fail closed). " +
+        "[VideoWebhook] Signature verification failed, rejecting webhook (fail closed). " +
           `Has-CF-header=${Boolean(cfSig)} Has-Mux-header=${Boolean(muxSig)}`,
       );
       throw new UnauthorizedException({
@@ -127,7 +127,7 @@ export class VideoWebhookController {
     const event = this.videoProvider.parseTranscodeEvent(body);
 
     if (!event) {
-      this.logger.debug("[VideoWebhook] Non-transcode event received — ignoring (safe no-op)");
+      this.logger.debug("[VideoWebhook] Non-transcode event received, ignoring (safe no-op)");
       return { received: true };
     }
 

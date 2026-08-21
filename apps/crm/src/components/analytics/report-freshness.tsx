@@ -21,7 +21,7 @@ export function ReportFreshnessBadge({ asOf, stale }: ReportFreshnessBadgeProps)
       {stale ? (
         <StatusChip
           tone="warning"
-          label="Stale — showing last known-good data"
+          label="Stale, showing last known-good data"
           data-testid="report-stale-badge"
         />
       ) : null}

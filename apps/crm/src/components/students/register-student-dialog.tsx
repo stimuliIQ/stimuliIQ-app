@@ -93,7 +93,7 @@ export function RegisterStudentDialog({
       const updated = await updateStudent.mutateAsync({ id: student.id, body });
       toast({
         title: "Registration complete",
-        description: `${updated.name} is now a registered student — assign a program next.`,
+        description: `${updated.name} is now a registered student, assign a program next.`,
         variant: "success",
       });
       onOpenChange(false);
@@ -108,13 +108,13 @@ export function RegisterStudentDialog({
       <DrawerContent
         position="center"
         title="Register student"
-        description={`Step 2 of 2 — full details for ${student?.name ?? "the student"}. Completing this marks them Registered.`}
+        description={`Step 2 of 2, full details for ${student?.name ?? "the student"}. Completing this marks them Registered.`}
         data-testid="register-student-drawer"
       >
         <form onSubmit={onSubmit} className="flex flex-1 flex-col overflow-hidden">
           <DrawerBody className="flex flex-col gap-4">
             <Input label="Full name" required placeholder="As it should appear on records" {...register("name")} error={errors.name?.message} data-testid="register-form-name" />
-            <Input label="Email" value={student?.email ?? ""} disabled readOnly helperText="The contact's login identity — changing email is a separate verified flow." data-testid="register-form-email" />
+            <Input label="Email" value={student?.email ?? ""} disabled readOnly helperText="The contact's login identity. Changing email is a separate verified flow." data-testid="register-form-email" />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input label="Phone" {...phoneFieldProps(register("phone", optionalText))} error={errors.phone?.message} data-testid="register-form-phone" />
               <Input

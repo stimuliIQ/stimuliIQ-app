@@ -63,7 +63,7 @@ export function PasswordRequirements({
             <Circle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           )}
           <span>{rule.label}</span>
-          <span className="sr-only">{rule.met ? " — met" : " — not met"}</span>
+          <span className="sr-only">{rule.met ? ", met" : ", not met"}</span>
         </li>
       ))}
     </ul>

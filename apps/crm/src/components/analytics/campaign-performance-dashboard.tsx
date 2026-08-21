@@ -75,32 +75,32 @@ export function CampaignPerformanceDashboard({ me }: CampaignPerformanceDashboar
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
               label="Sent"
-              value={data ? data.metrics.sent : "—"}
+              value={data ? data.metrics.sent : "-"}
               loading={isLoading}
               data-testid="campaign-sent-kpi"
             />
             <KpiCard
               label="Delivered"
-              value={data ? data.metrics.delivered : "—"}
+              value={data ? data.metrics.delivered : "-"}
               loading={isLoading}
               data-testid="campaign-delivered-kpi"
             />
             <KpiCard
               label="Read"
-              value={data ? data.metrics.read : "—"}
+              value={data ? data.metrics.read : "-"}
               loading={isLoading}
               data-testid="campaign-read-kpi"
             />
             <KpiCard
               label="Failed"
-              value={data ? data.metrics.failed : "—"}
+              value={data ? data.metrics.failed : "-"}
               loading={isLoading}
               data-testid="campaign-failed-kpi"
             />
           </div>
 
           <DonutChart
-            title={data ? `${data.campaignName} — delivery mix` : "Delivery mix"}
+            title={data ? `${data.campaignName}, delivery mix` : "Delivery mix"}
             data={
               data
                 ? [

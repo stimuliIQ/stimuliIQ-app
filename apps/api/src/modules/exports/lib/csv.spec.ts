@@ -4,13 +4,13 @@
 // task #8 HEADLINE). Two layers:
 //   1. Behavioural tests of csvSafeCell/toCsvCell/rowsToCsv/IncrementalCsvWriter.
 //   2. A static source-scan (AC-29) asserting no OTHER file in this module hand-rolls
-//      CSV escaping — every CSV cell must route through this file's exports.
+//      CSV escaping, every CSV cell must route through this file's exports.
 
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { csvSafeCell, toCsvCell, writeCsvRow, rowsToCsv, IncrementalCsvWriter } from "./csv";
 
-describe("csvSafeCell — AC-28 formula-injection neutralization", () => {
+describe("csvSafeCell, AC-28 formula-injection neutralization", () => {
   it.each(["=cmd|' /C calc'!A0", "=1+1", "="])("neutralizes a value starting with '=' (%s)", (value) => {
     expect(csvSafeCell(value)).toBe(`'${value}`);
   });
@@ -37,7 +37,7 @@ describe("csvSafeCell — AC-28 formula-injection neutralization", () => {
 
   it("does NOT alter a safe value (no leading trigger char)", () => {
     expect(csvSafeCell("Ravi Kumar")).toBe("Ravi Kumar");
-    // Starts with 's', not '@' — the '@' appears mid-string, so it is NOT neutralized.
+    // Starts with 's', not '@', the '@' appears mid-string, so it is NOT neutralized.
     expect(csvSafeCell("student@example.com")).toBe("student@example.com");
   });
 
@@ -50,7 +50,7 @@ describe("csvSafeCell — AC-28 formula-injection neutralization", () => {
   });
 });
 
-describe("toCsvCell — full choke-point (neutralize + RFC-4180 quote)", () => {
+describe("toCsvCell, full choke-point (neutralize + RFC-4180 quote)", () => {
   it("neutralizes AND quotes a formula value that also contains a comma", () => {
     // '=a,b' -> neutralized to "'=a,b" -> contains a comma -> RFC-4180 quoted.
     expect(toCsvCell("=a,b")).toBe(`"'=a,b"`);
@@ -77,7 +77,7 @@ describe("toCsvCell — full choke-point (neutralize + RFC-4180 quote)", () => {
     expect(toCsvCell(undefined)).toBe("");
   });
 
-  it("integers (paise) are emitted as plain digits — never float-formatted", () => {
+  it("integers (paise) are emitted as plain digits, never float-formatted", () => {
     expect(toCsvCell(1234500)).toBe("1234500");
     expect(toCsvCell(0)).toBe("0");
   });
@@ -132,7 +132,7 @@ describe("writeCsvRow / rowsToCsv", () => {
   });
 });
 
-describe("IncrementalCsvWriter — bounded-batch streaming (AC-33)", () => {
+describe("IncrementalCsvWriter, bounded-batch streaming (AC-33)", () => {
   it("emits header-only CSV when no rows are ever appended", () => {
     const writer = new IncrementalCsvWriter(["a", "b"]);
     expect(writer.toBuffer().toString("utf8")).toBe("a,b\r\n");
@@ -149,7 +149,7 @@ describe("IncrementalCsvWriter — bounded-batch streaming (AC-33)", () => {
   });
 });
 
-describe("AC-29: single shared choke-point — static source scan", () => {
+describe("AC-29: single shared choke-point, static source scan", () => {
   const EXPORTS_DIR = resolve(__dirname, "..");
 
   function collectTsFiles(dir: string): string[] {
@@ -174,19 +174,19 @@ describe("AC-29: single shared choke-point — static source scan", () => {
       // or a manual `.join(",")` on row cells outside of csv.ts would indicate a second,
       // un-audited CSV-writing code path.
       if (/replace\(\/"\/g/.test(source)) {
-        offenders.push(`${file}: contains a manual quote-doubling replace() — should call toCsvCell()/writeCsvRow() instead.`);
+        offenders.push(`${file}: contains a manual quote-doubling replace(), should call toCsvCell()/writeCsvRow() instead.`);
       }
     }
     expect(offenders).toEqual([]);
   });
 
-  it("row-builders.ts (if present) never constructs a CSV string directly — only supplies rows to rowsToCsv/IncrementalCsvWriter", () => {
+  it("row-builders.ts (if present) never constructs a CSV string directly, only supplies rows to rowsToCsv/IncrementalCsvWriter", () => {
     const rowBuildersPath = resolve(__dirname, "row-builders.ts");
     let source: string;
     try {
       source = readFileSync(rowBuildersPath, "utf8");
     } catch {
-      return; // file not present yet — nothing to assert.
+      return; // file not present yet, nothing to assert.
     }
     expect(source).not.toMatch(/\.join\(","\)/);
   });

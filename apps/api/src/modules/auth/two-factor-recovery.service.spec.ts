@@ -81,13 +81,13 @@ describe("TwoFactorRecoveryService", () => {
 
       const { service: happy } = build();
       const happyResult = await happy.request(EMAIL, PASSWORD);
-      // Byte-identical to the success response — the caller learns nothing.
+      // Byte-identical to the success response, the caller learns nothing.
       expect(result.message).toBe(happyResult.message);
       expect(mail.send).not.toHaveBeenCalled();
       expect(store.issue).not.toHaveBeenCalled();
     });
 
-    it("swallows a mail-provider failure — a send error must not become an enumeration oracle", async () => {
+    it("swallows a mail-provider failure, a send error must not become an enumeration oracle", async () => {
       const { service, mail } = build();
       (mail.send as jest.Mock).mockRejectedValue(new Error("SES is down"));
 
@@ -96,7 +96,7 @@ describe("TwoFactorRecoveryService", () => {
       });
     });
 
-    it("FAILS CLOSED when Redis errors — no code is issued", async () => {
+    it("FAILS CLOSED when Redis errors, no code is issued", async () => {
       const { service, store, mail } = build({ redisIncr: jest.fn().mockRejectedValue(new Error("redis down")) });
 
       const result = await service.request(EMAIL, PASSWORD);
@@ -116,7 +116,7 @@ describe("TwoFactorRecoveryService", () => {
   });
 
   describe("confirm", () => {
-    it("disables 2FA, revokes every session, and audits — without issuing a session", async () => {
+    it("disables 2FA, revokes every session, and audits, without issuing a session", async () => {
       const { service, authRepository, twoFactorStore } = build();
 
       const result = await service.confirm(EMAIL, PASSWORD, "123456", { ip: "1.2.3.4" });
@@ -128,11 +128,11 @@ describe("TwoFactorRecoveryService", () => {
       expect(authRepository.recordTwoFactorAudit).toHaveBeenCalledWith(
         expect.objectContaining({ action: "two_factor.recovery_reset", userId: USER.id, actorId: null, ip: "1.2.3.4" }),
       );
-      // The returned shape carries no tokens/csrf — recovery is not a login.
+      // The returned shape carries no tokens/csrf, recovery is not a login.
       expect(Object.keys(result)).toEqual(["reset"]);
     });
 
-    it("rejects a WRONG PASSWORD even with a valid code — the emailed code alone is not enough", async () => {
+    it("rejects a WRONG PASSWORD even with a valid code, the emailed code alone is not enough", async () => {
       const { service, authService, store, twoFactorStore } = build();
       (authService.verifyCredentialsOnly as jest.Mock).mockResolvedValue(null);
 

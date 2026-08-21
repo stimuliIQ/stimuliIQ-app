@@ -33,8 +33,8 @@ export function ReconciliationWidget(): React.JSX.Element {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <p className="text-sm text-fg-muted">
-          Sum of captured payments minus processed refunds, compared against the order ledger&rsquo;s paid total —
-          the invariant from docs/03 §20.
+          Sum of captured payments minus processed refunds, compared against the order ledger&rsquo;s paid total.
+          The invariant from docs/03 §20.
         </p>
         <div className="flex flex-wrap items-end gap-3">
           <Input
@@ -111,11 +111,11 @@ export function ReconciliationWidget(): React.JSX.Element {
             <div className="col-span-2 sm:col-span-4">
               {data.reconcilesOk ? (
                 <Alert tone="success" icon={<CheckCircle2 />} data-testid="reconciliation-ok" role="status">
-                  Reconciles — net amount matches the order ledger paid total exactly.
+                  Reconciles. Net amount matches the order ledger paid total exactly.
                 </Alert>
               ) : (
                 <Alert tone="danger" icon={<XCircle />} data-testid="reconciliation-mismatch" role="alert">
-                  Mismatch — the net amount does not match the order ledger paid total. Investigate before trusting
+                  Mismatch. The net amount does not match the order ledger paid total. Investigate before trusting
                   revenue totals for this range.
                 </Alert>
               )}

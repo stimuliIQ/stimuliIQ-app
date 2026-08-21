@@ -38,8 +38,8 @@ describe("DeadlineRemindersScheduler", () => {
     notifSvc = { notifyDeadline: jest.fn().mockResolvedValue(undefined) };
     registry = makeSchedulerRegistry();
 
-    // qa-engineer Wave 5 (docs/plans/phase-9-completion.md T41 item 1 — cold-validateEnv
-    // test-hygiene): scanAndNotify() (and onModuleInit()) call the REAL validateEnv() —
+    // qa-engineer Wave 5 (docs/plans/phase-9-completion.md T41 item 1, cold-validateEnv
+    // test-hygiene): scanAndNotify() (and onModuleInit()) call the REAL validateEnv(),
     // without this, every test here only passed if an earlier spec in the same Jest
     // worker had already warmed the cache via ambient exported env vars (DATABASE_URL
     // etc. have no schema default). See test/unit-mocks/minimal-env.ts's header.

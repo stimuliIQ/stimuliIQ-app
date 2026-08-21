@@ -9,7 +9,7 @@ import {
 } from "./sentry";
 
 // REQUIRED_ENV mirrors the pattern used by every other provider-module spec (e.g.
-// mail-provider.spec.ts) — the minimal set of vars `validateEnv()` requires with no
+// mail-provider.spec.ts), the minimal set of vars `validateEnv()` requires with no
 // default, needed here only because `initSentry()` now calls `isProductionEnv()` (which
 // defaults to `validateEnv()`) to decide whether to warn on a missing SENTRY_DSN.
 const REQUIRED_ENV: Record<string, string> = {
@@ -23,7 +23,7 @@ const REQUIRED_ENV: Record<string, string> = {
 
 /**
  * `process.env.X = undefined` coerces to the literal STRING "undefined" (env vars can
- * only ever be strings in Node) rather than deleting the key — a real footgun in afterEach
+ * only ever be strings in Node) rather than deleting the key, a real footgun in afterEach
  * cleanup that silently leaks a bogus value into whichever spec file runs next in the
  * same Jest worker's shared `process.env`. Always restore via this helper instead of a
  * bare assignment.
@@ -36,7 +36,7 @@ function restoreEnvVar(key: string, value: string | undefined): void {
   }
 }
 
-describe("scrubSentryEvent — AC-43 PII scrubbing", () => {
+describe("scrubSentryEvent, AC-43 PII scrubbing", () => {
   it("strips the Authorization and Cookie request headers outright", () => {
     const event: ErrorEvent = {
       type: undefined,
@@ -102,14 +102,14 @@ describe("scrubSentryEvent — AC-43 PII scrubbing", () => {
   });
 });
 
-describe("initSentry / captureException — no-op-safety", () => {
+describe("initSentry / captureException, no-op-safety", () => {
   const originalDsn = process.env.SENTRY_DSN;
   const originalNodeEnv = process.env.NODE_ENV;
   const originalAppEnv = process.env.APP_ENV;
 
   afterEach(() => {
     // NOTE: `process.env.X = undefined` coerces to the STRING "undefined" in Node (env
-    // vars can only ever be strings) — always `delete` rather than assign `undefined`,
+    // vars can only ever be strings), always `delete` rather than assign `undefined`,
     // or a later spec file sharing this Jest worker's process.env will fail schema
     // validation on a literal "undefined" string.
     restoreEnvVar("SENTRY_DSN", originalDsn);
@@ -139,7 +139,7 @@ describe("initSentry / captureException — no-op-safety", () => {
   });
 });
 
-describe("initSentry — T4/B11: loud WARN when SENTRY_DSN is unset in production", () => {
+describe("initSentry, T4/B11: loud WARN when SENTRY_DSN is unset in production", () => {
   const originalDsn = process.env.SENTRY_DSN;
   const originalNodeEnv = process.env.NODE_ENV;
   const originalAppEnv = process.env.APP_ENV;

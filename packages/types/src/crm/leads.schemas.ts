@@ -96,7 +96,7 @@ export const CreateLeadRequestSchema = z
     phone: PhoneSchema,
     email: z.string().email().max(254).optional(),
     programInterestId: UuidSchema.optional().describe(
-      "FK to programs.id — the program this lead is interested in.",
+      "FK to programs.id. The program this lead is interested in.",
     ),
     source: z
       .string()

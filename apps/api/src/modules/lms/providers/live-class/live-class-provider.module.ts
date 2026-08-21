@@ -82,7 +82,7 @@ function createLiveClassProvider(): LiveClassProvider {
     construct: () => LiveClassProvider,
   ): LiveClassProvider => {
     if (missing.length === 0) {
-      bootLogger.log(`[LiveClassProviderModule] LIVE_CLASS_PROVIDER=${selector} — binding ${adapterName}.`);
+      bootLogger.log(`[LiveClassProviderModule] LIVE_CLASS_PROVIDER=${selector}, binding ${adapterName}.`);
       return construct();
     }
     if (isProd) {
@@ -95,7 +95,7 @@ function createLiveClassProvider(): LiveClassProvider {
     }
     bootLogger.warn(
       `[LiveClassProviderModule] LIVE_CLASS_PROVIDER=${selector} but ${missing.join(", ")} ` +
-        `is not set (non-production). Falling back to NoopLiveClassProvider — meetings are FAKE. ` +
+        `is not set (non-production). Falling back to NoopLiveClassProvider, meetings are FAKE. ` +
         `Set these before deploying to staging/prod.`,
     );
     return new NoopLiveClassProvider();
@@ -130,7 +130,7 @@ function createLiveClassProvider(): LiveClassProvider {
       // with NO production boot-throw — no Zoom/Meet credentials are required. The
       // live-class API endpoints remain registered but dormant (no UI ever calls them).
       bootLogger.log(
-        "[LiveClassProviderModule] LIVE_CLASS_PROVIDER=disabled — Live Classes feature is off. " +
+        "[LiveClassProviderModule] LIVE_CLASS_PROVIDER=disabled. Live Classes feature is off. " +
           "Binding NoopLiveClassProvider (endpoints dormant, not surfaced in any app).",
       );
       return new NoopLiveClassProvider();
@@ -139,14 +139,14 @@ function createLiveClassProvider(): LiveClassProvider {
       if (isProd) {
         throw new Error(
           "[LiveClassProviderModule] LIVE_CLASS_PROVIDER=noop in a production environment. " +
-            "This would create FAKE meetings — students would receive links to nowhere. " +
+            "This would create FAKE meetings. Students would receive links to nowhere. " +
             "Set LIVE_CLASS_PROVIDER=zoom or LIVE_CLASS_PROVIDER=google_meet with real " +
             "credentials for production. The application will NOT start with " +
             "LIVE_CLASS_PROVIDER=noop in production.",
         );
       }
       bootLogger.warn(
-        "[LiveClassProviderModule] LIVE_CLASS_PROVIDER=noop — binding NoopLiveClassProvider. " +
+        "[LiveClassProviderModule] LIVE_CLASS_PROVIDER=noop, binding NoopLiveClassProvider. " +
           "Meetings/join URLs are FAKE. Set LIVE_CLASS_PROVIDER=zoom or " +
           "LIVE_CLASS_PROVIDER=google_meet with real credentials for production/staging.",
       );
@@ -160,7 +160,7 @@ function createLiveClassProvider(): LiveClassProvider {
         );
       }
       bootLogger.warn(
-        `[LiveClassProviderModule] Unrecognised LIVE_CLASS_PROVIDER='${selector}' — ` +
+        `[LiveClassProviderModule] Unrecognised LIVE_CLASS_PROVIDER='${selector}' - ` +
           "falling back to NoopLiveClassProvider (non-production). " +
           "Valid values: noop | zoom | google_meet.",
       );

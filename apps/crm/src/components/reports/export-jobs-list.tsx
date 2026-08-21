@@ -43,10 +43,10 @@ export function ExportJobsList(): React.JSX.Element {
     {
       id: "rowCount",
       header: "Rows",
-      cell: (row) => (row.rowCount === null ? "—" : row.rowCount.toLocaleString("en-IN")),
+      cell: (row) => (row.rowCount === null ? "-" : row.rowCount.toLocaleString("en-IN")),
       align: "right",
     },
-    { id: "requestedBy", header: "Requested by", cell: (row) => row.requestedByName ?? "—" },
+    { id: "requestedBy", header: "Requested by", cell: (row) => row.requestedByName ?? "-" },
     {
       id: "requestedAt",
       header: "Requested",
@@ -88,7 +88,7 @@ export function ExportJobsList(): React.JSX.Element {
     <div className="flex flex-col gap-6" data-testid="export-jobs-list">
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm text-fg-muted">
-          On-demand CSV/PDF exports you've triggered. Large exports run as a background job — this
+          On-demand CSV/PDF exports you've triggered. Large exports run as a background job, this
           table refreshes automatically while a job is queued or running.
         </p>
         <Button onClick={() => setCreateOpen(true)} data-testid="export-jobs-create-button">

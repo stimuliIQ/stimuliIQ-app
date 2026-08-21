@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 import { StickyBuyCard, MobileBuyBar } from "./sticky-buy-card";
 
-describe("StickyBuyCard — rendering", () => {
+describe("StickyBuyCard, rendering", () => {
   it("renders with default data-testid='sticky-buy-card'", () => {
     render(<StickyBuyCard priceDisplay="₹12,999" />);
     expect(screen.getByTestId("sticky-buy-card")).toBeInTheDocument();
@@ -65,7 +65,7 @@ describe("StickyBuyCard — rendering", () => {
   });
 });
 
-describe("StickyBuyCard — a11y", () => {
+describe("StickyBuyCard, a11y", () => {
   it("has aria-label on the aside", () => {
     render(<StickyBuyCard priceDisplay="₹12,999" />);
     expect(screen.getByRole("complementary", { name: "Program enrollment" })).toBeInTheDocument();
@@ -78,7 +78,7 @@ describe("StickyBuyCard — a11y", () => {
   });
 });
 
-describe("MobileBuyBar — rendering", () => {
+describe("MobileBuyBar, rendering", () => {
   it("renders with default data-testid='mobile-buy-bar'", () => {
     render(<MobileBuyBar priceDisplay="₹12,999" />);
     expect(screen.getByTestId("mobile-buy-bar")).toBeInTheDocument();

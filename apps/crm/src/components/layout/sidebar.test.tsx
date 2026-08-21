@@ -5,7 +5,7 @@
 // iPad, so the section's click handler must open it on EVERY device, and the
 // hover handler must exist only where `(hover: hover) and (pointer: fine)`
 // matches. jsdom's `matchMedia` stub answers `false` to everything (see
-// src/test/setup.ts), which makes the default render here a touch device — so
+// src/test/setup.ts), which makes the default render here a touch device, so
 // "click opens it" is tested against the harder case, and the hover case opts
 // in by overriding the stub.
 import * as React from "react";
@@ -40,8 +40,8 @@ const ADMIN_ME: MeResponse = {
   },
   tenantId: "t-1",
   roles: ["super_admin"],
-  // There is no wildcard grant in `hasPermission` — it compares keys literally
-  // (see lib/permissions.ts) — so a super_admin fixture has to name the keys the
+  // There is no wildcard grant in `hasPermission`, it compares keys literally
+  // (see lib/permissions.ts), so a super_admin fixture has to name the keys the
   // assertions below reach for.
   permissions: [
     { key: "students.view", scope: "all" },
@@ -85,7 +85,7 @@ function renderSidebar(overrides: Partial<React.ComponentProps<typeof Sidebar>> 
   return { ...view, onCloseMobile, onToggleCollapsed };
 }
 
-/** Makes `(hover: hover) and (pointer: fine)` match — i.e. pretend to be a mouse. */
+/** Makes `(hover: hover) and (pointer: fine)` match, i.e. pretend to be a mouse. */
 function pretendMousePointer(): void {
   vi.spyOn(window, "matchMedia").mockImplementation(
     (query: string) =>
@@ -111,7 +111,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("Sidebar — opening a section", () => {
+describe("Sidebar, opening a section", () => {
   it("keeps every submenu closed until something opens it", () => {
     renderSidebar();
     expect(screen.queryByTestId("nav-panel-academics")).not.toBeInTheDocument();
@@ -127,7 +127,7 @@ describe("Sidebar — opening a section", () => {
     expect(within(panel).getByTestId("nav-leaf-assessments")).toBeInTheDocument();
   });
 
-  it("does NOT open on hover on a touch device — a coarse pointer fires spurious mouseenter", () => {
+  it("does NOT open on hover on a touch device, a coarse pointer fires spurious mouseenter", () => {
     renderSidebar();
     fireEvent.mouseEnter(screen.getByTestId("nav-section-academics").parentElement!);
     expect(screen.queryByTestId("nav-panel-academics")).not.toBeInTheDocument();
@@ -193,11 +193,11 @@ describe("Sidebar — opening a section", () => {
       vi.advanceTimersByTime(200);
     });
     fireEvent.mouseLeave(item);
-    // Still open inside the grace window — this is what stops the panel
+    // Still open inside the grace window, this is what stops the panel
     // vanishing when the pointer clips a neighbouring row on the way in.
     expect(screen.getByTestId("nav-panel-academics")).toBeInTheDocument();
 
-    // `act` because the close is a `setTimeout` callback — React does not flush a
+    // `act` because the close is a `setTimeout` callback, React does not flush a
     // state update fired from a raw timer without it.
     act(() => {
       vi.advanceTimersByTime(300);
@@ -227,7 +227,7 @@ describe("Sidebar — opening a section", () => {
   });
 });
 
-describe("Sidebar — dismissing", () => {
+describe("Sidebar, dismissing", () => {
   it("Escape closes the flyout", () => {
     renderSidebar();
     fireEvent.click(screen.getByTestId("nav-section-academics"));
@@ -266,7 +266,7 @@ describe("Sidebar — dismissing", () => {
   });
 });
 
-describe("Sidebar — RBAC gating", () => {
+describe("Sidebar, RBAC gating", () => {
   it("hides sections the viewer holds no permission for", () => {
     renderSidebar({ me: LEADS_ONLY_ME });
 
@@ -284,7 +284,7 @@ describe("Sidebar — RBAC gating", () => {
   });
 });
 
-describe("Sidebar — active route", () => {
+describe("Sidebar, active route", () => {
   it("marks the active leaf and its parent section", () => {
     renderSidebar();
     fireEvent.click(screen.getByTestId("nav-section-academics"));
@@ -295,7 +295,7 @@ describe("Sidebar — active route", () => {
   });
 });
 
-describe("Sidebar — accessibility", () => {
+describe("Sidebar, accessibility", () => {
   it("has no axe violations with a flyout open", async () => {
     const { container } = renderSidebar();
     fireEvent.click(screen.getByTestId("nav-section-academics"));
@@ -334,7 +334,7 @@ describe("Sidebar — accessibility", () => {
   });
 });
 
-describe("Sidebar — the collapse control", () => {
+describe("Sidebar, the collapse control", () => {
   it("sits at the top: expanded shows the collapse chevron beside the wordmark", () => {
     const { onToggleCollapsed } = renderSidebar({ collapsed: false });
 
@@ -356,7 +356,7 @@ describe("Sidebar — the collapse control", () => {
     expect(onToggleCollapsed).toHaveBeenCalled();
   });
 
-  it("keeps the collapse control out of the nav list — no footer row", () => {
+  it("keeps the collapse control out of the nav list, no footer row", () => {
     const { container } = renderSidebar({ collapsed: false });
     const nav = container.querySelector("nav")!;
 
@@ -365,7 +365,7 @@ describe("Sidebar — the collapse control", () => {
   });
 });
 
-describe("Sidebar — the rail tooltip", () => {
+describe("Sidebar, the rail tooltip", () => {
   it("labels a rail icon on hover, anchored to the row rather than floating free", () => {
     pretendMousePointer();
     renderSidebar({ collapsed: true });
@@ -378,7 +378,7 @@ describe("Sidebar — the rail tooltip", () => {
     const tip = screen.getByTestId("nav-tooltip-search-engine");
     expect(tip).toHaveTextContent("Search Engine");
     expect(tip).toHaveAttribute("role", "tooltip");
-    // A measured `top` is the whole fix — without it `position: fixed` falls back
+    // A measured `top` is the whole fix, without it `position: fixed` falls back
     // to the static position, which is the bottom of the row, not its middle.
     expect(tip.style.top).not.toBe("");
   });
@@ -390,7 +390,7 @@ describe("Sidebar — the rail tooltip", () => {
     expect(screen.getByTestId("nav-tooltip-search-engine")).toBeInTheDocument();
   });
 
-  it("shows no tooltip when the column is expanded — the label is already there", () => {
+  it("shows no tooltip when the column is expanded, the label is already there", () => {
     pretendMousePointer();
     renderSidebar({ collapsed: false });
 
@@ -402,7 +402,7 @@ describe("Sidebar — the rail tooltip", () => {
   });
 });
 
-describe("Sidebar — the mobile drawer", () => {
+describe("Sidebar, the mobile drawer", () => {
   it("stays off-canvas until it is opened", () => {
     renderSidebar({ mobileOpen: false });
     expect(screen.getByTestId("crm-sidebar").className).toContain("-left-64");
@@ -424,7 +424,7 @@ describe("Sidebar — the mobile drawer", () => {
     expect(onCloseMobile).toHaveBeenCalled();
   });
 
-  it("never animates with a transform — that would trap the fixed flyout inside the drawer", () => {
+  it("never animates with a transform, that would trap the fixed flyout inside the drawer", () => {
     renderSidebar({ mobileOpen: true });
     expect(screen.getByTestId("crm-sidebar").className).not.toMatch(/\btranslate-x-/);
   });

@@ -38,17 +38,17 @@ interface CallCenterWorkspaceProps {
 const NEXT_STEP: Record<LifecycleStage, string> = {
   new_lead: "Qualify the lead and assign an owner",
   assigned: "Make first contact and qualify",
-  contacted: "Follow up — move to won when ready",
-  interested: "Counsel and close — move to won",
+  contacted: "Follow up. Move to won when ready",
+  interested: "Counsel and close, move to won",
   registration_started: "Convert to student (full registration)",
   registered: "Assign a program + batch and create the order",
   program_assigned: "Create the order and collect payment",
-  payment_pending: "Collect payment — record it if paid offline",
-  payment_completed: "Credentials emailed — help them sign in",
-  active_student: "Enrolled — nudge them to start learning",
-  learning_in_progress: "On track — support with course questions",
+  payment_pending: "Collect payment. Record it if paid offline",
+  payment_completed: "Credentials emailed, help them sign in",
+  active_student: "Enrolled. Nudge them to start learning",
+  learning_in_progress: "On track, support with course questions",
   course_completed: "Issue the certificate",
-  certified: "Journey complete — offer alumni support",
+  certified: "Journey complete, offer alumni support",
   lost: "Reopen the lead if interest returns",
   dropped: "Re-engage or route to the refund flow",
 };
@@ -180,7 +180,7 @@ export function CallCenterWorkspace({ me }: CallCenterWorkspaceProps): React.JSX
     <div className="space-y-4 md:space-y-5" data-testid="call-center-workspace">
       <PageHeader
         title="Search Engine"
-        description="Search by name, phone, or email — status, details, and the next step for every caller, one click from their full record."
+        description="Search by name, phone, or email. Status, details, and the next step for every caller, one click from their full record."
       />
 
       <div className="max-w-2xl">
@@ -197,7 +197,7 @@ export function CallCenterWorkspace({ me }: CallCenterWorkspaceProps): React.JSX
       {!searching ? (
         <EmptyState
           title="Start typing to find the caller"
-          description="At least 2 characters — matches students and leads on name, phone, or email."
+          description="At least 2 characters. Matches students and leads on name, phone, or email."
           data-testid="call-center-idle"
         />
       ) : isLoading ? (

@@ -12,7 +12,7 @@ interface ConfirmStepProps {
 }
 
 function formatSlot(isoString?: string): string {
-  if (!isoString) return "—";
+  if (!isoString) return "-";
   try {
     return new Date(isoString).toLocaleString("en-IN", {
       weekday: "long",

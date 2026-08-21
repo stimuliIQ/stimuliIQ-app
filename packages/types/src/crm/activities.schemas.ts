@@ -117,7 +117,7 @@ export const CreateActivityRequestSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["studentId"],
-        message: "Only one of leadId or studentId may be provided — not both.",
+        message: "Only one of leadId or studentId may be provided, not both.",
       });
     }
   });

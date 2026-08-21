@@ -36,7 +36,7 @@ const FILTERS: SegmentFilter[] = [
 // Rendering
 // ---------------------------------------------------------------------------
 
-describe("AudienceSegmentFilter — rendering", () => {
+describe("AudienceSegmentFilter, rendering", () => {
   it("renders with default data-testid='audience-segment-filter'", () => {
     render(
       <AudienceSegmentFilter
@@ -86,7 +86,7 @@ describe("AudienceSegmentFilter — rendering", () => {
 // a11y
 // ---------------------------------------------------------------------------
 
-describe("AudienceSegmentFilter — a11y", () => {
+describe("AudienceSegmentFilter, a11y", () => {
   it("each filter row is a fieldset with an accessible legend", () => {
     render(
       <AudienceSegmentFilter
@@ -128,7 +128,7 @@ describe("AudienceSegmentFilter — a11y", () => {
 // Interactions
 // ---------------------------------------------------------------------------
 
-describe("AudienceSegmentFilter — interactions", () => {
+describe("AudienceSegmentFilter, interactions", () => {
   it("calls onFilterChange with a new filter when 'Add filter' is clicked", async () => {
     const user = userEvent.setup();
     const onFilterChange = vi.fn();

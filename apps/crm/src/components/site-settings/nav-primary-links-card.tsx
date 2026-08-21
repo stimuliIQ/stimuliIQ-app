@@ -10,7 +10,7 @@ export function NavPrimaryLinksCard({ canEdit }: { canEdit: boolean }): React.JS
   return (
     <SiteSettingCard
       title="Top menu links"
-      description="The links shown in your website's header — 1 to 12 of them."
+      description="The links shown in your website's header. 1 to 12 of them."
       settingKey="nav.primary_links"
       valueSchema={NavPrimaryLinksValueSchema}
       canEdit={canEdit}

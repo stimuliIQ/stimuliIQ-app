@@ -156,8 +156,8 @@ export function NotificationBell({
         data-testid={testId ?? "notification-bell"}
         aria-label={
           unreadCount > 0
-            ? `Notifications — ${unreadCount} unread`
-            : "Notifications — none unread"
+            ? `Notifications · ${unreadCount} unread`
+            : "Notifications, none unread"
         }
         aria-haspopup="true"
         aria-expanded={open}

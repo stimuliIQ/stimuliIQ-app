@@ -3,7 +3,7 @@
 // The property under test is the one that changed shape: `assessments.module_id` is a required
 // FK, and this form used to ask for it as a raw uuid typed into a text box. Staff do not know
 // module uuids, so the field is now two dependent dropdowns. What matters is that the cascade
-// cannot emit an incoherent pair — a module from a course other than the one selected — and
+// cannot emit an incoherent pair, a module from a course other than the one selected, and
 // that a course with no modules says so instead of rendering an empty, unexplained dropdown.
 //
 // Mirrors assignment-form-drawer.test.tsx deliberately; the two cascades differ only in the
@@ -20,7 +20,7 @@ import { AssessmentFormDrawer } from "./assessment-form-drawer";
 
 // Radix's Select is driven by pointer events jsdom does not implement, and this form can't be
 // submitted without the two pickers. Swap ONLY Select/SelectItem for native equivalents (the
-// established pattern — see assignment-form-drawer.test.tsx); every other @repo/ui component
+// established pattern, see assignment-form-drawer.test.tsx); every other @repo/ui component
 // stays real, so the form under test is still the actual form.
 vi.mock("@repo/ui", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@repo/ui")>();
@@ -83,10 +83,10 @@ const CARDIO_MODULE = "44444444-4444-4444-8444-444444444444";
 const CURRICULA: Record<string, { programId: string; modules: unknown[] }> = {
   [NEURO.id]: {
     programId: NEURO.id,
-    // Deliberately out of order — the picker has to present teaching order, not fetch order.
+    // Deliberately out of order, the picker has to present teaching order, not fetch order.
     modules: [
-      { id: "m-late", title: "Week 2 — Stroke", order: 1, lessons: [] },
-      { id: NEURO_MODULE, title: "Week 1 — Foundations", order: 0, lessons: [] },
+      { id: "m-late", title: "Week 2, Stroke", order: 1, lessons: [] },
+      { id: NEURO_MODULE, title: "Week 1, Foundations", order: 0, lessons: [] },
     ],
   },
   [CARDIO.id]: {
@@ -135,7 +135,7 @@ beforeEach(() => {
   updateAssessmentMock.mockReset().mockResolvedValue({});
 });
 
-describe("AssessmentFormDrawer — course → module cascade", () => {
+describe("AssessmentFormDrawer, course → module cascade", () => {
   it("asks for a course and a module, never a raw id", () => {
     renderDrawer();
     expect(screen.getByTestId("assessment-form-course")).toBeInTheDocument();
@@ -163,7 +163,7 @@ describe("AssessmentFormDrawer — course → module cascade", () => {
     )
       .map((o) => o.textContent)
       .filter((t) => t && !t.startsWith("Choose"));
-    expect(options).toEqual(["Week 1 — Foundations", "Week 2 — Stroke"]);
+    expect(options).toEqual(["Week 1, Foundations", "Week 2, Stroke"]);
   });
 
   it("creates the assessment against the chosen module", async () => {
@@ -190,7 +190,7 @@ describe("AssessmentFormDrawer — course → module cascade", () => {
     await user.selectOptions(screen.getByTestId("assessment-form-module-id"), NEURO_MODULE);
     expect(screen.getByTestId("assessment-form-module-id")).toHaveValue(NEURO_MODULE);
 
-    // Switching course must not leave the previous course's module selected — submitting that
+    // Switching course must not leave the previous course's module selected, submitting that
     // pair is the cross-course mistake the raw-uuid field allowed silently.
     await user.selectOptions(screen.getByTestId("assessment-form-course"), CARDIO.id);
     await waitFor(() => expect(screen.getByTestId("assessment-form-module-id")).toHaveValue(""));
@@ -206,10 +206,10 @@ describe("AssessmentFormDrawer — course → module cascade", () => {
     expect(screen.getByText(/Add a module to this course/i)).toBeInTheDocument();
   });
 
-  it("submits with only the two filled choices — blank C and D are dropped, not rejected", async () => {
+  it("submits with only the two filled choices, blank C and D are dropped, not rejected", async () => {
     // REGRESSION. The form renders four choice rows but seeded ids for only two, so every
     // submit carried `{ text: "" }` entries with no `id`. zod rejected them at
-    // `questions.0.options.2.id` — a path no field is bound to, so nothing rendered and the
+    // `questions.0.options.2.id`, a path no field is bound to, so nothing rendered and the
     // drawer simply never submitted. Creating an MCQ assessment was impossible.
     const user = userEvent.setup();
     renderDrawer();
@@ -253,7 +253,7 @@ describe("AssessmentFormDrawer — course → module cascade", () => {
   it("submits untimed when the optional time limit is left blank", async () => {
     // REGRESSION. `timeLimitS` registered both `valueAsNumber` and `setValueAs`; RHF honours
     // the former, so an untouched field arrived as NaN and `z.number().nullable().optional()`
-    // rejected it — the optional field failed precisely by being left alone.
+    // rejected it, the optional field failed precisely by being left alone.
     const user = userEvent.setup();
     renderDrawer();
 

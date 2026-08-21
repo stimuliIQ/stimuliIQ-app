@@ -1,7 +1,7 @@
 // apps/api/src/modules/marketing-targets/marketing-targets.service.spec.ts
 //
 // The service's whole job is assembling a goal with progress that is recomputed every time,
-// so these tests are about the JOINS BETWEEN those pieces rather than about arithmetic —
+// so these tests are about the JOINS BETWEEN those pieces rather than about arithmetic,
 // `summariseTargetMetric` is unit-tested in @repo/types, and re-testing it here would only
 // pin the same sums twice.
 //
@@ -95,7 +95,7 @@ describe("MarketingTargetsService", () => {
       expect(result.progress.setByName).toBe("Owner");
     });
 
-    it("asks the aggregates for [1st, next 1st) — the last day in, the next month out", async () => {
+    it("asks the aggregates for [1st, next 1st), the last day in, the next month out", async () => {
       repo.findUserById.mockResolvedValue(user(RAHUL, "Rahul"));
 
       await service.getMine(TENANT, RAHUL, "2026-03");
@@ -234,7 +234,7 @@ describe("MarketingTargetsService", () => {
       expect(repo.upsert).toHaveBeenCalledWith(expect.objectContaining({ note: null }));
     });
 
-    it("404s for a user in another tenant — never 403, which would confirm they exist", async () => {
+    it("404s for a user in another tenant, never 403, which would confirm they exist", async () => {
       repo.findUserById.mockResolvedValue(null);
       await expect(
         service.upsert(TENANT, OWNER, {

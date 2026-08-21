@@ -51,7 +51,7 @@ describe("Two-factor / password-reset controllers permission catalog", () => {
 
   it('"twofa.reset" (admin rescue) is registered in the seed catalog and granted', () => {
     expect(seedSource).toMatch(/key:\s*"twofa\.reset"/);
-    // Catalog entry + at least one grant — a permission granted to nobody is a dead route.
+    // Catalog entry + at least one grant, a permission granted to nobody is a dead route.
     expect((seedSource.match(/"twofa\.reset"/g) ?? []).length).toBeGreaterThanOrEqual(2);
   });
 
@@ -65,13 +65,13 @@ describe("Two-factor / password-reset controllers permission catalog", () => {
     expect(clearSection).not.toMatch(/@RequirePermission\("twofa\.manage"\)/);
   });
 
-  it("TwoFactorRecoveryController declares NO @RequirePermission (unauthenticated — the caller cannot log in)", () => {
+  it("TwoFactorRecoveryController declares NO @RequirePermission (unauthenticated, the caller cannot log in)", () => {
     const recoverySource = readFileSync(resolve(__dirname, "./two-factor-recovery.controller.ts"), "utf8");
     expect(recoverySource).not.toMatch(/@RequirePermission\(/);
   });
 
   it("both 2FA recovery routes are CSRF-excluded (no session cookie exists pre-auth)", () => {
-    // A CSRF-guarded route here would 403 every legitimate caller — they have no session,
+    // A CSRF-guarded route here would 403 every legitimate caller, they have no session,
     // so no CSRF cookie was ever issued. Same posture as auth/password-reset/*.
     const appModuleSource = readFileSync(resolve(__dirname, "../../app.module.ts"), "utf8");
     expect(appModuleSource).toContain('"auth/2fa/recovery/request"');
@@ -84,7 +84,7 @@ describe("Two-factor / password-reset controllers permission catalog", () => {
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("Two-factor permission catalog — live seeded DB", () => {
+describeIfDb("Two-factor permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {
@@ -100,7 +100,7 @@ describeIfDb("Two-factor permission catalog — live seeded DB", () => {
     // A FAILURE HERE ON AN ESTABLISHED DATABASE IS EXPECTED AND ACTIONABLE, not a code
     // bug: `twofa.reset` is new, and a permission missing from this table can be granted
     // to nobody, so POST /crm/admin/users/:id/two-factor/clear 403s for everyone
-    // (fail-closed — a functional gap, not a hole). CI is green because it builds its DB
+    // (fail-closed, a functional gap, not a hole). CI is green because it builds its DB
     // with the full `pnpm db:seed`, which now defines the key. To fix a live/existing
     // database WITHOUT injecting demo fixtures, run: pnpm db:seed:twofa-reset
     expect(permission).not.toBeNull();

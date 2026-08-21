@@ -62,7 +62,7 @@ describe("ZodValidationPipe", () => {
 
   it("passes a @Param() path segment through untouched when bound at the method level alongside a body schema", () => {
     // Reproduces the second defect class: POST :id/modules combines a method-level
-    // @UsePipes(CreateModuleRequestSchema) with @Param("id", new ParseUUIDPipe()) — the
+    // @UsePipes(CreateModuleRequestSchema) with @Param("id", new ParseUUIDPipe()), the
     // path param's UUID string must never be run through the body schema.
     const pipe = new ZodValidationPipe(CreateStudentRequestSchema);
     const programId = "ab6c0b9d-3b3f-4c73-ade2-48efbf354afc";
@@ -74,7 +74,7 @@ describe("ZodValidationPipe", () => {
 
   it("would have rejected a @CurrentUser() payload as 'Unrecognized key(s)' before the fix (regression guard)", () => {
     // Sanity check that the schema itself is strict enough to reproduce the original bug
-    // if the metadata.type guard were ever removed — i.e. this proves the test is
+    // if the metadata.type guard were ever removed, i.e. this proves the test is
     // actually exercising the bug class, not a no-op schema.
     const strictSchema = CreateStudentRequestSchema.strict();
     const requestUser = {

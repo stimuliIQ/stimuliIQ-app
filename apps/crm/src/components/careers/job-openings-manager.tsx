@@ -135,7 +135,7 @@ export function JobOpeningsManager({ me }: { me: MeResponse | undefined }): Reac
       header: "Applicants",
       align: "right",
       cell: (row) => {
-        if (row.applicationCount === 0) return <span className="text-xs text-fg-subtle">—</span>;
+        if (row.applicationCount === 0) return <span className="text-xs text-fg-subtle">-</span>;
         return (
           <Link
             to="/careers/applications"
@@ -302,7 +302,7 @@ export function JobOpeningsManager({ me }: { me: MeResponse | undefined }): Reac
         title={`Close "${closing?.title ?? ""}"?`}
         description={
           closing && closing.pendingApplicationCount > 0
-            ? `It comes off the website immediately. ${closing.pendingApplicationCount} application${closing.pendingApplicationCount === 1 ? "" : "s"} still awaiting a decision will stay in your queue — closing the advert does not decide them.`
+            ? `It comes off the website immediately. ${closing.pendingApplicationCount} application${closing.pendingApplicationCount === 1 ? "" : "s"} still awaiting a decision will stay in your queue. Closing the advert does not decide them.`
             : "It comes off the website immediately. Its applications are kept, and you can publish it again next time you hire for this role."
         }
         confirmLabel="Close opening"
@@ -318,7 +318,7 @@ export function JobOpeningsManager({ me }: { me: MeResponse | undefined }): Reac
         description={
           deleting && deleting.applicationCount > 0
             ? `This opening has ${deleting.applicationCount} application${deleting.applicationCount === 1 ? "" : "s"}. They are kept and still show what each person applied for, but they will no longer be grouped under this role. If you have simply finished hiring, close it instead.`
-            : "Use this only for an advert posted by mistake. If you have finished hiring, close it instead — that keeps it for next time."
+            : "Use this only for an advert posted by mistake. If you have finished hiring, close it instead. That keeps it for next time."
         }
         confirmLabel="Delete"
         tone="danger"

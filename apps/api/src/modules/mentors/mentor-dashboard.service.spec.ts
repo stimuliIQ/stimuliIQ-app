@@ -1,12 +1,12 @@
 // apps/api/src/modules/mentors/mentor-dashboard.service.spec.ts
 //
 // Unit tests for MentorDashboardService (WS-4, docs/specs/phase-8-mentor.md). Covers:
-//   AC-46/47/48 — cross-batch/cross-mentor/cross-tenant isolation (IDOR -> empty/404 via
+//   AC-46/47/48, cross-batch/cross-mentor/cross-tenant isolation (IDOR -> empty/404 via
 //     the reused BatchCompletionService.getSummary scope check).
-//   AC-49/Rule M-4 — engagementStatus re-checked LIVE every request (403 when not active
+//   AC-49/Rule M-4, engagementStatus re-checked LIVE every request (403 when not active
 //     or when no mentor profile is linked).
-//   AC-50 — each card is sourced from the SAME rollup CRM staff use.
-//   AC-51 — zero assignments is a valid empty state (200), not an error.
+//   AC-50, each card is sourced from the SAME rollup CRM staff use.
+//   AC-51, zero assignments is a valid empty state (200), not an error.
 
 import { ForbiddenException } from "@nestjs/common";
 import { MentorDashboardService } from "./mentor-dashboard.service";
@@ -88,7 +88,7 @@ describe("MentorDashboardService", () => {
   });
 
   describe("AC-51: zero assignments is a valid empty state", () => {
-    it("returns 200 with batches: [] — not an error", async () => {
+    it("returns 200 with batches: [], not an error", async () => {
       mentorsRepo.findOwnProfile.mockResolvedValue({ id: "mentor-1", fullName: "Dr. Ramesh", engagementStatus: "active" });
       mentorsRepo.listActiveAssignedBatches.mockResolvedValue([]);
 

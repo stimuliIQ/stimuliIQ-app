@@ -74,7 +74,7 @@ export class TwoFactorRecoveryService {
     if (limited) {
       // Same generic 200 — a distinguishable rate-limit response would itself be an
       // enumeration oracle ("this address gets a lot of recovery traffic").
-      this.logger.warn("[TwoFactorRecovery] request rate-limited — skipping send.");
+      this.logger.warn("[TwoFactorRecovery] request rate-limited, skipping send.");
       return { message: GENERIC_MESSAGE };
     }
 
@@ -102,7 +102,7 @@ export class TwoFactorRecoveryService {
                 "Once two-factor authentication is off, sign in with your password and enrol a new authenticator app straight away.",
               ],
               footnote:
-                "If you did not request this, ignore this email — your two-factor authentication stays on. Someone knowing your password is enough to trigger this email, so if you were not expecting it, change your password now.",
+                "If you did not request this, ignore this email. Your two-factor authentication stays on. Someone knowing your password is enough to trigger this email, so if you were not expecting it, change your password now.",
             }),
             tags: [{ name: "category", value: "two_factor_recovery" }],
           });

@@ -143,7 +143,7 @@ export function LeaderboardTable({
           >
             <caption className="sr-only">
               Leaderboard showing opted-in students ranked by points.
-              display names only — no personal contact information is shown.
+              display names only. No personal contact information is shown.
             </caption>
             <thead className="bg-surface">
               <tr className="border-b border-border">

@@ -10,7 +10,7 @@ export function FooterCopyrightCard({ canEdit }: { canEdit: boolean }): React.JS
   return (
     <SiteSettingCard
       title="Footer copyright text"
-      description='Must contain the literal placeholder "{year}" — replaced with the current year at render time.'
+      description='Must contain the literal placeholder "{year}". Replaced with the current year at render time.'
       settingKey="footer.copyright_text"
       valueSchema={FooterCopyrightTextValueSchema}
       canEdit={canEdit}

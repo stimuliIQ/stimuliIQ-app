@@ -215,15 +215,15 @@ export function LeaveApplyDrawer({ open, onOpenChange, context }: LeaveApplyDraw
 
             {exceedsBalance ? (
               <Alert tone="warning" data-testid="leave-apply-over-balance">
-                This is more than you have left. You can still send it, but it will probably be turned down —
-                have a word with your admin first.
+                This is more than you have left. You can still send it, but it will probably be turned down.
+                Have a word with your admin first.
               </Alert>
             ) : null}
 
             <Textarea
               label="Reason"
               rows={3}
-              placeholder="A line is enough — your admin sees this."
+              placeholder="A line is enough, your admin sees this."
               error={form.formState.errors.reason?.message}
               data-testid="leave-apply-reason"
               {...form.register("reason")}

@@ -1,6 +1,6 @@
 // apps/api/src/modules/audit/audit.service.spec.ts
 //
-// Unit tests for AuditService — read-only filter pass-through and DTO mapping (no scope
+// Unit tests for AuditService, read-only filter pass-through and DTO mapping (no scope
 // resolution needed: audit_logs.view is seeded at scope=all only).
 
 import { AuditService } from "./audit.service";
@@ -52,7 +52,7 @@ describe("AuditService", () => {
     expect(result.items[0]?.before).toEqual({ status: "planned" });
   });
 
-  it("never re-redacts before/after — passes them through exactly as written by the audit extension", async () => {
+  it("never re-redacts before/after, passes them through exactly as written by the audit extension", async () => {
     repo.list.mockResolvedValue({ rows: [{ ...ROW, before: null, after: { secret: "should-not-happen" } }], total: 1 });
 
     const result = await service.list("tenant-1", { page: 1, pageSize: 20 });

@@ -83,7 +83,7 @@ export function EnrollmentTrendDashboard({ me }: EnrollmentTrendDashboardProps):
           <div className="grid max-w-xs grid-cols-1 gap-4">
             <KpiCard
               label={`Total enrollments (${range.from} to ${range.to})`}
-              value={data ? data.total : "—"}
+              value={data ? data.total : "-"}
               icon={<UserPlus />}
               loading={isLoading}
               data-testid="enrollment-total-kpi"

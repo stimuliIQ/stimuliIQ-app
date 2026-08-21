@@ -9,7 +9,7 @@ const logos = [
   { name: "Wipro", src: "/logos/wipro.svg" },
 ];
 
-describe("LogoWall — rendering", () => {
+describe("LogoWall, rendering", () => {
   it("renders with default data-testid='logo-wall'", () => {
     render(<LogoWall logos={logos} />);
     expect(screen.getByTestId("logo-wall")).toBeInTheDocument();
@@ -36,7 +36,7 @@ describe("LogoWall — rendering", () => {
   });
 });
 
-describe("LogoWall — a11y", () => {
+describe("LogoWall, a11y", () => {
   it("has a <section> with aria-label", () => {
     render(<LogoWall logos={logos} heading="Our Partners" />);
     expect(screen.getByRole("region", { name: "Our Partners" })).toBeInTheDocument();

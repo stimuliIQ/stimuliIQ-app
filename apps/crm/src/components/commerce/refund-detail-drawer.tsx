@@ -79,7 +79,7 @@ export function RefundDetailDrawer({ refundId, onOpenChange, canApprove }: Refun
     <>
       <Drawer open={open} onOpenChange={onOpenChange}>
         <DrawerContent
-          title={refund ? `Refund — ${formatPaise(refund.amountPaise)}` : "Refund"}
+          title={refund ? `Refund · ${formatPaise(refund.amountPaise)}` : "Refund"}
           description={refund?.studentName}
           size="lg"
           data-testid="refund-detail-drawer"
@@ -138,19 +138,19 @@ export function RefundDetailDrawer({ refundId, onOpenChange, canApprove }: Refun
                 </div>
                 <div>
                   <dt className="text-fg-muted">Requested by</dt>
-                  <dd className="mt-1 text-fg">{refund.requestedByName ?? "—"}</dd>
+                  <dd className="mt-1 text-fg">{refund.requestedByName ?? "-"}</dd>
                 </div>
                 <div>
                   <dt className="text-fg-muted">Approved by</dt>
-                  <dd className="mt-1 text-fg">{refund.approvedByName ?? "—"}</dd>
+                  <dd className="mt-1 text-fg">{refund.approvedByName ?? "-"}</dd>
                 </div>
                 <div>
                   <dt className="text-fg-muted">Provider refund id</dt>
-                  <dd className="mt-1 text-fg">{refund.providerRefundId ?? "—"}</dd>
+                  <dd className="mt-1 text-fg">{refund.providerRefundId ?? "-"}</dd>
                 </div>
                 <div>
                   <dt className="text-fg-muted">Processed at</dt>
-                  <dd className="mt-1 text-fg">{refund.processedAt ? new Date(refund.processedAt).toLocaleString() : "—"}</dd>
+                  <dd className="mt-1 text-fg">{refund.processedAt ? new Date(refund.processedAt).toLocaleString() : "-"}</dd>
                 </div>
                 <div>
                   <dt className="text-fg-muted">Requested</dt>
@@ -190,7 +190,7 @@ export function RefundDetailDrawer({ refundId, onOpenChange, canApprove }: Refun
       />
 
       <Drawer open={rejectOpen} onOpenChange={(next) => { setRejectOpen(next); if (!next) setRejectReason(""); }}>
-        <DrawerContent title="Reject this refund?" description="This is terminal — no provider call will be issued." size="sm" data-testid="refund-reject-drawer">
+        <DrawerContent title="Reject this refund?" description="This is terminal. No provider call will be issued." size="sm" data-testid="refund-reject-drawer">
           <DrawerBody className="flex flex-col gap-4">
             <Input
               label="Reason"

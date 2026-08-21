@@ -51,7 +51,7 @@ export class BatchAutoCloseScheduler implements OnModuleInit, OnApplicationShutd
     const env = validateEnv();
     if (!isSchedulerEnabled(env)) {
       this.logger.log(
-        "[BatchAutoCloseScheduler] SCHEDULER_ENABLED is false (or NODE_ENV=test) — auto-close interval NOT registered.",
+        "[BatchAutoCloseScheduler] SCHEDULER_ENABLED is false (or NODE_ENV=test), auto-close interval NOT registered.",
       );
       return;
     }
@@ -61,7 +61,7 @@ export class BatchAutoCloseScheduler implements OnModuleInit, OnApplicationShutd
     }, DEFAULT_INTERVAL_MS);
     timer.unref?.();
     this.schedulerRegistry.addInterval(INTERVAL_NAME, timer);
-    this.logger.log(`[BatchAutoCloseScheduler] registered — sweeping every ${DEFAULT_INTERVAL_MS}ms.`);
+    this.logger.log(`[BatchAutoCloseScheduler] registered, sweeping every ${DEFAULT_INTERVAL_MS}ms.`);
 
     // Sweep once at boot too: without this, a process that restarts more often than the
     // interval would never complete a full cycle, and batches that expired while it was

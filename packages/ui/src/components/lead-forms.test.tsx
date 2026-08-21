@@ -14,7 +14,7 @@ import { PHONE_PLACEHOLDER } from "../lib/phone";
 // LeadFormInline
 // ---------------------------------------------------------------------------
 
-describe("LeadFormInline — rendering", () => {
+describe("LeadFormInline, rendering", () => {
   it("renders with default data-testid='lead-form-inline'", () => {
     render(<LeadFormInline />);
     expect(screen.getByTestId("lead-form-inline")).toBeInTheDocument();
@@ -107,7 +107,7 @@ describe("LeadFormInline — rendering", () => {
 // Honeypot field
 // ---------------------------------------------------------------------------
 
-describe("LeadFormInline — honeypot", () => {
+describe("LeadFormInline, honeypot", () => {
   it("renders a visually-hidden honeypot field", () => {
     const { container } = render(<LeadFormInline />);
     const hp = container.querySelector("input[name='_hp_field']");
@@ -184,7 +184,7 @@ describe("LeadFormInline — honeypot", () => {
 // ExitIntentModal
 // ---------------------------------------------------------------------------
 
-describe("ExitIntentModal — rendering", () => {
+describe("ExitIntentModal, rendering", () => {
   it("renders the dialog when open=true", () => {
     render(
       <ExitIntentModal
@@ -228,7 +228,7 @@ describe("ExitIntentModal — rendering", () => {
     render(
       <ExitIntentModal open onOpenChange={() => {}} heading="Wait!" />,
     );
-    // Radix Portal renders outside the React root container — use document.body
+    // Radix Portal renders outside the React root container, use document.body
     expect(document.body.querySelector("input[name='_hp_field']")).toBeInTheDocument();
   });
 
@@ -249,7 +249,7 @@ describe("ExitIntentModal — rendering", () => {
 // StickyLeadBar
 // ---------------------------------------------------------------------------
 
-describe("StickyLeadBar — rendering", () => {
+describe("StickyLeadBar, rendering", () => {
   it("renders with default data-testid='sticky-lead-bar'", () => {
     render(<StickyLeadBar />);
     expect(screen.getByTestId("sticky-lead-bar")).toBeInTheDocument();
@@ -307,7 +307,7 @@ describe("StickyLeadBar — rendering", () => {
 // a11y
 // ---------------------------------------------------------------------------
 
-describe("Lead forms — a11y", () => {
+describe("Lead forms, a11y", () => {
   it("LeadFormInline submit button is ≥44px", () => {
     render(<LeadFormInline submitLabel="Submit" />);
     const btn = screen.getByRole("button", { name: "Submit" });

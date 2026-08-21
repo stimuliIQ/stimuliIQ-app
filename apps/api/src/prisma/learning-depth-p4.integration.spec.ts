@@ -13,9 +13,9 @@
 //      the DB-layer partial-unique enforces the no-resubmit policy at storage level).
 //   5. Answer-key isolation: a student-style Prisma SELECT of assessment_questions that
 //      excludes `answerKey` (answerKey: false in Prisma select) does NOT return the
-//      answer_key column — repo-level test proving the isolation contract.
+//      answer_key column, repo-level test proving the isolation contract.
 //   6. AppModule boot smoke test: the NestJS AppModule must boot cleanly against the
-//      migrated DB (DEFECT-1 lesson — broken migration/relation fails loud here, not at
+//      migrated DB (DEFECT-1 lesson, broken migration/relation fails loud here, not at
 //      phase closeout).
 //
 // Requires `DATABASE_URL` to point at the running dev/CI Postgres with the P4 schema
@@ -40,9 +40,9 @@ import { describeIfLocalDb } from "./local-db-guard";
 // repo-root .env. See local-db-guard.ts.
 const describeIfDb = describeIfLocalDb;
 
-describeIfDb("Phase-4 Learning Depth — soft-delete + audit + constraints (integration)", () => {
+describeIfDb("Phase-4 Learning Depth, soft-delete + audit + constraints (integration)", () => {
   const base = new PrismaClient();
-  // Composition order: audit (inner) then soft-delete (outer) — same as all other tests.
+  // Composition order: audit (inner) then soft-delete (outer), same as all other tests.
   const prisma = base.$extends(auditExtension).$extends(softDeleteExtension);
 
   // Shared fixtures (created in beforeAll via base client, no audit rows generated for fixtures).
@@ -286,7 +286,7 @@ describeIfDb("Phase-4 Learning Depth — soft-delete + audit + constraints (inte
       },
     });
 
-    // First submission (attempt_no=1) — must succeed.
+    // First submission (attempt_no=1), must succeed.
     const sub1 = await base.submission.create({
       data: {
         tenantId,
@@ -299,7 +299,7 @@ describeIfDb("Phase-4 Learning Depth — soft-delete + audit + constraints (inte
       },
     });
 
-    // Second attempt with attempt_no=1 for the same (assignment, enrollment) —
+    // Second attempt with attempt_no=1 for the same (assignment, enrollment),
     // the partial-unique index "submissions_active_no_resubmit_unique" must reject this.
     await expect(
       base.submission.create({
@@ -308,7 +308,7 @@ describeIfDb("Phase-4 Learning Depth — soft-delete + audit + constraints (inte
           assignmentId: assignment.id,
           enrollmentId,
           files: [],
-          text: "Second attempt_no=1 — must be blocked",
+          text: "Second attempt_no=1, must be blocked",
           attemptNo: 1, // same attempt_no=1 → triggers partial-unique violation
           status: SubmissionStatus.submitted,
         },
@@ -444,7 +444,7 @@ describeIfDb("Phase-4 Learning Depth — soft-delete + audit + constraints (inte
           { id: "opt-a", text: "<div>" },
           { id: "opt-b", text: "<article>" },
         ],
-        // Server-side answer key — must NEVER appear in a student-facing DTO.
+        // Server-side answer key, must NEVER appear in a student-facing DTO.
         answerKey: { correctOptionId: "opt-b" },
         points: 10,
         order: 1,
@@ -453,7 +453,7 @@ describeIfDb("Phase-4 Learning Depth — soft-delete + audit + constraints (inte
 
     // Student-style projection: SELECT all fields EXCEPT answerKey.
     // The `answerKey: false` in Prisma select is the repo-level enforcement.
-    // This proves that the column can be excluded at query time — the backend
+    // This proves that the column can be excluded at query time, the backend
     // repository method for student-facing assessment views MUST use this pattern.
     const studentProjection = await base.assessmentQuestion.findUnique({
       where: { id: question.id },
@@ -463,7 +463,7 @@ describeIfDb("Phase-4 Learning Depth — soft-delete + audit + constraints (inte
         type: true,
         prompt: true,
         options: true,
-        // answerKey: intentionally omitted (false would also work — omitting = false)
+        // answerKey: intentionally omitted (false would also work, omitting = false)
         points: true,
         order: true,
         createdAt: true,
@@ -527,7 +527,7 @@ describeIfDb("Phase-4 Learning Depth — soft-delete + audit + constraints (inte
       where: { tenantId, entity: "AssessmentQuestion", entityId: question.id, action: "create" },
     });
     expect(auditRows.length).toBeGreaterThanOrEqual(1);
-    // answerKey APPEARS in audit logs (intentional — audit is admin-only, append-only).
+    // answerKey APPEARS in audit logs (intentional, audit is admin-only, append-only).
     const auditAfter = auditRows[0]?.after as { answerKey?: unknown } | null;
     expect(auditAfter?.answerKey).toBeDefined();
 
@@ -631,7 +631,7 @@ describeIfDb("Phase-4 Learning Depth — soft-delete + audit + constraints (inte
       },
     });
 
-    // First certificate for secondEnrollmentId — must succeed.
+    // First certificate for secondEnrollmentId, must succeed.
     const cert1 = await base.certificate.create({
       data: {
         tenantId,
@@ -647,7 +647,7 @@ describeIfDb("Phase-4 Learning Depth — soft-delete + audit + constraints (inte
       },
     });
 
-    // Second certificate for the SAME enrollment — must fail (unique constraint on enrollment_id).
+    // Second certificate for the SAME enrollment, must fail (unique constraint on enrollment_id).
     await expect(
       base.certificate.create({
         data: {
@@ -699,7 +699,7 @@ describeIfDb("Phase-4 Learning Depth — soft-delete + audit + constraints (inte
       },
     });
 
-    // Second certificate with the SAME cert_uid on a different enrollment — must fail.
+    // Second certificate with the SAME cert_uid on a different enrollment, must fail.
     // (enrollment_id is different so that constraint doesn't fire; cert_uid does.)
     await expect(
       base.certificate.create({
@@ -708,7 +708,7 @@ describeIfDb("Phase-4 Learning Depth — soft-delete + audit + constraints (inte
           enrollmentId: secondEnrollmentId, // different enrollment
           studentId: studentProfileId,
           programId,
-          certUid: SHARED_CERT_UID, // same cert_uid — must be rejected
+          certUid: SHARED_CERT_UID, // same cert_uid, must be rejected
           serial: `test-serial-shared-b-${tenantId}`,
           templateId: tmpl.id,
           issuedAt: new Date(),

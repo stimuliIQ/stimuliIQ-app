@@ -106,7 +106,7 @@ describe("ReferralsService", () => {
       ).rejects.toBeInstanceOf(UnprocessableEntityException);
     });
 
-    it("is idempotent — setting the same status again is a no-op", async () => {
+    it("is idempotent, setting the same status again is a no-op", async () => {
       repo.findById.mockResolvedValue(ROW);
       const result = await runWithScope("all", "referrals.approve", () =>
         service.updateStatus("tenant-1", "referral-1", { status: "pending" }),
@@ -139,7 +139,7 @@ describe("ReferralsService", () => {
       expect(repo.attachLead).toHaveBeenCalledWith("referral-1", "lead-1");
     });
 
-    it("is idempotent — replaying against the SAME lead returns current state without re-attaching", async () => {
+    it("is idempotent, replaying against the SAME lead returns current state without re-attaching", async () => {
       repo.findByCode.mockResolvedValue({ ...ROW, referredLeadId: "lead-1" });
       repo.findLeadContact.mockResolvedValue({ id: "lead-1", email: "prospect@example.test", phone: "9990001111" });
 

@@ -1,7 +1,7 @@
 // apps/api/src/modules/auth/lib/argon2-params.spec.ts
 //
 // Unit tests for the pinned argon2id cost parameters (Phase-7 Wave 2 security hardening
-// batch A, item 5 — closes P0 followups "argon2id cost parameters are not pinned").
+// batch A, item 5, closes P0 followups "argon2id cost parameters are not pinned").
 
 import * as argon2 from "argon2";
 import { ARGON2_HASH_OPTIONS, DUMMY_PASSWORD_HASH } from "./argon2-params";
@@ -25,7 +25,7 @@ describe("ARGON2_HASH_OPTIONS", () => {
     await expect(argon2.verify(hash, "wrong-password")).resolves.toBe(false);
   });
 
-  it("a future param change does NOT invalidate a hash created under the OLD params — verify() reads params embedded in the stored hash string, never these constants", async () => {
+  it("a future param change does NOT invalidate a hash created under the OLD params, verify() reads params embedded in the stored hash string, never these constants", async () => {
     // Simulates "upgrading" ARGON2_HASH_OPTIONS in a future PR: a hash created with
     // DIFFERENT (lower-cost) params must still verify correctly, proving no forced
     // rehash / no locked-out accounts on a cost upgrade.

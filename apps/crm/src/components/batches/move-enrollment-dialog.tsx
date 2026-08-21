@@ -75,7 +75,7 @@ export function MoveEnrollmentDialog({
           >
             {destinations.map((batch) => (
               <SelectItem key={batch.id} value={batch.id}>
-                {batch.name} — {batch.programTitle}
+                {batch.name}, {batch.programTitle}
               </SelectItem>
             ))}
           </Select>

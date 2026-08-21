@@ -81,7 +81,7 @@ describe("KanbanBoard", () => {
 
   it("shows empty state for empty columns", () => {
     renderBoard();
-    // Won column has 0 items — should show empty text
+    // Won column has 0 items, should show empty text
     const wonColumn = screen.getByRole("region", { name: /Won/i });
     expect(within(wonColumn).getByText(/[Ee]mpty/)).toBeInTheDocument();
   });
@@ -94,7 +94,7 @@ describe("KanbanBoard", () => {
 
   it("renders count badges in column headers", () => {
     renderBoard();
-    // 2 items in "New" column — count should reflect items[] length
+    // 2 items in "New" column, count should reflect items[] length
     const newColumn = screen.getByRole("region", { name: /New/i });
     // The badge shows the count of items in the column (grouped from items prop)
     expect(within(newColumn).getByText("2")).toBeInTheDocument();
@@ -116,7 +116,7 @@ describe("KanbanBoard", () => {
 });
 
 // ---------------------------------------------------------------------------
-// KanbanCard — DnD seam attributes
+// KanbanCard, DnD seam attributes
 // ---------------------------------------------------------------------------
 
 describe("KanbanCard (DnD seam)", () => {
@@ -164,7 +164,7 @@ describe("KanbanCard (DnD seam)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// KanbanCard — accessible move menu
+// KanbanCard, accessible move menu
 // ---------------------------------------------------------------------------
 
 describe("KanbanCard move control", () => {
@@ -266,7 +266,7 @@ describe("KanbanCard move control", () => {
     const selectTrigger = screen.getByTestId("kanban-card-move-select");
     await user.click(selectTrigger);
 
-    // "New" is the current column — should NOT appear in options
+    // "New" is the current column, should NOT appear in options
     const options = await screen.findAllByRole("option");
     const optionTexts = options.map((o) => o.textContent);
     expect(optionTexts).not.toContain("New");
@@ -327,7 +327,7 @@ describe("KanbanCard move control", () => {
 });
 
 // ---------------------------------------------------------------------------
-// KanbanBoard — keyboard-accessible in-column reordering
+// KanbanBoard, keyboard-accessible in-column reordering
 // ---------------------------------------------------------------------------
 
 describe("KanbanBoard reorder controls", () => {
@@ -394,10 +394,10 @@ describe("KanbanBoard reorder controls", () => {
 });
 
 // ---------------------------------------------------------------------------
-// KanbanBoard — native drag-and-drop
+// KanbanBoard, native drag-and-drop
 // ---------------------------------------------------------------------------
 
-// jsdom has no real DataTransfer — this stand-in stores set/getData round-trips
+// jsdom has no real DataTransfer, this stand-in stores set/getData round-trips
 // so the board's dragstart→drop payload handshake can be exercised.
 function makeDataTransfer(): DataTransfer {
   const store: Record<string, string> = {};
@@ -456,7 +456,7 @@ describe("KanbanBoard drag-and-drop", () => {
     renderBoard(onMove);
     const dt = makeDataTransfer();
     const card = screen.getByRole("article", { name: "Priya Sharma" }); // in "new"
-    const sameColumn = screen.getByRole("region", { name: /New —/i });
+    const sameColumn = screen.getByRole("region", { name: /New,/i });
 
     fireEvent.dragStart(card, { dataTransfer: dt });
     fireEvent.drop(sameColumn, { dataTransfer: dt });
@@ -497,7 +497,7 @@ describe("KanbanColumn", () => {
   it("renders as a section with accessible label", () => {
     render(<ColumnHarness />);
     expect(
-      screen.getByRole("region", { name: "New Leads — 3 items" }),
+      screen.getByRole("region", { name: "New Leads, 3 items" }),
     ).toBeInTheDocument();
   });
 

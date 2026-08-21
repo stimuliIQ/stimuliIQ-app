@@ -178,7 +178,7 @@ export function RolePermissionMatrix({ role, me }: RolePermissionMatrixProps): R
 
       <p className="text-sm text-fg-muted">
         Toggle a permission on to grant this role full (org-wide) access to it, off to revoke it. Rows you can't grant
-        yourself (because you don't hold that permission at full access) are disabled here as a guide — the server is the
+        yourself (because you don't hold that permission at full access) are disabled here as a guide, the server is the
         actual enforcement point and will reject any attempt to escalate beyond your own access.
       </p>
 

@@ -1,6 +1,6 @@
 // apps/api/src/modules/search/search.service.spec.ts
 //
-// Unit tests for SearchService — own-enrolled scope resolution + type filtering +
+// Unit tests for SearchService, own-enrolled scope resolution + type filtering +
 // "no enrollments -> empty results, not an error".
 
 import { SearchService } from "./search.service";

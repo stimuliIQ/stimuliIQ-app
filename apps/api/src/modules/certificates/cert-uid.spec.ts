@@ -13,7 +13,7 @@ import {
   __resetCertUidWarningForTests,
 } from "./cert-uid.util";
 
-// Minimal Env stub — sign/verify only read CERT_SIGNING_SECRET + NODE_ENV.
+// Minimal Env stub, sign/verify only read CERT_SIGNING_SECRET + NODE_ENV.
 function makeEnv(overrides: Partial<Env> = {}): Env {
   return {
     NODE_ENV: "test",
@@ -92,7 +92,7 @@ describe("cert-uid: forgery resistance", () => {
     const env = makeEnv();
     const uid = signCertUid(SAMPLE, env);
     const [body, sig] = uid.split(".") as [string, string];
-    // Decode, change the student id, re-encode — but keep the OLD signature.
+    // Decode, change the student id, re-encode, but keep the OLD signature.
     const decoded = JSON.parse(Buffer.from(body, "base64url").toString("utf-8"));
     decoded.s = "99999999-9999-9999-9999-999999999999";
     const forgedBody = Buffer.from(JSON.stringify(decoded), "utf-8").toString("base64url");

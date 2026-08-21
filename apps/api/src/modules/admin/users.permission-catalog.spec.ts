@@ -4,12 +4,12 @@
 // two-factor.permission-catalog.spec.ts.
 //
 // Admin ▸ Users exposes two destructive routes that read almost identically:
-//   DELETE /crm/admin/users/:id            → DEACTIVATE  (users.delete — super_admin + admin)
-//   DELETE /crm/admin/users/:id/permanent  → REMOVE      (users.remove — super_admin ONLY)
+//   DELETE /crm/admin/users/:id            → DEACTIVATE  (users.delete, super_admin + admin)
+//   DELETE /crm/admin/users/:id/permanent  → REMOVE      (users.remove, super_admin ONLY)
 //
 // The whole value of the second key is that `admin` does not hold it. If `users.remove` ever
-// gets folded into the USERS_ADMIN_PERMISSIONS loop in seed.ts — which grants to super_admin
-// AND admin — every admin silently gains the ability to delete colleagues' accounts, and
+// gets folded into the USERS_ADMIN_PERMISSIONS loop in seed.ts, which grants to super_admin
+// AND admin, every admin silently gains the ability to delete colleagues' accounts, and
 // nothing else in the codebase would notice. These tests notice.
 
 import { readFileSync } from "node:fs";
@@ -27,7 +27,7 @@ describe("Admin ▸ Users permission catalog", () => {
     expect(seedSource).toMatch(/key:\s*"users\.remove"/);
   });
 
-  it('"users.remove" is granted to super_admin only — NOT via the super_admin+admin loop', () => {
+  it('"users.remove" is granted to super_admin only, NOT via the super_admin+admin loop', () => {
     // The shared loop iterates `[superAdminRole, adminRole]` over USERS_ADMIN_PERMISSIONS.
     // `users.remove` must be granted outside it, against superAdminRole by name.
     const catalogBlock = seedSource.slice(
@@ -40,7 +40,7 @@ describe("Admin ▸ Users permission catalog", () => {
   });
 
   it("the permanent-delete route requires users.remove, NOT users.delete", () => {
-    // If this flips back, every `admin` can delete accounts — the exact hole the separate
+    // If this flips back, every `admin` can delete accounts, the exact hole the separate
     // key exists to prevent, and one that fails open rather than closed.
     const removeSection = controllerSource.slice(controllerSource.indexOf('@Delete(":id/permanent")'));
     expect(removeSection).toMatch(/@RequirePermission\("users\.remove"\)/);
@@ -55,7 +55,7 @@ describe("Admin ▸ Users permission catalog", () => {
     expect(deactivateSection).toMatch(/@RequirePermission\("users\.delete"\)/);
   });
 
-  // ── users.reset_password — same shape of guard, same failure mode if folded in ──
+  // ── users.reset_password, same shape of guard, same failure mode if folded in ──
   //
   // POST /crm/admin/users/:id/reset-password mints a one-time credential for the target.
   // If it ever rides `users.edit` (super_admin + admin), every admin gains the ability to
@@ -66,7 +66,7 @@ describe("Admin ▸ Users permission catalog", () => {
     expect(seedSource).toMatch(/key:\s*"users\.reset_password"/);
   });
 
-  it('"users.reset_password" is granted to super_admin only — NOT via the super_admin+admin loop', () => {
+  it('"users.reset_password" is granted to super_admin only, NOT via the super_admin+admin loop', () => {
     const catalogBlock = seedSource.slice(
       seedSource.indexOf("const USERS_ADMIN_PERMISSIONS"),
       seedSource.indexOf("const USERS_ADMIN_PERMISSIONS") + 900,
@@ -88,7 +88,7 @@ describe("Admin ▸ Users permission catalog", () => {
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("Admin ▸ Users permission catalog — live seeded DB", () => {
+describeIfDb("Admin ▸ Users permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {
@@ -103,7 +103,7 @@ describeIfDb("Admin ▸ Users permission catalog — live seeded DB", () => {
     const permission = await prisma.permission.findUnique({ where: { key: "users.remove" } });
     // A FAILURE HERE ON AN ESTABLISHED DATABASE IS EXPECTED AND ACTIONABLE, not a code bug:
     // `users.remove` is new, and a permission missing from this table can be granted to
-    // nobody, so DELETE /crm/admin/users/:id/permanent 403s for everyone (fail-closed — a
+    // nobody, so DELETE /crm/admin/users/:id/permanent 403s for everyone (fail-closed, a
     // functional gap, not a hole) and the Delete action never renders. To fix a live
     // database WITHOUT injecting demo fixtures, run: pnpm db:seed:user-delete
     expect(permission).not.toBeNull();

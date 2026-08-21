@@ -70,7 +70,7 @@ export function AddProgramDialog({ studentId, open, onOpenChange }: AddProgramDi
       });
       toast({
         title: "Program assigned",
-        description: "An order was opened — record the payment to activate the enrollment.",
+        description: "An order was opened. Record the payment to activate the enrollment.",
         variant: "success",
       });
       onOpenChange(false);
@@ -123,7 +123,7 @@ export function AddProgramDialog({ studentId, open, onOpenChange }: AddProgramDi
                 const availability = seatsLeft > 0 ? `${seatsLeft} of ${batch.capacity} seats left` : "Full";
                 return (
                   <SelectItem key={batch.id} value={batch.id}>
-                    {batch.name} — {availability}
+                    {batch.name}, {availability}
                   </SelectItem>
                 );
               })}

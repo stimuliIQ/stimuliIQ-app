@@ -1,4 +1,4 @@
-// Component tests for the Blog CMS "Simple pages" tab — regression coverage for the
+// Component tests for the Blog CMS "Simple pages" tab, regression coverage for the
 // UX audit's B1 finding ("the Pages tab is a trap"): builder-managed rows must never
 // expose the generic edit/delete affordances (they've always 403'd server-side), and
 // must instead show a link back to Page Builder. Data hooks are mocked directly (same
@@ -13,7 +13,7 @@ import { ToastProvider } from "@repo/ui";
 import { ContentPagesManager, isContentPageRowEditable } from "./content-pages-manager";
 
 // `Link` requires a `<RouterProvider>` ancestor at runtime (real app has one); this
-// component test renders in isolation, so stub it as a plain anchor — same pattern as
+// component test renders in isolation, so stub it as a plain anchor, same pattern as
 // overview-dashboard.test.tsx.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
@@ -81,7 +81,7 @@ beforeEach(() => {
   useDeleteContentPageMock.mockReturnValue({ mutate: vi.fn(), isPending: false });
 });
 
-describe("isContentPageRowEditable — pure gating helper", () => {
+describe("isContentPageRowEditable, pure gating helper", () => {
   it("is false for a builder-managed row (its generic edit/delete always 403s)", () => {
     expect(isContentPageRowEditable({ isBuilderManaged: true })).toBe(false);
   });
@@ -91,7 +91,7 @@ describe("isContentPageRowEditable — pure gating helper", () => {
   });
 });
 
-describe("ContentPagesManager — Blog CMS 'Simple pages' tab, builder-row gating", () => {
+describe("ContentPagesManager, Blog CMS 'Simple pages' tab, builder-row gating", () => {
   it("shows an 'Edited in Page Builder' badge and no delete button for a builder-managed row", () => {
     useContentPagesListMock.mockReturnValue({ data: { items: [BUILDER_ROW] }, isLoading: false, isError: false, refetch: vi.fn() });
     renderManager();

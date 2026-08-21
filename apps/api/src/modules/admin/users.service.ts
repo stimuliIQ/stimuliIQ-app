@@ -345,7 +345,7 @@ export class UsersAdminService {
         code: "users.cannot_reset_deactivated",
         title: "This account is deactivated",
         detail:
-          "Someone disabled this login on purpose. Reactivate the account first, then reset the password — " +
+          "Someone disabled this login on purpose. Reactivate the account first, then reset the password, " +
           "otherwise a password reset would quietly undo the deactivation.",
       });
     }
@@ -389,16 +389,16 @@ export class UsersAdminService {
       await this.mail.send({
         to: email,
         subject: isFirstCredential
-          ? "Your stimuliIQ staff account is ready"
-          : "Your stimuliIQ staff password has been reset",
+          ? "Your Stimuli IQ staff account is ready"
+          : "Your Stimuli IQ staff password has been reset",
         html: renderBrandedEmail({
-          title: isFirstCredential ? "Welcome to stimuliIQ" : "Staff password reset",
+          title: isFirstCredential ? "Welcome to Stimuli IQ" : "Staff password reset",
           greeting: `Hi ${escapeEmailHtml(name)},`,
           paragraphs: [
             isFirstCredential
-              ? "An administrator has set up your stimuliIQ staff account. " +
+              ? "An administrator has set up your Stimuli IQ staff account. " +
                 "Use the details below to sign in to the admin dashboard:"
-              : "Your stimuliIQ staff account password has been reset by an administrator. " +
+              : "Your Stimuli IQ staff account password has been reset by an administrator. " +
                 "Use the details below to sign in to the admin dashboard:",
           ],
           details: [
@@ -492,7 +492,7 @@ export class UsersAdminService {
       throw new BadRequestException({
         code: "users.student_role_not_allowed",
         title: "Student accounts are not managed here",
-        detail: "Student logins are provisioned by the enrollment flow — assign staff roles only.",
+        detail: "Student logins are provisioned by the enrollment flow, assign staff roles only.",
       });
     }
     return unique;

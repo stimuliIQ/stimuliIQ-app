@@ -27,7 +27,7 @@ function renderBuilder(currentStep = 0, overrides = {}) {
 // Rendering
 // ---------------------------------------------------------------------------
 
-describe("CampaignBuilder — rendering", () => {
+describe("CampaignBuilder, rendering", () => {
   it("renders with default data-testid='campaign-builder'", () => {
     renderBuilder();
     expect(screen.getByTestId("campaign-builder")).toBeInTheDocument();
@@ -38,25 +38,25 @@ describe("CampaignBuilder — rendering", () => {
     expect(screen.getByTestId("multi-step-form")).toBeInTheDocument();
   });
 
-  it("renders step 1 — Audience heading + content", () => {
+  it("renders step 1, Audience heading + content", () => {
     renderBuilder(0);
     expect(screen.getByRole("heading", { level: 2, name: "Audience" })).toBeInTheDocument();
     expect(screen.getByText("Segment step content")).toBeInTheDocument();
   });
 
-  it("renders step 2 — Template", () => {
+  it("renders step 2, Template", () => {
     renderBuilder(1);
     expect(screen.getByRole("heading", { level: 2, name: "Template" })).toBeInTheDocument();
     expect(screen.getByText("Template step content")).toBeInTheDocument();
   });
 
-  it("renders step 3 — Schedule", () => {
+  it("renders step 3, Schedule", () => {
     renderBuilder(2);
     expect(screen.getByRole("heading", { level: 2, name: "Schedule" })).toBeInTheDocument();
     expect(screen.getByText("Schedule step content")).toBeInTheDocument();
   });
 
-  it("renders step 4 — Review with submit label", () => {
+  it("renders step 4, Review with submit label", () => {
     renderBuilder(3);
     expect(screen.getByRole("heading", { level: 2, name: "Review" })).toBeInTheDocument();
     expect(screen.getByText("Review step content")).toBeInTheDocument();
@@ -74,10 +74,10 @@ describe("CampaignBuilder — rendering", () => {
 });
 
 // ---------------------------------------------------------------------------
-// a11y — inherits from MultiStepForm
+// a11y, inherits from MultiStepForm
 // ---------------------------------------------------------------------------
 
-describe("CampaignBuilder — a11y", () => {
+describe("CampaignBuilder, a11y", () => {
   it("has a progressbar tracking steps", () => {
     const { container } = renderBuilder(0);
     // The progressbar lives inside an aria-hidden div in MultiStepForm (visual only),
@@ -105,7 +105,7 @@ describe("CampaignBuilder — a11y", () => {
 // Navigation
 // ---------------------------------------------------------------------------
 
-describe("CampaignBuilder — navigation", () => {
+describe("CampaignBuilder, navigation", () => {
   it("calls onNext when Continue is clicked", async () => {
     const user = userEvent.setup();
     const onNext = vi.fn();

@@ -9,8 +9,8 @@ import { z } from "zod";
 import { AppAudienceSchema } from "./auth.schemas.js";
 
 export const TotpEnrollResponseSchema = z.object({
-  secret: z.string().describe("Base32 TOTP secret — shown once for manual entry if the app cannot scan a QR code."),
-  otpauthUrl: z.string().describe("otpauth://totp/... URI — the frontend renders this as a QR code for scanning."),
+  secret: z.string().describe("Base32 TOTP secret. Shown once for manual entry if the app cannot scan a QR code."),
+  otpauthUrl: z.string().describe("otpauth://totp/... URI. The frontend renders this as a QR code for scanning."),
 });
 export type TotpEnrollResponse = z.infer<typeof TotpEnrollResponseSchema>;
 
@@ -23,13 +23,13 @@ export type TotpVerifyEnrollRequest = z.infer<typeof TotpVerifyEnrollRequestSche
 
 export const TotpVerifyEnrollResponseSchema = z.object({
   enabled: z.literal(true),
-  backupCodes: z.array(z.string()).describe("Single-use backup codes — shown ONCE, never retrievable again."),
+  backupCodes: z.array(z.string()).describe("Single-use backup codes. Shown ONCE, never retrievable again."),
 });
 export type TotpVerifyEnrollResponse = z.infer<typeof TotpVerifyEnrollResponseSchema>;
 
 export const TotpDisableRequestSchema = z
   .object({
-    code: z.string().min(6).max(11).describe("A current TOTP code OR an unused backup code — required to disable 2FA."),
+    code: z.string().min(6).max(11).describe("A current TOTP code OR an unused backup code, required to disable 2FA."),
   })
   .strict();
 export type TotpDisableRequest = z.infer<typeof TotpDisableRequestSchema>;

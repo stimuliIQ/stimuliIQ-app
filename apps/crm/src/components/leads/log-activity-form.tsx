@@ -65,7 +65,7 @@ export function LogActivityForm({ leadId }: LogActivityFormProps): React.JSX.Ele
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3 rounded-md border border-border p-3" data-testid="log-activity-form">
       <p className="text-xs text-fg-muted">
-        This logs a record on the timeline only — WhatsApp/email entries are NOT delivered in this phase.
+        This logs a record on the timeline only. WhatsApp/email entries are NOT delivered in this phase.
       </p>
       <Select
         label="Type"

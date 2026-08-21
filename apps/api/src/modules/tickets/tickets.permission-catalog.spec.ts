@@ -111,7 +111,7 @@ describe("Tickets module controllers permission catalog (regression: P6 forum.re
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("Tickets module permission catalog — live seeded DB", () => {
+describeIfDb("Tickets module permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {

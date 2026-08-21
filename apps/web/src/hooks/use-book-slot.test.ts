@@ -90,7 +90,7 @@ describe("useBookSlot", () => {
     expect(result.current.currentStep).toBe(1);
   });
 
-  it("goNext validates slot step — shows error if slotAt is empty", () => {
+  it("goNext validates slot step, shows error if slotAt is empty", () => {
     const { result } = renderHook(() => useBookSlot());
     // Advance to step 1
     act(() => { result.current.goNext(); });
@@ -176,9 +176,9 @@ describe("useBookSlot", () => {
     const { result } = renderHook(() => useBookSlot());
     act(() => { result.current.setFormData(getValidFormData()); });
 
-    // First call — doesn't await yet
+    // First call, doesn't await yet
     const firstCallPromise = act(async () => { await result.current.submit(); });
-    // Second call — should be ignored (submitting guard)
+    // Second call, should be ignored (submitting guard)
     act(() => { void result.current.submit(); });
 
     resolveCall!();
@@ -233,7 +233,7 @@ describe("useBookSlot", () => {
     expect(result.current.stepErrors.phone).toBeTruthy();
   });
 
-  it("captcha token required on step 2 — shows error if absent", () => {
+  it("captcha token required on step 2, shows error if absent", () => {
     const { result } = renderHook(() => useBookSlot());
     // Advance to step 2
     act(() => { result.current.goNext(); });

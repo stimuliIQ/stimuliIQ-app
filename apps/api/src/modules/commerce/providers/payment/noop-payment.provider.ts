@@ -103,7 +103,7 @@ export class NoopPaymentProvider implements PaymentProvider {
   verifyWebhookSignature(input: VerifyWebhookSignatureInput): boolean {
     if (this.simulateWebhookSecretAbsent || !this.webhookSecret) {
       this.logger.warn(
-        "[NoopPaymentProvider] verifyWebhookSignature: webhook secret absent — " +
+        "[NoopPaymentProvider] verifyWebhookSignature: webhook secret absent, " +
           "returning false (fail closed).",
       );
       return false;

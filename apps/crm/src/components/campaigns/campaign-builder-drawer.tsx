@@ -464,7 +464,7 @@ export function CampaignBuilderDrawer({
     <div className="flex flex-col gap-4" data-testid="campaign-step-review">
       <div className="rounded-md border border-border bg-surface p-4">
         <DetailGrid>
-          <DetailRow label="Name" value={name || "—"} />
+          <DetailRow label="Name" value={name || "-"} />
           <DetailRow
             label="Channel"
             value={
@@ -484,10 +484,10 @@ export function CampaignBuilderDrawer({
                   : "Students only") +
               (segmentFilters.length > 0
                 ? ` (${segmentFilters.length} filter${segmentFilters.length > 1 ? "s" : ""})`
-                : " (no filters — all)")
+                : " (no filters, all)")
             }
           />
-          <DetailRow label="Template" value={selectedTemplate?.name ?? "—"} />
+          <DetailRow label="Template" value={selectedTemplate?.name ?? "-"} />
           <DetailRow
             label="Schedule"
             value={

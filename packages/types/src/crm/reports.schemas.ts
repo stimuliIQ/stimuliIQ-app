@@ -73,7 +73,7 @@ export const ReportSeriesPointSchema = z
   .object({
     /** Bucket start date (ISO date, tenant-timezone). */
     periodStart: IsoDateSchema,
-    value: z.number().describe("Metric value for this bucket. 0 for an empty bucket — never omitted."),
+    value: z.number().describe("Metric value for this bucket. 0 for an empty bucket, never omitted."),
   })
   .strict();
 export type ReportSeriesPoint = z.infer<typeof ReportSeriesPointSchema>;
@@ -85,7 +85,7 @@ export const ReportMoneySeriesPointSchema = z
     amountPaise: z
       .number()
       .int()
-      .describe("Integer paise for this bucket. 0 for an empty bucket — never omitted."),
+      .describe("Integer paise for this bucket. 0 for an empty bucket, never omitted."),
   })
   .strict();
 export type ReportMoneySeriesPoint = z.infer<typeof ReportMoneySeriesPointSchema>;
@@ -155,7 +155,7 @@ export type RevenueReportDto = z.infer<typeof RevenueReportDtoSchema>;
 
 /** GET /api/v1/crm/reports/enrollments?from=&to=[&granularity=][&branchId=] */
 export const EnrollmentTrendQuerySchema = ReportDateRangeQuerySchema.extend({
-  granularity: ReportGranularitySchema.optional().describe("Requested bucket size. Server may auto-coarsen for very large ranges (Part 4 edge case) — the actual bucket used is echoed back in the response."),
+  granularity: ReportGranularitySchema.optional().describe("Requested bucket size. Server may auto-coarsen for very large ranges (Part 4 edge case). The actual bucket used is echoed back in the response."),
   branchId: UuidSchema.optional(),
 }).strict();
 export type EnrollmentTrendQuery = z.infer<typeof EnrollmentTrendQuerySchema>;
@@ -171,7 +171,7 @@ export const EnrollmentTrendDtoSchema = ReportFreshnessSchema.extend({
   /** The bucket size actually used to group `series` (may differ from the requested granularity — server auto-coarsens very large ranges). */
   granularity: ReportGranularitySchema,
   series: z.array(ReportSeriesPointSchema),
-  total: z.number().int().min(0).describe("SUM of series values — convenience total for the range."),
+  total: z.number().int().min(0).describe("SUM of series values. Convenience total for the range."),
 }).strict();
 export type EnrollmentTrendDto = z.infer<typeof EnrollmentTrendDtoSchema>;
 
@@ -334,7 +334,7 @@ export const GamificationParticipationDtoSchema = ReportFreshnessSchema.extend({
   activeEarnersCount: z.number().int().min(0).describe("Students with at least one non-zero points_ledger row in the window."),
   totalXpDistributed: z.number().int().describe("SUM(points_ledger.delta) for the batch's enrolled students. May be negative in aggregate only in pathological reversal-heavy cases."),
   badgeAwardCount: z.number().int().min(0),
-  perStudent: z.array(GamificationParticipantRowSchema).describe("Staff-facing breakdown — includes opted-out students (AC-25)."),
+  perStudent: z.array(GamificationParticipantRowSchema).describe("Staff-facing breakdown, includes opted-out students (AC-25)."),
 }).strict();
 export type GamificationParticipationDto = z.infer<typeof GamificationParticipationDtoSchema>;
 
@@ -414,7 +414,7 @@ export const LeadPerformanceRowSchema = z
   .object({
     userId: UuidSchema,
     userName: z.string(),
-    roleKeys: z.array(z.string()).describe("e.g. ['counsellor'] — how the rep is employed, for grouping."),
+    roleKeys: z.array(z.string()).describe("e.g. ['counsellor']. How the rep is employed, for grouping."),
 
     // ── Windowed by [from, to] ──────────────────────────────────────────
     leadsCreated: z.number().int().min(0).describe("Leads this user keyed in themselves (created_by_id)."),
@@ -427,7 +427,7 @@ export const LeadPerformanceRowSchema = z
       .number()
       .min(0)
       .max(1)
-      .describe("converted / leadsAssigned. 0 when leadsAssigned=0 — never NaN."),
+      .describe("converted / leadsAssigned. 0 when leadsAssigned=0, never NaN."),
     contactRate: z
       .number()
       .min(0)
@@ -439,7 +439,7 @@ export const LeadPerformanceRowSchema = z
       .nullable()
       .describe(
         "Mean minutes from assigned_at to first_contacted_at, over leads assigned in the window that HAVE been contacted. " +
-          "null (not 0) when none have been — 0 would read as 'instant response', the opposite of the truth.",
+          "null (not 0) when none have been, 0 would read as 'instant response', the opposite of the truth.",
       ),
 
     // ── As of now (NOT windowed) ────────────────────────────────────────

@@ -44,7 +44,7 @@ export function AnnouncementBarCard({ canEdit }: { canEdit: boolean }): React.JS
             required
             rows={2}
             maxLength={300}
-            helperText="Keep it to one sentence — this is a strip, not a page."
+            helperText="Keep it to one sentence. This is a strip, not a page."
             {...form.register("value.message")}
             error={form.formState.errors.value?.message?.message as string | undefined}
             data-testid="announcement-bar-message"

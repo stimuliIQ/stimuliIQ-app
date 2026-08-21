@@ -197,7 +197,7 @@ export function CertificateDirectory({
         >
           {row.eligibility.reasons.completionPct}%
           <span className="sr-only">
-            {row.eligibility.reasons.completionPassed ? " — passed" : " — below 90% threshold"}
+            {row.eligibility.reasons.completionPassed ? ", passed" : ", below 90% threshold"}
           </span>
         </span>
       ),

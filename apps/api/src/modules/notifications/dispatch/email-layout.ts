@@ -144,7 +144,7 @@ export function renderBrandedEmail(options: BrandedEmailOptions): string {
             <td style="padding:18px 32px 24px;">
               <hr style="margin:0 0 16px;border:none;border-top:1px solid #e5e7eb;"/>
               <p style="margin:0 0 4px;font-size:12px;line-height:1.6;color:#9ca3af;">
-                <strong style="color:#6b7280;">${BRAND_NAME}</strong> — Industry-grade internship training across software, data, cloud, and design.
+                <strong style="color:#6b7280;">${BRAND_NAME}</strong>. Industry-grade internship training across software, data, cloud, and design.
               </p>
               <p style="margin:0;font-size:12px;line-height:1.6;color:#9ca3af;">
                 Questions? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_COLOR_DARK};text-decoration:none;">${SUPPORT_EMAIL}</a>
@@ -166,7 +166,7 @@ export function renderBrandedEmail(options: BrandedEmailOptions): string {
 
 /**
  * Wrap an ALREADY-RENDERED HTML fragment (e.g. a campaign body authored in the
- * CRM) in the branded shell — logo header + footer around the author's content.
+ * CRM) in the branded shell. Logo header + footer around the author's content.
  */
 export function wrapInBrandedShell(bodyHtml: string, opts?: { title?: string; unsubscribeUrl?: string }): string {
   return renderBrandedEmail({

@@ -1,9 +1,9 @@
-// Campaign template variables — the shared contract between the sender and the editor.
+// Campaign template variables, the shared contract between the sender and the editor.
 //
 // These two had drifted completely and nothing caught it: seeded templates were written
 // with {{name}}, {{program_title}}, {{deadline}} and {{cta_url}}, the sender substituted
 // only `to` and `campaignName`, and the renderer leaves unknown placeholders ALONE by
-// design — so campaigns reached students reading "Hi {{name}},".
+// design, so campaigns reached students reading "Hi {{name}},".
 //
 // The list is now one exported constant that the dispatch path builds from and the CRM
 // editor advertises. These tests pin the piece a UI can't: that the detector agrees with
@@ -25,7 +25,7 @@ describe("CAMPAIGN_TEMPLATE_VARIABLES", () => {
   });
 
   it("exposes the keys the sender fills", () => {
-    // If this list changes, CampaignsService#buildRecipientVariables must change with it —
+    // If this list changes, CampaignsService#buildRecipientVariables must change with it,
     // a key here that the sender doesn't populate ships as literal braces again.
     expect([...CAMPAIGN_TEMPLATE_VARIABLE_KEYS].sort()).toEqual([
       "campaign_name",
@@ -55,7 +55,7 @@ describe("findUnknownTemplateVariables", () => {
   });
 
   it("tolerates the whitespace people actually type", () => {
-    expect(findUnknownTemplateVariables("Hi {{ name }} — {{  program_title  }}")).toEqual([]);
+    expect(findUnknownTemplateVariables("Hi {{ name }}, {{  program_title  }}")).toEqual([]);
   });
 
   it("finds nothing in a message with no placeholders", () => {
@@ -63,7 +63,7 @@ describe("findUnknownTemplateVariables", () => {
   });
 
   // WhatsApp templates approved through Meta use positional {{1}}..{{n}}, which the PROVIDER
-  // fills from its own parameters payload — not our renderer. They are correctly reported as
+  // fills from its own parameters payload, not our renderer. They are correctly reported as
   // unknown here; the CRM shows that warning, and the seeded WhatsApp template documents why
   // it keeps them.
   it("treats Meta's positional placeholders as not-ours-to-substitute", () => {

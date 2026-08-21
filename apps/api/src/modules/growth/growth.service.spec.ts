@@ -1,6 +1,6 @@
 // apps/api/src/modules/growth/growth.service.spec.ts
 //
-// Unit tests for GrowthService — per-city SEO data + bundles/tracks pricing.
+// Unit tests for GrowthService, per-city SEO data + bundles/tracks pricing.
 
 import { NotFoundException } from "@nestjs/common";
 import { GrowthService, citySlugify } from "./growth.service";

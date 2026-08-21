@@ -96,7 +96,7 @@ export function BulkIssueDialog({ open, onOpenChange, candidates, onDone }: Bulk
               >
                 {(templates?.items ?? []).map((t) => (
                   <SelectItem key={t.id} value={t.id}>
-                    {t.name} — {CERTIFICATE_KIND_LABEL[t.kind]}
+                    {t.name}, {CERTIFICATE_KIND_LABEL[t.kind]}
                   </SelectItem>
                 ))}
               </Select>

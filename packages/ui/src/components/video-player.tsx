@@ -188,8 +188,8 @@ function escapeXmlText(value: string): string {
 
 /**
  * True when `src` is an HLS manifest (needs native HLS or an hls.js engine).
- * Anything else — an mp4/webm/ogg URL, e.g. the signed source URL the local dev
- * video provider mints — is progressive and plays via a plain `video.src`.
+ * Anything else. An mp4/webm/ogg URL, e.g. the signed source URL the local dev
+ * video provider mints. Is progressive and plays via a plain `video.src`.
  * The check ignores the query string because signed URLs append `?sig=…&exp=…`.
  */
 function isHlsSource(src: string): boolean {
@@ -249,7 +249,7 @@ export const VideoPlayer = React.forwardRef<HTMLDivElement, VideoPlayerProps>(
         engineRef.current = null;
       }
 
-      // Strategy 0: PROGRESSIVE source (mp4/webm/ogg) — play it directly.
+      // Strategy 0: PROGRESSIVE source (mp4/webm/ogg), play it directly.
       // Only .m3u8 sources need an HLS engine; handing hls.js an MP4 makes it fail
       // with a manifest-parse error even though every browser plays MP4 natively.
       // The local/dev video provider serves source MP4s, so this branch is what
@@ -266,7 +266,7 @@ export const VideoPlayer = React.forwardRef<HTMLDivElement, VideoPlayerProps>(
         return;
       }
 
-      // Strategy 2: injected HLS engine seam (e.g. hls.js — caller provides)
+      // Strategy 2: injected HLS engine seam (e.g. hls.js, caller provides)
       if (createHlsEngine) {
         try {
           engineRef.current = createHlsEngine(video, src);
@@ -278,7 +278,7 @@ export const VideoPlayer = React.forwardRef<HTMLDivElement, VideoPlayerProps>(
         return;
       }
 
-      // Neither strategy available — render fallback
+      // Neither strategy available, render fallback
       setStatus("unplayable");
       const msg =
         "Your browser does not support HLS playback. " +
@@ -324,7 +324,7 @@ export const VideoPlayer = React.forwardRef<HTMLDivElement, VideoPlayerProps>(
     const handleVideoError = React.useCallback(() => {
       const video = videoRef.current;
       const detail =
-        video?.error?.message ?? "Video playback error — please try again.";
+        video?.error?.message ?? "Video playback error, please try again.";
       handleError(detail);
     }, [handleError]);
 
@@ -373,7 +373,7 @@ export const VideoPlayer = React.forwardRef<HTMLDivElement, VideoPlayerProps>(
           </div>
         ) : null}
 
-        {/* Native <video> — always in the DOM so refs are stable */}
+        {/* Native <video>. Always in the DOM so refs are stable */}
         <video
           ref={videoRef}
           data-testid="video-element"
@@ -383,7 +383,7 @@ export const VideoPlayer = React.forwardRef<HTMLDivElement, VideoPlayerProps>(
           playsInline
           preload="metadata"
           /*
-           * CONTENT PROTECTION (friction layer — NOT DRM, see component header).
+           * CONTENT PROTECTION (friction layer. NOT DRM, see component header).
            *
            * `nodownload` removes the browser's built-in "Download" item from the
            * player overflow menu (Chrome/Edge/Opera), which otherwise let a student
@@ -393,7 +393,7 @@ export const VideoPlayer = React.forwardRef<HTMLDivElement, VideoPlayerProps>(
            * This is deterrence, not prevention: a determined user can still reach the
            * bytes via devtools or screen-record the playback. Actual extraction-proof
            * protection requires DRM (Widevine/FairPlay via EME) from the video
-           * provider — tracked as a follow-up. Offline viewing is handled by the
+           * provider. Tracked as a follow-up. Offline viewing is handled by the
            * app's own IndexedDB store (see lms lib/offline-video-store.ts), never by
            * handing the user a file.
            */
@@ -412,7 +412,7 @@ export const VideoPlayer = React.forwardRef<HTMLDivElement, VideoPlayerProps>(
             }
           }}
         >
-          {/* Caption tracks — per docs/02 §7.3 / docs/07 §11 */}
+          {/* Caption tracks. Per docs/02 §7.3 / docs/07 §11 */}
           {captions?.map((track) => (
             <track
               key={track.srclang}
@@ -425,12 +425,12 @@ export const VideoPlayer = React.forwardRef<HTMLDivElement, VideoPlayerProps>(
           ))}
         </video>
 
-        {/* Per-user watermark overlay — decorative, aria-hidden, non-interactive.
+        {/* Per-user watermark overlay, decorative, aria-hidden, non-interactive.
             P3 = client-side only. Provider-side forensic watermark: tracked follow-up.
 
             TUNING (2026-07-18): deliberately LOW-CONTRAST and widely spaced. The point
             is forensic traceability of a leaked screen recording, not to nag the paying
-            student — the mark only has to survive re-encoding, not be legible at a
+            student. The mark only has to survive re-encoding, not be legible at a
             glance. Kept FULL-FRAME (tiled, not a corner badge) so cropping a recording
             can't remove it. Previously this rendered the text TWICE (a tiled background
             AND a solid centred copy at 25% opacity), which is what made it so intrusive

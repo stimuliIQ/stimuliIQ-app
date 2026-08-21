@@ -2,7 +2,7 @@
 // once and are pinned here once.
 //
 // jsdom's matchMedia stub answers `false` to everything, which makes the DEFAULT render a
-// touch device — so "click opens it" is tested against the harder case, and the hover cases
+// touch device, so "click opens it" is tested against the harder case, and the hover cases
 // opt in by overriding the stub.
 import * as React from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
@@ -10,7 +10,7 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 
 import { useFlyoutNav } from "./use-flyout-nav";
 
-/** Makes `(hover: hover) and (pointer: fine)` match — i.e. pretend to be a mouse. */
+/** Makes `(hover: hover) and (pointer: fine)` match, i.e. pretend to be a mouse. */
 function pretendMousePointer(): void {
   vi.spyOn(window, "matchMedia").mockImplementation(
     (query: string) =>
@@ -55,7 +55,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("useFlyoutNav — opening", () => {
+describe("useFlyoutNav, opening", () => {
   it("starts with nothing open", () => {
     render(<Harness />);
     expect(screen.queryByTestId("panel-alpha")).not.toBeInTheDocument();
@@ -125,7 +125,7 @@ describe("useFlyoutNav — opening", () => {
   });
 });
 
-describe("useFlyoutNav — dismissing", () => {
+describe("useFlyoutNav, dismissing", () => {
   it("closes after a grace period once the pointer leaves, not instantly", () => {
     pretendMousePointer();
     render(<Harness />);
@@ -134,7 +134,7 @@ describe("useFlyoutNav — dismissing", () => {
     fireEvent.mouseEnter(row);
     act(() => void vi.advanceTimersByTime(200));
     fireEvent.mouseLeave(row);
-    // Still open inside the grace window — this is what stops the panel vanishing when the
+    // Still open inside the grace window, this is what stops the panel vanishing when the
     // pointer clips a neighbouring row on its way in.
     expect(screen.getByTestId("panel-alpha")).toBeInTheDocument();
 
@@ -170,7 +170,7 @@ describe("useFlyoutNav — dismissing", () => {
     expect(screen.queryByTestId("panel-alpha")).not.toBeInTheDocument();
   });
 
-  it("closes when `closeOn` changes — navigating ends the interaction", () => {
+  it("closes when `closeOn` changes, navigating ends the interaction", () => {
     const { rerender } = render(<Harness closeOn="/leads" />);
     fireEvent.click(screen.getByText("alpha"));
     expect(screen.getByTestId("panel-alpha")).toBeInTheDocument();

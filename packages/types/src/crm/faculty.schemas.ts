@@ -57,7 +57,7 @@ export type ListFacultyQuery = z.infer<typeof ListFacultyQuerySchema>;
 // ─────────────────────────────────────────────────────────────────────────
 
 export const FacultySummarySchema = z.object({
-  id: UuidSchema.describe("faculty_profiles.id — referenced by batches.facultyId."),
+  id: UuidSchema.describe("faculty_profiles.id, referenced by batches.facultyId."),
   userId: UuidSchema,
   name: z.string(),
   email: z.string().email(),

@@ -12,7 +12,7 @@ describe("isPathActive", () => {
     expect(isPathActive("/programs", "/programs/certified-neurology-program")).toBe(true);
   });
 
-  it("does not match on a bare string prefix — the boundary is a path separator", () => {
+  it("does not match on a bare string prefix, the boundary is a path separator", () => {
     expect(isPathActive("/blog", "/blogging")).toBe(false);
     expect(isPathActive("/for-colleges", "/for-colleges-partners")).toBe(false);
   });

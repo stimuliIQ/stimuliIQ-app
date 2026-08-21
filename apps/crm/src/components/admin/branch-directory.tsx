@@ -50,7 +50,7 @@ export function BranchDirectory({ me }: BranchDirectoryProps): React.JSX.Element
   const columns: Array<DataTableColumn<BranchDetail>> = [
     { id: "name", header: "Name", cell: (row) => row.name, sortable: true },
     { id: "city", header: "City", cell: (row) => row.city },
-    { id: "address", header: "Address", cell: (row) => row.address ?? "—" },
+    { id: "address", header: "Address", cell: (row) => row.address ?? "-" },
     {
       id: "status",
       header: "Status",

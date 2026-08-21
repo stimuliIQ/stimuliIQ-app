@@ -46,7 +46,7 @@ export function StatGroupFields({ control, register, errors, watch, setValue }: 
 
       <div className="flex items-center justify-between">
         <p className="text-xs font-medium text-fg-muted">
-          Stats ({fields.length}) — {VARIANT_COUNT_HINT[variant] ?? "2-8 items"} required for this layout
+          Stats ({fields.length}), {VARIANT_COUNT_HINT[variant] ?? "2-8 items"} required for this layout
         </p>
         {fields.length < 8 ? (
           <Button type="button" variant="secondary" size="sm" onClick={() => append({ label: "", value: "" })} data-testid="stat-group-item-add">

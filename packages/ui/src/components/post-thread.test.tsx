@@ -56,7 +56,7 @@ const HIDDEN_POST: PostItem = {
 // Rendering
 // ---------------------------------------------------------------------------
 
-describe("PostThread — rendering", () => {
+describe("PostThread, rendering", () => {
   it("renders with default data-testid='post-thread'", () => {
     render(<PostThread posts={POSTS} />);
     expect(screen.getByTestId("post-thread")).toBeInTheDocument();
@@ -99,7 +99,7 @@ describe("PostThread — rendering", () => {
 // Hidden posts
 // ---------------------------------------------------------------------------
 
-describe("PostThread — hidden posts", () => {
+describe("PostThread, hidden posts", () => {
   it("shows 'hidden by a moderator' message for hidden posts", () => {
     render(<PostThread posts={[HIDDEN_POST]} />);
     expect(screen.getByText(/hidden by a moderator/i)).toBeInTheDocument();
@@ -116,7 +116,7 @@ describe("PostThread — hidden posts", () => {
 // a11y
 // ---------------------------------------------------------------------------
 
-describe("PostThread — a11y", () => {
+describe("PostThread, a11y", () => {
   it("has ordered list with aria-label for top-level posts", () => {
     render(<PostThread posts={POSTS} />);
     expect(screen.getByRole("list", { name: "Thread posts" })).toBeInTheDocument();
@@ -125,7 +125,7 @@ describe("PostThread — a11y", () => {
   it("upvote button has aria-label with count and aria-pressed", () => {
     render(<PostThread posts={POSTS} onUpvote={vi.fn()} />);
     const upvoteBtn = screen.getByTestId("upvote-p1");
-    expect(upvoteBtn).toHaveAttribute("aria-label", "Upvote this post — 3 upvotes");
+    expect(upvoteBtn).toHaveAttribute("aria-label", "Upvote this post, 3 upvotes");
     expect(upvoteBtn).toHaveAttribute("aria-pressed", "false");
   });
 
@@ -147,7 +147,7 @@ describe("PostThread — a11y", () => {
 // Interactions
 // ---------------------------------------------------------------------------
 
-describe("PostThread — interactions", () => {
+describe("PostThread, interactions", () => {
   it("calls onUpvote with post id when upvote is clicked", async () => {
     const user = userEvent.setup();
     const onUpvote = vi.fn();

@@ -1,7 +1,7 @@
 // apps/api/src/common/rate-limit/redis-window-rate-limiter.spec.ts
 //
 // Unit tests for the shared fixed-window Redis rate-limit core (Phase-7 Wave 2 security
-// hardening batch A, item 1 — generalizes login-rate-limiter.ts /
+// hardening batch A, item 1, generalizes login-rate-limiter.ts /
 // public-booking-rate-limiter.ts / health-rate-limit.guard.ts's shared logic).
 
 import { hitRedisWindow } from "./redis-window-rate-limiter";

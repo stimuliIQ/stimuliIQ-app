@@ -113,7 +113,7 @@ describe("LeaveNotificationService", () => {
     });
 
     // An unwatched approval queue is a problem to fix, not a reason to refuse somebody's
-    // application — so this logs loudly and returns.
+    // application, so this logs loudly and returns.
     it("warns but does not throw when the tenant has no active super admin", async () => {
       repo.listApprovers.mockResolvedValue([]);
       await expect(service.notifyRequested(TENANT, makeRequestRow())).resolves.toBeUndefined();

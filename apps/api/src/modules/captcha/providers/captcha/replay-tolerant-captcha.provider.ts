@@ -121,11 +121,11 @@ export class ReplayTolerantCaptchaProvider implements CaptchaProvider {
         // Same token, different IP — do NOT honour the memo. Fall through to
         // Cloudflare, which will reject it as a duplicate. That is the correct
         // answer: this is exactly the replay the single-use rule guards against.
-        this.logger.warn("[Captcha] A verified token was re-presented from a different IP — not honouring the memo.");
+        this.logger.warn("[Captcha] A verified token was re-presented from a different IP, not honouring the memo.");
       }
     } catch (err) {
       // See the file header: fall through to the real verify, never reject here.
-      this.logger.error(`[Captcha] Redis unavailable for the verified-token memo — verifying upstream: ${String(err)}`);
+      this.logger.error(`[Captcha] Redis unavailable for the verified-token memo, verifying upstream: ${String(err)}`);
       return this.inner.verify(token, remoteIp);
     }
 
@@ -137,7 +137,7 @@ export class ReplayTolerantCaptchaProvider implements CaptchaProvider {
         // The verification itself SUCCEEDED — the caller must be let through.
         // Losing the memo only means the visitor's next call re-verifies (and,
         // for a spent token, fails). Never turn a cache write into a rejection.
-        this.logger.error(`[Captcha] Could not record a verified token — the next call will re-verify: ${String(err)}`);
+        this.logger.error(`[Captcha] Could not record a verified token. The next call will re-verify: ${String(err)}`);
       }
     }
     return result;

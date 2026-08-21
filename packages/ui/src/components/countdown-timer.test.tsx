@@ -4,7 +4,7 @@ import { act, render, screen } from "@testing-library/react";
 import { CountdownTimer } from "./countdown-timer";
 
 // ---------------------------------------------------------------------------
-// Timer helpers — vitest fake timers
+// Timer helpers, vitest fake timers
 // ---------------------------------------------------------------------------
 
 function futureIso(seconds: number): string {
@@ -39,7 +39,7 @@ describe("CountdownTimer", () => {
   });
 
   it("shows H:MM:SS once an hour or more remains (e.g. the retry cooldown)", () => {
-    // 141 min 12 s = 2 h 21 min 12 s — must read "2:21:12", not the overflowed "141:12".
+    // 141 min 12 s = 2 h 21 min 12 s, must read "2:21:12", not the overflowed "141:12".
     render(<CountdownTimer expiresAt={futureIso(2 * 3600 + 21 * 60 + 12)} />);
     const srOnly = document.querySelector(".sr-only:not([aria-live])");
     expect(srOnly?.textContent).toMatch(/2:21:12/);
@@ -98,10 +98,10 @@ describe("CountdownTimer", () => {
     const liveRegion = document.querySelector('[aria-live="polite"]');
     // At t=0 (20s remaining), not in announceAtSeconds → empty
     expect(liveRegion?.textContent).toBe("");
-    // Advance to 10s remaining — should announce
+    // Advance to 10s remaining, should announce
     act(() => vi.advanceTimersByTime(10000));
     expect(liveRegion?.textContent).toMatch(/10 second/);
-    // Advance another 5s (5s remaining) — not in announceAtSeconds → no update
+    // Advance another 5s (5s remaining), not in announceAtSeconds → no update
     act(() => vi.advanceTimersByTime(5000));
     expect(liveRegion?.textContent).toMatch(/10 second/); // unchanged
   });
@@ -113,7 +113,7 @@ describe("CountdownTimer", () => {
     expect(liveRegion?.textContent).toBe("Time is up.");
   });
 
-  it("has no color-only low-time state — shows AlertTriangle icon on expiry", () => {
+  it("has no color-only low-time state, shows AlertTriangle icon on expiry", () => {
     render(<CountdownTimer expiresAt={futureIso(1)} />);
     act(() => vi.advanceTimersByTime(2000));
     // AlertTriangle SVG must appear in the DOM (non-color signal for expiry)

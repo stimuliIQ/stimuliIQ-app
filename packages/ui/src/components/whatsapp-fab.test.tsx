@@ -5,7 +5,7 @@ import { WhatsAppFab } from "./whatsapp-fab";
 
 const href = "https://wa.me/919876543210?text=Hello";
 
-describe("WhatsAppFab — rendering", () => {
+describe("WhatsAppFab, rendering", () => {
   it("renders with default data-testid='whatsapp-fab'", () => {
     render(<WhatsAppFab href={href} />);
     expect(screen.getByTestId("whatsapp-fab")).toBeInTheDocument();
@@ -44,7 +44,7 @@ describe("WhatsAppFab — rendering", () => {
   });
 });
 
-describe("WhatsAppFab — a11y", () => {
+describe("WhatsAppFab, a11y", () => {
   it("has a valid non-empty aria-label (icon button a11y requirement)", () => {
     render(<WhatsAppFab href={href} />);
     const link = screen.getByRole("link");

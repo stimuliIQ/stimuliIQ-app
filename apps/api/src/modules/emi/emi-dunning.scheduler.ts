@@ -42,7 +42,7 @@ export class EmiDunningScheduler implements OnModuleInit, OnApplicationShutdown 
   onModuleInit(): void {
     const env = validateEnv();
     if (!isSchedulerEnabled(env)) {
-      this.logger.log("[EmiDunningScheduler] SCHEDULER_ENABLED is false (or NODE_ENV=test) — scan interval NOT registered.");
+      this.logger.log("[EmiDunningScheduler] SCHEDULER_ENABLED is false (or NODE_ENV=test), scan interval NOT registered.");
       return;
     }
 
@@ -52,7 +52,7 @@ export class EmiDunningScheduler implements OnModuleInit, OnApplicationShutdown 
     }, intervalMs);
     timer.unref?.();
     this.schedulerRegistry.addInterval(INTERVAL_NAME, timer);
-    this.logger.log(`[EmiDunningScheduler] registered — scanning every ${intervalMs}ms.`);
+    this.logger.log(`[EmiDunningScheduler] registered, scanning every ${intervalMs}ms.`);
   }
 
   onApplicationShutdown(): void {

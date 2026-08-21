@@ -14,7 +14,7 @@ const ENTRIES: LeaderboardEntry[] = [
 // Rendering
 // ---------------------------------------------------------------------------
 
-describe("LeaderboardTable — rendering", () => {
+describe("LeaderboardTable, rendering", () => {
   it("renders with default data-testid='leaderboard-table'", () => {
     render(<LeaderboardTable entries={ENTRIES} />);
     expect(screen.getByTestId("leaderboard-table")).toBeInTheDocument();
@@ -46,11 +46,11 @@ describe("LeaderboardTable — rendering", () => {
 });
 
 // ---------------------------------------------------------------------------
-// PII-minimal — structural alias-safety
+// PII-minimal, structural alias-safety
 // ---------------------------------------------------------------------------
 
-describe("LeaderboardTable — PII-minimal (alias-safe)", () => {
-  it("renders only display names — no email rendered in rows", () => {
+describe("LeaderboardTable, PII-minimal (alias-safe)", () => {
+  it("renders only display names, no email rendered in rows", () => {
     render(<LeaderboardTable entries={ENTRIES} />);
     const rows = screen.getAllByTestId("leaderboard-row");
     rows.forEach((row) => {
@@ -79,10 +79,10 @@ describe("LeaderboardTable — PII-minimal (alias-safe)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// a11y — rank medals not color-only
+// a11y, rank medals not color-only
 // ---------------------------------------------------------------------------
 
-describe("LeaderboardTable — a11y", () => {
+describe("LeaderboardTable, a11y", () => {
   it("top-3 ranks show text labels (1st/2nd/3rd), not just color", () => {
     render(<LeaderboardTable entries={ENTRIES} />);
     expect(screen.getByText("1st")).toBeInTheDocument();

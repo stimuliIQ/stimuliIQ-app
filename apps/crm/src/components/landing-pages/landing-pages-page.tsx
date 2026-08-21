@@ -16,7 +16,7 @@ export function LandingPagesPage({ me }: { me: MeResponse | undefined }): React.
         title="Landing pages"
         description={
           <>
-            Campaign pages for ads and promotions, and the lead-capture forms embedded on them — separate from your
+            Campaign pages for ads and promotions, and the lead-capture forms embedded on them, separate from your
             main website pages, which are edited in{" "}
             <Link to="/marketing/page-builder" className="font-medium text-brand-500 hover:underline">
               Page Builder

@@ -4,7 +4,7 @@ import { render, screen } from "@testing-library/react";
 import { SlaChip, computeSlaState, SLA_SOON_THRESHOLD_MS } from "./sla-chip";
 
 // ---------------------------------------------------------------------------
-// computeSlaState — pure function boundary tests
+// computeSlaState, pure function boundary tests
 // ---------------------------------------------------------------------------
 
 describe("computeSlaState", () => {
@@ -29,11 +29,11 @@ describe("computeSlaState", () => {
     expect(result.label.length).toBeGreaterThan("Overdue".length);
   });
 
-  it("returns overdue/danger for dueAt exactly at now (boundary — past by 0ms rounds to 'Just now')", () => {
-    // Exactly at now — diffMs = 0 (negative or 0 = overdue boundary)
+  it("returns overdue/danger for dueAt exactly at now (boundary, past by 0ms rounds to 'Just now')", () => {
+    // Exactly at now, diffMs = 0 (negative or 0 = overdue boundary)
     const exactNow = new Date(now.getTime());
     const result = computeSlaState(exactNow, false, now);
-    // diffMs = 0, not < 0, so this is 0ms future — ok zone (threshold check)
+    // diffMs = 0, not < 0, so this is 0ms future, ok zone (threshold check)
     // Actually 0 is NOT past, so it should be "ok" or "soon" depending on threshold
     // diffMs = 0 → not < 0 → not overdue. 0 <= SLA_SOON_THRESHOLD_MS → "soon"
     expect(result.status).toBe("soon");
@@ -48,7 +48,7 @@ describe("computeSlaState", () => {
   });
 
   it("returns soon/warning when within soonThresholdMs (default 24h)", () => {
-    // 12 hours from now — within 24h threshold
+    // 12 hours from now, within 24h threshold
     const soonDue = new Date(now.getTime() + 12 * 3_600_000);
     const result = computeSlaState(soonDue, false, now);
     expect(result.status).toBe("soon");
@@ -64,7 +64,7 @@ describe("computeSlaState", () => {
   });
 
   it("returns ok/neutral when beyond soonThresholdMs", () => {
-    // 48 hours from now — beyond 24h threshold
+    // 48 hours from now, beyond 24h threshold
     const farDue = new Date(now.getTime() + 48 * 3_600_000);
     const result = computeSlaState(farDue, false, now);
     expect(result.status).toBe("ok");
@@ -90,7 +90,7 @@ describe("computeSlaState", () => {
     for (const [dueAt, done, status] of cases) {
       const result = computeSlaState(dueAt, done, now);
       expect(result.status).toBe(status);
-      // Label must contain more than just "Due" or "Overdue" — has a time component
+      // Label must contain more than just "Due" or "Overdue", has a time component
       expect(result.label.split(" ").length).toBeGreaterThan(1);
     }
   });

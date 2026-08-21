@@ -11,7 +11,7 @@ const EVENTS: CalendarEvent[] = [
   { id: "e2", title: "Doubt Session", start: new Date(2026, 6, 15, 15, 0) },
 ];
 
-describe("Calendar — month view", () => {
+describe("Calendar, month view", () => {
   it("renders the month grid with the anchor month label", () => {
     render(<Calendar events={EVENTS} defaultAnchorDate={ANCHOR} />);
     expect(screen.getByRole("grid", { name: /July 2026/i })).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe("Calendar — month view", () => {
   });
 });
 
-describe("Calendar — agenda view", () => {
+describe("Calendar, agenda view", () => {
   it("switches to agenda view and lists events grouped by date", async () => {
     const user = userEvent.setup();
     render(<Calendar events={EVENTS} defaultAnchorDate={ANCHOR} defaultView="month" />);
@@ -134,7 +134,7 @@ describe("Calendar — agenda view", () => {
   });
 });
 
-describe("Calendar — loading/error", () => {
+describe("Calendar, loading/error", () => {
   it("shows a loading state", () => {
     render(<Calendar events={[]} loading />);
     expect(screen.getByLabelText("Loading calendar")).toBeInTheDocument();
@@ -146,7 +146,7 @@ describe("Calendar — loading/error", () => {
   });
 });
 
-describe("Calendar — day tone", () => {
+describe("Calendar, day tone", () => {
   // Weekly offs and holidays cannot be modelled as events: 52 Sundays a year would exhaust
   // the two-events-per-day slots real events need. Hence a per-day tint instead.
   const isSunday = (d: Date) => d.getDay() === 0;
@@ -174,7 +174,7 @@ describe("Calendar — day tone", () => {
     }
   });
 
-  // Colour is never the only signal — a screen-reader user gets the same information.
+  // Colour is never the only signal, a screen-reader user gets the same information.
   it("appends the caller's day label to the cell's accessible name", () => {
     render(
       <Calendar

@@ -46,7 +46,7 @@ const mockDispatch = {
 const mockTemplateRegistry = new TemplateRegistry();
 
 // Minimal RedisService double for the T31/R10 SSE Redis pub/sub fan-out. `notify()`
-// calls `ssePublish()` -> `redis.client.publish(...)` (best-effort, catches failures) —
+// calls `ssePublish()` -> `redis.client.publish(...)` (best-effort, catches failures),
 // the tests never exercise `onModuleInit` (TestingModule.compile() alone does not run
 // lifecycle hooks, only `moduleRef.init()` does), so `.duplicate()`/`.psubscribe()` are
 // never actually invoked here, but are stubbed for type-shape completeness.
@@ -120,7 +120,7 @@ describe("NotificationsService", () => {
 
   // ─── AC-8: Missing prefs → default prefs applied ──────────────────────────
 
-  describe("notify() — AC-8: missing prefs → defaults applied", () => {
+  describe("notify(), AC-8: missing prefs → defaults applied", () => {
     it("applies default prefs (email=true) when no prefs row exists", async () => {
       mockRepo.findPrefs.mockResolvedValue(null); // no prefs row
       mockRepo.isSuppressed.mockResolvedValue(false);
@@ -150,7 +150,7 @@ describe("NotificationsService", () => {
 
   // ─── T31 / R10: SSE Redis pub/sub fan-out ──────────────────────────────────
 
-  describe("notify() — R10: publishes to the shared Redis SSE channel", () => {
+  describe("notify(), R10: publishes to the shared Redis SSE channel", () => {
     it("publishes the notification to sse-notif:<tenantId>:<userId> after the in_app row is created", async () => {
       mockRepo.findPrefs.mockResolvedValue(null);
       mockRepo.isSuppressed.mockResolvedValue(false);
@@ -182,7 +182,7 @@ describe("NotificationsService", () => {
 
   // ─── AC-7: All external channels disabled → only in_app ───────────────────
 
-  describe("notify() — AC-7: all channels disabled → only in_app created", () => {
+  describe("notify(), AC-7: all channels disabled → only in_app created", () => {
     it("does not call any external provider when all non-in_app channels disabled", async () => {
       mockRepo.findPrefs.mockResolvedValue({
         id: "pref-1",
@@ -217,7 +217,7 @@ describe("NotificationsService", () => {
 
   // ─── AC-11: Suppressed channel → MailProvider NOT called ──────────────────
 
-  describe("notify() — AC-11: suppressed channel skipped", () => {
+  describe("notify(), AC-11: suppressed channel skipped", () => {
     it("skips email dispatch when user is on suppression list for email", async () => {
       mockRepo.findPrefs.mockResolvedValue(null); // default prefs (email=true)
       // email is suppressed
@@ -241,7 +241,7 @@ describe("NotificationsService", () => {
 
   // ─── AC-9: Quiet hours defers non-urgent external channels ────────────────
 
-  describe("notify() — AC-9: quiet hours defers non-urgent channels", () => {
+  describe("notify(), AC-9: quiet hours defers non-urgent channels", () => {
     it("skips email dispatch during quiet hours for non-urgent type", async () => {
       // Set quiet hours to "always quiet" (00:00 – 23:59) to guarantee deferral
       mockRepo.findPrefs.mockResolvedValue({
@@ -274,7 +274,7 @@ describe("NotificationsService", () => {
 
   // ─── AC-10: Urgent type bypasses quiet hours ───────────────────────────────
 
-  describe("notify() — AC-10: urgent type bypasses quiet hours", () => {
+  describe("notify(), AC-10: urgent type bypasses quiet hours", () => {
     it("dispatches certificate_ready email even during quiet hours", async () => {
       // Set quiet hours to "always quiet"
       mockRepo.findPrefs.mockResolvedValue({
@@ -307,7 +307,7 @@ describe("NotificationsService", () => {
 
   // ─── AC-5/IDOR: markRead returns 404 for another user's notification ───────
 
-  describe("markRead() — AC-5: IDOR → 404", () => {
+  describe("markRead(), AC-5: IDOR → 404", () => {
     it("throws NotFoundException when notification belongs to a different user", async () => {
       mockRepo.findNotificationById.mockResolvedValue(null); // not found for this user
 
@@ -363,7 +363,7 @@ describe("NotificationsService", () => {
 
   // ─── AC-22: processUnsubscribe creates suppression row ────────────────────
 
-  describe("processUnsubscribe() — AC-22", () => {
+  describe("processUnsubscribe(), AC-22", () => {
     it("creates a suppression row for a valid unsubscribe token", async () => {
       const token = generateUnsubscribeToken(USER_ID, "email");
       mockRepo.findUserForUnsubscribe.mockResolvedValue({
@@ -431,7 +431,7 @@ describe("NotificationsService", () => {
     );
   }
 
-  describe("subscribeToStream() — AC-14: own-scoped", () => {
+  describe("subscribeToStream(), AC-14: own-scoped", () => {
     it("returns an async iterable and a cleanup function", () => {
       const [iterable, unsubscribe] = service.subscribeToStream(USER_ID, TENANT_ID);
 
@@ -479,10 +479,10 @@ describe("NotificationsService", () => {
         }
       })();
 
-      // Emit under a DIFFERENT tenantId for the SAME userId — must not reach this subscriber.
+      // Emit under a DIFFERENT tenantId for the SAME userId, must not reach this subscriber.
       emitSse(OTHER_TENANT_ID, USER_ID, makeStreamNotifDto("wrong-tenant-notif"));
 
-      // Now emit under the correct tenant — this one SHOULD arrive.
+      // Now emit under the correct tenant, this one SHOULD arrive.
       const correctDto = makeStreamNotifDto("correct-tenant-notif");
       emitSse(TENANT_ID, USER_ID, correctDto);
 
@@ -529,7 +529,7 @@ describe("NotificationsService", () => {
       const conn1Result = await conn1Iterator.next();
       expect(conn1Result.done).toBe(true);
 
-      // conn2/conn3/conn4 remain live — an emitted event reaches all three, not conn1.
+      // conn2/conn3/conn4 remain live, an emitted event reaches all three, not conn1.
       const delivered2: unknown[] = [];
       const collector2 = (async () => {
         for await (const event of conn2[0]) {
@@ -575,7 +575,7 @@ describe("NotificationsService", () => {
 
   // ─── AC-6 (headline): grade_ready → in_app + email ───────────────────────
 
-  describe("notify() — AC-6: grade_ready fan-out", () => {
+  describe("notify(), AC-6: grade_ready fan-out", () => {
     it("creates in_app row and dispatches email when opted-in and not suppressed", async () => {
       mockRepo.findPrefs.mockResolvedValue({
         id: "pref-1",

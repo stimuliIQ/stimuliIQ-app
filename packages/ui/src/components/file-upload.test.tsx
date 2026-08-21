@@ -132,10 +132,10 @@ describe("FileUpload", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Architecture / seam tests — the critical ones
+  // Architecture / seam tests, the critical ones
   // ---------------------------------------------------------------------------
 
-  it("NEVER calls any storage SDK directly — requestUploadUrl is the only I/O seam", async () => {
+  it("NEVER calls any storage SDK directly, requestUploadUrl is the only I/O seam", async () => {
     // The component should call requestUploadUrl (our injected seam) and nothing else
     // for I/O. We verify this by checking no raw bucket URL appears in the DOM.
     render(<Harness />);
@@ -173,7 +173,7 @@ describe("FileUpload", () => {
   it("sends the signed headers on the PUT, letting them override the guessed Content-Type", async () => {
     // S3/R2 sign Content-Type and x-amz-meta-* into the V4 canonical request, so a PUT
     // that omits them is rejected with 403 SignatureDoesNotMatch. Dropping these silently
-    // breaks every real upload while passing against a permissive mock — hence this test.
+    // breaks every real upload while passing against a permissive mock, hence this test.
     const requestUploadUrl = vi.fn(
       async (_file: File): Promise<SignedUploadResult> => ({
         url: "https://storage.example.com/upload-signed",
@@ -193,7 +193,7 @@ describe("FileUpload", () => {
 
     const calls = xhrInstances[0]!.setRequestHeader.mock.calls as [string, string][];
     expect(calls).toContainEqual(["x-amz-meta-max-bytes", "20971520"]);
-    // Content-Type is set twice: the File guess first, then the server's signed value —
+    // Content-Type is set twice: the File guess first, then the server's signed value,
     // the last write is what the request carries.
     expect(calls.filter(([name]) => name === "Content-Type").at(-1)).toEqual([
       "Content-Type",
@@ -313,7 +313,7 @@ describe("FileUpload", () => {
     });
   });
 
-  it("is keyboard operable — Enter on the dropzone opens the file picker trigger", async () => {
+  it("is keyboard operable, Enter on the dropzone opens the file picker trigger", async () => {
     const user = userEvent.setup();
     render(<Harness />);
     const dropzone = screen.getByTestId("file-upload-dropzone");
@@ -335,7 +335,7 @@ describe("FileUpload", () => {
     expect(clickSpy).toHaveBeenCalled();
   });
 
-  it("is disabled when disabled prop is set — dropzone has aria-disabled and tabIndex=-1", () => {
+  it("is disabled when disabled prop is set, dropzone has aria-disabled and tabIndex=-1", () => {
     const { rerender } = render(
       <FileUpload
         requestUploadUrl={fakeRequestUploadUrl}

@@ -49,7 +49,7 @@ const INTERNAL_MESSAGE: TicketMessageRow = {
   ticketId: "ticket-1",
   authorId: "staff-1",
   authorName: "Support Staff",
-  body: "Internal note — escalate to L2",
+  body: "Internal note, escalate to L2",
   isInternal: true,
   createdAt: new Date("2026-01-01T01:00:00Z"),
 };
@@ -100,7 +100,7 @@ describe("TicketsService", () => {
   });
 
   describe("isInternal message isolation (headline T21 rule)", () => {
-    it("getMine (student) NEVER includes isInternal=true messages — repository is called with includeInternal=false", async () => {
+    it("getMine (student) NEVER includes isInternal=true messages, repository is called with includeInternal=false", async () => {
       repo.findById.mockResolvedValue(ROW);
       repo.listMessages.mockResolvedValue([PUBLIC_MESSAGE]);
 
@@ -111,7 +111,7 @@ describe("TicketsService", () => {
       expect(result.messages.every((m) => !m.isInternal)).toBe(true);
     });
 
-    it("getById (staff, CRM) includes isInternal=true messages — repository is called with includeInternal=true", async () => {
+    it("getById (staff, CRM) includes isInternal=true messages, repository is called with includeInternal=true", async () => {
       repo.findById.mockResolvedValue(ROW);
       repo.listMessages.mockResolvedValue([INTERNAL_MESSAGE, PUBLIC_MESSAGE]);
 
@@ -126,7 +126,7 @@ describe("TicketsService", () => {
       repo.addMessage.mockResolvedValue({ id: "msg-new" });
       repo.listMessages.mockResolvedValue([{ ...PUBLIC_MESSAGE, id: "msg-new" }]);
 
-      // A malicious/buggy client sends isInternal:true — the service must ignore it.
+      // A malicious/buggy client sends isInternal:true, the service must ignore it.
       await service.addMyMessage("tenant-1", "student-1", "ticket-1", { body: "hi", isInternal: true });
 
       expect(repo.addMessage).toHaveBeenCalledWith("tenant-1", expect.objectContaining({ isInternal: false }));
@@ -135,7 +135,7 @@ describe("TicketsService", () => {
     // Regression: addMyMessage used to return the created message while the
     // OpenAPI spec, the api-client and every sibling route (create/getMine/rate)
     // said TicketDetail. The LMS cached that message under the ticket-detail key
-    // and then crashed on `ticket.messages.map` — after the reply had already
+    // and then crashed on `ticket.messages.map`, after the reply had already
     // been written. The 201 made it look like a send failure.
     it("addMyMessage returns the full TicketDetail, not the created message", async () => {
       repo.findById.mockResolvedValue(ROW);
@@ -232,7 +232,7 @@ describe("TicketsService", () => {
   });
 
   describe("three independently-gated mutation actions", () => {
-    it("update() only ever touches status/priority — never assigneeId", async () => {
+    it("update() only ever touches status/priority, never assigneeId", async () => {
       repo.findById.mockResolvedValueOnce(ROW).mockResolvedValueOnce(ROW);
       repo.listMessages.mockResolvedValue([]);
       await runWithScope("all", "staff-1", () =>
@@ -248,7 +248,7 @@ describe("TicketsService", () => {
       expect(repo.update).toHaveBeenCalledWith("ticket-1", { assigneeId: "staff-2" });
     });
 
-    it("close() is idempotency-guarded — an already-closed ticket -> 409", async () => {
+    it("close() is idempotency-guarded, an already-closed ticket -> 409", async () => {
       repo.findById.mockResolvedValue({ ...ROW, status: "closed" });
       await expect(
         runWithScope("all", "staff-1", () => service.close("tenant-1", "staff-1", "ticket-1")),
@@ -258,7 +258,7 @@ describe("TicketsService", () => {
 
   it("an unresolvable scope fails closed (403)", async () => {
     await expect(
-      // @ts-expect-error — deliberately passing an invalid scope literal to exercise the default branch.
+      // @ts-expect-error, deliberately passing an invalid scope literal to exercise the default branch.
       runWithScope("bogus", "actor-1", () => service.list("tenant-1", "actor-1", { page: 1, pageSize: 20 })),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });

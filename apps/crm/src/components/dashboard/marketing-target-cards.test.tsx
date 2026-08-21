@@ -165,7 +165,7 @@ describe("formatTargetMonth", () => {
   it("renders a month key as a readable month and year", () => {
     expect(formatTargetMonth("2026-03")).toBe("March 2026");
     expect(formatTargetMonth("2026-12")).toBe("December 2026");
-    // January must not roll back to the previous December through a timezone offset —
+    // January must not roll back to the previous December through a timezone offset,
     // the helper pins UTC precisely so a browser west of UTC does not see "December 2025".
     expect(formatTargetMonth("2026-01")).toBe("January 2026");
   });

@@ -2,14 +2,14 @@
 //
 // The drawer resets its `reason` with a RENDER-PHASE state update rather than an effect, so
 // a justification written for one user can never be rendered against another. That idiom is
-// legitimate React, but it only works if the guard condition CONVERGES — a render-phase
+// legitimate React, but it only works if the guard condition CONVERGES, a render-phase
 // update gets no eager bailout, so React re-runs the component and throws "Too many
 // re-renders" after 25 passes if the condition still holds.
 //
 // It did not converge: `user?.id` is `undefined` with no user selected while `lastUserId`
 // initialises to `null`, and `undefined !== null`. Because Admin ▸ Users renders this drawer
 // unconditionally with `user={null}`, the whole page crashed on load. The first test below
-// is that exact case — it fails with "Too many re-renders" against the old comparison.
+// is that exact case, it fails with "Too many re-renders" against the old comparison.
 
 import * as React from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -64,10 +64,10 @@ describe("ClearTwoFactorDrawer", () => {
   it("opens for a selected user", () => {
     renderDrawer(staffUser());
     expect(screen.getByTestId("user-clear-2fa-drawer")).toBeInTheDocument();
-    expect(screen.getByText(/Priya Sharma — priya@stimuliiq.test/)).toBeInTheDocument();
+    expect(screen.getByText(/Priya Sharma · priya@stimuliiq.test/)).toBeInTheDocument();
   });
 
-  it("settles after opening — a render-phase reset must converge, not re-fire", () => {
+  it("settles after opening, a render-phase reset must converge, not re-fire", () => {
     // Re-rendering with the SAME user must not restart the reset cycle.
     const user = staffUser();
     const { rerender } = renderDrawer(user);

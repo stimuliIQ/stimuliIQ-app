@@ -91,7 +91,7 @@ function isDecided(status: CareerApplicationStatus): boolean {
 }
 
 function formatDateTime(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleString("en-IN", {
     day: "numeric",
     month: "short",
@@ -272,14 +272,14 @@ export function CareerApplicationDrawer({
 
               <DetailGrid columns={2}>
                 <DetailRow label="Email" value={<a href={`mailto:${application.email}`}>{application.email}</a>} />
-                <DetailRow label="Phone" value={application.phone ?? "—"} />
+                <DetailRow label="Phone" value={application.phone ?? "-"} />
                 <DetailRow label="Applied for" value={application.role} />
                 <DetailRow
                   label="Opening"
                   value={
                     application.jobOpening
                       ? application.jobOpening.title
-                      : "No longer listed — this role has been deleted or closed"
+                      : "No longer listed. This role has been deleted or closed"
                   }
                 />
                 <DetailRow label="Applied" value={formatDateTime(application.createdAt)} />
@@ -307,7 +307,7 @@ export function CareerApplicationDrawer({
                     </a>
                   </Button>
                 ) : (
-                  <span className="text-sm text-fg-subtle">Resume unavailable right now — reopen to retry.</span>
+                  <span className="text-sm text-fg-subtle">Resume unavailable right now, reopen to retry.</span>
                 )}
                 {application.offerLetterDownloadUrl ? (
                   <Button variant="secondary" size="sm" asChild>
@@ -369,7 +369,7 @@ export function CareerApplicationDrawer({
                     value={roundName}
                     onChange={(e) => setRoundName(e.target.value)}
                     placeholder="Technical interview"
-                    helperText='Name it for what it is — "Round 2" tells a candidate nothing.'
+                    helperText='Name it for what it is, "Round 2" tells a candidate nothing.'
                     data-testid="shortlist-round-name"
                   />
                   <Textarea
@@ -378,7 +378,7 @@ export function CareerApplicationDrawer({
                     rows={4}
                     value={roundDetails}
                     onChange={(e) => setRoundDetails(e.target.value)}
-                    placeholder="A 45-minute video call with our academics lead. We'll email you two or three time slots this week — reply with whichever suits you."
+                    placeholder="A 45-minute video call with our academics lead. We'll email you two or three time slots this week. Reply with whichever suits you."
                     helperText="Format, rough duration, who they'll meet, and how scheduling will happen."
                     data-testid="shortlist-details"
                   />
@@ -421,7 +421,7 @@ export function CareerApplicationDrawer({
                     rows={3}
                     value={offerMessage}
                     onChange={(e) => setOfferMessage(e.target.value)}
-                    placeholder="We were really impressed by your teaching demo — the team is looking forward to having you."
+                    placeholder="We were really impressed by your teaching demo. The team is looking forward to having you."
                     helperText="Added above the standard offer wording. This one IS sent to the candidate."
                     data-testid="offer-message"
                   />
@@ -441,7 +441,7 @@ export function CareerApplicationDrawer({
                   </div>
                   {!offerLetterKey ? (
                     <p className="text-xs text-fg-subtle">
-                      The offer cannot be sent without a letter — an offer email with nothing attached is worse than none
+                      The offer cannot be sent without a letter. An offer email with nothing attached is worse than none
                       at all.
                     </p>
                   ) : null}

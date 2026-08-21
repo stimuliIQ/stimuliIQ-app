@@ -28,8 +28,8 @@ export function BranchComparisonReport({ me }: { me: MeResponse | undefined }): 
 
   const columns: Array<DataTableColumn<BranchComparisonRow>> = [
     { id: "branchName", header: "Branch", cell: (row) => row.branchName },
-    { id: "revenuePaise", header: "Revenue", cell: (row) => (row.revenuePaise !== null ? formatPaise(row.revenuePaise) : "—"), align: "right" },
-    { id: "enrollments", header: "Enrollments", cell: (row) => row.enrollments ?? "—", align: "right" },
+    { id: "revenuePaise", header: "Revenue", cell: (row) => (row.revenuePaise !== null ? formatPaise(row.revenuePaise) : "-"), align: "right" },
+    { id: "enrollments", header: "Enrollments", cell: (row) => row.enrollments ?? "-", align: "right" },
   ];
 
   function exportCsv() {
@@ -62,7 +62,7 @@ export function BranchComparisonReport({ me }: { me: MeResponse | undefined }): 
       ) : (
         <>
           <p className="text-xs text-fg-muted" data-testid="branch-comparison-freshness-note">
-            Computed live from current branch revenue/enrollment records — no cached snapshot.
+            Computed live from current branch revenue/enrollment records, no cached snapshot.
           </p>
 
           <BarChart

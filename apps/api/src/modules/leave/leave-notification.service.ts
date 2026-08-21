@@ -59,7 +59,7 @@ export class LeaveNotificationService {
       const approvers = await this.repo.listApprovers(tenantId);
       if (approvers.length === 0) {
         this.logger.warn(
-          `[LeaveNotificationService] tenant ${tenantId} has no active super_admin — ` +
+          `[LeaveNotificationService] tenant ${tenantId} has no active super_admin, ` +
             `leave request ${row.id} was saved but nobody was notified.`,
         );
         return;

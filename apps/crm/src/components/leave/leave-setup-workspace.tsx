@@ -281,7 +281,7 @@ function LeaveTypesTab(): React.JSX.Element {
         title={`Delete ${deleteTarget?.name ?? "this leave type"}?`}
         // Says what will actually happen, including the case where it is refused. A type
         // anybody has used cannot be deleted — hiding it is what the person wants there.
-        description="If anyone has ever applied for this type, deleting is refused so their history stays readable — switch it off on the form instead."
+        description="If anyone has ever applied for this type, deleting is refused so their history stays readable. Switch it off on the form instead."
         confirmLabel="Delete"
         tone="danger"
         loading={remove.isPending}
@@ -339,7 +339,7 @@ function AllowancesTab(): React.JSX.Element {
     <div className="space-y-4">
       <Alert tone="info">
         These are the days each member of staff gets per year. Changing an allowance mid-year
-        changes what everyone has left immediately — it does not affect leave already approved.
+        changes what everyone has left immediately. It does not affect leave already approved.
       </Alert>
 
       <div className="flex flex-wrap items-end gap-3">
@@ -373,7 +373,7 @@ function AllowancesTab(): React.JSX.Element {
                 step={0.5}
                 value={draft[type.id] ?? ""}
                 onChange={(event) => setDraft((prev) => ({ ...prev, [type.id]: event.target.value }))}
-                helperText={type.allowHalfDay ? "Days per year — halves allowed." : "Days per year."}
+                helperText={type.allowHalfDay ? "Days per year, halves allowed." : "Days per year."}
                 wrapperClassName="w-56"
                 data-testid={`leave-allowance-${type.id}`}
               />
@@ -438,7 +438,7 @@ function HolidaysTab(): React.JSX.Element {
       cell: (row) => (
         <StatusChip
           tone={row.optional ? "warning" : "neutral"}
-          label={row.optional ? "Optional — still a working day" : "Company holiday"}
+          label={row.optional ? "Optional, still a working day" : "Company holiday"}
         />
       ),
     },
@@ -554,7 +554,7 @@ function HolidaysTab(): React.JSX.Element {
         title={`Delete ${deleteTarget?.name ?? "this holiday"}?`}
         // Stated because the opposite is a reasonable thing to assume: leave already approved
         // across this date keeps the length it was agreed at.
-        description="Leave already approved across this date keeps the length it was approved at — only future requests are affected."
+        description="Leave already approved across this date keeps the length it was approved at. Only future requests are affected."
         confirmLabel="Delete"
         tone="danger"
         loading={deleteHoliday.isPending}

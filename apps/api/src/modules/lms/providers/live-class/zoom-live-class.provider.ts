@@ -189,13 +189,13 @@ export class ZoomLiveClassProvider implements LiveClassProvider {
       this.logger.warn(
         `[ZoomLiveClassProvider] Missing env vars: ${missing.join(", ")}. ` +
           "Meeting creation/join/end will fail until these are set. App boot continues " +
-          "— set LIVE_CLASS_PROVIDER=noop in .env for local dev.",
+          "Set LIVE_CLASS_PROVIDER=noop in .env for local dev.",
       );
     }
     if (!this.webhookSecretToken) {
       this.logger.warn(
         "[ZoomLiveClassProvider] ZOOM_WEBHOOK_SECRET_TOKEN is not configured. " +
-          "Webhook signature verification will FAIL CLOSED — all incoming webhooks will " +
+          "Webhook signature verification will FAIL CLOSED, all incoming webhooks will " +
           "be rejected until this secret is set.",
       );
     }
@@ -209,7 +209,7 @@ export class ZoomLiveClassProvider implements LiveClassProvider {
     if (!this.accountId || !this.clientId || !this.clientSecret) {
       throw new Error(
         "[ZoomLiveClassProvider] ZOOM_ACCOUNT_ID / ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET " +
-          "not configured — cannot perform this Zoom API operation. " +
+          "not configured. Cannot perform this Zoom API operation. " +
           "Add them to .env (see .env.example) or set LIVE_CLASS_PROVIDER=noop for local dev.",
       );
     }
@@ -283,7 +283,7 @@ export class ZoomLiveClassProvider implements LiveClassProvider {
       } catch {
         errText = response.statusText;
       }
-      this.logger.error(`[ZoomLiveClassProvider] API error on ${method} ${path}: HTTP ${response.status} — ${errText}`);
+      this.logger.error(`[ZoomLiveClassProvider] API error on ${method} ${path}: HTTP ${response.status} · ${errText}`);
       throw new Error(`[ZoomLiveClassProvider] Zoom API returned HTTP ${response.status}: ${errText}`);
     }
 
@@ -378,14 +378,14 @@ export class ZoomLiveClassProvider implements LiveClassProvider {
     if (!this.webhookSecretToken) {
       this.logger.warn(
         "[ZoomLiveClassProvider] verifyWebhookSignature called but ZOOM_WEBHOOK_SECRET_TOKEN " +
-          "is not configured — rejecting webhook (fail closed).",
+          "is not configured, rejecting webhook (fail closed).",
       );
       return false;
     }
     if (!input.timestampHeader) {
       this.logger.warn(
         "[ZoomLiveClassProvider] verifyWebhookSignature: missing x-zm-request-timestamp header " +
-          "— rejecting (fail closed).",
+          "Rejecting (fail closed).",
       );
       return false;
     }

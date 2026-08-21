@@ -81,7 +81,7 @@ export function EmiPlanDetailDrawer({ planId, onOpenChange, canCharge, canEdit }
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent title={plan ? `EMI plan — ${plan.studentName}` : "EMI plan"} size="lg" data-testid="emi-plan-detail-drawer">
+      <DrawerContent title={plan ? `EMI plan · ${plan.studentName}` : "EMI plan"} size="lg" data-testid="emi-plan-detail-drawer">
         <DrawerBody>
           {isLoading ? (
             <div className="flex flex-col gap-3">

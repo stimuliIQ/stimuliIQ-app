@@ -1,16 +1,16 @@
 // apps/api/src/modules/auth/lib/token.service.spec.ts
 //
 // Unit tests for TokenService's `aud` (audience) claim (Phase-7 Wave 2 security
-// hardening batch A — closes P0 followups M-4: "JWT access tokens have no `aud`
+// hardening batch A, closes P0 followups M-4: "JWT access tokens have no `aud`
 // claim"). Mirrors the per-file `jest.mock("jose", ...)` pattern already established
-// by modules/lms/providers/video/video-provider.spec.ts — a controllable SignJWT mock
+// by modules/lms/providers/video/video-provider.spec.ts, a controllable SignJWT mock
 // lets us assert exactly which claims/options are passed to `sign()`/`jwtVerify()`
 // without touching real RS256 keys or the ESM-only `jose` package directly.
 //
 // Coverage:
 //   - signAccessToken / signRefreshToken call `.setAudience(env.JWT_AUDIENCE)`.
 //   - verifyAccessToken / verifyRefreshToken pass `audience: env.JWT_AUDIENCE` to
-//     jwtVerify (jose itself is responsible for rejecting a mismatched/missing `aud` —
+//     jwtVerify (jose itself is responsible for rejecting a mismatched/missing `aud`,
 //     proven for real in the integration suite; this unit test proves TokenService
 //     ASKS jose to enforce it, which is the actual regression surface for this fix).
 //   - A jwtVerify rejection (simulating jose's real JWTClaimValidationFailed for a
@@ -20,7 +20,7 @@ const FAKE_JWT_TOKEN = "fake.jwt.token.for.testing";
 
 // Captures the last SignJWT instance's recorded state for assertions.
 let lastSignJwtState: { payload: Record<string, unknown>; audience?: unknown } | undefined;
-// Controls the next jwtVerify() call's behavior — set per-test.
+// Controls the next jwtVerify() call's behavior, set per-test.
 let jwtVerifyImpl: (token: string, key: unknown, opts: unknown) => Promise<{ payload: Record<string, unknown> }>;
 
 jest.mock("jose", () => {
@@ -70,7 +70,7 @@ jest.mock("jose", () => {
   };
 });
 
-// Avoid touching real PEM files on disk — jwt-keys.ts is a thin file-loader wrapper
+// Avoid touching real PEM files on disk, jwt-keys.ts is a thin file-loader wrapper
 // around jose's importPKCS8/importSPKI, irrelevant to the `aud` claim behavior under test.
 jest.mock("./jwt-keys", () => ({
   loadPrivateKey: jest.fn().mockResolvedValue({ type: "private" }),
@@ -91,7 +91,7 @@ const REQUIRED_ENV: NodeJS.ProcessEnv = {
   CSRF_SECRET: "b".repeat(32),
 };
 
-describe("TokenService — aud (audience) claim", () => {
+describe("TokenService, aud (audience) claim", () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {

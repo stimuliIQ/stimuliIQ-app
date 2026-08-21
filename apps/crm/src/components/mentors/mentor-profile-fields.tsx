@@ -362,7 +362,7 @@ export function MentorProfileFields({
           </div>
         )}
         <p className="text-xs text-fg-subtle">
-          JPG, PNG, or WebP · up to 5 MB. Drag and zoom to fit the square frame — shown on the public mentors page.
+          JPG, PNG, or WebP · up to 5 MB. Drag and zoom to fit the square frame. Shown on the public mentors page.
         </p>
       </div>
 

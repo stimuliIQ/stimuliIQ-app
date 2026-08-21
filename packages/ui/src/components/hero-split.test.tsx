@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 
 import { HeroSplit } from "./hero-split";
 
-describe("HeroSplit — rendering", () => {
+describe("HeroSplit, rendering", () => {
   it("renders with default data-testid='hero-split'", () => {
     render(<HeroSplit heading="Learn. Build. Get Hired." />);
     expect(screen.getByTestId("hero-split")).toBeInTheDocument();
@@ -52,7 +52,7 @@ describe("HeroSplit — rendering", () => {
   });
 });
 
-describe("HeroSplit — a11y", () => {
+describe("HeroSplit, a11y", () => {
   it("has a section landmark with aria-label", () => {
     render(<HeroSplit heading="H" />);
     expect(screen.getByRole("region", { name: "Hero section" })).toBeInTheDocument();

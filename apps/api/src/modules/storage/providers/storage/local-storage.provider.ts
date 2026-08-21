@@ -45,7 +45,7 @@ export class LocalStorageProvider implements StorageProvider {
 
   constructor(private readonly config: LocalStorageConfig) {
     this.logger.log(
-      `[LocalStorageProvider] DEV storage — objects on disk at "${config.baseDir}", served via ${config.apiBaseUrl}/api/v1/*. Not for production.`,
+      `[LocalStorageProvider] DEV storage, objects on disk at "${config.baseDir}", served via ${config.apiBaseUrl}/api/v1/*. Not for production.`,
     );
   }
 

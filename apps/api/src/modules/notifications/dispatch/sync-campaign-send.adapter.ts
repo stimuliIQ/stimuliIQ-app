@@ -69,7 +69,7 @@ export class SyncCampaignSendAdapter implements CampaignSendPort {
     // ─── In-request idempotency ────────────────────────────────────────────
     if (this.seenKeys.has(job.dedupeKey)) {
       this.logger.debug(
-        `[CampaignSend] Duplicate dedupeKey="${job.dedupeKey}" — skipping (idempotent no-op).`,
+        `[CampaignSend] Duplicate dedupeKey="${job.dedupeKey}", skipping (idempotent no-op).`,
       );
       return { sent: false, queued: false };
     }
@@ -78,7 +78,7 @@ export class SyncCampaignSendAdapter implements CampaignSendPort {
     // ─── DLT gate (defense-in-depth — Rule C-3, AC-78, AC-31) ────────────
     if ((job.channel === "sms" || job.channel === "whatsapp") && !job.dltTemplateId) {
       this.logger.warn(
-        `[CampaignSend] ${job.channel} send rejected: missing dltTemplateId — ` +
+        `[CampaignSend] ${job.channel} send rejected: missing dltTemplateId, ` +
           `campaignRecipientId="${job.campaignRecipientId}" (Rule C-3).`,
       );
       return { sent: false, queued: false, error: "DLT_TEMPLATE_ID_REQUIRED" };
@@ -165,7 +165,7 @@ export class SyncCampaignSendAdapter implements CampaignSendPort {
 
     if (!templateName) {
       this.logger.warn(
-        `[CampaignSend] whatsapp send missing whatsappTemplateName — recipientId="${job.campaignRecipientId}"`,
+        `[CampaignSend] whatsapp send missing whatsappTemplateName, recipientId="${job.campaignRecipientId}"`,
       );
       return { sent: false, queued: false, error: "MISSING_WHATSAPP_TEMPLATE_NAME" };
     }

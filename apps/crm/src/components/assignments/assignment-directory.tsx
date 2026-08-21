@@ -285,7 +285,7 @@ export function AssignmentDirectory({
                   id: "score",
                   header: "Score",
                   cell: (row) =>
-                    row.score !== null ? `${row.score}/${row.maxScore}` : `—/${row.maxScore}`,
+                    row.score !== null ? `${row.score}/${row.maxScore}` : `-/${row.maxScore}`,
                   align: "right",
                 },
                 {

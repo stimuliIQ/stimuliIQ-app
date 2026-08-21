@@ -7,9 +7,9 @@
 // covered by the seed's blanket catch-all).
 //
 // Two layers:
-//   1. ALWAYS RUNS (no DB) — static source-text scan of the controllers'
+//   1. ALWAYS RUNS (no DB), static source-text scan of the controllers'
 //      `@RequirePermission(...)` decorators, checked against prisma/seed.ts's source text.
-//   2. DB-GUARDED (`describeIfDb`) — queries the LIVE seeded `permissions` +
+//   2. DB-GUARDED (`describeIfDb`), queries the LIVE seeded `permissions` +
 //      `role_permissions` tables to confirm each key exists AND is granted, PLUS the
 //      exact role/scope grants this task's brief calls out (faculty=assigned for all 5
 //      keys; mentor=assigned for view/join; student=own for view/join; branch_manager=
@@ -59,7 +59,7 @@ describe("Live-classes module controllers permission catalog (regression: P6 for
     const source = readFileSync(resolve(__dirname, "./live-class-webhook.controller.ts"), "utf8");
     expect(source).not.toMatch(/@RequirePermission\(/);
     // The class itself must not carry a `@UseGuards(...)` decorator immediately above the
-    // class declaration — matched narrowly (not the doc-comment prose "No @UseGuards()"
+    // class declaration, matched narrowly (not the doc-comment prose "No @UseGuards()"
     // above, which legitimately contains the substring as explanatory text).
     expect(source).not.toMatch(/@UseGuards\([^)]*\)\s*\n\s*export class/);
   });
@@ -90,7 +90,7 @@ describe("Live-classes module controllers permission catalog (regression: P6 for
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("Live-classes permission catalog — live seeded DB", () => {
+describeIfDb("Live-classes permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {

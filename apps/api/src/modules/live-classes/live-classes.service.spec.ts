@@ -74,7 +74,7 @@ const ROW: LiveClassRow = {
   branchId: "branch-1",
   programId: "program-1",
   programTitle: "Full Stack",
-  title: "Week 3 — DSA",
+  title: "Week 3, DSA",
   provider: "zoom",
   providerMeetingId: "zoom-123",
   joinUrl: null,
@@ -170,7 +170,7 @@ describe("LiveClassesService", () => {
   describe("schedule()", () => {
     const REQUEST = {
       batchId: "batch-1",
-      title: "Week 3 — DSA",
+      title: "Week 3, DSA",
       provider: "zoom" as const,
       startsAt: "2026-01-01T10:00:00.000Z",
       endsAt: "2026-01-01T11:00:00.000Z",
@@ -193,7 +193,7 @@ describe("LiveClassesService", () => {
       const result = await runWithScope("all", "admin-1", () => service.schedule("tenant-1", "admin-1", REQUEST));
 
       expect(provider.createMeeting).toHaveBeenCalledWith(
-        expect.objectContaining({ topic: "Week 3 — DSA", hostUserId: "faculty-user-1" }),
+        expect.objectContaining({ topic: "Week 3, DSA", hostUserId: "faculty-user-1" }),
       );
       expect(repo.create).toHaveBeenCalledWith(
         "tenant-1",
@@ -205,7 +205,7 @@ describe("LiveClassesService", () => {
       expect(result.id).toBe("lc-new");
     });
 
-    it("fails closed (503-equivalent ConflictException) when the provider throws — never persists a fabricated meeting", async () => {
+    it("fails closed (503-equivalent ConflictException) when the provider throws, never persists a fabricated meeting", async () => {
       repo.findBatchForCreate.mockResolvedValue({ id: "batch-1", programId: "program-1", branchId: "branch-1" });
       provider.createMeeting.mockRejectedValue(new Error("Zoom API unreachable"));
 
@@ -215,7 +215,7 @@ describe("LiveClassesService", () => {
       expect(repo.create).not.toHaveBeenCalled();
     });
 
-    it("assigned-scope faculty scheduling for a batch outside their assignment -> 404 (not 403 — no existence leak)", async () => {
+    it("assigned-scope faculty scheduling for a batch outside their assignment -> 404 (not 403, no existence leak)", async () => {
       repo.findBatchForCreate.mockResolvedValue({ id: "batch-1", programId: "program-1", branchId: "branch-1" });
       repo.findOwnFacultyProfileId.mockResolvedValue("faculty-profile-1");
       scopeRepo.resolveBatchIdsForFaculty.mockResolvedValue(["a-different-batch"]);
@@ -227,7 +227,7 @@ describe("LiveClassesService", () => {
     });
   });
 
-  describe("join() — attendance auto-sync (T20 '<=60s of join')", () => {
+  describe("join(), attendance auto-sync (T20 '<=60s of join')", () => {
     it("own-scope (student) join writes the attendance row SYNCHRONOUSLY in the same call", async () => {
       repo.findById.mockResolvedValue(ROW);
       scopeRepo.resolveBatchIdsForStudent.mockResolvedValue(["batch-1"]);
@@ -244,7 +244,7 @@ describe("LiveClassesService", () => {
       const call = repo.upsertLiveAttendance.mock.calls[0][0];
       expect(call.liveClassId).toBe("lc-1");
       expect(call.enrollmentId).toBe("enr-1");
-      // The attendance write happened INLINE, in the same synchronous call — its
+      // The attendance write happened INLINE, in the same synchronous call, its
       // markedAt is bounded by the wall-clock window of this very test, trivially
       // satisfying "<=60s of join" (there is no queue/poll delay in the sync path).
       expect(call.markedAt.getTime()).toBeGreaterThanOrEqual(before);

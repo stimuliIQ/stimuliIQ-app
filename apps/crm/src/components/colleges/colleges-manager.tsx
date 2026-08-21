@@ -51,13 +51,13 @@ export function CollegesManager({ me }: { me: MeResponse | undefined }): React.J
         row.logoUrl ? (
           <img src={row.logoUrl} alt="" className="size-8 rounded object-contain" />
         ) : (
-          <span className="text-xs text-fg-subtle">—</span>
+          <span className="text-xs text-fg-subtle">-</span>
         ),
     },
     { id: "name", header: "Name", cell: (row) => row.name },
-    { id: "city", header: "City", cell: (row) => row.city ?? "—" },
-    { id: "focus", header: "Focus", cell: (row) => row.focus ?? "—" },
-    { id: "established", header: "Established", cell: (row) => row.established ?? "—", align: "right" },
+    { id: "city", header: "City", cell: (row) => row.city ?? "-" },
+    { id: "focus", header: "Focus", cell: (row) => row.focus ?? "-" },
+    { id: "established", header: "Established", cell: (row) => row.established ?? "-", align: "right" },
     { id: "status", header: "Status", cell: (row) => <StatusChip tone={STATUS_TONE[row.status]} label={row.status} size="sm" /> },
     {
       id: "actions",
@@ -101,7 +101,7 @@ export function CollegesManager({ me }: { me: MeResponse | undefined }): React.J
         description={
           <>
             Partner colleges shown on the homepage and &quot;For Colleges&quot; page. Add, edit, or remove a college here
-            — the public pages pull this list automatically.
+           . The public pages pull this list automatically.
           </>
         }
       />

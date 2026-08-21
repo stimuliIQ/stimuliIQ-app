@@ -68,7 +68,7 @@ const FULL_PAYLOAD: Record<string, unknown> = {
   currency: "INR",
   // welcome
   userName: "Arun Kumar",
-  brandName: "stimuliIQ",
+  brandName: "Stimuli IQ",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -96,7 +96,7 @@ describe("NOTIFICATION_TEMPLATES catalog", () => {
   it("every SMS template has smsDltTemplateId set (DLT_PENDING or real)", () => {
     for (const type of ALL_NOTIFICATION_TYPES) {
       const tpl = NOTIFICATION_TEMPLATES[type];
-      // Must be defined (even if "DLT_PENDING" — the sentinel, not undefined)
+      // Must be defined (even if "DLT_PENDING", the sentinel, not undefined)
       expect(tpl.smsDltTemplateId).toBeDefined();
     }
   });
@@ -111,7 +111,7 @@ describe("NOTIFICATION_TEMPLATES catalog", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TemplateRegistry.render() — per channel per type
+// TemplateRegistry.render(), per channel per type
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("TemplateRegistry", () => {
@@ -123,7 +123,7 @@ describe("TemplateRegistry", () => {
 
   // ─── in_app channel ────────────────────────────────────────────────────────
 
-  describe("render() — in_app channel", () => {
+  describe("render(), in_app channel", () => {
     for (const type of ALL_NOTIFICATION_TYPES) {
       it(`${type}: returns a non-empty body`, () => {
         const result = registry.render(type, "in_app", FULL_PAYLOAD);
@@ -154,7 +154,7 @@ describe("TemplateRegistry", () => {
 
   // ─── email channel ────────────────────────────────────────────────────────
 
-  describe("render() — email channel", () => {
+  describe("render(), email channel", () => {
     for (const type of ALL_NOTIFICATION_TYPES) {
       it(`${type}: returns subject and body`, () => {
         const result = registry.render(type, "email", FULL_PAYLOAD);
@@ -186,20 +186,20 @@ describe("TemplateRegistry", () => {
       for (const type of ALL_NOTIFICATION_TYPES) {
         const result = registry.render(type, "email", FULL_PAYLOAD);
         // Templates include {{unsubscribeUrl}} which renders to the value in payload
-        // (or stays as placeholder if not provided — but we provide it in FULL_PAYLOAD)
+        // (or stays as placeholder if not provided, but we provide it in FULL_PAYLOAD)
         expect(result.body).toContain("unsubscribe");
       }
     });
   });
 
-  // ─── sms channel — DLT passthrough ───────────────────────────────────────
+  // ─── sms channel, DLT passthrough ───────────────────────────────────────
 
-  describe("render() — sms channel (DLT passthrough, Rule C-3)", () => {
+  describe("render(), sms channel (DLT passthrough, Rule C-3)", () => {
     for (const type of ALL_NOTIFICATION_TYPES) {
       it(`${type}: returns body + missingDlt=true (DLT_PENDING sentinel) or dltTemplateId`, () => {
         const result = registry.render(type, "sms", FULL_PAYLOAD);
         expect(result.body).toBeTruthy();
-        // ALL templates in dev/test have "DLT_PENDING" — so missingDlt should be true
+        // ALL templates in dev/test have "DLT_PENDING", so missingDlt should be true
         // This validates Rule C-3 enforcement: the registry surfaces missing DLT IDs.
         const tpl = NOTIFICATION_TEMPLATES[type];
         if (tpl.smsDltTemplateId === "DLT_PENDING" || !tpl.smsDltTemplateId) {
@@ -218,16 +218,16 @@ describe("TemplateRegistry", () => {
       expect(result.body).toContain("92/100");
     });
 
-    it("Rule C-3: missingDlt=true when DLT_PENDING — caller must reject send", () => {
+    it("Rule C-3: missingDlt=true when DLT_PENDING, caller must reject send", () => {
       // All current templates have DLT_PENDING, so all SMS renders should return missingDlt.
       const result = registry.render("grade_ready", "sms", {});
       expect(result.missingDlt).toBe(true);
     });
   });
 
-  // ─── whatsapp channel — DLT passthrough ──────────────────────────────────
+  // ─── whatsapp channel, DLT passthrough ──────────────────────────────────
 
-  describe("render() — whatsapp channel (DLT passthrough, Rule C-3)", () => {
+  describe("render(), whatsapp channel (DLT passthrough, Rule C-3)", () => {
     for (const type of ALL_NOTIFICATION_TYPES) {
       it(`${type}: returns body + whatsappTemplateName`, () => {
         const result = registry.render(type, "whatsapp", FULL_PAYLOAD);
@@ -287,7 +287,7 @@ describe("TemplateRegistry", () => {
     });
   });
 
-  // ─── renderRaw() — for campaign DB templates ──────────────────────────────
+  // ─── renderRaw(), for campaign DB templates ──────────────────────────────
 
   describe("renderRaw()", () => {
     it("interpolates {{variable}} placeholders from variables map", () => {
@@ -309,9 +309,9 @@ describe("TemplateRegistry", () => {
       expect(registry.renderRaw(template, {})).toBe(template);
     });
 
-    it("handles null/undefined values in variables — coerces to empty string", () => {
+    it("handles null/undefined values in variables, coerces to empty string", () => {
       const template = "Value: {{val}}";
-      // undefined payload key is left as-is (safe fallback), not '' — but null is coerced
+      // undefined payload key is left as-is (safe fallback), not '', but null is coerced
       const result = registry.renderRaw(template, { val: null });
       expect(result).toBe("Value: ");
     });

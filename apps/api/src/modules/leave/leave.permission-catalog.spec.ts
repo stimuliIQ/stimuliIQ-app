@@ -46,7 +46,7 @@ function requiredPermissionKeys(relativePath: string): string[] {
 
 /**
  * Index of a class's `@Controller(...)` decorator, matched at the START of a line so the
- * file-header comment — which documents the very same routes — cannot be mistaken for the
+ * file-header comment, which documents the very same routes, cannot be mistaken for the
  * code and produce empty sections that pass by vacuity.
  */
 function controllerDecoratorIndex(source: string, path: string): number {
@@ -68,7 +68,7 @@ describe("Leave module permission catalog", () => {
     for (const key of ALL_KNOWN_KEYS) expect(referenced.has(key)).toBe(true);
   });
 
-  it("every route is permission-gated — none slips through on JwtAuthGuard alone", () => {
+  it("every route is permission-gated, none slips through on JwtAuthGuard alone", () => {
     const handlerCount = (controllerSource.match(/^\s+@(Get|Post|Patch|Put|Delete)\(/gm) ?? []).length;
     const keyCount = (controllerSource.match(/@RequirePermission\(/g) ?? []).length;
     expect(handlerCount).toBeGreaterThan(0);

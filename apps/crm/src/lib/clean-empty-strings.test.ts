@@ -19,7 +19,7 @@ describe("cleanEmptyStrings", () => {
   });
 
   // QA D1: an untouched optional `type="number"` input (`register(..., {valueAsNumber:
-  // true})`) yields `NaN`, not `undefined` — `input.valueAsNumber` is spec'd as `NaN` for an
+  // true})`) yields `NaN`, not `undefined`, `input.valueAsNumber` is spec'd as `NaN` for an
   // empty number input. Zod's `.optional()`/`.default()` only special-case `undefined`, so
   // an unfilled optional numeric field (e.g. `live_collection_ref.selection.minRating`)
   // permanently failed validation until this normalization existed.

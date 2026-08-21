@@ -1,6 +1,6 @@
 // apps/api/src/modules/captcha/providers/captcha/replay-tolerant-captcha.provider.spec.ts
 //
-// Unit tests for ReplayTolerantCaptchaProvider — the decorator that lets ONE solved
+// Unit tests for ReplayTolerantCaptchaProvider, the decorator that lets ONE solved
 // Turnstile challenge cover the two captcha-gated calls a file-bearing public form makes
 // (upload-url, then submit). See that file's header for the production defect it fixes.
 
@@ -56,7 +56,7 @@ describe("ReplayTolerantCaptchaProvider", () => {
 
   it("THE FIX: the same token from the same IP passes again WITHOUT a second upstream call", async () => {
     const redis = fakeRedis();
-    // Only ONE success is queued — a second upstream call would return the
+    // Only ONE success is queued, a second upstream call would return the
     // exhausted failure, exactly as Cloudflare answers `timeout-or-duplicate`.
     const inner = innerProvider([{ success: true }]);
     const provider = new ReplayTolerantCaptchaProvider(inner, redis.service);
@@ -66,7 +66,7 @@ describe("ReplayTolerantCaptchaProvider", () => {
     expect(inner.verify).toHaveBeenCalledTimes(1);
   });
 
-  it("never remembers a FAILED verification — a rejected token cannot become a pass", async () => {
+  it("never remembers a FAILED verification, a rejected token cannot become a pass", async () => {
     const redis = fakeRedis();
     const inner = innerProvider([
       { success: false, errorCodes: ["invalid-input-response"] },
@@ -80,7 +80,7 @@ describe("ReplayTolerantCaptchaProvider", () => {
     expect(redis.store.size).toBe(0);
   });
 
-  it("does NOT honour the memo for a different IP — a farmed token is worthless elsewhere", async () => {
+  it("does NOT honour the memo for a different IP, a farmed token is worthless elsewhere", async () => {
     const redis = fakeRedis();
     const inner = innerProvider([{ success: true }, { success: false, errorCodes: ["timeout-or-duplicate"] }]);
     const provider = new ReplayTolerantCaptchaProvider(inner, redis.service);
@@ -102,7 +102,7 @@ describe("ReplayTolerantCaptchaProvider", () => {
     expect(keys[0]).toMatch(/^captcha:verified:[0-9a-f]{64}$/);
   });
 
-  it("an empty token is always sent upstream — one solve must not cover token-less requests", async () => {
+  it("an empty token is always sent upstream, one solve must not cover token-less requests", async () => {
     const redis = fakeRedis();
     const inner = innerProvider([{ success: false, errorCodes: ["missing-input-response"] }]);
     const provider = new ReplayTolerantCaptchaProvider(inner, redis.service);
@@ -112,7 +112,7 @@ describe("ReplayTolerantCaptchaProvider", () => {
     expect(redis.store.size).toBe(0);
   });
 
-  it("FAILS OPEN on a Redis read error — falls through to the real verify, never rejects on its own", async () => {
+  it("FAILS OPEN on a Redis read error, falls through to the real verify, never rejects on its own", async () => {
     const redis = fakeRedis();
     redis.failing = true;
     const inner = innerProvider([{ success: true }]);

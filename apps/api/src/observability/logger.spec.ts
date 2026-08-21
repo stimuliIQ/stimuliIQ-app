@@ -15,7 +15,7 @@ function createSink(): { lines: string[]; stream: Writable } {
 
 /** Builds a plain (non-HTTP) pino logger from the SAME options object used in
  *  production, minus the pino-http-only fields (`transport` would spin up a worker
- *  thread; `genReqId` is HTTP-request-specific) — the redact/hooks/formatters config
+ *  thread; `genReqId` is HTTP-request-specific), the redact/hooks/formatters config
  *  under test is shared verbatim. */
 function buildTestLogger(stream: Writable): pino.Logger {
   const { transport: _transport, genReqId: _genReqId, ...rest } = loggerModuleOptions.pinoHttp as Record<
@@ -25,7 +25,7 @@ function buildTestLogger(stream: Writable): pino.Logger {
   return pino(rest as pino.LoggerOptions, stream);
 }
 
-describe("REDACT_PATHS — Rule H-4/AC-47", () => {
+describe("REDACT_PATHS, Rule H-4/AC-47", () => {
   it("covers the auth header, cookie header, csrf header, and set-cookie response header", () => {
     expect(REDACT_PATHS).toEqual(
       expect.arrayContaining([
@@ -38,7 +38,7 @@ describe("REDACT_PATHS — Rule H-4/AC-47", () => {
   });
 });
 
-describe("pino logger config — redaction + PII masking (functional)", () => {
+describe("pino logger config, redaction + PII masking (functional)", () => {
   it("redacts the Authorization header from the emitted log line", () => {
     const { lines, stream } = createSink();
     const logger = buildTestLogger(stream);

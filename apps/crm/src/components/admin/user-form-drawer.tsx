@@ -234,7 +234,7 @@ export function UserFormDrawer({ open, onOpenChange, user }: UserFormDrawerProps
               label="Password"
               required
               autoComplete="new-password"
-              helperText="Min 10 characters — they can change it later from their account menu."
+              helperText="Min 10 characters. They can change it later from their account menu."
               {...register("password")}
               error={errors.password?.message}
               data-testid="user-form-password"

@@ -7,7 +7,7 @@ import { CampaignMetricsCard } from "./campaign-metrics-card";
 // Rendering
 // ---------------------------------------------------------------------------
 
-describe("CampaignMetricsCard — rendering", () => {
+describe("CampaignMetricsCard, rendering", () => {
   it("renders with default data-testid='campaign-metrics-card'", () => {
     render(<CampaignMetricsCard totalRecipients={500} sent={492} />);
     expect(screen.getByTestId("campaign-metrics-card")).toBeInTheDocument();
@@ -53,7 +53,7 @@ describe("CampaignMetricsCard — rendering", () => {
 // Loading + error states
 // ---------------------------------------------------------------------------
 
-describe("CampaignMetricsCard — states", () => {
+describe("CampaignMetricsCard, states", () => {
   it("renders with aria-busy=true when loading", () => {
     render(<CampaignMetricsCard loading />);
     expect(screen.getByTestId("campaign-metrics-card")).toHaveAttribute("aria-busy", "true");
@@ -66,10 +66,10 @@ describe("CampaignMetricsCard — states", () => {
 });
 
 // ---------------------------------------------------------------------------
-// a11y — no color-only status
+// a11y, no color-only status
 // ---------------------------------------------------------------------------
 
-describe("CampaignMetricsCard — a11y", () => {
+describe("CampaignMetricsCard, a11y", () => {
   it("each metric has an aria-label conveying both number and label", () => {
     render(
       <CampaignMetricsCard

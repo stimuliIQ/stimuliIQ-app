@@ -110,7 +110,7 @@ export function ImageKeyField({
       onUploadedKey(signed.storageKey);
       toast({ title: "Image uploaded", variant: "success" });
     } catch (error) {
-      surfaceError(toast, error, "Couldn't upload the image — check your connection and try again.");
+      surfaceError(toast, error, "Couldn't upload the image. Check your connection and try again.");
     } finally {
       setUploading(false);
     }
@@ -186,7 +186,7 @@ export function ImageKeyField({
         broken ? (
           <p className="flex items-center gap-1.5 text-xs text-warning" data-testid={`${testId}-preview-error`}>
             <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />
-            Image not found — check the file name.
+            Image not found, check the file name.
           </p>
         ) : (
           <img

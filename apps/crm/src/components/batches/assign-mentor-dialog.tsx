@@ -136,7 +136,7 @@ export function AssignMentorDialog({
                 disabled={isLoading || mentors.length === 0}
                 helperText={
                   !isLoading && mentors.length === 0
-                    ? "No active mentors available — add or activate one first."
+                    ? "No active mentors available. Add or activate one first."
                     : undefined
                 }
                 data-testid="assign-mentor-select"
@@ -159,7 +159,7 @@ export function AssignMentorDialog({
               <Label htmlFor="assign-mentor-lead">Make lead mentor for this batch</Label>
             </div>
             <p className="text-xs text-fg-muted">
-              A batch may have several mentors, but at most one lead — marking this mentor as lead clears any
+              A batch may have several mentors, but at most one lead. Marking this mentor as lead clears any
               other mentor&apos;s lead flag on this batch.
             </p>
           </DrawerBody>

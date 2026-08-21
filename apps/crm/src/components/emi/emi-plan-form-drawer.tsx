@@ -82,7 +82,7 @@ export function EmiPlanFormDrawer({ open, onOpenChange }: EmiPlanFormDrawerProps
                 >
                   {(orders?.items ?? []).map((order) => (
                     <SelectItem key={order.id} value={order.id}>
-                      {order.studentName} — {order.programTitle}
+                      {order.studentName}, {order.programTitle}
                     </SelectItem>
                   ))}
                 </Select>

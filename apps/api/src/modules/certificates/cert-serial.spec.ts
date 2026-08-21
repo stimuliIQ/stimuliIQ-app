@@ -66,7 +66,7 @@ describe("isCertificateSerial", () => {
     expect(isCertificateSerial("eyJzIjoiYWJjIn0.k9Xr2mQ7vB")).toBe(false);
     // Ambiguous letters are not in the alphabet, so a serial containing them is invalid.
     expect(isCertificateSerial("STMQ-2026-ILOU-9QX2")).toBe(false);
-    // Lower-case must be normalised first — the raw regex is upper-case only.
+    // Lower-case must be normalised first, the raw regex is upper-case only.
     expect(isCertificateSerial("stmq-2026-7f3k-9qx2")).toBe(false);
   });
 });

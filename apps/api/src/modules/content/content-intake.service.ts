@@ -82,7 +82,7 @@ export class ContentIntakeService {
   async verifyCaptcha(token: string, ip: string | undefined): Promise<void> {
     const result = await this.captchaProvider.verify(token, ip);
     if (!result.success) {
-      this.logger.warn(`[ContentIntake] Captcha verification failed — codes: ${result.errorCodes?.join(",")}`);
+      this.logger.warn(`[ContentIntake] Captcha verification failed, codes: ${result.errorCodes?.join(",")}`);
       throw new UnprocessableEntityException({ code: "content.captcha_invalid", title: "Captcha verification failed", detail: "Please complete the captcha challenge and try again." });
     }
   }
@@ -176,7 +176,7 @@ export class ContentIntakeService {
       message: sanitize(dto.message, 5000) ?? dto.message,
       consent,
     });
-    return { id: created.id, message: "Thanks for reaching out — we'll get back to you shortly." };
+    return { id: created.id, message: "Thanks for reaching out, we'll get back to you shortly." };
   }
 
   async listContactSubmissions(tenantId: string, query: ListContactSubmissionsQuery): Promise<PaginatedResult<ContactSubmission>> {

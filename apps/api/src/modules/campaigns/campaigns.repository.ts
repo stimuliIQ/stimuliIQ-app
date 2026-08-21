@@ -373,7 +373,7 @@ export class CampaignsRepository {
       // P2002 = Prisma unique constraint violation (the partial-unique on campaign+recipient).
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
         this.logger.debug(
-          `[CampaignsRepo] insertRecipient: duplicate (campaign=${data.campaignId}) — no-op.`,
+          `[CampaignsRepo] insertRecipient: duplicate (campaign=${data.campaignId}), no-op.`,
         );
         return null;
       }
@@ -637,7 +637,7 @@ export class CampaignsRepository {
       // tenant+channel+email/phone) — idempotent no-op, matching insertRecipient().
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
         this.logger.debug(
-          `[CampaignsRepo] createBounceSuppression: duplicate (tenant=${input.tenantId} channel=${input.channel}) — no-op.`,
+          `[CampaignsRepo] createBounceSuppression: duplicate (tenant=${input.tenantId} channel=${input.channel}), no-op.`,
         );
         return false;
       }

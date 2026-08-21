@@ -83,7 +83,7 @@ export function generateTotpSecret(): string {
  * Builds the standard `otpauth://totp/...` enrollment URI (consumed by Google
  * Authenticator, Authy, 1Password, etc. either via QR scan or manual paste).
  */
-export function buildOtpauthUrl(secret: string, accountLabel: string, issuer = "stimuliIQ"): string {
+export function buildOtpauthUrl(secret: string, accountLabel: string, issuer = "Stimuli IQ"): string {
   const label = encodeURIComponent(`${issuer}:${accountLabel}`);
   const params = new URLSearchParams({
     secret,

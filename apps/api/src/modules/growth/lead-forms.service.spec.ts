@@ -1,6 +1,6 @@
 // apps/api/src/modules/growth/lead-forms.service.spec.ts
 //
-// Unit tests for LeadFormsService — closes Phase-9-completion gap #1 (CRM lead-form
+// Unit tests for LeadFormsService, closes Phase-9-completion gap #1 (CRM lead-form
 // manager CRUD). Covers: scope=all gate, key-conflict -> 409, and the public
 // active-only read (config-only; no lead capture here).
 

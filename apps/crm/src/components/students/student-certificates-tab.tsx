@@ -60,7 +60,7 @@ export function StudentCertificatesTab({
             {row.certUid}
           </a>
         ) : (
-          "—"
+          "-"
         ),
     },
   ];

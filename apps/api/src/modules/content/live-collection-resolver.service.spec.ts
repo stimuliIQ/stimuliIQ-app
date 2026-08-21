@@ -5,7 +5,7 @@
 // drop of missing/unpublished ids (Edge case #2), `mode=filter` published-only
 // filtering, programs/mentors delegation to PublicCatalogService (reusing the SAME
 // public projection, not a second implementation), resolution failures degrading to an
-// EMPTY list rather than throwing (Edge cases #2/#3 — "never 500"), and Edge case #9
+// EMPTY list rather than throwing (Edge cases #2/#3, "never 500"), and Edge case #9
 // (an unknown/legacy stored block `type` is silently skipped, never fails the batch).
 
 import { LiveCollectionResolverService } from "./live-collection-resolver.service";
@@ -81,7 +81,7 @@ describe("LiveCollectionResolverService", () => {
     partnersRepo = mockPartnersRepository();
     publicCatalog = mockPublicCatalogService();
     // The careers page's Open Roles section is the second reference block this service
-    // resolves (ADR-0066) — empty by default, overridden per-test.
+    // resolves (ADR-0066), empty by default, overridden per-test.
     jobOpenings = { listPublicForTenant: jest.fn().mockResolvedValue([]) } as unknown as Mocked<JobOpeningsService>;
     service = new LiveCollectionResolverService(
       testimonialsRepo as unknown as TestimonialsRepository,
@@ -158,7 +158,7 @@ describe("LiveCollectionResolverService", () => {
     });
   });
 
-  describe("collection=programs / mentors — delegate to PublicCatalogService (no second projection)", () => {
+  describe("collection=programs / mentors, delegate to PublicCatalogService (no second projection)", () => {
     it("maps categorySlug to the public catalog's `domain` filter facet", async () => {
       publicCatalog.listPrograms.mockResolvedValue({ items: [], nextCursor: null });
       const block: PageBuilderBlock = {
@@ -190,7 +190,7 @@ describe("LiveCollectionResolverService", () => {
     });
   });
 
-  describe("resolveRawBlocks — public read path (Edge case #9)", () => {
+  describe("resolveRawBlocks, public read path (Edge case #9)", () => {
     it("silently skips an unknown/legacy block type instead of failing the whole page", async () => {
       const raw = [{ type: "some_removed_block_type", data: { foo: "bar" } }, { type: "brain_showcase", data: {} }];
       const result = await service.resolveRawBlocks("tenant-1", raw);

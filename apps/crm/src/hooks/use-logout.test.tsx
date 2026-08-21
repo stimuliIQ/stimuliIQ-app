@@ -3,7 +3,7 @@
 // The bug this pins: AppShell renders `<LoginForm />` IN PLACE OF the current route while
 // signed out and never touches the URL. So signing out of /marketing/targets left the URL
 // there, and signing back in put you straight back on /marketing/targets. Nothing about the
-// login path is wrong — the URL simply has to be cleared on the way out, and this is the
+// login path is wrong, the URL simply has to be cleared on the way out, and this is the
 // only place that does it.
 //
 // It must survive a FAILED logout too: the cache invalidation next to it is deliberately in
@@ -59,7 +59,7 @@ describe("useLogout", () => {
   });
 
   it("still clears the URL when the logout request FAILS", async () => {
-    // `onSettled`, not `onSuccess` — matching the cache invalidation beside it. A failed
+    // `onSettled`, not `onSuccess`, matching the cache invalidation beside it. A failed
     // logout must not leave the last worked-on page in the URL bar behind a login form.
     logoutMock.mockRejectedValue(new Error("network"));
     const { result } = renderHook(() => useLogout(), { wrapper });

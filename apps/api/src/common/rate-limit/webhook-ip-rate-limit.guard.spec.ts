@@ -29,7 +29,7 @@ function buildContext(opts: { ip?: string; className?: string; setHeader?: jest.
   } as unknown as ExecutionContext;
 }
 
-describe("WebhookIpRateLimitGuard — AC-58", () => {
+describe("WebhookIpRateLimitGuard, AC-58", () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
@@ -53,7 +53,7 @@ describe("WebhookIpRateLimitGuard — AC-58", () => {
   });
 
   it("throws 429 once the per-IP window threshold is exceeded", async () => {
-    // WEBHOOK_IP_RATE_LIMIT_MAX_ATTEMPTS default is 300 — simulate the 301st attempt.
+    // WEBHOOK_IP_RATE_LIMIT_MAX_ATTEMPTS default is 300, simulate the 301st attempt.
     const redis = {
       client: { incr: jest.fn().mockResolvedValue(301), expire: jest.fn() },
     } as unknown as RedisService;
@@ -68,7 +68,7 @@ describe("WebhookIpRateLimitGuard — AC-58", () => {
     expect(setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
   });
 
-  it("buckets by controller class name — payment webhook flood does not exhaust the campaign webhook's budget", async () => {
+  it("buckets by controller class name, payment webhook flood does not exhaust the campaign webhook's budget", async () => {
     const incr = jest.fn().mockResolvedValue(1);
     const redis = { client: { incr, expire: jest.fn() } } as unknown as RedisService;
     const guard = new WebhookIpRateLimitGuard(redis);
@@ -80,7 +80,7 @@ describe("WebhookIpRateLimitGuard — AC-58", () => {
     expect(incr).toHaveBeenNthCalledWith(2, "webhook:ip-rl:CampaignWebhookController:10.0.0.5");
   });
 
-  it("FAILS OPEN when Redis errors — HMAC signature verification remains the primary control", async () => {
+  it("FAILS OPEN when Redis errors, HMAC signature verification remains the primary control", async () => {
     const redis = {
       client: { incr: jest.fn().mockRejectedValue(new Error("Redis unreachable")), expire: jest.fn() },
     } as unknown as RedisService;

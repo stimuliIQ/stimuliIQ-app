@@ -70,7 +70,7 @@ describe("SyncNotificationDispatchAdapter", () => {
   // ─── Idempotency (same dedupeKey = no double-dispatch) ────────────────────
 
   describe("idempotency by dedupeKey", () => {
-    it("first dispatch proceeds — dispatched=true", async () => {
+    it("first dispatch proceeds, dispatched=true", async () => {
       const job: ChannelSendJob = {
         channel: "email",
         dedupeKey: "notif-001:email",
@@ -172,9 +172,9 @@ describe("SyncNotificationDispatchAdapter", () => {
 
     // `toEmail` is optional by design: a caller that has already sent its own richer
     // email (e.g. CommerceService's combined "receipt + LMS credentials" mail) omits the
-    // address so this channel does NOT send a duplicate. That is a skip, not a failure —
+    // address so this channel does NOT send a duplicate. That is a skip, not a failure,
     // reporting it as an error made a working path look broken in the logs.
-    it("skips (does not error) when toEmail is absent — the caller sent its own email", async () => {
+    it("skips (does not error) when toEmail is absent, the caller sent its own email", async () => {
       const job: ChannelSendJob = {
         channel: "email",
         dedupeKey: "notif-005:email",
@@ -217,10 +217,10 @@ describe("SyncNotificationDispatchAdapter", () => {
     });
   });
 
-  // ─── sms channel — DLT gate ───────────────────────────────────────────────
+  // ─── sms channel, DLT gate ───────────────────────────────────────────────
 
-  describe("sms channel — DLT gate (Rule C-3, AC-78)", () => {
-    it("rejects SMS without dltTemplateId — no provider call", async () => {
+  describe("sms channel, DLT gate (Rule C-3, AC-78)", () => {
+    it("rejects SMS without dltTemplateId, no provider call", async () => {
       const job: ChannelSendJob = {
         channel: "sms",
         dedupeKey: "notif-008:sms",
@@ -265,10 +265,10 @@ describe("SyncNotificationDispatchAdapter", () => {
     });
   });
 
-  // ─── whatsapp channel — DLT gate ──────────────────────────────────────────
+  // ─── whatsapp channel, DLT gate ──────────────────────────────────────────
 
-  describe("whatsapp channel — DLT gate (Rule C-3, AC-78)", () => {
-    it("rejects WhatsApp without dltTemplateId — no provider call", async () => {
+  describe("whatsapp channel, DLT gate (Rule C-3, AC-78)", () => {
+    it("rejects WhatsApp without dltTemplateId, no provider call", async () => {
       const job: ChannelSendJob = {
         channel: "whatsapp",
         dedupeKey: "notif-011:whatsapp",
@@ -429,7 +429,7 @@ describe("SyncCampaignSendAdapter", () => {
         tenantId: "t1",
         channel: "whatsapp",
         to: "+919876543210",
-        body: "Hello from stimuliIQ!",
+        body: "Hello from Stimuli IQ!",
         whatsappTemplateName: "welcome_notification",
         // dltTemplateId: NOT provided
       };

@@ -28,7 +28,7 @@ describe("BulkActions module controller permission catalog", () => {
     ]);
   });
 
-  it("SavedViewsController declares NO @RequirePermission (JwtAuthGuard-only — see file header)", () => {
+  it("SavedViewsController declares NO @RequirePermission (JwtAuthGuard-only, see file header)", () => {
     expect(requiredPermissionKeys("./saved-views.controller.ts")).toEqual([]);
   });
 
@@ -48,7 +48,7 @@ describe("BulkActions module controller permission catalog", () => {
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("BulkActions permission catalog — live seeded DB", () => {
+describeIfDb("BulkActions permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {

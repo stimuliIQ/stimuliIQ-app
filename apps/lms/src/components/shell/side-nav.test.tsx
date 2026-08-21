@@ -5,7 +5,7 @@
 // hardest here:
 //
 //   1. THE OUTSTANDING-PROJECT BADGE. It is the one nav badge that maps to something
-//      blocking — a required final project gates the certificate. Projects moved from a
+//      blocking, a required final project gates the certificate. Projects moved from a
 //      top-level row into a flyout, which would have hidden that count behind a hover, so
 //      the Coursework row now carries it too. If that bubbling is ever dropped, a student
 //      stops seeing the one thing standing between them and their certificate.
@@ -43,7 +43,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("LMS side nav — shape", () => {
+describe("LMS side nav, shape", () => {
   it("keeps Home and My Courses as direct rows, not behind a flyout", () => {
     renderNav();
     expect(screen.getByTestId("nav-home")).toHaveAttribute("href", "/");
@@ -68,7 +68,7 @@ describe("LMS side nav — shape", () => {
   });
 });
 
-describe("LMS side nav — opening", () => {
+describe("LMS side nav, opening", () => {
   it("opens a section on click, which is the only opener a touch device has", () => {
     renderNav();
     fireEvent.click(screen.getByTestId("lms-nav-section-coursework"));
@@ -108,7 +108,7 @@ describe("LMS side nav — opening", () => {
   });
 });
 
-describe("LMS side nav — the outstanding-project badge", () => {
+describe("LMS side nav, the outstanding-project badge", () => {
   it("bubbles the count onto the Coursework row, so it is visible without hovering", () => {
     renderNav({ pendingCount: 2 });
     // The count is the whole reason the badge exists; a student must see it at a glance.
@@ -140,7 +140,7 @@ describe("LMS side nav — the outstanding-project badge", () => {
   });
 });
 
-describe("LMS side nav — active route", () => {
+describe("LMS side nav, active route", () => {
   it("marks the active child and highlights its parent section", () => {
     renderNav({ pathname: "/certificates" });
 
@@ -158,7 +158,7 @@ describe("LMS side nav — active route", () => {
   });
 });
 
-describe("LMS side nav — accessibility", () => {
+describe("LMS side nav, accessibility", () => {
   it("has no axe violations with a flyout open", async () => {
     const { container } = renderNav({ pendingCount: 1 });
     fireEvent.click(screen.getByTestId("lms-nav-section-coursework"));

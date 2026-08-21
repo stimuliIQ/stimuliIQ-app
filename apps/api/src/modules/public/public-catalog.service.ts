@@ -90,7 +90,7 @@ export class PublicCatalogService {
   private async resolveTenantId(): Promise<string> {
     const tenantId = await this.repository.getTenantIdBySlug(TENANT_SLUG);
     if (!tenantId) {
-      this.logger.warn("[PublicCatalog] Tenant not found — TENANT_SLUG may not match seed data");
+      this.logger.warn("[PublicCatalog] Tenant not found. TENANT_SLUG may not match seed data");
       throw new NotFoundException({ code: "public.tenant_not_found", title: "Service unavailable" });
     }
     return tenantId;

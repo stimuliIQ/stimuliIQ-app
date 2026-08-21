@@ -8,7 +8,7 @@
  *   - Shows success state (role="status") on valid coupon
  *   - "Apply" button is disabled when input is empty
  *   - Never renders internal coupon fields (AC-26: id/maxUses/used/programScope/etc.)
- *   - The coupon result renders paise AS display strings only — no paise raw value visible
+ *   - The coupon result renders paise AS display strings only, no paise raw value visible
  *     in the UI that would expose internal pricing math
  *
  * The API client is mocked. This tests the component UI contract, not network calls.
@@ -49,7 +49,7 @@ describe("CouponValidator", () => {
     mockValidate.mockReset();
   });
 
-  it("renders the coupon input with a visible label (a11y — AC-40)", () => {
+  it("renders the coupon input with a visible label (a11y, AC-40)", () => {
     render(<CouponValidator programId={PROGRAM_ID} />);
     expect(screen.getByLabelText("Have a coupon code?")).toBeInTheDocument();
   });
@@ -91,7 +91,7 @@ describe("CouponValidator", () => {
     expect(successEl.textContent).toContain("SAVE10");
   });
 
-  it("success state renders paise as ₹ display strings — no raw paise number in UI", async () => {
+  it("success state renders paise as ₹ display strings, no raw paise number in UI", async () => {
     mockValidate.mockResolvedValueOnce(VALID_RESPONSE);
 
     render(<CouponValidator programId={PROGRAM_ID} />);
@@ -136,7 +136,7 @@ describe("CouponValidator", () => {
   });
 
   it("NEVER renders forbidden coupon fields in the DOM (AC-26: id, maxUses, used, etc.)", async () => {
-    // The success response is strictly the allowlist — this test confirms the component
+    // The success response is strictly the allowlist, this test confirms the component
     // doesn't accidentally expose any of those fields even if they were in the response.
     mockValidate.mockResolvedValueOnce({
       ...VALID_RESPONSE,

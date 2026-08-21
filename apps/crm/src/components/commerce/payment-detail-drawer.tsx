@@ -33,7 +33,7 @@ export function PaymentDetailDrawer({ paymentId, onOpenChange }: PaymentDetailDr
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent
-        title={payment ? `Payment — ${payment.studentName}` : "Payment"}
+        title={payment ? `Payment · ${payment.studentName}` : "Payment"}
         description={payment?.programTitle}
         size="lg"
         data-testid="payment-detail-drawer"
@@ -84,7 +84,7 @@ export function PaymentDetailDrawer({ paymentId, onOpenChange }: PaymentDetailDr
               </div>
               <div>
                 <dt className="text-fg-muted">Method</dt>
-                <dd className="mt-1 text-fg">{payment.method ?? "—"}</dd>
+                <dd className="mt-1 text-fg">{payment.method ?? "-"}</dd>
               </div>
               <div>
                 <dt className="text-fg-muted">Provider</dt>
@@ -96,11 +96,11 @@ export function PaymentDetailDrawer({ paymentId, onOpenChange }: PaymentDetailDr
               </div>
               <div>
                 <dt className="text-fg-muted">Provider payment id</dt>
-                <dd className="mt-1 text-fg">{payment.providerPaymentId ?? "—"}</dd>
+                <dd className="mt-1 text-fg">{payment.providerPaymentId ?? "-"}</dd>
               </div>
               <div>
                 <dt className="text-fg-muted">Provider order id</dt>
-                <dd className="mt-1 text-fg">{payment.providerOrderId ?? "—"}</dd>
+                <dd className="mt-1 text-fg">{payment.providerOrderId ?? "-"}</dd>
               </div>
               <div>
                 <dt className="text-fg-muted">Order</dt>
@@ -116,7 +116,7 @@ export function PaymentDetailDrawer({ paymentId, onOpenChange }: PaymentDetailDr
               </div>
               <div>
                 <dt className="text-fg-muted">Paid at</dt>
-                <dd className="mt-1 text-fg">{payment.paidAt ? new Date(payment.paidAt).toLocaleString() : "—"}</dd>
+                <dd className="mt-1 text-fg">{payment.paidAt ? new Date(payment.paidAt).toLocaleString() : "-"}</dd>
               </div>
               <div>
                 <dt className="text-fg-muted">Created</dt>

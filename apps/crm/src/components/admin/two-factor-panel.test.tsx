@@ -1,6 +1,6 @@
 // Component + a11y tests for TwoFactorPanel (R12, docs/plans/phase-9-completion.md
-// T41 — crm test infrastructure). Exercises the full enrol -> verify -> enabled ->
-// disable lifecycle purely at the component level (apiClient is mocked — the REAL
+// T41, crm test infrastructure). Exercises the full enrol -> verify -> enabled ->
+// disable lifecycle purely at the component level (apiClient is mocked, the REAL
 // end-to-end 2FA lifecycle against a live API is covered by
 // apps/api/test/integration/phase-9-auth-lifecycle.integration-spec.ts).
 
@@ -50,7 +50,7 @@ beforeEach(() => {
   disableMock.mockReset();
 });
 
-describe("TwoFactorPanel — disabled state", () => {
+describe("TwoFactorPanel, disabled state", () => {
   it("shows the enable button when 2FA is not enabled", async () => {
     statusMock.mockResolvedValue({ enabled: false, remainingBackupCodes: null });
     renderPanel();
@@ -67,11 +67,11 @@ describe("TwoFactorPanel — disabled state", () => {
   });
 });
 
-describe("TwoFactorPanel — enrol -> verify lifecycle", () => {
+describe("TwoFactorPanel, enrol -> verify lifecycle", () => {
   it("enroll shows the secret/otpauth fields and a 6-digit code input; verify with a bad code surfaces an error without crashing", async () => {
     const user = userEvent.setup();
     statusMock.mockResolvedValue({ enabled: false, remainingBackupCodes: null });
-    enrollMock.mockResolvedValue({ secret: "JBSWY3DPEHPK3PXP", otpauthUrl: "otpauth://totp/stimuliIQ:me?secret=JBSWY3DPEHPK3PXP&issuer=stimuliIQ" });
+    enrollMock.mockResolvedValue({ secret: "JBSWY3DPEHPK3PXP", otpauthUrl: "otpauth://totp/Stimuli IQ:me?secret=JBSWY3DPEHPK3PXP&issuer=Stimuli IQ" });
     verifyEnrollMock.mockRejectedValue(new Error("Invalid code"));
 
     renderPanel();
@@ -85,7 +85,7 @@ describe("TwoFactorPanel — enrol -> verify lifecycle", () => {
     await user.click(screen.getByTestId("two-factor-verify-button"));
 
     await waitFor(() => expect(verifyEnrollMock).toHaveBeenCalledWith({ code: "000000" }));
-    // The component must not crash/unmount on a rejected mutation — still on the
+    // The component must not crash/unmount on a rejected mutation, still on the
     // enrolling screen so the user can retry.
     expect(screen.getByTestId("two-factor-enrolling")).toBeInTheDocument();
   });
@@ -93,7 +93,7 @@ describe("TwoFactorPanel — enrol -> verify lifecycle", () => {
   it("a successful verify shows the one-time backup codes screen", async () => {
     const user = userEvent.setup();
     statusMock.mockResolvedValue({ enabled: false, remainingBackupCodes: null });
-    enrollMock.mockResolvedValue({ secret: "JBSWY3DPEHPK3PXP", otpauthUrl: "otpauth://totp/stimuliIQ:me?secret=JBSWY3DPEHPK3PXP&issuer=stimuliIQ" });
+    enrollMock.mockResolvedValue({ secret: "JBSWY3DPEHPK3PXP", otpauthUrl: "otpauth://totp/Stimuli IQ:me?secret=JBSWY3DPEHPK3PXP&issuer=Stimuli IQ" });
     verifyEnrollMock.mockResolvedValue({ enabled: true, backupCodes: ["aaaa1111", "bbbb2222"] });
 
     renderPanel();
@@ -107,7 +107,7 @@ describe("TwoFactorPanel — enrol -> verify lifecycle", () => {
   });
 });
 
-describe("TwoFactorPanel — enabled state", () => {
+describe("TwoFactorPanel, enabled state", () => {
   it("shows the disable form with the remaining-backup-codes count, and disable requires a non-empty code", async () => {
     statusMock.mockResolvedValue({ enabled: true, remainingBackupCodes: 7 });
     renderPanel();
@@ -126,7 +126,7 @@ describe("TwoFactorPanel — enabled state", () => {
   });
 });
 
-describe("TwoFactorPanel — error state", () => {
+describe("TwoFactorPanel, error state", () => {
   it("shows an alert when the status fetch fails", async () => {
     statusMock.mockRejectedValue(new Error("network error"));
     renderPanel();

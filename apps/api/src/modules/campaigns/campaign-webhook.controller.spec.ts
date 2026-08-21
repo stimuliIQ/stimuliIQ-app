@@ -2,8 +2,8 @@
 //
 // Unit tests for CampaignWebhookController's signature-freshness window (Phase-7 Wave 2
 // security hardening batch A, item 2a, AC-59). The "email" channel (Resend/Svix) signs a
-// timestamp as part of the HMAC-covered content — a validly-signed but STALE payload is
-// rejected. The "whatsapp" channel (Meta) has no signed timestamp — freshness cannot be
+// timestamp as part of the HMAC-covered content, a validly-signed but STALE payload is
+// rejected. The "whatsapp" channel (Meta) has no signed timestamp, freshness cannot be
 // enforced there (documented limitation, not a bypass).
 
 import { UnauthorizedException } from "@nestjs/common";
@@ -28,7 +28,7 @@ function makeRequest(body: Record<string, unknown>): RawBodyRequest<Request> {
   return { rawBody: Buffer.from(JSON.stringify(body)) } as unknown as RawBodyRequest<Request>;
 }
 
-describe("CampaignWebhookController — signature freshness (AC-59)", () => {
+describe("CampaignWebhookController, signature freshness (AC-59)", () => {
   let originalEnv: NodeJS.ProcessEnv;
   let service: jest.Mocked<CampaignsService>;
   let mailProvider: jest.Mocked<MailProvider>;
@@ -114,7 +114,7 @@ describe("CampaignWebhookController — signature freshness (AC-59)", () => {
     ).rejects.toThrow(UnauthorizedException);
   });
 
-  it("whatsapp channel: has no signed timestamp to check — processes normally when signature is valid", async () => {
+  it("whatsapp channel: has no signed timestamp to check, processes normally when signature is valid", async () => {
     const req = makeRequest({ providerMessageId: "msg-2", event: "delivered" });
 
     const result = await controller.handleWebhook("whatsapp", req, {

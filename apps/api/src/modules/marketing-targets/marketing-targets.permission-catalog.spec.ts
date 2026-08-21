@@ -16,7 +16,7 @@
 //   2. `marketing_targets.view` is granted to the MARKETING role, and to nothing else.
 //      "Only visible for the marketing role" is the product requirement.
 //
-//   3. `marketing_targets.manage` is granted to super_admin, and to nothing else — the same
+//   3. `marketing_targets.manage` is granted to super_admin, and to nothing else, the same
 //      narrowing as `leave.approve`.
 //
 // Static source-scanning only, no live-DB half: `DATABASE_URL` in this repo points at the
@@ -47,7 +47,7 @@ function requiredPermissionKeys(relativePath: string): string[] {
   return [...source.matchAll(/@RequirePermission\("([^"]+)"\)/g)].map((m) => m[1]!);
 }
 
-describe("marketing targets — permission catalog", () => {
+describe("marketing targets, permission catalog", () => {
   const seedSource = readFileSync(SEED_PATH, "utf8");
   const seedTargetsSource = readFileSync(SEED_TARGETS_PATH, "utf8");
 
@@ -59,7 +59,7 @@ describe("marketing targets — permission catalog", () => {
     }
   });
 
-  it("uses both keys — an unused key is a permission nobody can exercise", () => {
+  it("uses both keys, an unused key is a permission nobody can exercise", () => {
     const used = new Set(requiredPermissionKeys(CONTROLLER_FILE));
     for (const key of ALL_KNOWN_KEYS) {
       expect(used.has(key)).toBe(true);

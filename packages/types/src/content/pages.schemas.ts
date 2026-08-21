@@ -254,8 +254,8 @@ export const ContentPageMediaUploadUrlRequestSchema = z
   .object({
     contentType: z
       .enum(["image/jpeg", "image/png", "image/webp"])
-      .describe("Marketing images are raster images only — no SVG (stored XSS vector on the public site)."),
-    fileName: z.string().min(1).max(255).describe("Original filename — sanitised server-side before use in the storage key."),
+      .describe("Marketing images are raster images only. No SVG (stored XSS vector on the public site)."),
+    fileName: z.string().min(1).max(255).describe("Original filename. Sanitised server-side before use in the storage key."),
     sizeBytes: z.number().int().min(1).max(5_242_880).describe("Max 5 MB per marketing image."),
   })
   .strict();

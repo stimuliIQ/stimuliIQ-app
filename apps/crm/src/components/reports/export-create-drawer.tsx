@@ -80,7 +80,7 @@ export function ExportCreateDrawer({ open, onOpenChange }: ExportCreateDrawerPro
       await createExport.mutateAsync(body);
       toast({
         title: "Export queued",
-        description: "Check the table below for its status — a download link appears once it succeeds.",
+        description: "Check the table below for its status. A download link appears once it succeeds.",
         variant: "success",
       });
       onOpenChange(false);
@@ -102,7 +102,7 @@ export function ExportCreateDrawer({ open, onOpenChange }: ExportCreateDrawerPro
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent position="center"
         title="New export"
-        description="Runs as a background job — you'll see its status in the Export Jobs table below."
+        description="Runs as a background job, you'll see its status in the Export Jobs table below."
         data-testid="export-create-drawer"
       >
         <form onSubmit={onSubmit} className="flex flex-1 flex-col overflow-hidden">

@@ -45,7 +45,7 @@ describe("LessonNotes module controller permission catalog", () => {
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("Lesson notes permission catalog — live seeded DB", () => {
+describeIfDb("Lesson notes permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {

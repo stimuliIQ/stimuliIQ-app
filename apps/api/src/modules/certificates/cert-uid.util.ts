@@ -69,7 +69,7 @@ export function getCertSigningSecret(env = validateEnv()): string {
   }
   if (!warnedAboutDevSecret) {
     logger.warn(
-      "CERT_SIGNING_SECRET is not set — using the LOCAL-ONLY dev fallback secret. " +
+      "CERT_SIGNING_SECRET is not set. Using the LOCAL-ONLY dev fallback secret. " +
         "cert_uid tokens are NOT trustworthy across environments. Set a real secret for staging/prod.",
     );
     warnedAboutDevSecret = true;

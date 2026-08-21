@@ -53,9 +53,9 @@ export function FacultyDirectory({ me }: FacultyDirectoryProps): React.JSX.Eleme
     {
       id: "expertise",
       header: "Expertise",
-      cell: (row) => (row.expertise.length > 0 ? row.expertise.join(", ") : "—"),
+      cell: (row) => (row.expertise.length > 0 ? row.expertise.join(", ") : "-"),
     },
-    { id: "rating", header: "Rating", cell: (row) => row.rating ?? "—", align: "right" },
+    { id: "rating", header: "Rating", cell: (row) => row.rating ?? "-", align: "right" },
     {
       id: "createdAt",
       header: "Added",

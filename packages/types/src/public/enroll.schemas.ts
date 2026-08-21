@@ -81,7 +81,7 @@ export const PublicCreateOrderDtoSchema = z
       .optional()
       .describe(
         "Optional coupon code. Server validates and applies discount. " +
-          "The discount is computed server-side — never client-supplied.",
+          "The discount is computed server-side, never client-supplied.",
       ),
     /**
      * Optional EMI plan selection. Display-only in P5; stored on the order row.

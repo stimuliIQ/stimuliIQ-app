@@ -328,7 +328,7 @@ export class ExportsService {
       }
       case "campaigns": {
         const report = await this.analytics.getCampaignPerformance(tenantId, dto.params);
-        return this.renderReport(dto.format, `Campaign Performance — ${report.campaignName}`, report.asOf, report.stale, campaignsRows(report));
+        return this.renderReport(dto.format, `Campaign Performance · ${report.campaignName}`, report.asOf, report.stale, campaignsRows(report));
       }
       case "gamification": {
         const report = await this.analytics.getGamificationParticipation(tenantId, dto.params);
@@ -361,7 +361,7 @@ export class ExportsService {
       const csv = rowsToCsv(rowSet.headers, rowSet.rows);
       return { bytes: Buffer.from(csv, "utf8"), contentType: "text/csv", rowCount: rowSet.rows.length };
     }
-    const subtitle = stale ? `Data as of ${asOf} (last refresh failed — showing last-known-good snapshot)` : `Data as of ${asOf}`;
+    const subtitle = stale ? `Data as of ${asOf} (last refresh failed, showing last-known-good snapshot)` : `Data as of ${asOf}`;
     const result = await this.reportPdf.render({
       title,
       generatedAt: new Date().toISOString(),

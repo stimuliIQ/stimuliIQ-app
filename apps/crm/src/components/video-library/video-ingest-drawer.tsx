@@ -145,7 +145,7 @@ export function VideoIngestDrawer({ open, onOpenChange, replaceFor, attachFor }:
       // rather than claiming success or implying the upload was lost.
       toast({
         title: "Uploaded, but not yet marked ready",
-        description: "The file was stored. Refresh the library — if it still shows 'processing', try uploading again.",
+        description: "The file was stored. Refresh the library, if it still shows 'processing', try uploading again.",
         variant: "destructive",
       });
     }
@@ -219,7 +219,7 @@ export function VideoIngestDrawer({ open, onOpenChange, replaceFor, attachFor }:
               >
                 {lessons.map((l) => (
                   <SelectItem key={l.id} value={l.id}>
-                    {l.moduleTitle} — {l.title}
+                    {l.moduleTitle}, {l.title}
                     {l.type !== "video" ? ` (${l.type})` : ""}
                   </SelectItem>
                 ))}
@@ -249,7 +249,7 @@ export function VideoIngestDrawer({ open, onOpenChange, replaceFor, attachFor }:
 
           {ingestVideo.isError ? (
             <p role="alert" className="text-sm text-danger">
-              Couldn&apos;t start the upload — try selecting the lesson again.
+              Couldn&apos;t start the upload. Try selecting the lesson again.
             </p>
           ) : null}
         </DrawerBody>

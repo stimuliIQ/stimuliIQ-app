@@ -2,7 +2,7 @@
 //
 // Unit tests for RolesService, focused on the security-critical privilege-escalation
 // guard (docs/03 §20 acceptance criteria): an editor cannot grant a permission they do
-// not hold, nor a scope broader than their own resolved grant for that permission key —
+// not hold, nor a scope broader than their own resolved grant for that permission key,
 // including when editing their own role.
 
 import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
@@ -54,7 +54,7 @@ describe("RolesService", () => {
     service = new RolesService(repo as unknown as RolesRepository, authRepo as unknown as AuthRepository);
   });
 
-  describe("update — system role immutability", () => {
+  describe("update, system role immutability", () => {
     it("rejects renaming a system role", async () => {
       repo.findById.mockResolvedValue({ ...TARGET_ROLE, isSystem: true });
 
@@ -65,7 +65,7 @@ describe("RolesService", () => {
     });
   });
 
-  describe("remove — delete a custom role", () => {
+  describe("remove, delete a custom role", () => {
     it("404s when the role does not exist in the tenant", async () => {
       repo.findById.mockResolvedValue(null);
       await expect(service.remove("tenant-1", "missing")).rejects.toBeInstanceOf(NotFoundException);
@@ -81,7 +81,7 @@ describe("RolesService", () => {
 
     // Regression: the "student" role was soft-deleted in production on 2026-07-29 and
     // broke every lead -> student conversion with a bare 500. It slipped past BOTH
-    // existing guards — `isSystem` is false for it (prisma/seed.ts), and the catalog reset
+    // existing guards, `isSystem` is false for it (prisma/seed.ts), and the catalog reset
     // had left it with zero assigned users, so the in-use check passed too. Roles that
     // application code resolves by key need their own guard.
     it.each(["student", "faculty", "counsellor"])(
@@ -92,7 +92,7 @@ describe("RolesService", () => {
         await expect(service.remove("tenant-1", TARGET_ROLE.id)).rejects.toBeInstanceOf(
           ForbiddenException,
         );
-        // Rejected before the in-use check — zero assigned users must not make it deletable.
+        // Rejected before the in-use check, zero assigned users must not make it deletable.
         expect(repo.countAssignedUsers).not.toHaveBeenCalled();
         expect(repo.softDelete).not.toHaveBeenCalled();
       },
@@ -117,7 +117,7 @@ describe("RolesService", () => {
     });
   });
 
-  describe("updatePermissions — system-role immutability (S1-1, Phase-7 Wave 2 batch B)", () => {
+  describe("updatePermissions, system-role immutability (S1-1, Phase-7 Wave 2 batch B)", () => {
     it("rejects a permission-matrix edit on a system role (super_admin/admin), even from an all-scope admin", async () => {
       repo.findById.mockResolvedValue({ ...TARGET_ROLE, key: "super_admin", isSystem: true });
       authRepo.getRbacProfile.mockResolvedValue({
@@ -130,13 +130,13 @@ describe("RolesService", () => {
           grants: [{ permissionKey: "students.view", scope: "all" }],
         }),
       ).rejects.toBeInstanceOf(ForbiddenException);
-      // Rejected BEFORE the privilege-escalation check even runs — no RBAC profile lookup.
+      // Rejected BEFORE the privilege-escalation check even runs, no RBAC profile lookup.
       expect(authRepo.getRbacProfile).not.toHaveBeenCalled();
       expect(repo.replaceGrants).not.toHaveBeenCalled();
     });
   });
 
-  describe("updatePermissions — privilege-escalation guard", () => {
+  describe("updatePermissions, privilege-escalation guard", () => {
     it("rejects granting a permission the editor does not hold at all", async () => {
       repo.findById.mockResolvedValue(TARGET_ROLE);
       authRepo.getRbacProfile.mockResolvedValue({
@@ -187,7 +187,7 @@ describe("RolesService", () => {
 
     it("rejects an editor escalating their OWN role beyond their current grants (self-escalation is the same rule)", async () => {
       // The editor is themselves a member of the role being edited, holding only
-      // students.view at scope=branch — attempting to grant scope=all to their own role
+      // students.view at scope=branch, attempting to grant scope=all to their own role
       // is rejected by the exact same ceiling check, no separate "is this my own role"
       // branch needed.
       repo.findById.mockResolvedValue(TARGET_ROLE);

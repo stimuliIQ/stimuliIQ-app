@@ -146,10 +146,10 @@ describe("LmsAccountProvisioningService", () => {
     await expect(svc.provisionForStudentProfile(TENANT_ID, PROFILE_ID)).resolves.toBe(true);
   });
 
-  describe("resendCredentials (CRM 'Resend LMS credentials' — issues a single-use reset LINK)", () => {
-    it("invalidates the old password, revokes sessions, and emails a reset link — never a password", async () => {
+  describe("resendCredentials (CRM 'Resend LMS credentials', issues a single-use reset LINK)", () => {
+    it("invalidates the old password, revokes sessions, and emails a reset link, never a password", async () => {
       // Unlike provisionForStudentProfile, an EXISTING (non-empty) passwordHash must NOT
-      // block this — it's an explicit staff-triggered reissue.
+      // block this, it's an explicit staff-triggered reissue.
       const { prisma, update } = makePrisma(makeProfile({ passwordHash: "$argon2id$existing" }));
       const mail = makeMail();
       const authRepository = makeAuthRepository();
@@ -165,7 +165,7 @@ describe("LmsAccountProvisioningService", () => {
 
       expect(result).toEqual({ email: "asha@example.com" });
 
-      // The old password must stop working immediately — that is the point of the action.
+      // The old password must stop working immediately, that is the point of the action.
       // The replacement hash is random and never disclosed, so nobody can sign in with it.
       const data = update.mock.calls[0][0].data as { passwordHash: string; mustChangePassword: boolean; status: string };
       expect(data.passwordHash).toMatch(/^\$argon2/);
@@ -174,7 +174,7 @@ describe("LmsAccountProvisioningService", () => {
       // NOT re-raised: the emailed link IS the password-setting step. Raising it would
       // demand a temporary password that no longer exists.
       expect(data.mustChangePassword).toBe(false);
-      // Never blank — "" is provisionQuiet's never-provisioned sentinel.
+      // Never blank, "" is provisionQuiet's never-provisioned sentinel.
       expect(data.passwordHash).not.toBe("");
 
       // SECURITY: reissuing must kill any live session using the old credential.

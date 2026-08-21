@@ -69,7 +69,7 @@ function EnrollmentQrCode({ otpauthUrl }: { otpauthUrl: string }): React.JSX.Ele
   if (failed) {
     return (
       <p className="text-sm text-fg-muted" data-testid="two-factor-qr-error">
-        Couldn&apos;t generate a QR code — use the otpauth URL or secret below for manual entry.
+        Couldn&apos;t generate a QR code. Use the otpauth URL or secret below for manual entry.
       </p>
     );
   }
@@ -148,7 +148,7 @@ export function TwoFactorPanel(): React.JSX.Element {
       // failure, or a server error (e.g. the API's TWO_FACTOR_ENC_KEY misconfigured) —
       // is NOT the user's fault and must not be blamed on their authenticator app.
       if (errorCode(error) === "TOTP_CODE_INVALID") {
-        surfaceError(toast, error, "That code didn't verify — check your authenticator app and try again");
+        surfaceError(toast, error, "That code didn't verify. Check your authenticator app and try again");
       } else {
         surfaceError(toast, error, "Couldn't verify your code");
       }
@@ -176,7 +176,7 @@ export function TwoFactorPanel(): React.JSX.Element {
       <Alert tone="warning" title="Save your backup codes" data-testid="two-factor-backup-codes">
         <div className="flex flex-col gap-3">
           <p className="text-sm text-fg-muted">
-            These are shown once. Store them somewhere safe — each can be used instead of a TOTP code if you lose your device.
+            These are shown once. Store them somewhere safe. Each can be used instead of a TOTP code if you lose your device.
           </p>
           <ul className="grid grid-cols-2 gap-1 font-mono text-sm text-fg">
             {backupCodes.map((code) => (
@@ -219,8 +219,8 @@ export function TwoFactorPanel(): React.JSX.Element {
     return (
       <div className="flex flex-col gap-3" data-testid="two-factor-enrolling">
         <p className="text-sm text-fg-muted">
-          Scan this QR code with your authenticator app (Google Authenticator, Authy, 1Password, …) — or enter the
-          secret manually — then enter the 6-digit code it shows to finish enrolling.
+          Scan this QR code with your authenticator app (Google Authenticator, Authy, 1Password, …), or enter the
+          secret manually. Then enter the 6-digit code it shows to finish enrolling.
         </p>
         <EnrollmentQrCode otpauthUrl={enrollment.otpauthUrl} />
         <CopyField label="otpauth URL" value={enrollment.otpauthUrl} testId="two-factor-otpauth-url" />

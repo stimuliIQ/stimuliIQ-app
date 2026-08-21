@@ -37,7 +37,7 @@ export function generateTemporaryPassword(): string {
   // consecutive misses). Reachable only if the policy gains a rule this alphabet cannot meet
   // — in which case failing here beats emailing a password nobody can use.
   throw new Error(
-    "Could not generate a temporary password satisfying the password policy — the policy and " +
+    "Could not generate a temporary password satisfying the password policy, the policy and " +
       "the generator's alphabet are incompatible.",
   );
 }

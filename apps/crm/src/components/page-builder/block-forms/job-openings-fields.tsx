@@ -48,7 +48,7 @@ export function JobOpeningsFields({ control, register, errors, watch, setValue }
         <Link to="/careers/openings" className="font-medium underline underline-offset-2">
           Careers ▸ Openings
         </Link>
-        . Publishing an opening there puts it on this page straight away — there is nothing to
+        . Publishing an opening there puts it on this page straight away, there is nothing to
         save here for it.
       </Callout>
 

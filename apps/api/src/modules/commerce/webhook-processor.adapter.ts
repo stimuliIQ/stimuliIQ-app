@@ -45,7 +45,7 @@ export class SyncWebhookProcessorAdapter implements WebhookProcessorPort {
     const event = payload.event;
 
     if (!event) {
-      this.logger.warn("[Webhook] Received payload with no event field — ignoring");
+      this.logger.warn("[Webhook] Received payload with no event field, ignoring");
       return;
     }
 
@@ -66,7 +66,7 @@ export class SyncWebhookProcessorAdapter implements WebhookProcessorPort {
 
       default:
         // Unknown event — safe-by-default ignore
-        this.logger.debug(`[Webhook] Unknown event type "${event}" — ignoring`);
+        this.logger.debug(`[Webhook] Unknown event type "${event}", ignoring`);
         break;
     }
   }
@@ -74,7 +74,7 @@ export class SyncWebhookProcessorAdapter implements WebhookProcessorPort {
   private async handlePaymentCaptured(payload: WebhookEventPayload): Promise<void> {
     const entity = payload.payload?.payment?.entity;
     if (!entity?.id) {
-      this.logger.warn("[Webhook] payment.captured missing entity.id — ignoring");
+      this.logger.warn("[Webhook] payment.captured missing entity.id, ignoring");
       return;
     }
 
@@ -95,7 +95,7 @@ export class SyncWebhookProcessorAdapter implements WebhookProcessorPort {
 
     if (!payment) {
       this.logger.warn(
-        `[Webhook] payment.captured — no payment row found for order_id=${providerOrderId ?? "unknown"}`,
+        `[Webhook] payment.captured. No payment row found for order_id=${providerOrderId ?? "unknown"}`,
       );
       return;
     }
@@ -103,7 +103,7 @@ export class SyncWebhookProcessorAdapter implements WebhookProcessorPort {
     // Fetch order context for enrollment
     const order = await this.repository.findOrderById(payment.tenantId, payment.orderId);
     if (!order) {
-      this.logger.warn(`[Webhook] payment.captured — order ${payment.orderId} not found`);
+      this.logger.warn(`[Webhook] payment.captured, order ${payment.orderId} not found`);
       return;
     }
 
@@ -111,7 +111,7 @@ export class SyncWebhookProcessorAdapter implements WebhookProcessorPort {
     const batchId = (notesJson?.batchId as string | undefined) ?? order.batchId;
 
     if (!batchId) {
-      this.logger.warn(`[Webhook] payment.captured — order ${payment.orderId} has no batchId`);
+      this.logger.warn(`[Webhook] payment.captured, order ${payment.orderId} has no batchId`);
       return;
     }
 
@@ -212,7 +212,7 @@ export class SyncWebhookProcessorAdapter implements WebhookProcessorPort {
       : null;
 
     if (!payment) {
-      this.logger.warn(`[Webhook] payment.failed — no payment found for provider_id=${providerPaymentId}`);
+      this.logger.warn(`[Webhook] payment.failed. No payment found for provider_id=${providerPaymentId}`);
       return;
     }
 
@@ -237,7 +237,7 @@ export class SyncWebhookProcessorAdapter implements WebhookProcessorPort {
     // Find the payment
     const payment = await this.repository.findPaymentByProviderPaymentId(providerPaymentId);
     if (!payment) {
-      this.logger.warn(`[Webhook] refund.processed — payment not found for ${providerPaymentId}`);
+      this.logger.warn(`[Webhook] refund.processed. Payment not found for ${providerPaymentId}`);
       return;
     }
 
@@ -258,7 +258,7 @@ export class SyncWebhookProcessorAdapter implements WebhookProcessorPort {
       // No row matches this providerRefundId — log warning and NO-OP.
       // Do NOT fall back to any other row.
       this.logger.warn(
-        `[Webhook] refund.processed — no refund row with providerRefundId=${providerRefundId} found ` +
+        `[Webhook] refund.processed. No refund row with providerRefundId=${providerRefundId} found ` +
           `for payment ${payment.id}. No-op to avoid corrupting wrong row.`,
       );
       return;
@@ -267,7 +267,7 @@ export class SyncWebhookProcessorAdapter implements WebhookProcessorPort {
     // Idempotency: if already processed, early return — no second mutation
     if (refund.status === "processed") {
       this.logger.log(
-        `[Webhook] refund.processed idempotent no-op — refund ${refund.id} already processed`,
+        `[Webhook] refund.processed idempotent no-op, refund ${refund.id} already processed`,
       );
       return;
     }

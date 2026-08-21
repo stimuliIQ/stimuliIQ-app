@@ -66,7 +66,7 @@ export class ScopeContextMissingError extends Error {
   constructor() {
     super(
       "Scope context is missing. A scoped repository call was made outside of " +
-        "ScopeInterceptor's AsyncLocalStorage run() scope — refusing to fall open to an " +
+        "ScopeInterceptor's AsyncLocalStorage run() scope. Refusing to fall open to an " +
         "unscoped ('all') query. If this call site is intentionally outside an HTTP " +
         "request (system/seed script), use getScopeContext() and build an explicit " +
         "filter instead of requireScopeContext().",

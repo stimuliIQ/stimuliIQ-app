@@ -124,7 +124,7 @@ function createMailProvider(): MailProvider {
       }
 
       bootLogger.log(
-        "[MailProviderModule] MAIL_PROVIDER=resend — binding ResendMailProvider " +
+        "[MailProviderModule] MAIL_PROVIDER=resend, binding ResendMailProvider " +
           `(from: ${env.MAIL_FROM}).`,
       );
       return new ResendMailProvider();
@@ -141,7 +141,7 @@ function createMailProvider(): MailProvider {
         );
       }
       bootLogger.warn(
-        "[MailProviderModule] MAIL_PROVIDER=noop — binding NoopMailProvider. " +
+        "[MailProviderModule] MAIL_PROVIDER=noop, binding NoopMailProvider. " +
           "No emails will be sent. Set MAIL_PROVIDER=resend with RESEND_API_KEY " +
           "and MAIL_FROM for staging/prod.",
       );
@@ -156,7 +156,7 @@ function createMailProvider(): MailProvider {
         );
       }
       bootLogger.warn(
-        `[MailProviderModule] Unrecognised MAIL_PROVIDER='${selector}' — ` +
+        `[MailProviderModule] Unrecognised MAIL_PROVIDER='${selector}' - ` +
           "falling back to NoopMailProvider (non-production). " +
           "Valid values: noop | resend.",
       );

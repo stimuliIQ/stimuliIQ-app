@@ -58,7 +58,7 @@ export function CohortReport({ me }: { me: MeResponse | undefined }): React.JSX.
       ) : (
         <>
           <p className="text-xs text-fg-muted" data-testid="cohort-report-freshness-note">
-            Computed live from current batch records — no cached snapshot.
+            Computed live from current batch records, no cached snapshot.
           </p>
 
           <DataTable

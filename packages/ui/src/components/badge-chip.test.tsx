@@ -7,7 +7,7 @@ import { BadgeChip, BadgeGrid, type BadgeGridItem } from "./badge-chip";
 // BadgeChip
 // ---------------------------------------------------------------------------
 
-describe("BadgeChip — rendering", () => {
+describe("BadgeChip, rendering", () => {
   it("renders with default data-testid='badge-chip'", () => {
     render(<BadgeChip name="First Project" earned />);
     expect(screen.getByTestId("badge-chip")).toBeInTheDocument();
@@ -24,10 +24,10 @@ describe("BadgeChip — rendering", () => {
   });
 });
 
-describe("BadgeChip — no color-only status", () => {
+describe("BadgeChip, no color-only status", () => {
   it("locked badge includes 'Locked' in the aria-label", () => {
     render(<BadgeChip name="Streak Master" locked />);
-    expect(screen.getByLabelText("Streak Master — Locked")).toBeInTheDocument();
+    expect(screen.getByLabelText("Streak Master, Locked")).toBeInTheDocument();
   });
 
   it("locked badge renders a Lock icon", () => {
@@ -63,7 +63,7 @@ const BADGES: BadgeGridItem[] = [
   { id: "b3", name: "Perfect Attendance", earned: true },
 ];
 
-describe("BadgeGrid — rendering", () => {
+describe("BadgeGrid, rendering", () => {
   it("renders with default data-testid='badge-grid'", () => {
     render(<BadgeGrid badges={BADGES} />);
     expect(screen.getByTestId("badge-grid")).toBeInTheDocument();

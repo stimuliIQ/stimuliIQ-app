@@ -71,7 +71,7 @@ function createNotificationDispatchPort(
 ): NotificationDispatchPort {
   const env = validateEnv();
   if (env.QUEUE_DRIVER === "bullmq") {
-    bootLogger.log("[DispatchModule] QUEUE_DRIVER=bullmq — binding BullMqNotificationDispatchAdapter.");
+    bootLogger.log("[DispatchModule] QUEUE_DRIVER=bullmq, binding BullMqNotificationDispatchAdapter.");
     return new BullMqNotificationDispatchAdapter();
   }
   return new SyncNotificationDispatchAdapter(mail, whatsapp, sms);
@@ -84,7 +84,7 @@ function createCampaignSendPort(
 ): CampaignSendPort {
   const env = validateEnv();
   if (env.QUEUE_DRIVER === "bullmq") {
-    bootLogger.log("[DispatchModule] QUEUE_DRIVER=bullmq — binding BullMqCampaignSendAdapter.");
+    bootLogger.log("[DispatchModule] QUEUE_DRIVER=bullmq, binding BullMqCampaignSendAdapter.");
     return new BullMqCampaignSendAdapter();
   }
   return new SyncCampaignSendAdapter(mail, whatsapp, sms);

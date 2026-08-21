@@ -83,7 +83,7 @@ export function OnboardingWorkspace({ me }: { me: MeResponse | undefined }): Rea
         description={
           <>
             Everything students submit through the onboarding form at{" "}
-            <span className="font-medium text-fg">{onboardingFormDisplayUrl()}</span> — including their payment
+            <span className="font-medium text-fg">{onboardingFormDisplayUrl()}</span>, including their payment
             receipt. The Form fields tab controls exactly what that form asks.
           </>
         }
@@ -151,16 +151,16 @@ function SubmissionsTab({ canEdit, canDelete }: { canEdit: boolean; canDelete: b
       header: "Name",
       cell: (row) => (
         <span className="flex items-center gap-2">
-          {row.fullName ?? <span className="text-fg-subtle">—</span>}
+          {row.fullName ?? <span className="text-fg-subtle">-</span>}
           {row.hasAttachment ? (
             <Paperclip className="size-3.5 text-fg-subtle" aria-label="Has an attachment" />
           ) : null}
         </span>
       ),
     },
-    { id: "email", header: "Email", cell: (row) => row.email ?? "—" },
-    { id: "phone", header: "Phone", cell: (row) => row.phone ?? "—" },
-    { id: "program", header: "Program", cell: (row) => row.programTitle ?? "—" },
+    { id: "email", header: "Email", cell: (row) => row.email ?? "-" },
+    { id: "phone", header: "Phone", cell: (row) => row.phone ?? "-" },
+    { id: "program", header: "Program", cell: (row) => row.programTitle ?? "-" },
     {
       id: "status",
       header: "Status",

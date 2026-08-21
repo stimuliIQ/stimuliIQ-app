@@ -58,7 +58,7 @@ export interface FunnelChartProps {
 }
 
 function pct(numerator: number, denominator: number): string {
-  if (!denominator) return "—";
+  if (!denominator) return "-";
   return `${((numerator / denominator) * 100).toFixed(1)}%`;
 }
 
@@ -97,7 +97,7 @@ export function FunnelChart({
               <th scope="row">{s.label}</th>
               <td>{valueFormatter(s.value)}</td>
               <td>{pct(s.value, firstValue)}</td>
-              <td>{i === 0 ? "—" : pct(s.value, prev)}</td>
+              <td>{i === 0 ? "-" : pct(s.value, prev)}</td>
             </tr>
           );
         })}
@@ -130,7 +130,7 @@ export function FunnelChart({
             <div
               key={s.key}
               className="grid grid-cols-[minmax(5rem,9rem)_1fr_auto] items-center gap-3"
-              title={ofPrev ? `${s.label}: ${valueFormatter(s.value)} — ${ofPrev} of previous stage` : undefined}
+              title={ofPrev ? `${s.label}: ${valueFormatter(s.value)} · ${ofPrev} of previous stage` : undefined}
             >
               <span className="truncate text-xs font-medium text-fg">{s.label}</span>
               <div className="h-4 overflow-hidden rounded bg-surface">

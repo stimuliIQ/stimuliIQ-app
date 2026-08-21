@@ -2,7 +2,7 @@
 //
 // Unit tests for CoursesService scope-resolution + RBAC allow/deny, per CLAUDE.md §3 DoD
 // rule 10. Proves "all" works normally (content_editor/admin) and "assigned" (faculty's
-// courses.* grant) fails closed with 403 — `programs` has no author/owner column in P1, so
+// courses.* grant) fails closed with 403, `programs` has no author/owner column in P1, so
 // this scope cannot be resolved without widening access, which is exactly what must not
 // happen per the task brief's fail-closed mandate.
 
@@ -67,7 +67,7 @@ const ROW: ProgramRow = {
   deletedAt: null,
 };
 
-/** Minimal StorageProvider stub — only getSignedUploadUrl is exercised (image-upload-url). */
+/** Minimal StorageProvider stub, only getSignedUploadUrl is exercised (image-upload-url). */
 function mockStorage() {
   return {
     getSignedUploadUrl: jest.fn().mockResolvedValue({
@@ -180,7 +180,7 @@ describe("CoursesService", () => {
           maxBytes: 1024,
         }),
       );
-      // The response carries the opaque key + presigned URL only — never the bucket URL.
+      // The response carries the opaque key + presigned URL only, never the bucket URL.
       expect(result.storageKey).toBe("program_brochures/tenant-1/uuid-syllabus.pdf");
       expect(result.uploadUrl).toBe("https://signed.example/put");
     });
@@ -218,7 +218,7 @@ describe("CoursesService", () => {
     });
   });
 
-  describe("create — slug uniqueness", () => {
+  describe("create, slug uniqueness", () => {
     it("rejects creating a program with a slug already used in the tenant", async () => {
       repo.findBySlug.mockResolvedValue({ id: "existing-program" });
 
@@ -507,7 +507,7 @@ describe("CoursesService", () => {
       expect(repo.update).not.toHaveBeenCalled();
     });
 
-    // Whitespace is not text — a blank chip is the same defect as a missing label.
+    // Whitespace is not text, a blank chip is the same defect as a missing label.
     it("rejects a whitespace-only badge label", async () => {
       repo.findById.mockResolvedValue(ROW);
 
@@ -544,7 +544,7 @@ describe("CoursesService", () => {
       expect(detail.badgeEnabled).toBe(true);
     });
 
-    // An incomplete badge is only a problem once it is visible — staff must be able to
+    // An incomplete badge is only a problem once it is visible, staff must be able to
     // park a half-configured badge with the switch off.
     it("allows an unconfigured badge while it stays switched off", async () => {
       repo.findById.mockResolvedValue(ROW);

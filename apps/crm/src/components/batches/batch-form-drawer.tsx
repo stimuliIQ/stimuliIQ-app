@@ -338,7 +338,7 @@ export function BatchFormDrawer({ open, onOpenChange, batch }: BatchFormDrawerPr
                 </div>
                 <p className="mt-2 text-sm text-fg-muted">
                   {selectedDays.length === 0
-                    ? "No fixed day — leave blank for an unscheduled batch."
+                    ? "No fixed day. Leave blank for an unscheduled batch."
                     : "The times below apply to every selected day."}
                 </p>
               </div>

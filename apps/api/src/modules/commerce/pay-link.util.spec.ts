@@ -1,18 +1,18 @@
-// pay-link.util unit spec — the signed-token contract (mirrors cert-uid.util's
+// pay-link.util unit spec, the signed-token contract (mirrors cert-uid.util's
 // guarantees): round-trip validity, tamper/forgery rejection, expiry, and the
 // kind discriminator that keeps cert uids and pay links mutually unusable.
 import type { Env } from "../../config/env";
 import { signPayLinkToken, verifyPayLinkToken, PAY_LINK_TTL_SECONDS } from "./pay-link.util";
 import { signCertUid } from "../certificates/cert-uid.util";
 
-// Minimal Env stub — signing only reads CERT_SIGNING_SECRET + NODE_ENV (same
+// Minimal Env stub, signing only reads CERT_SIGNING_SECRET + NODE_ENV (same
 // pattern as cert-uid.spec.ts; validateEnv() needs a full env we do not have here).
 const ENV = { NODE_ENV: "test", CERT_SIGNING_SECRET: "a".repeat(40) } as Env;
 
 const TENANT = "11111111-1111-4111-8111-111111111111";
 const ORDER = "22222222-2222-4222-8222-222222222222";
 
-describe("pay-link token — sign/verify round trip", () => {
+describe("pay-link token, sign/verify round trip", () => {
   it("verifies a freshly signed token and returns its payload", () => {
     const { token, expiresAt } = signPayLinkToken({ tenantId: TENANT, orderId: ORDER }, ENV);
     const result = verifyPayLinkToken(token, ENV);
@@ -30,7 +30,7 @@ describe("pay-link token — sign/verify round trip", () => {
   });
 });
 
-describe("pay-link token — rejection paths", () => {
+describe("pay-link token, rejection paths", () => {
   it("rejects a tampered payload (order id swapped)", () => {
     const { token } = signPayLinkToken({ tenantId: TENANT, orderId: ORDER }, ENV);
     const [body, sig] = token.split(".");
@@ -54,7 +54,7 @@ describe("pay-link token — rejection paths", () => {
   });
 
   it("rejects a cert_uid replayed as a pay link (kind discriminator)", () => {
-    // Same signing secret, different token kind — must never cross over.
+    // Same signing secret, different token kind, must never cross over.
     const certUid = signCertUid({ studentId: TENANT, programId: ORDER, issuedAt: new Date() }, ENV);
     expect(verifyPayLinkToken(certUid, ENV).valid).toBe(false);
   });

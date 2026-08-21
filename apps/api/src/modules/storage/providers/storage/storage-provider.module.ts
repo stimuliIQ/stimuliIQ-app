@@ -105,7 +105,7 @@ function createStorageProvider(): StorageProvider {
   const bindOrFail = (label: string): StorageProvider => {
     const missing = s3Credentials();
     if (missing.length === 0) {
-      bootLogger.log(`[StorageProviderModule] STORAGE_PROVIDER=${selector} — binding ${label}.`);
+      bootLogger.log(`[StorageProviderModule] STORAGE_PROVIDER=${selector}, binding ${label}.`);
       return new S3StorageProvider();
     }
     if (isProd) {
@@ -118,7 +118,7 @@ function createStorageProvider(): StorageProvider {
     }
     bootLogger.warn(
       `[StorageProviderModule] STORAGE_PROVIDER=${selector} but ${missing.join(", ")} ` +
-        `is not set (non-production). Falling back to NoopStorageProvider — presigned URLs ` +
+        `is not set (non-production). Falling back to NoopStorageProvider, presigned URLs ` +
         `are FAKE. Set these before deploying to staging/prod.`,
     );
     return new NoopStorageProvider();
@@ -137,7 +137,7 @@ function createStorageProvider(): StorageProvider {
       }
       const apiBaseUrl = (env.API_PUBLIC_URL ?? `http://localhost:${env.API_PORT}`).replace(/\/+$/, "");
       const baseDir = resolveLocalStorageDir(env.LOCAL_STORAGE_DIR);
-      bootLogger.log(`[StorageProviderModule] STORAGE_PROVIDER=local — binding LocalStorageProvider (disk: ${baseDir}).`);
+      bootLogger.log(`[StorageProviderModule] STORAGE_PROVIDER=local, binding LocalStorageProvider (disk: ${baseDir}).`);
       return new LocalStorageProvider({ baseDir, apiBaseUrl, secret: env.COOKIE_SECRET });
     }
 
@@ -154,14 +154,14 @@ function createStorageProvider(): StorageProvider {
         // and the bytes are silently discarded — unrecoverable data loss.
         throw new Error(
           "[StorageProviderModule] STORAGE_PROVIDER=noop in a production environment. " +
-            "This would return FAKE presigned URLs — student submissions, invoices and " +
+            "This would return FAKE presigned URLs, student submissions, invoices and " +
             "certificates would be silently discarded. " +
             "Set STORAGE_PROVIDER=s3 or STORAGE_PROVIDER=r2 with real credentials for production. " +
             "The application will NOT start with STORAGE_PROVIDER=noop in production.",
         );
       }
       bootLogger.warn(
-        "[StorageProviderModule] STORAGE_PROVIDER=noop — binding NoopStorageProvider. " +
+        "[StorageProviderModule] STORAGE_PROVIDER=noop, binding NoopStorageProvider. " +
           "Presigned URLs are FAKE.  Set STORAGE_PROVIDER=s3 or STORAGE_PROVIDER=r2 " +
           "with real credentials for production/staging.",
       );
@@ -177,7 +177,7 @@ function createStorageProvider(): StorageProvider {
         );
       }
       bootLogger.warn(
-        `[StorageProviderModule] Unrecognised STORAGE_PROVIDER='${selector}' — ` +
+        `[StorageProviderModule] Unrecognised STORAGE_PROVIDER='${selector}' - ` +
           "falling back to NoopStorageProvider (fail-safe). " +
           "Valid values: noop | s3 | r2.",
       );

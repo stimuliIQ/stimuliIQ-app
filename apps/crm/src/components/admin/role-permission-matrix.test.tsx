@@ -1,7 +1,7 @@
 // Regression test for RolePermissionMatrix (docs/03 §7.16). The headline bug:
 // the `hasChanges` useMemo used to sit AFTER the isLoading/isError early
-// returns, so switching roles — which flips the component through its loading
-// state — changed the hook count between renders and threw "rendered more hooks
+// returns, so switching roles, which flips the component through its loading
+// state, changed the hook count between renders and threw "rendered more hooks
 // than during the previous render". This test drives exactly that loading ->
 // loaded transition and asserts the component survives it.
 import * as React from "react";
@@ -66,7 +66,7 @@ describe("RolePermissionMatrix", () => {
     const { rerender } = renderMatrix();
     expect(screen.getByTestId("permission-matrix-loading")).toBeInTheDocument();
 
-    // Data arrives — this rerender is where the extra useMemo used to appear and throw.
+    // Data arrives, this rerender is where the extra useMemo used to appear and throw.
     usePermissionCatalogMock.mockReturnValue(catalogLoaded);
     useRolePermissionsMock.mockReturnValue(grantsLoaded);
     expect(() =>
@@ -86,7 +86,7 @@ describe("RolePermissionMatrix", () => {
     useRolePermissionsMock.mockReturnValue(grantsLoaded);
     renderMatrix();
     expect(screen.getByTestId("permission-matrix")).toBeInTheDocument();
-    // The row is a plain toggle now — the scope <Select> is gone entirely.
+    // The row is a plain toggle now, the scope <Select> is gone entirely.
     expect(screen.getByTestId("permission-toggle-students.view")).toBeInTheDocument();
     expect(screen.queryByTestId("permission-scope-students.view")).not.toBeInTheDocument();
   });
@@ -117,7 +117,7 @@ describe("RolePermissionMatrix", () => {
   it("disables the toggle for a permission the editor only holds at a narrower scope", () => {
     usePermissionCatalogMock.mockReturnValue(catalogLoaded);
     useRolePermissionsMock.mockReturnValue({ data: { grants: [] }, isLoading: false, isError: false, refetch: vi.fn() });
-    // Editor holds students.view only at "branch" — can't grant it at "all".
+    // Editor holds students.view only at "branch", can't grant it at "all".
     const branchOnlyMe: MeResponse = { ...ME, permissions: [{ key: "students.view", scope: "branch" }] };
     render(
       <ToastProvider>

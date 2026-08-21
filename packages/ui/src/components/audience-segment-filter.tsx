@@ -133,7 +133,7 @@ export function AudienceSegmentFilter({
 
       {filters.length === 0 ? (
         <p className="text-sm text-fg-muted rounded-md border border-dashed border-border px-4 py-4 text-center">
-          No filters yet — all recipients in the selected list will be included.
+          No filters yet. All recipients in the selected list will be included.
         </p>
       ) : (
         <ol

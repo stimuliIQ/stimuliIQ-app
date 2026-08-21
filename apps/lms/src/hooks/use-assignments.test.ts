@@ -1,4 +1,4 @@
-// use-assignments hook tests — Phase 4 Task #10.
+// use-assignments hook tests, Phase 4 Task #10.
 //
 // Tests the FileUpload → storage seam (useRequestUploadUrl) and validates
 // that storageKey (not the signed URL) is what gets collected.
@@ -9,7 +9,7 @@
 import { useRequestUploadUrl } from "./use-assignments";
 
 // ---------------------------------------------------------------------------
-// useRequestUploadUrl — seam test
+// useRequestUploadUrl, seam test
 // ---------------------------------------------------------------------------
 
 describe("useRequestUploadUrl", () => {

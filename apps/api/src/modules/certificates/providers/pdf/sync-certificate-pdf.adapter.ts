@@ -567,7 +567,7 @@ function buildDocument(input: CertificatePdfInput, assets: ResolvedAssets): Reac
     // Title shows in the PDF viewer's tab/title bar, so it names the award. Author is the
     // issuer; no other metadata is set (see the port's SECURITY contract — certUid must
     // not leak into document properties).
-    { title: `${kind.ribbon.replace("\n", " ")} — Certificate of Completion`, author: orgName },
+    { title: `${kind.ribbon.replace("\n", " ")}, Certificate of Completion`, author: orgName },
     h(
       Page,
       { size: "A4", orientation, style: styles.page },
@@ -607,7 +607,7 @@ export class SyncCertificatePdfAdapter implements CertificatePdfPort {
           artworkSrc,
           fonts,
           kindNoun: kind.noun,
-          documentTitle: `${kind.ribbon.replace("\n", " ")} — Certificate of Completion`,
+          documentTitle: `${kind.ribbon.replace("\n", " ")}, Certificate of Completion`,
           orgName: design.orgName ?? DEFAULTS.orgName,
           issuedAtText: formatIssuedAt(input.fields.issuedAt).toUpperCase(),
         }),

@@ -140,7 +140,7 @@ describe("CertificatesService", () => {
     process.env["NODE_ENV"] = "test";
     process.env["WEB_APP_URL"] = "http://localhost:3000";
     // These required-by-schema vars (see config/env.ts) are unconditionally required
-    // regardless of NODE_ENV — set them explicitly so validateEnv() succeeds
+    // regardless of NODE_ENV, set them explicitly so validateEnv() succeeds
     // deterministically, matching the pattern already used by
     // certificate-pdf.queue-driver-gate.spec.ts's BASE_ENV, instead of relying on
     // cross-file process.env pollution from whichever spec Jest happens to run first
@@ -443,7 +443,7 @@ describe("CertificatesService", () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it("rejects issuance when cert already exists (valid) — AC-E6", async () => {
+    it("rejects issuance when cert already exists (valid), AC-E6", async () => {
       repo.findEnrollmentById.mockResolvedValue(makeEnrollmentRow(100));
       repo.findByEnrollmentId.mockResolvedValue({
         id: CERT_ID,
@@ -538,7 +538,7 @@ describe("CertificatesService", () => {
       expect(notifSvc.notifyCertificateReady).toHaveBeenCalledTimes(1);
     });
 
-    it("{issued:false, reason:'already_exists'} when a VALID cert already exists — never touches it", async () => {
+    it("{issued:false, reason:'already_exists'} when a VALID cert already exists, never touches it", async () => {
       repo.findEnrollmentById.mockResolvedValue(makeEnrollmentRow(100));
       repo.findByEnrollmentId.mockResolvedValue({
         id: CERT_ID,
@@ -574,7 +574,7 @@ describe("CertificatesService", () => {
       expect(repo.createCertificate).not.toHaveBeenCalled();
     });
 
-    it("{issued:false, reason:'already_exists'} when a REVOKED cert already exists — never reissues", async () => {
+    it("{issued:false, reason:'already_exists'} when a REVOKED cert already exists, never reissues", async () => {
       repo.findEnrollmentById.mockResolvedValue(makeEnrollmentRow(100));
       repo.findByEnrollmentId.mockResolvedValue({
         id: CERT_ID,
@@ -611,7 +611,7 @@ describe("CertificatesService", () => {
       expect(repo.softDeleteCertificate).not.toHaveBeenCalled();
     });
 
-    it("{issued:false, reason:'not_eligible'} when isEligible is false — does NOT throw", async () => {
+    it("{issued:false, reason:'not_eligible'} when isEligible is false, does NOT throw", async () => {
       repo.findEnrollmentById.mockResolvedValue(makeEnrollmentRow(50));
       repo.findByEnrollmentId.mockResolvedValue(null);
       repo.countRequiredAssessmentEligibility.mockResolvedValue({ total: 0, passed: 0 });
@@ -647,7 +647,7 @@ describe("CertificatesService", () => {
     });
   });
 
-  // ─── TEMPLATE CRUD (Phase-9-completion gap #5 — layout persistence) ─────────
+  // ─── TEMPLATE CRUD (Phase-9-completion gap #5, layout persistence) ─────────
 
   describe("certificate template create/update/detail (layout persistence)", () => {
     const makeTemplateDetailRow = (overrides: Record<string, unknown> = {}) => ({
@@ -689,7 +689,7 @@ describe("CertificatesService", () => {
       expect(result.layout).toEqual([{ id: "f1", type: "text", label: "Name", x: 50, y: 40 }]);
     });
 
-    it("updateTemplate with { layout } only — the designer's 'Save layout' action — persists and audits", async () => {
+    it("updateTemplate with { layout } only, the designer's 'Save layout' action, persists and audits", async () => {
       repo.findTemplateDetailById
         .mockResolvedValueOnce(makeTemplateDetailRow({ layout: null }))
         .mockResolvedValueOnce(makeTemplateDetailRow({ layout: [{ id: "f1", type: "text", label: "Name", x: 10, y: 10 }] }));
@@ -714,7 +714,7 @@ describe("CertificatesService", () => {
   // ─── BULK ISSUE (Phase-9-completion gap #7) ─────────────────────────────────
 
   describe("bulkIssueCertificates", () => {
-    it("issues each enrollment independently — one failure does not abort the others", async () => {
+    it("issues each enrollment independently, one failure does not abort the others", async () => {
       repo.findTemplateById.mockResolvedValue(makeTemplate());
       repo.countRequiredAssessmentEligibility.mockResolvedValue({ total: 0, passed: 0 });
       repo.checkFinalProjectApproved.mockResolvedValue(null);
@@ -830,16 +830,16 @@ describe("CertificatesService", () => {
       expect(result.status).toBe("revoked");
     });
 
-    it("throws 404 for a fabricated cert_uid (bad signature) — AC-H3", async () => {
+    it("throws 404 for a fabricated cert_uid (bad signature), AC-H3", async () => {
       // A random string that has no valid HMAC
       const fabricated = "aGVsbG8gd29ybGQ.YmFkc2ln";
 
       await expect(service.verifyCertificate(fabricated)).rejects.toThrow(NotFoundException);
-      // DB should NOT be queried — signature check happens first
+      // DB should NOT be queried, signature check happens first
       expect(repo.findPublicByCertUid).not.toHaveBeenCalled();
     });
 
-    it("throws 404 for a tampered cert_uid (one char flipped) — AC-H4", async () => {
+    it("throws 404 for a tampered cert_uid (one char flipped), AC-H4", async () => {
       const real = signCertUid({
         studentId: STUDENT_ID,
         programId: PROGRAM_ID,
@@ -853,7 +853,7 @@ describe("CertificatesService", () => {
       expect(repo.findPublicByCertUid).not.toHaveBeenCalled();
     });
 
-    it("throws 404 when cert_uid is validly-signed but no DB row — AC-H5", async () => {
+    it("throws 404 when cert_uid is validly-signed but no DB row, AC-H5", async () => {
       const certUid = signCertUid({
         studentId: STUDENT_ID,
         programId: PROGRAM_ID,
@@ -866,7 +866,7 @@ describe("CertificatesService", () => {
       await expect(service.verifyCertificate(certUid)).rejects.toThrow(NotFoundException);
     });
 
-    it("verify response has EXACTLY 5 keys — no PII leak (AC-H7)", async () => {
+    it("verify response has EXACTLY 5 keys, no PII leak (AC-H7)", async () => {
       const certUid = signCertUid({
         studentId: STUDENT_ID,
         programId: PROGRAM_ID,
@@ -900,7 +900,7 @@ describe("CertificatesService", () => {
     });
 
     // ── Short serial path (STMQ-YYYY-XXXX-XXXX) ──
-    it("verifies a valid certificate by its SHORT SERIAL (no HMAC) — DB lookup only", async () => {
+    it("verifies a valid certificate by its SHORT SERIAL (no HMAC), DB lookup only", async () => {
       repo.findPublicBySerial.mockResolvedValue({
         certUid: "some.uid",
         serial: "STMQ-2026-7F3K-9QX2",
@@ -914,10 +914,10 @@ describe("CertificatesService", () => {
 
       expect(result.valid).toBe(true);
       expect(result.program).toBe("Test Program");
-      // Serial path is DB-only — the signed cert_uid lookup is NOT used.
+      // Serial path is DB-only, the signed cert_uid lookup is NOT used.
       expect(repo.findPublicByCertUid).not.toHaveBeenCalled();
       expect(repo.findPublicBySerial).toHaveBeenCalledWith("STMQ-2026-7F3K-9QX2");
-      // Response stays the minimal 5-field shape (AC-H7) — serial is NOT leaked into it.
+      // Response stays the minimal 5-field shape (AC-H7), serial is NOT leaked into it.
       expect(Object.keys(result).sort()).toEqual(["holderName", "issuedAt", "program", "status", "valid"]);
     });
 
@@ -987,7 +987,7 @@ describe("CertificatesService", () => {
       expect(result.downloadUrl).not.toContain("r2.cloudflarestorage.com");
     });
 
-    it("throws 404 when certificate not found (not yet issued) — AC-F2/F3", async () => {
+    it("throws 404 when certificate not found (not yet issued), AC-F2/F3", async () => {
       repo.findStudentProfileId.mockResolvedValue(STUDENT_ID);
       repo.findByIdForStudent.mockResolvedValue(null);
 
@@ -996,7 +996,7 @@ describe("CertificatesService", () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it("throws 410 for revoked certificate — AC-F5", async () => {
+    it("throws 410 for revoked certificate, AC-F5", async () => {
       repo.findStudentProfileId.mockResolvedValue(STUDENT_ID);
       repo.findByIdForStudent.mockResolvedValue({
         id: CERT_ID,
@@ -1031,7 +1031,7 @@ describe("CertificatesService", () => {
       ).rejects.toThrow(GoneException);
     });
 
-    it("throws 404 when certificate belongs to another student (IDOR) — AC-F4", async () => {
+    it("throws 404 when certificate belongs to another student (IDOR), AC-F4", async () => {
       repo.findStudentProfileId.mockResolvedValue("other-student-id");
       repo.findByIdForStudent.mockResolvedValue(null); // IDOR: returns null for wrong student
 

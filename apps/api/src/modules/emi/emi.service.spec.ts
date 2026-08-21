@@ -105,7 +105,7 @@ describe("buildInstallmentSchedule()", () => {
     const schedule = buildInstallmentSchedule(100_000, 3, new Date("2026-01-31T00:00:00Z"));
     expect(schedule[0]!.dueDate.toISOString().slice(0, 10)).toBe("2026-01-31");
     // Month-end rollover (Jan 31 -> Feb 31 doesn't exist) is JS Date's native
-    // rollover behavior — documented, not a bug this schedule builder introduces.
+    // rollover behavior, documented, not a bug this schedule builder introduces.
     expect(schedule[1]!.installmentNo).toBe(2);
   });
 });
@@ -169,7 +169,7 @@ describe("EmiService", () => {
   });
 
   describe("markInstallmentPaid()", () => {
-    it("is idempotent — replaying against an already-paid installment is a no-op", async () => {
+    it("is idempotent, replaying against an already-paid installment is a no-op", async () => {
       const paidPlan = { ...PLAN_ROW, installments: [{ ...PLAN_ROW.installments[0]!, status: "paid" as const }] };
       repo.findById.mockResolvedValue(paidPlan as never);
       repo.findInstallment.mockResolvedValue(paidPlan.installments[0] as never);
@@ -208,7 +208,7 @@ describe("EmiService", () => {
       await runWithScope("all", () => service.markInstallmentPaid("tenant-1", "plan-1", "inst-1", {}, "idem-4"));
       expect(paymentProvider.createOrder).toHaveBeenCalledWith(expect.objectContaining({ amountPaise: 25_000, currency: "INR" }));
       expect(repo.linkPendingPayment).toHaveBeenCalledWith("inst-1", "payment-2");
-      expect(repo.markInstallmentPaid).not.toHaveBeenCalled(); // stays pending — no synchronous capture.
+      expect(repo.markInstallmentPaid).not.toHaveBeenCalled(); // stays pending, no synchronous capture.
     });
   });
 

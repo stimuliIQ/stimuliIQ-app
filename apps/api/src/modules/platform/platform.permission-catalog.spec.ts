@@ -4,7 +4,7 @@
 // mentors/content/live-classes .permission-catalog.spec.ts exactly): every
 // `@RequirePermission("x")` declared by this module's controllers MUST exist in the seed
 // permission catalog AND be granted to at least one role (admin/super_admin catch-all
-// counts — see NOTE below).
+// counts, see NOTE below).
 //
 // The feature-flags controller was removed along with the rest of that seam (nothing ever
 // evaluated a flag), so this module is now Settings alone.
@@ -20,7 +20,7 @@ const ALL_EXPECTED_KEYS = ["settings.view", "settings.edit"] as const;
 /**
  * Keys granted ONLY via the admin/super_admin catch-all (no non-admin role grant).
  * `settings.edit` is intentionally admin-only (seed comment: "settings.*: branch_manager
- * may VIEW branch-level config (edit stays admin-only)") — branch_manager holds
+ * may VIEW branch-level config (edit stays admin-only)"), branch_manager holds
  * settings.view but never settings.edit.
  */
 const ADMIN_ONLY_KEYS = new Set(["settings.edit"]);
@@ -67,7 +67,7 @@ describe("Platform module controllers permission catalog (regression: P6 forum.r
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("Platform module permission catalog — live seeded DB", () => {
+describeIfDb("Platform module permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {

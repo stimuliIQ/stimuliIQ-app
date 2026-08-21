@@ -144,7 +144,7 @@ export function CouponList({ me }: CouponListProps): React.JSX.Element {
     <div className="space-y-4 md:space-y-5" data-testid="coupons-list">
       <PageHeader
         title="Coupons"
-        description="Discount codes — percentage or flat, with usage caps and validity windows."
+        description="Discount codes. Percentage or flat, with usage caps and validity windows."
         actions={
           permissions.canCreate ? (
             <Button onClick={() => setCreateOpen(true)} data-testid="coupons-create-button">

@@ -92,7 +92,7 @@ function renderBlock(
       // upstream (e.g. a caller passed raw, unvalidated JSON). Fail loud in dev,
       // silent in production.
       if (process.env.NODE_ENV !== "production") {
-        console.error(`[page-builder] unknown block type "${(block as { type: string }).type}" — skipped.`);
+        console.error(`[page-builder] unknown block type "${(block as { type: string }).type}", skipped.`);
       }
       return null;
     }

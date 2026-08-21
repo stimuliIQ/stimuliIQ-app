@@ -1,7 +1,7 @@
 // apps/api/src/modules/certificates/certificates.integration.spec.ts
 //
 // Integration tests for the Certificates + eligibility + public verify module.
-// Skip-guarded with `describeIfDb` — skipped in CI unless DATABASE_URL is present.
+// Skip-guarded with `describeIfDb`, skipped in CI unless DATABASE_URL is present.
 //
 // Coverage (per phase-4.md task #8 DoD + spec AC-E through AC-H):
 //   AC-E eligibility gates issuance (all three sub-conditions + vacuous cases)
@@ -10,7 +10,7 @@
 //   AC-G4  reissue: old cert_uid → 404 on public verify; new → valid
 //   AC-H1  public verify resolves a valid cert
 //   AC-H2  public verify returns 'revoked' for a revoked cert
-//   AC-H3  public verify REJECTS a fabricated cert_uid (bad signature — no DB lookup)
+//   AC-H3  public verify REJECTS a fabricated cert_uid (bad signature, no DB lookup)
 //   AC-H5  public verify returns 404 for valid-signature but non-existent cert_uid
 //   AC-H6  public verify is rate-limited (VerifyRateLimiter)
 //   AC-H7  public verify leaks no PII beyond holderName
@@ -104,7 +104,7 @@ describeIfDb("CertificatesService integration", () => {
     await prismaService.onModuleInit();
 
     repo = new CertificatesRepository(prismaService);
-    // T31/R3: notifyCertificateReady is best-effort (caught by the service) — a stub is
+    // T31/R3: notifyCertificateReady is best-effort (caught by the service), a stub is
     // sufficient here (dedicated coverage lives in certificates.service.spec.ts's T31/R3
     // tests + notifications.service.spec.ts).
     const notifSvcStub = { notifyCertificateReady: jest.fn().mockResolvedValue(undefined) } as unknown as NotificationsService;
@@ -183,7 +183,7 @@ describeIfDb("CertificatesService integration", () => {
     });
     batchId = batch.id;
 
-    // ─── Actor (admin / ops user — issues certificates) ──────────────────────
+    // ─── Actor (admin / ops user, issues certificates) ──────────────────────
 
     const actorUser = await base.user.create({
       data: {
@@ -221,7 +221,7 @@ describeIfDb("CertificatesService integration", () => {
         programId,
         batchId,
         status: "active",
-        progressPct: 100, // fully completed — eligible by default
+        progressPct: 100, // fully completed, eligible by default
       },
     });
     enrollmentId = enrollA.id;
@@ -540,7 +540,7 @@ describeIfDb("CertificatesService integration", () => {
         reason: "Fraud detected",
       });
 
-      // Verify AFTER revoke — must now return 'revoked'
+      // Verify AFTER revoke, must now return 'revoked'
       const afterRevoke = await service.verifyCertificate(certUid);
       expect(afterRevoke.valid).toBe("revoked");
     });
@@ -632,7 +632,7 @@ describeIfDb("CertificatesService integration", () => {
       expect(typeof result.issuedAt).toBe("string");
     });
 
-    it("AC-H7: response has EXACTLY 5 keys — no PII leak", async () => {
+    it("AC-H7: response has EXACTLY 5 keys, no PII leak", async () => {
       const result = await service.verifyCertificate(issuedCertUid);
 
       const keys = Object.keys(result);

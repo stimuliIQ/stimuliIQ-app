@@ -111,7 +111,7 @@ function createVideoProvider(storage: StorageProvider): VideoProvider {
     construct: () => VideoProvider,
   ): VideoProvider => {
     if (missing.length === 0) {
-      bootLogger.log(`[VideoProviderModule] VIDEO_PROVIDER=${selector} — binding ${adapterName}.`);
+      bootLogger.log(`[VideoProviderModule] VIDEO_PROVIDER=${selector}, binding ${adapterName}.`);
       return construct();
     }
     if (isProd) {
@@ -124,7 +124,7 @@ function createVideoProvider(storage: StorageProvider): VideoProvider {
     }
     bootLogger.warn(
       `[VideoProviderModule] VIDEO_PROVIDER=${selector} but ${missing.join(", ")} ` +
-        `is not set (non-production). Falling back to NoopVideoProvider — signed HLS URLs ` +
+        `is not set (non-production). Falling back to NoopVideoProvider, signed HLS URLs ` +
         `are FAKE. Set these before deploying to staging/prod.`,
     );
     return new NoopVideoProvider({ storage });
@@ -160,7 +160,7 @@ function createVideoProvider(storage: StorageProvider): VideoProvider {
       // Signed-HLS endpoints stay registered but dormant; use ONLY when no recorded video
       // is served yet. Flip to cloudflare_stream|mux (with keys) to enable it.
       bootLogger.log(
-        "[VideoProviderModule] VIDEO_PROVIDER=disabled — recorded-video feature is off. " +
+        "[VideoProviderModule] VIDEO_PROVIDER=disabled, recorded-video feature is off. " +
           "Binding NoopVideoProvider (signed-HLS endpoints dormant; no video vendor needed).",
       );
       return new NoopVideoProvider({ storage });
@@ -178,7 +178,7 @@ function createVideoProvider(storage: StorageProvider): VideoProvider {
         );
       }
       bootLogger.warn(
-        "[VideoProviderModule] VIDEO_PROVIDER=noop — binding NoopVideoProvider. " +
+        "[VideoProviderModule] VIDEO_PROVIDER=noop, binding NoopVideoProvider. " +
           "Signed HLS URLs are FAKE. Set VIDEO_PROVIDER=cloudflare_stream or " +
           "VIDEO_PROVIDER=mux with real credentials for production/staging.",
       );
@@ -195,7 +195,7 @@ function createVideoProvider(storage: StorageProvider): VideoProvider {
         );
       }
       bootLogger.warn(
-        `[VideoProviderModule] Unrecognised VIDEO_PROVIDER='${selector}' — ` +
+        `[VideoProviderModule] Unrecognised VIDEO_PROVIDER='${selector}' - ` +
           "falling back to NoopVideoProvider (fail-safe). " +
           "Valid values: noop | cloudflare_stream | mux.",
       );

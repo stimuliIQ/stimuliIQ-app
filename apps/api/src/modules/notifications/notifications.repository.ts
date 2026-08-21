@@ -349,7 +349,7 @@ export class NotificationsRepository {
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
         this.logger.debug(
-          `[NotificationsRepo] createSuppression: duplicate (tenant=${data.tenantId} channel=${data.channel}) — returning existing row (idempotent).`,
+          `[NotificationsRepo] createSuppression: duplicate (tenant=${data.tenantId} channel=${data.channel}), returning existing row (idempotent).`,
         );
         const orConditions: Prisma.NotificationSuppressionWhereInput[] = [];
         if (data.email) orConditions.push({ channel: data.channel as never, email: data.email });

@@ -111,7 +111,7 @@ export class NoopLiveClassProvider implements LiveClassProvider {
   verifyWebhookSignature(input: VerifyWebhookSignatureInput): boolean {
     if (this.simulateWebhookSecretAbsent || !this.webhookSecret) {
       this.logger.warn(
-        "[NoopLiveClassProvider] verifyWebhookSignature: webhook secret absent — " +
+        "[NoopLiveClassProvider] verifyWebhookSignature: webhook secret absent, " +
           "returning false (fail closed).",
       );
       return false;

@@ -142,7 +142,7 @@ export function ReportScheduleFormDrawer({ open, onOpenChange, schedule }: Repor
         <form onSubmit={onSubmit} className="flex flex-1 flex-col overflow-hidden">
           <DrawerBody className="flex flex-col gap-4">
             <div className="rounded-md border border-dashed border-border bg-surface p-3 text-xs text-fg-muted" data-testid="schedule-scope-note">
-              A schedule's data is re-evaluated at send time from the recipient's own permissions — it
+              A schedule's data is re-evaluated at send time from the recipient's own permissions, it
               will never email data the recipient can no longer access, even if roles/scope change
               after this schedule was created.
             </div>

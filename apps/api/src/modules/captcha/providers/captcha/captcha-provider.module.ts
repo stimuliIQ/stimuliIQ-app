@@ -105,7 +105,7 @@ function createCaptchaProvider(): CaptchaProvider {
         if (isProd) {
           bootLogger.error(
             "[CaptchaProviderModule] CAPTCHA_PROVIDER=turnstile but CAPTCHA_SECRET_KEY " +
-              "is not set in production. Binding FailClosedCaptchaProvider — " +
+              "is not set in production. Binding FailClosedCaptchaProvider, " +
               "all captcha-gated writes will be rejected until the key is supplied.",
           );
           return new FailClosedCaptchaProvider();
@@ -119,7 +119,7 @@ function createCaptchaProvider(): CaptchaProvider {
         }
       }
       bootLogger.log(
-        "[CaptchaProviderModule] CAPTCHA_PROVIDER=turnstile — binding TurnstileCaptchaProvider " +
+        "[CaptchaProviderModule] CAPTCHA_PROVIDER=turnstile, binding TurnstileCaptchaProvider " +
           "(Cloudflare Turnstile server-side verify).",
       );
       return new TurnstileCaptchaProvider();
@@ -137,7 +137,7 @@ function createCaptchaProvider(): CaptchaProvider {
         return new FailClosedCaptchaProvider();
       }
       bootLogger.warn(
-        "[CaptchaProviderModule] CAPTCHA_PROVIDER=noop — binding NoopCaptchaProvider. " +
+        "[CaptchaProviderModule] CAPTCHA_PROVIDER=noop, binding NoopCaptchaProvider. " +
           "ALL captcha tokens are accepted unconditionally. " +
           "Set CAPTCHA_PROVIDER=turnstile with CAPTCHA_SECRET_KEY for staging/prod.",
       );
@@ -155,7 +155,7 @@ function createCaptchaProvider(): CaptchaProvider {
         return new FailClosedCaptchaProvider();
       }
       bootLogger.warn(
-        `[CaptchaProviderModule] Unrecognised CAPTCHA_PROVIDER='${selector}' — ` +
+        `[CaptchaProviderModule] Unrecognised CAPTCHA_PROVIDER='${selector}' - ` +
           "falling back to NoopCaptchaProvider (non-production). " +
           "Valid values: noop | turnstile.",
       );

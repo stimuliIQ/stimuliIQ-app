@@ -9,7 +9,7 @@
 //
 // UNLIKE every other P7 permission-catalog spec, this one ALSO asserts the opposite
 // direction: `dpdp.erasure.execute` must NOT be explicitly granted to any non-admin role
-// in seed.ts (it is intentionally covered ONLY by the super_admin/admin catch-all loop) —
+// in seed.ts (it is intentionally covered ONLY by the super_admin/admin catch-all loop),
 // a future edit that adds an explicit non-admin grant for this permission would silently
 // widen who can trigger a PII-erasure action, which is exactly the kind of privilege
 // creep AC-65 exists to prevent.
@@ -48,7 +48,7 @@ describe("DpdpController permission catalog (regression: P6 forum.read/notificat
     '"%s" has NO explicit non-admin grant call in seed.ts (admin-only via the super_admin/admin catch-all)',
     (key) => {
       // Every OTHER P7 permission has an explicit `grant(<role>Role!.id, p7permId("key"), ...)`
-      // call for at least one non-admin role. `dpdp.erasure.execute` deliberately has none —
+      // call for at least one non-admin role. `dpdp.erasure.execute` deliberately has none,
       // if this regex ever matches, someone added a non-admin grant and widened who can
       // trigger PII erasure, which must be a conscious, reviewed decision, not a silent one.
       expect(seedSource).not.toMatch(new RegExp(`p7permId\\("${key.replace(/\./g, "\\.")}"\\)`));
@@ -61,7 +61,7 @@ describe("DpdpController permission catalog (regression: P6 forum.read/notificat
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("DpdpController permission catalog — live seeded DB", () => {
+describeIfDb("DpdpController permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {

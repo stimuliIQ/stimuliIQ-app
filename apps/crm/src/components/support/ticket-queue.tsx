@@ -56,7 +56,7 @@ export function TicketQueue({ me }: { me: MeResponse | undefined }): React.JSX.E
     { id: "status", header: "Status", cell: (row) => <StatusChip tone={STATUS_TONE[row.status]} label={row.status.replace("_", " ")} size="sm" /> },
     { id: "priority", header: "Priority", cell: (row) => <StatusChip tone={PRIORITY_TONE[row.priority]} label={row.priority} size="sm" /> },
     { id: "assigneeName", header: "Assigned to", cell: (row) => row.assigneeName ?? "Unassigned" },
-    { id: "slaDueAt", header: "SLA", cell: (row) => (row.slaDueAt ? <SlaChip dueAt={new Date(row.slaDueAt)} size="sm" /> : "—") },
+    { id: "slaDueAt", header: "SLA", cell: (row) => (row.slaDueAt ? <SlaChip dueAt={new Date(row.slaDueAt)} size="sm" /> : "-") },
     { id: "createdAt", header: "Created", cell: (row) => new Date(row.createdAt).toLocaleDateString(), align: "right" },
   ];
 

@@ -16,7 +16,7 @@ describe("DonutChart", () => {
 
   it("has an accessible name via role=img", () => {
     render(<DonutChart title="Leads by source" description="Last 30 days" data={data} />);
-    expect(screen.getByRole("img", { name: "Leads by source — Last 30 days" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Leads by source, Last 30 days" })).toBeInTheDocument();
   });
 
   it("renders a sr-only data table with segment, value, and share", () => {

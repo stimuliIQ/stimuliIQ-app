@@ -53,7 +53,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("ImageKeyField — device upload", () => {
+describe("ImageKeyField, device upload", () => {
   it("happy path: uploads, mints a signed URL, PUTs the file, and sets the key via onUploadedKey", async () => {
     const user = userEvent.setup();
     mediaUploadUrlMock.mockResolvedValue({
@@ -98,7 +98,7 @@ describe("ImageKeyField — device upload", () => {
   });
 
   it("rejects an unsupported file type (svg) client-side with no network call", async () => {
-    // applyAccept: false — the real browser's file-picker `accept` filter would normally
+    // applyAccept: false, the real browser's file-picker `accept` filter would normally
     // stop a user from ever selecting a mismatched file, but our validation is
     // defense-in-depth (e.g. a renamed file, or drag-and-drop from outside the picker), so
     // the test bypasses userEvent's accept-matching to exercise it directly.
@@ -131,7 +131,7 @@ describe("ImageKeyField — device upload", () => {
 
     await user.upload(input, file);
 
-    expect(await screen.findByText("Couldn't upload the image — check your connection and try again.")).toBeInTheDocument();
+    expect(await screen.findByText("Couldn't upload the image. Check your connection and try again.")).toBeInTheDocument();
     expect(onUploadedKey).not.toHaveBeenCalled();
   });
 
@@ -145,7 +145,7 @@ describe("ImageKeyField — device upload", () => {
 
     await user.upload(input, file);
 
-    expect(await screen.findByText("Couldn't upload the image — check your connection and try again.")).toBeInTheDocument();
+    expect(await screen.findByText("Couldn't upload the image. Check your connection and try again.")).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
     expect(onUploadedKey).not.toHaveBeenCalled();
   });

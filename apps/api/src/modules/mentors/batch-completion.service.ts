@@ -298,7 +298,7 @@ export class BatchCompletionService {
       throw new ConflictException({
         code: "ALREADY_COMPLETED",
         title: "Batch already completed",
-        detail: "This batch has already been marked complete (or archived) — no action taken.",
+        detail: "This batch has already been marked complete (or archived), no action taken.",
       });
     }
     if (batch.status !== "active") {
@@ -318,7 +318,7 @@ export class BatchCompletionService {
       throw new ConflictException({
         code: "ALREADY_COMPLETED",
         title: "Batch already completed",
-        detail: "This batch was marked complete by another action — no duplicate transition applied.",
+        detail: "This batch was marked complete by another action, no duplicate transition applied.",
       });
     }
 

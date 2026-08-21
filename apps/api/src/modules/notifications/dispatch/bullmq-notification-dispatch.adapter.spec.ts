@@ -1,7 +1,7 @@
 // apps/api/src/modules/notifications/dispatch/bullmq-notification-dispatch.adapter.spec.ts
 //
 // Unit test for BullMqNotificationDispatchAdapter (docs/plans/phase-9-completion.md
-// T18 / R1). `bullmq`'s `Queue` class is MOCKED — this suite asserts the producer-side
+// T18 / R1). `bullmq`'s `Queue` class is MOCKED, this suite asserts the producer-side
 // contract (enqueue with the right name/jobId/options, return fast) WITHOUT opening any
 // real Redis connection.
 
@@ -45,13 +45,13 @@ describe("BullMqNotificationDispatchAdapter", () => {
     expect(opts.jobId).toBe("notif-1:email");
     expect(opts.attempts).toBeGreaterThan(1);
 
-    // Producer returns fast — accepted for async processing, not a delivery guarantee.
+    // Producer returns fast, accepted for async processing, not a delivery guarantee.
     expect(result).toEqual({ dispatched: true, skipped: false });
   });
 
   it("never blocks on the actual provider call (no MailProvider/SmsProvider dependency)", () => {
     // BullMqNotificationDispatchAdapter has zero constructor dependencies on
-    // MAIL_PROVIDER/WHATSAPP_PROVIDER/SMS_PROVIDER — the real send happens in the worker.
+    // MAIL_PROVIDER/WHATSAPP_PROVIDER/SMS_PROVIDER, the real send happens in the worker.
     expect(() => new BullMqNotificationDispatchAdapter()).not.toThrow();
   });
 });

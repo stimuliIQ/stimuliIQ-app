@@ -106,7 +106,7 @@ export function initSentry(): void {
       // fail-closed). pino isn't bootstrapped yet at this point in boot (see main.ts's
       // boot-order comment), so use console directly.
       console.warn(
-        "[api] SENTRY_DSN is not set in a production environment — error reporting to " +
+        "[api] SENTRY_DSN is not set in a production environment, error reporting to " +
           "Sentry is DISABLED. 5xx exceptions and uncaught exceptions will NOT be " +
           "reported. Set SENTRY_DSN to enable production error tracking.",
       );

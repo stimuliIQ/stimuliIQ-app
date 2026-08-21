@@ -103,7 +103,7 @@ describe("PricingTable comparison variant", () => {
     expect(screen.getByRole("columnheader", { name: "Self-Paced" })).toBeInTheDocument();
     // The recommended tier has extra label in aria-label
     expect(
-      screen.getByRole("columnheader", { name: /Live \+ Recorded — Recommended/i }),
+      screen.getByRole("columnheader", { name: /Live \+ Recorded, Recommended/i }),
     ).toBeInTheDocument();
   });
 

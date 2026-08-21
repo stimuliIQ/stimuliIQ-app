@@ -22,7 +22,7 @@ export interface GamificationDashboardProps {
 
 const COLUMNS: Array<DataTableColumn<GamificationParticipantRow>> = [
   { id: "studentName", header: "Student", cell: (row) => row.studentName },
-  { id: "studentEmail", header: "Email", cell: (row) => row.studentEmail ?? "—" },
+  { id: "studentEmail", header: "Email", cell: (row) => row.studentEmail ?? "-" },
   { id: "totalXp", header: "Total XP", cell: (row) => row.totalXp, align: "right" },
   { id: "badgeCount", header: "Badges", cell: (row) => row.badgeCount, align: "right" },
 ];
@@ -41,7 +41,7 @@ export function GamificationDashboard({ me }: GamificationDashboardProps): React
   return (
     <ReportPageShell
       title="Gamification participation"
-      description="Active earners, XP distributed, and badge awards — staff view (names/emails visible)."
+      description="Active earners, XP distributed, and badge awards, staff view (names/emails visible)."
       canView={canView}
       data-testid="gamification-dashboard"
     >
@@ -76,20 +76,20 @@ export function GamificationDashboard({ me }: GamificationDashboardProps): React
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <KpiCard
               label="Active earners"
-              value={data ? data.activeEarnersCount : "—"}
+              value={data ? data.activeEarnersCount : "-"}
               icon={<Trophy />}
               loading={isLoading}
               data-testid="gamification-active-earners-kpi"
             />
             <KpiCard
               label="Total XP distributed"
-              value={data ? data.totalXpDistributed : "—"}
+              value={data ? data.totalXpDistributed : "-"}
               loading={isLoading}
               data-testid="gamification-total-xp-kpi"
             />
             <KpiCard
               label="Badges awarded"
-              value={data ? data.badgeAwardCount : "—"}
+              value={data ? data.badgeAwardCount : "-"}
               loading={isLoading}
               data-testid="gamification-badge-count-kpi"
             />

@@ -109,7 +109,7 @@ export const CreateProgramRequestSchema = z
       .optional()
       .describe(
         "S3/R2 object key from POST /crm/courses/image-upload-url. The API mints a public CDN " +
-          "URL from it — the raw key is never returned. Used as the course card + OG image.",
+          "URL from it. The raw key is never returned. Used as the course card + OG image.",
       ),
     brochureKey: z
       .string()
@@ -118,7 +118,7 @@ export const CreateProgramRequestSchema = z
       .optional()
       .describe(
         "S3/R2 object key from POST /crm/courses/brochure-upload-url (PDF). The API mints a " +
-          "public asset URL from it — the raw key is never returned. Surfaced as the " +
+          "public asset URL from it. The raw key is never returned. Surfaced as the " +
           "'Download brochure' button on the public course page.",
       ),
     scholarshipAvailable: z
@@ -189,7 +189,7 @@ export const ProgramImageUploadUrlRequestSchema = z
   .object({
     contentType: z
       .enum(["image/jpeg", "image/png", "image/webp"])
-      .describe("Course images are images only — the signed URL enforces this content-type."),
+      .describe("Course images are images only. The signed URL enforces this content-type."),
     fileName: z.string().min(1).max(255),
     sizeBytes: z.number().int().min(1).max(5_242_880).describe("Max 5 MB per course image."),
   })
@@ -210,7 +210,7 @@ export const ProgramBrochureUploadUrlRequestSchema = z
   .object({
     contentType: z
       .literal("application/pdf")
-      .describe("Brochures are PDFs only — the signed URL enforces this content-type."),
+      .describe("Brochures are PDFs only. The signed URL enforces this content-type."),
     fileName: z.string().min(1).max(255),
     sizeBytes: z.number().int().min(1).max(20_971_520).describe("Max 20 MB per brochure."),
   })
@@ -271,7 +271,7 @@ export const CreateLessonResourceRequestSchema = z
       .string()
       .min(1)
       .max(1024)
-      .describe("The opaque key returned by the upload-url endpoint. Server-internal — never echoed back in reads."),
+      .describe("The opaque key returned by the upload-url endpoint. Server-internal. Never echoed back in reads."),
     sizeBytes: z.number().int().min(0).nullable().optional(),
   })
   .strict();

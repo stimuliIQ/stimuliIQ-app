@@ -33,7 +33,7 @@ describe("HealthService", () => {
     expect(result.body).toEqual({ status: "ok", db: "ok", redis: "ok" });
   });
 
-  it("readiness() reports db:'down' + healthy=false when Postgres is unreachable — never throws", async () => {
+  it("readiness() reports db:'down' + healthy=false when Postgres is unreachable, never throws", async () => {
     const service = buildService({ dbOk: false, redisOk: true });
 
     const result = await service.readiness();
@@ -42,7 +42,7 @@ describe("HealthService", () => {
     expect(result.body).toEqual({ status: "degraded", db: "down", redis: "ok" });
   });
 
-  it("readiness() reports redis:'down' + healthy=false when Redis is unreachable — never throws", async () => {
+  it("readiness() reports redis:'down' + healthy=false when Redis is unreachable, never throws", async () => {
     const service = buildService({ dbOk: true, redisOk: false });
 
     const result = await service.readiness();

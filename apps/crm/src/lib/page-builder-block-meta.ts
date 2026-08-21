@@ -58,28 +58,28 @@ export const BLOCK_TYPE_META: Record<PageBuilderBlockType, BlockTypeMeta> = {
   content_split: {
     type: "content_split",
     label: "Content + image split",
-    description: "Heading and body paragraphs beside a photo — e.g. an About-style story section.",
+    description: "Heading and body paragraphs beside a photo. E.g. an About-style story section.",
     category: "Content",
     icon: Columns2,
   },
   stat_group: {
     type: "stat_group",
     label: "Stat group",
-    description: "A row/grid of numbers with labels — e.g. \"15,000+ Students placed\".",
+    description: "A row/grid of numbers with labels, e.g. \"15,000+ Students placed\".",
     category: "Content",
     icon: Hash,
   },
   feature_grid: {
     type: "feature_grid",
     label: "Feature grid",
-    description: "Icon + title + description cards in a grid or strip — e.g. \"Why choose us\".",
+    description: "Icon + title + description cards in a grid or strip, e.g. \"Why choose us\".",
     category: "Content",
     icon: LayoutGrid,
   },
   numbered_steps: {
     type: "numbered_steps",
     label: "Numbered steps",
-    description: "A numbered process/journey list — e.g. \"How it works\".",
+    description: "A numbered process/journey list, e.g. \"How it works\".",
     category: "Content",
     icon: ListOrdered,
   },
@@ -93,21 +93,21 @@ export const BLOCK_TYPE_META: Record<PageBuilderBlockType, BlockTypeMeta> = {
   cta_band: {
     type: "cta_band",
     label: "Button banner",
-    description: "A colored strip with a heading and buttons — optionally with an inline lead form.",
+    description: "A colored strip with a heading and buttons. Optionally with an inline lead form.",
     category: "Content",
     icon: MousePointerClick,
   },
   media_gallery: {
     type: "media_gallery",
     label: "Media gallery",
-    description: "A grid of photos with captions — e.g. the campus gallery page.",
+    description: "A grid of photos with captions. E.g. the campus gallery page.",
     category: "List",
     icon: Images,
   },
   job_openings: {
     type: "job_openings",
     label: "Job openings",
-    description: "A list of open roles (title, type, location, description) — e.g. the Careers page.",
+    description: "A list of open roles (title, type, location, description), e.g. the Careers page.",
     category: "List",
     icon: Briefcase,
   },
@@ -115,14 +115,14 @@ export const BLOCK_TYPE_META: Record<PageBuilderBlockType, BlockTypeMeta> = {
     type: "live_collection_ref",
     label: "Automatic section",
     description:
-      "Shows your latest reviews, partner logos, programs, or mentors automatically. Edit the items themselves on their own screens — never copies data into the page.",
+      "Shows your latest reviews, partner logos, programs, or mentors automatically. Edit the items themselves on their own screens. Never copies data into the page.",
     category: "Reference",
     icon: Rss,
   },
   brain_showcase: {
     type: "brain_showcase",
     label: "Brand showcase (decorative)",
-    description: "The fixed 3D/shader brand moment. No editable fields — position it, nothing else.",
+    description: "The fixed 3D/shader brand moment. No editable fields, position it, nothing else.",
     category: "Decorative",
     icon: Sparkles,
   },
@@ -210,7 +210,7 @@ export function blockContentExcerpt(type: PageBuilderBlockType, data: Record<str
       return { text: `Live: ${collection}${layout ? ` · ${layout}` : ""}`, placeholder: false };
     }
     case "brain_showcase":
-      return { text: "Decorative — no fields", placeholder: false };
+      return { text: "Decorative, no fields", placeholder: false };
     default:
       return EMPTY_EXCERPT;
   }

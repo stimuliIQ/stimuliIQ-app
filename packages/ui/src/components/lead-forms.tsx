@@ -532,7 +532,7 @@ export interface ExitIntentModalProps extends LeadFormCoreProps {
 export function ExitIntentModal({
   open,
   onOpenChange,
-  heading = "Wait — before you go!",
+  heading = "Wait, before you go!",
   subheading = "Talk to a counsellor and find the right program for you.",
   imageSlot,
   "data-testid": testId,

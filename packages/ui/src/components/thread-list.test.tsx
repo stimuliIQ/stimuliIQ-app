@@ -37,7 +37,7 @@ const THREADS: ThreadSummary[] = [T1, T2, T3];
 // ThreadCard
 // ---------------------------------------------------------------------------
 
-describe("ThreadCard — rendering", () => {
+describe("ThreadCard, rendering", () => {
   it("renders with default data-testid='thread-card'", () => {
     render(<ThreadCard thread={T1} />);
     expect(screen.getByTestId("thread-card")).toBeInTheDocument();
@@ -69,7 +69,7 @@ describe("ThreadCard — rendering", () => {
   });
 });
 
-describe("ThreadCard — a11y", () => {
+describe("ThreadCard, a11y", () => {
   it("has role='listitem' for semantic list membership", () => {
     render(<ThreadCard thread={T1} />);
     expect(screen.getByRole("listitem")).toBeInTheDocument();
@@ -95,7 +95,7 @@ describe("ThreadCard — a11y", () => {
   });
 });
 
-describe("ThreadCard — interactions", () => {
+describe("ThreadCard, interactions", () => {
   it("calls onThreadClick when card is clicked", async () => {
     const user = userEvent.setup();
     const onThreadClick = vi.fn();
@@ -127,7 +127,7 @@ describe("ThreadCard — interactions", () => {
 // ThreadList
 // ---------------------------------------------------------------------------
 
-describe("ThreadList — rendering", () => {
+describe("ThreadList, rendering", () => {
   it("renders with default data-testid='thread-list'", () => {
     render(<ThreadList threads={THREADS} />);
     expect(screen.getByTestId("thread-list")).toBeInTheDocument();

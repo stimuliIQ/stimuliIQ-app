@@ -1,5 +1,5 @@
 // Component + a11y tests for TicketDetailDrawer (R12, docs/plans/phase-9-completion.md
-// T41 — crm test infrastructure). Data hooks are mocked directly (not the apiClient) so
+// T41, crm test infrastructure). Data hooks are mocked directly (not the apiClient) so
 // this is a pure component-level test of loading/error/empty/loaded states + the
 // internal-note / status-editor RBAC gate (`canManage`).
 
@@ -72,7 +72,7 @@ beforeEach(() => {
   useFacultyListMock.mockReturnValue({ data: { items: [] } });
 });
 
-describe("TicketDetailDrawer — loading / error / empty states", () => {
+describe("TicketDetailDrawer, loading / error / empty states", () => {
   it("shows a loading skeleton while the ticket is fetching", () => {
     useTicketMock.mockReturnValue({ data: undefined, isLoading: true, isError: false, refetch: vi.fn() });
     renderDrawer({ ticketId: "tix-1", me: AGENT_ME });
@@ -89,12 +89,12 @@ describe("TicketDetailDrawer — loading / error / empty states", () => {
   it("does not render the drawer content query surface at all when ticketId is null (Drawer closed)", () => {
     useTicketMock.mockReturnValue({ data: undefined, isLoading: false, isError: false, refetch: vi.fn() });
     renderDrawer({ ticketId: null, me: AGENT_ME });
-    // Radix Dialog unmounts its content when closed — the thread/status editors are gone.
+    // Radix Dialog unmounts its content when closed, the thread/status editors are gone.
     expect(screen.queryByTestId("ticket-thread")).not.toBeInTheDocument();
   });
 });
 
-describe("TicketDetailDrawer — loaded ticket, RBAC-aware editing", () => {
+describe("TicketDetailDrawer, loaded ticket, RBAC-aware editing", () => {
   it("an agent WITH tickets.edit sees enabled status/priority/assignee editors + the message thread", async () => {
     useTicketMock.mockReturnValue({ data: BASE_TICKET, isLoading: false, isError: false, refetch: vi.fn() });
     renderDrawer({ ticketId: "tix-1", me: AGENT_ME });

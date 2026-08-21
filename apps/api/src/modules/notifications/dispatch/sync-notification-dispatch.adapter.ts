@@ -57,7 +57,7 @@ export class SyncNotificationDispatchAdapter implements NotificationDispatchPort
     // ─── In-request idempotency ────────────────────────────────────────────
     if (this.seenKeys.has(job.dedupeKey)) {
       this.logger.debug(
-        `[Dispatch] Duplicate dedupeKey="${job.dedupeKey}" channel="${job.channel}" — skipping (idempotent no-op).`,
+        `[Dispatch] Duplicate dedupeKey="${job.dedupeKey}" channel="${job.channel}", skipping (idempotent no-op).`,
       );
       return { dispatched: false, skipped: true };
     }
@@ -76,7 +76,7 @@ export class SyncNotificationDispatchAdapter implements NotificationDispatchPort
       default: {
         // TypeScript exhaustive check — this branch is unreachable with correct types
         const _exhaustive: never = job.channel;
-        this.logger.warn(`[Dispatch] Unknown channel: ${String(_exhaustive)} — skipping.`);
+        this.logger.warn(`[Dispatch] Unknown channel: ${String(_exhaustive)}, skipping.`);
         return { dispatched: false, skipped: true };
       }
     }
@@ -117,7 +117,7 @@ export class SyncNotificationDispatchAdapter implements NotificationDispatchPort
       // arriving" — it was the first thing that showed up in the log and it was a red
       // herring. Reported as a skip now; genuine send failures still log at ERROR below.
       this.logger.debug(
-        `[Dispatch] email channel skipped — no recipient supplied (the caller sent its own email) key="${job.dedupeKey}"`,
+        `[Dispatch] email channel skipped. No recipient supplied (the caller sent its own email) key="${job.dedupeKey}"`,
       );
       return { dispatched: false, skipped: true };
     }
@@ -148,13 +148,13 @@ export class SyncNotificationDispatchAdapter implements NotificationDispatchPort
     // ─── DLT gate (defense-in-depth — Rule C-3, AC-78) ────────────────────
     if (!job.dltTemplateId) {
       this.logger.warn(
-        `[Dispatch] SMS send rejected: missing dltTemplateId — key="${job.dedupeKey}" (Rule C-3).`,
+        `[Dispatch] SMS send rejected: missing dltTemplateId, key="${job.dedupeKey}" (Rule C-3).`,
       );
       return { dispatched: false, skipped: false, error: "DLT_TEMPLATE_ID_REQUIRED" };
     }
 
     if (!job.toPhone) {
-      this.logger.warn(`[Dispatch] SMS channel job missing toPhone — key="${job.dedupeKey}" — skipping.`);
+      this.logger.warn(`[Dispatch] SMS channel job missing toPhone, key="${job.dedupeKey}", skipping.`);
       return { dispatched: false, skipped: false, error: "MISSING_RECIPIENT_PHONE" };
     }
 
@@ -181,18 +181,18 @@ export class SyncNotificationDispatchAdapter implements NotificationDispatchPort
     // ─── DLT gate (defense-in-depth — Rule C-3, AC-78) ────────────────────
     if (!job.dltTemplateId) {
       this.logger.warn(
-        `[Dispatch] WhatsApp send rejected: missing dltTemplateId — key="${job.dedupeKey}" (Rule C-3).`,
+        `[Dispatch] WhatsApp send rejected: missing dltTemplateId, key="${job.dedupeKey}" (Rule C-3).`,
       );
       return { dispatched: false, skipped: false, error: "DLT_TEMPLATE_ID_REQUIRED" };
     }
 
     if (!job.toPhone) {
-      this.logger.warn(`[Dispatch] WhatsApp channel job missing toPhone — key="${job.dedupeKey}" — skipping.`);
+      this.logger.warn(`[Dispatch] WhatsApp channel job missing toPhone, key="${job.dedupeKey}", skipping.`);
       return { dispatched: false, skipped: false, error: "MISSING_RECIPIENT_PHONE" };
     }
 
     if (!job.whatsappTemplateName) {
-      this.logger.warn(`[Dispatch] WhatsApp channel job missing whatsappTemplateName — key="${job.dedupeKey}" — skipping.`);
+      this.logger.warn(`[Dispatch] WhatsApp channel job missing whatsappTemplateName, key="${job.dedupeKey}", skipping.`);
       return { dispatched: false, skipped: false, error: "MISSING_WHATSAPP_TEMPLATE_NAME" };
     }
 

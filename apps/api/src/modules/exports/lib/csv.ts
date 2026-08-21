@@ -68,7 +68,7 @@ function quoteCsvField(value: string): string {
  * Stringifies an arbitrary export-row value into its CSV textual representation.
  * `null`/`undefined` -> empty cell. Numbers/booleans -> their literal string form
  * (money fields are ALWAYS pre-converted to integer paise by the caller before
- * reaching here — this function does not do any numeric formatting/rounding, so a
+ * reaching here. This function does not do any numeric formatting/rounding, so a
  * paise integer like 123456 is emitted verbatim as "123456", never "1234.56" or a
  * locale-formatted string). Dates -> ISO 8601. Anything else -> JSON (defensive
  * fallback; row-builders.ts should never pass a nested object/array in practice).
@@ -101,8 +101,8 @@ export function writeCsvRow(cells: readonly unknown[]): string {
  * Renders a full CSV document: a header row followed by one row per `rows` entry,
  * CRLF-terminated per RFC-4180 (including a trailing CRLF after the last row). A
  * zero-row export still emits the header row alone (Part 4 edge case: "Export
- * matches zero rows -> a valid, empty CSV/PDF is generated — header row only for
- * CSV — not an error").
+ * matches zero rows -> a valid, empty CSV/PDF is generated, header row only for
+ * CSV, not an error").
  */
 export function rowsToCsv(headers: readonly string[], rows: ReadonlyArray<readonly unknown[]>): string {
   const lines = [writeCsvRow(headers), ...rows.map((row) => writeCsvRow(row))];
@@ -133,7 +133,7 @@ export class IncrementalCsvWriter {
     }
   }
 
-  /** Total data rows appended so far (excludes the header row) — used for `export_jobs.row_count`. */
+  /** Total data rows appended so far (excludes the header row), used for `export_jobs.row_count`. */
   get rowCount(): number {
     return this.headerWritten ? this.chunks.length - 1 : 0;
   }

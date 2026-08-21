@@ -259,7 +259,7 @@ export class OnboardingActivationService {
       // means something is genuinely wrong with the assumption above rather than a race.
       if (!enrollment) {
         this.logger.error(
-          `[Onboarding] Payment recorded for submission=${args.submissionId} but no enrollment was found — falling back.`,
+          `[Onboarding] Payment recorded for submission=${args.submissionId} but no enrollment was found, falling back.`,
         );
         return null;
       }
@@ -270,7 +270,7 @@ export class OnboardingActivationService {
       // all end here. Loud log (staff will want to invoice manually), null return, and the
       // caller enrols the student anyway.
       this.logger.error(
-        `[Onboarding] Offline payment/invoice failed for submission=${args.submissionId} — enrolling without an invoice: ${
+        `[Onboarding] Offline payment/invoice failed for submission=${args.submissionId}. Enrolling without an invoice: ${
           err instanceof Error ? err.message : "unknown error"
         }`,
       );

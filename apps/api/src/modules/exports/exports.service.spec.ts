@@ -11,7 +11,7 @@
 //   - Job lifecycle: queued -> running -> succeeded, in order; failure paths (HttpException
 //     re-thrown + job marked failed; unexpected error -> job marked failed with a
 //     SANITIZED message, no stack/secret).
-//   - AC-30 scope isolation: a caller cannot export another scope's rows — asserted by
+//   - AC-30 scope isolation: a caller cannot export another scope's rows, asserted by
 //     confirming the service calls the SAME scoped service method (StudentsService.list
 //     etc.) rather than any broader/parallel query path, and that entity-list generation
 //     pages in bounded batches (PAGE_SIZE, not one unbounded call).
@@ -143,7 +143,7 @@ describe("ExportsService", () => {
 
   // ─── AC-34: permission gating ────────────────────────────────────────────────
 
-  describe("AC-34 — export requires the type-specific view permission", () => {
+  describe("AC-34, export requires the type-specific view permission", () => {
     it("403s and NEVER creates a job when the caller lacks the matching view permission", async () => {
       const user = makeUser([{ key: "reports.export", scope: "all" }]); // no reports.revenue.view
       const dto: CreateExportRequestDto = { type: "revenue", format: "csv", params: { from: "2026-06-01", to: "2026-06-30" } };
@@ -228,7 +228,7 @@ describe("ExportsService", () => {
       expect(repo.markFailed).toHaveBeenCalledWith("job-1", expect.any(String));
     });
 
-    it("swallows an unexpected (non-Http) error into a SANITIZED failed job — no stack/raw message leaked", async () => {
+    it("swallows an unexpected (non-Http) error into a SANITIZED failed job, no stack/raw message leaked", async () => {
       analytics.getRevenue.mockRejectedValue(new Error("ECONNRESET: raw internal socket detail, DB_PASSWORD=hunter2"));
 
       const result = await runWithScope("all", () => service.create(TENANT_ID, user, dto));
@@ -243,7 +243,7 @@ describe("ExportsService", () => {
 
   // ─── AC-30/32: scope isolation via reused scoped service methods ─────────────
 
-  describe("AC-30/AC-32 — entity-list exports reuse the SAME scoped service method as the on-screen view", () => {
+  describe("AC-30/AC-32, entity-list exports reuse the SAME scoped service method as the on-screen view", () => {
     it("students export calls StudentsService.list with bounded pageSize and pages until hasMore=false", async () => {
       const user = makeUser([
         { key: "reports.export", scope: "branch" },
@@ -268,7 +268,7 @@ describe("ExportsService", () => {
       expect(repo.markSucceeded).toHaveBeenCalledWith("job-1", expect.objectContaining({ rowCount: 2 }));
     });
 
-    it("never calls a broader/parallel query path for leads — only LeadsService.list()", async () => {
+    it("never calls a broader/parallel query path for leads, only LeadsService.list()", async () => {
       const user = makeUser([
         { key: "reports.export", scope: "own" },
         { key: "leads.view", scope: "own" },
@@ -288,7 +288,7 @@ describe("ExportsService", () => {
 
   // ─── AC-28: CSV-injection neutralization survives end-to-end ─────────────────
 
-  describe("AC-28 — a malicious cell value is neutralized in the uploaded bytes", () => {
+  describe("AC-28, a malicious cell value is neutralized in the uploaded bytes", () => {
     it("neutralizes a lead name starting with '=' in the generated CSV", async () => {
       const user = makeUser([
         { key: "reports.export", scope: "own" },
@@ -342,7 +342,7 @@ describe("ExportsService", () => {
   // ─── Paise integrity ──────────────────────────────────────────────────────────
 
   describe("paise integrity", () => {
-    it("a revenue export's amountPaise cell is the exact integer — never divided/rounded", async () => {
+    it("a revenue export's amountPaise cell is the exact integer, never divided/rounded", async () => {
       const user = makeUser([
         { key: "reports.export", scope: "all" },
         { key: "reports.revenue.view", scope: "all" },
@@ -370,7 +370,7 @@ describe("ExportsService", () => {
 
   // ─── AC-35: signed URL never leaks the raw storage key ───────────────────────
 
-  describe("AC-35 — signed download URL never leaks a raw key/secret", () => {
+  describe("AC-35, signed download URL never leaks a raw key/secret", () => {
     it("getById returns a signed URL, never the raw storageKey, only when status=succeeded", async () => {
       const user = makeUser([{ key: "reports.export", scope: "all" }]);
       repo.findById.mockResolvedValue(baseJobRow({ status: "succeeded", storageKey: "exports/tenant-1/job-1.csv", rowCount: 3 }));
@@ -378,7 +378,7 @@ describe("ExportsService", () => {
       const dto = await runWithScope("all", () => service.getById(TENANT_ID, user, "job-1"));
 
       expect(dto.downloadUrl).toBe("https://signed.example.com/exports/tenant-1/job-1.csv?sig=abc");
-      // The DTO exposes ONLY the signed URL — never a raw storageKey/bucket/credential field.
+      // The DTO exposes ONLY the signed URL, never a raw storageKey/bucket/credential field.
       expect(dto).not.toHaveProperty("storageKey");
       expect(JSON.stringify(dto)).not.toMatch(/STORAGE_ACCESS_KEY|STORAGE_SECRET|AKIA/);
     });

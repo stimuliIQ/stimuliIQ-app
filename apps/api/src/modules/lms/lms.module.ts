@@ -59,7 +59,7 @@ const bootLogger = new Logger("LmsModule");
 function createVideoWebhookProcessorPort(sync: SyncVideoWebhookProcessorAdapter): VideoWebhookProcessorPort {
   const env = validateEnv();
   if (env.QUEUE_DRIVER === "bullmq") {
-    bootLogger.log("[LmsModule] QUEUE_DRIVER=bullmq — binding BullMqVideoWebhookProcessorAdapter.");
+    bootLogger.log("[LmsModule] QUEUE_DRIVER=bullmq, binding BullMqVideoWebhookProcessorAdapter.");
     return new BullMqVideoWebhookProcessorAdapter();
   }
   return sync;

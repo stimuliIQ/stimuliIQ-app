@@ -116,7 +116,7 @@ export class Msg91SmsProvider implements SmsProvider {
       // boot for SMS_PROVIDER=msg91 with missing creds in production). Fail honestly
       // rather than silently pretending success — SECURITY: `code` is never logged.
       this.logger.error(
-        `[Msg91SmsProvider] sendOtp: MSG91_AUTH_KEY/MSG91_TEMPLATE_ID not configured — ` +
+        `[Msg91SmsProvider] sendOtp: MSG91_AUTH_KEY/MSG91_TEMPLATE_ID not configured, ` +
           `cannot send OTP to ${maskedPhone}.`,
       );
       return { delivered: false };

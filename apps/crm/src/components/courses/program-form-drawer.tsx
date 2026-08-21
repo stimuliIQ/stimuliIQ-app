@@ -340,7 +340,7 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
               step="0.01"
               required
               placeholder="e.g. 49999"
-              helperText="Stored as integer paise on the wire — entered here in rupees. This is what the student is charged."
+              helperText="Stored as integer paise on the wire. Entered here in rupees. This is what the student is charged."
               {...register("priceRupees", { valueAsNumber: true })}
               error={errors.priceRupees?.message}
               data-testid="program-form-price"
@@ -551,7 +551,7 @@ export function ProgramFormDrawer({ open, onOpenChange, program }: ProgramFormDr
                       small and bold, and staff may have a brand colour they must use. */}
                   {badgeContrastRatio(badgeColor) < 4.5 ? (
                     <span className="text-xs text-warning" data-testid="program-form-badge-contrast-warning">
-                      Low contrast ({badgeContrastRatio(badgeColor).toFixed(1)}:1) — harder to read.
+                      Low contrast ({badgeContrastRatio(badgeColor).toFixed(1)}:1), harder to read.
                     </span>
                   ) : null}
                 </div>

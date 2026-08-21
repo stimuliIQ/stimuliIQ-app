@@ -1,4 +1,4 @@
-// Tests for PipelineWorkspace — the Pipeline page's tab shell.
+// Tests for PipelineWorkspace, the Pipeline page's tab shell.
 //
 // The two child screens are mocked: they have their own coverage, and what is worth
 // asserting here is the shell's OWN logic, which is where the consequences are:
@@ -72,7 +72,7 @@ describe("PipelineWorkspace", () => {
     expect(await screen.findByTestId("mock-contact-message-list")).toBeInTheDocument();
   });
 
-  it("hides the tab strip entirely without content.view — and fires NO count query", async () => {
+  it("hides the tab strip entirely without content.view, and fires NO count query", async () => {
     renderWorkspace(meWith(["leads.view"]));
 
     expect(screen.getByTestId("mock-pipeline-board")).toBeInTheDocument();

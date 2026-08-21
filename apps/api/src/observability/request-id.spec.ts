@@ -1,6 +1,6 @@
 import { resolveRequestId, REQUEST_ID_HEADER } from "./request-id";
 
-describe("resolveRequestId — AC-44 correlation id resolution", () => {
+describe("resolveRequestId, AC-44 correlation id resolution", () => {
   it("reuses req.id when already resolved by an earlier middleware", () => {
     const req = { id: "existing-id", headers: { [REQUEST_ID_HEADER]: "header-id" } };
     expect(resolveRequestId(req)).toBe("existing-id");

@@ -55,11 +55,11 @@ export class SyncReceiptGenAdapter implements ReceiptGenPort {
   async enqueue(payload: ReceiptGenPayload): Promise<void> {
     const payment = await this.repository.findPaymentById(payload.tenantId, payload.paymentId);
     if (!payment) {
-      this.logger.warn(`[ReceiptGen] payment not found paymentId=${payload.paymentId} — skipping (safe no-op).`);
+      this.logger.warn(`[ReceiptGen] payment not found paymentId=${payload.paymentId}, skipping (safe no-op).`);
       return;
     }
     if (payment.status !== "captured") {
-      this.logger.warn(`[ReceiptGen] payment status="${payment.status}" (not captured) — skipping receipt render.`);
+      this.logger.warn(`[ReceiptGen] payment status="${payment.status}" (not captured), skipping receipt render.`);
       return;
     }
 
@@ -71,13 +71,13 @@ export class SyncReceiptGenAdapter implements ReceiptGenPort {
     const pdf = await this.reportPdf.render({
       title: "Payment Receipt",
       generatedAt: new Date().toISOString(),
-      subtitle: `${payment.studentName} — ${payment.programTitle}`,
+      subtitle: `${payment.studentName} · ${payment.programTitle}`,
       headers: ["Field", "Value"],
       rows: [
         ["Receipt for payment", payment.id],
         ["Amount paid", `${currency} ${(payment.amountPaise / 100).toFixed(2)}`],
-        ["Method", payment.method ?? "—"],
-        ["Paid at", payment.paidAt ? payment.paidAt.toISOString() : "—"],
+        ["Method", payment.method ?? "-"],
+        ["Paid at", payment.paidAt ? payment.paidAt.toISOString() : "-"],
       ],
     });
 

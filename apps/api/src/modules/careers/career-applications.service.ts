@@ -108,7 +108,7 @@ export class CareerApplicationsService {
   async verifyCaptcha(token: string, ip: string | undefined): Promise<void> {
     const result = await this.captchaProvider.verify(token, ip);
     if (!result.success) {
-      this.logger.warn(`[Careers] Captcha verification failed — codes: ${result.errorCodes?.join(",")}`);
+      this.logger.warn(`[Careers] Captcha verification failed, codes: ${result.errorCodes?.join(",")}`);
       throw new UnprocessableEntityException({
         code: "careers.captcha_invalid",
         title: "Captcha verification failed",
@@ -248,7 +248,7 @@ export class CareerApplicationsService {
 
     return {
       id: created.id,
-      message: "Application received — thanks for applying! We've emailed you a confirmation.",
+      message: "Application received, thanks for applying! We've emailed you a confirmation.",
     };
   }
 

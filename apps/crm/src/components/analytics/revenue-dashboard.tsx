@@ -84,7 +84,7 @@ export function RevenueDashboard({ me }: RevenueDashboardProps): React.JSX.Eleme
           <div className="grid max-w-xs grid-cols-1 gap-4">
             <KpiCard
               label={`Total revenue (${range.from} to ${range.to})`}
-              value={data ? formatPaise(data.totalPaise) : "—"}
+              value={data ? formatPaise(data.totalPaise) : "-"}
               icon={<DollarSign />}
               loading={isLoading}
               data-testid="revenue-total-kpi"

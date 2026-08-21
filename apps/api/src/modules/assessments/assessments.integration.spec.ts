@@ -3,11 +3,11 @@
 // Integration tests for the Assessments + Attempts module (P4 Wave 4 task #7).
 // Follows the `.integration.spec.ts` skip-guarded pattern used across P3/P4:
 //   - `describeIfDb` wraps all tests; skipped if DATABASE_URL is absent.
-//   - Seeds its own isolated tenant/program/users — never touches shared seed data.
+//   - Seeds its own isolated tenant/program/users, never touches shared seed data.
 //   - Cleans up in afterAll (FK-order deletes).
 //
 // COVERAGE (per plan §4 task #7 DoD, spec AC-D, AC-J):
-//   AC-D1   : student starts an attempt — server sets started_at + time_expires_at.
+//   AC-D1   : student starts an attempt, server sets started_at + time_expires_at.
 //   AC-D2   : answer key NEVER in student response (raw JSON scan + type check).
 //   AC-D3   : submit before expiry → MCQ auto-graded, score/passed set.
 //   AC-D4   : submit after time_expires_at → 422 ATTEMPT_EXPIRED.
@@ -57,13 +57,13 @@ describeIfDb("AssessmentsService integration tests", () => {
   let mcqQ1Id: string;
   let descriptiveQ1Id: string;
 
-  // Student A (in Batch A — faculty assigned)
+  // Student A (in Batch A, faculty assigned)
   let userA_id: string;
   let studentA_id: string;
   let enrollmentA_id: string;
   let batchA_id: string;
 
-  // Student B (in Batch B — faculty NOT assigned to batch B)
+  // Student B (in Batch B, faculty NOT assigned to batch B)
   let userB_id: string;
   let studentB_id: string;
   let enrollmentB_id: string;
@@ -235,9 +235,9 @@ describeIfDb("AssessmentsService integration tests", () => {
 
   // ─── AC-D1: Student starts an attempt ─────────────────────────────────────
 
-  let attemptA_id: string; // Student A's first MCQ attempt — reused across tests
+  let attemptA_id: string; // Student A's first MCQ attempt, reused across tests
 
-  it("AC-D1: student starts attempt — server sets started_at + time_expires_at", async () => {
+  it("AC-D1: student starts attempt, server sets started_at + time_expires_at", async () => {
     const before = new Date();
     const result = await service.startAttempt(userA_id, tenantId, mcqAssessmentId);
     const after = new Date();
@@ -256,7 +256,7 @@ describeIfDb("AssessmentsService integration tests", () => {
     const expectedExpiry = new Date(startedAt.getTime() + 60 * 1000);
     expect(Math.abs(expiresAt.getTime() - expectedExpiry.getTime())).toBeLessThan(2000); // ±2s
 
-    // Questions delivered — no answer key (AC-D2)
+    // Questions delivered, no answer key (AC-D2)
     expect(result.questions.length).toBe(2);
   });
 
@@ -320,7 +320,7 @@ describeIfDb("AssessmentsService integration tests", () => {
       return;
     }
     const result = await service.submitAttempt(userA_id, tenantId, attemptA_id, {
-      answers: [{ questionId: mcqQ1Id, value: "opt-a" }], // different answers — should be ignored
+      answers: [{ questionId: mcqQ1Id, value: "opt-a" }], // different answers, should be ignored
       flags: undefined,
     });
 
@@ -341,7 +341,7 @@ describeIfDb("AssessmentsService integration tests", () => {
       flags: undefined,
     });
 
-    // Try to start a second attempt — should fail
+    // Try to start a second attempt, should fail
     await expect(
       service.startAttempt(userA_id, tenantId, descriptiveAssessmentId),
     ).rejects.toMatchObject({
@@ -358,7 +358,7 @@ describeIfDb("AssessmentsService integration tests", () => {
       where: { tenantId, assessmentId: mcqAssessmentId, enrollmentId: enrollmentB_id, submittedAt: null },
     });
     if (!inProgress) {
-      // Student B's attempt was already submitted — create a fresh expired attempt directly
+      // Student B's attempt was already submitted, create a fresh expired attempt directly
       const expiredAttempt = await base.attempt.create({
         data: {
           tenantId,
@@ -433,7 +433,7 @@ describeIfDb("AssessmentsService integration tests", () => {
     expect(t2tenant).not.toBeNull();
 
     // Get or create tenant2 program + module + assessment + student + enrollment
-    // (Minimal setup — just enough to create an attempt row)
+    // (Minimal setup, just enough to create an attempt row)
     const t2Branch = await base.branch.create({ data: { tenantId: tenant2Id, name: "T2 Branch" } });
     const t2Prog = await base.program.create({
       data: { tenantId: tenant2Id, title: "T2 Prog", slug: `t2-prog-${Date.now()}`, domain: "IT", pricePaise: 0 },

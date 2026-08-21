@@ -180,7 +180,7 @@ export class PublicFunnelService {
   async verifyCaptcha(token: string, ip: string | undefined): Promise<void> {
     const result = await this.captchaProvider.verify(token, ip);
     if (!result.success) {
-      this.logger.warn(`[PublicFunnel] Captcha verification failed — codes: ${result.errorCodes?.join(",")}`, {
+      this.logger.warn(`[PublicFunnel] Captcha verification failed, codes: ${result.errorCodes?.join(",")}`, {
         // Never log the captcha secret or the token itself
       });
       throw new UnprocessableEntityException({
@@ -274,7 +274,7 @@ export class PublicFunnelService {
 
     // Enqueue confirmation event (P6 owns the actual sending)
     // For P5: this is a stub — BullMQ integration lands in P6
-    this.logger.log(`[PublicFunnel] Lead ${leadId} created — confirmation event enqueued (stub, P6)`);
+    this.logger.log(`[PublicFunnel] Lead ${leadId} created. Confirmation event enqueued (stub, P6)`);
 
     return {
       leadId,
@@ -377,7 +377,7 @@ export class PublicFunnelService {
       // controller therefore sets NO auth cookies, so no session is granted. A legitimate
       // returning user is routed to log in by the client (tracked as a UX follow-up).
       this.logger.warn(
-        `[PublicFunnel] Registration attempt for an existing email — no session issued (C-1 guard).`,
+        `[PublicFunnel] Registration attempt for an existing email. No session issued (C-1 guard).`,
       );
       return {
         session: {
@@ -425,7 +425,7 @@ export class PublicFunnelService {
       ip: null,
     });
 
-    this.logger.log(`[PublicFunnel] New student registered — profileId=${profileId}`);
+    this.logger.log(`[PublicFunnel] New student registered, profileId=${profileId}`);
 
     // Issue session (cookie/CSRF/refresh machinery — reuses auth infrastructure)
     const tokens = await this.issueSession(userId, tenantId, ip);

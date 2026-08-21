@@ -201,7 +201,7 @@ export function LeadImportPage({ me }: LeadImportPageProps): React.JSX.Element {
         {fileName ? (
           <span className="inline-flex items-center gap-1.5">
             <FileSpreadsheet className="size-4" aria-hidden="true" />
-            {fileName} — choose another file
+            {fileName}, choose another file
           </span>
         ) : (
           "Choose an .xlsx / .xls / .csv file"
@@ -289,9 +289,9 @@ export function LeadImportPage({ me }: LeadImportPageProps): React.JSX.Element {
                         onChange={() => toggleRow(row.index)}
                       />
                     </td>
-                    <td className="p-3 text-fg">{row.name || "—"}</td>
-                    <td className="p-3 text-fg">{row.phone || "—"}</td>
-                    <td className="p-3 text-fg">{row.email || "—"}</td>
+                    <td className="p-3 text-fg">{row.name || "-"}</td>
+                    <td className="p-3 text-fg">{row.phone || "-"}</td>
+                    <td className="p-3 text-fg">{row.email || "-"}</td>
                     <td className="p-3 text-fg">{row.source}</td>
                     <td className="p-3">
                       {row.error ? (
@@ -325,7 +325,7 @@ export function LeadImportPage({ me }: LeadImportPageProps): React.JSX.Element {
               ))}
             </ul>
           ) : (
-            <>All selected rows were created. Open the Pipeline to work them — its checkboxes support further bulk stage moves and owner assignment.</>
+            <>All selected rows were created. Open the Pipeline to work them. Its checkboxes support further bulk stage moves and owner assignment.</>
           )}
         </Alert>
       ) : null}

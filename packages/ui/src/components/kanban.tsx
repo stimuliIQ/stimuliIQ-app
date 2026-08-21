@@ -390,7 +390,7 @@ export function KanbanColumn({
 
   return (
     <section
-      aria-label={`${column.title} — ${column.count ?? 0} items`}
+      aria-label={`${column.title}, ${column.count ?? 0} items`}
       data-testid={testId ?? "kanban-column"}
       data-kanban-column-id={column.id}
       data-drop-active={isDropActive || undefined}

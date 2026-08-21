@@ -8,10 +8,10 @@
 // `reports.export` (ExportsController, docs/plans/phase-7.md task #8).
 //
 // Same two-layer strategy as analytics.permission-catalog.spec.ts:
-//   1. ALWAYS RUNS (no DB) — static source-text scan of ExportsController for every
+//   1. ALWAYS RUNS (no DB), static source-text scan of ExportsController for every
 //      `@RequirePermission("...")` decorator, cross-checked against prisma/seed.ts's
 //      P7_PERMISSIONS catalog array + at least one explicit non-admin grant call.
-//   2. DB-GUARDED — when DATABASE_URL is set, additionally queries the live seeded
+//   2. DB-GUARDED, when DATABASE_URL is set, additionally queries the live seeded
 //      `permissions` + `role_permissions` tables.
 
 import { readFileSync } from "node:fs";
@@ -55,7 +55,7 @@ describe("ExportsController permission catalog (regression: P6 forum.read/notifi
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("ExportsController permission catalog — live seeded DB", () => {
+describeIfDb("ExportsController permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {

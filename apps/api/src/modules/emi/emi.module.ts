@@ -31,7 +31,7 @@ const bootLogger = new Logger("EmiModule");
 function createEmiDunningPort(mail: MailProvider): EmiDunningPort {
   const env = validateEnv();
   if (env.QUEUE_DRIVER === "bullmq") {
-    bootLogger.log("[EmiModule] QUEUE_DRIVER=bullmq — binding BullMqEmiDunningAdapter.");
+    bootLogger.log("[EmiModule] QUEUE_DRIVER=bullmq, binding BullMqEmiDunningAdapter.");
     return new BullMqEmiDunningAdapter();
   }
   return new SyncEmiDunningAdapter(mail);

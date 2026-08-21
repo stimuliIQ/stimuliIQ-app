@@ -193,7 +193,7 @@ function PostCard({
       data-testid="post-card"
       data-post-id={post.id}
       data-status={post.status}
-      aria-label={`Post by ${post.authorDisplayName}${post.isResolution ? " — marked as resolution" : ""}`}
+      aria-label={`Post by ${post.authorDisplayName}${post.isResolution ? ", marked as resolution" : ""}`}
       className={cn(
         "rounded-md border border-border bg-card",
         isNested && "ml-6 border-l-2 border-l-brand-200 dark:border-l-brand-500/40",
@@ -259,7 +259,7 @@ function PostCard({
               <button
                 type="button"
                 onClick={() => onUpvote(post.id)}
-                aria-label={`Upvote this post — ${post.upvotes} upvote${post.upvotes !== 1 ? "s" : ""}`}
+                aria-label={`Upvote this post, ${post.upvotes} upvote${post.upvotes !== 1 ? "s" : ""}`}
                 aria-pressed={post.upvotedByCurrentUser}
                 className={cn(
                   "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium",

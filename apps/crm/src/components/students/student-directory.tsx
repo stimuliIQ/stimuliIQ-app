@@ -118,7 +118,7 @@ export function StudentDirectory({ me, initialStatus }: StudentDirectoryProps): 
     { id: "name", header: "Name", cell: (row) => row.name, sortable: true },
     { id: "email", header: "Email", cell: (row) => row.email },
     { id: "courseType", header: "Course", cell: (row) => row.courseType },
-    { id: "college", header: "College", cell: (row) => row.college ?? "—" },
+    { id: "college", header: "College", cell: (row) => row.college ?? "-" },
     {
       // The DERIVED lifecycle stage (lifecycle-redesign P1) — the single answer to
       // "where is this student in the journey?". The coarse `status` (lead/active/
@@ -210,7 +210,7 @@ export function StudentDirectory({ me, initialStatus }: StudentDirectoryProps): 
     <div className="space-y-4 md:space-y-5" data-testid="students-directory">
       <PageHeader
         title="Students"
-        description="One list for the whole lifecycle — use the toggle to see admissions in progress, active students, or those who completed their program."
+        description="One list for the whole lifecycle. Use the toggle to see admissions in progress, active students, or those who completed their program."
         actions={
           <div className="flex items-center gap-2">
             {canBulkEdit && selectedIds.size > 0 ? (

@@ -45,7 +45,7 @@ function formatRate(rate: number): string {
  * render as 0m — that would read as an instant response, the exact opposite of the truth.
  */
 function formatResponseTime(minutes: number | null): React.ReactNode {
-  if (minutes === null) return <span className="text-fg-muted">—</span>;
+  if (minutes === null) return <span className="text-fg-muted">-</span>;
   if (minutes < 60) return `${minutes}m`;
   if (minutes < 60 * 24) return `${Math.round(minutes / 60)}h`;
   return `${Math.round(minutes / (60 * 24))}d`;
@@ -120,7 +120,7 @@ export function LeadPerformanceDashboard({ me }: LeadPerformanceDashboardProps):
       // their queue has never been phoned.
       cell: (row) => (
         <span className={row.leadsAssigned > 0 && row.contactRate < 0.5 ? "font-medium text-warning" : undefined}>
-          {row.leadsAssigned > 0 ? formatRate(row.contactRate) : "—"}
+          {row.leadsAssigned > 0 ? formatRate(row.contactRate) : "-"}
         </span>
       ),
       sortable: true,
@@ -143,7 +143,7 @@ export function LeadPerformanceDashboard({ me }: LeadPerformanceDashboardProps):
       id: "conversionRate",
       header: "Conv. rate",
       align: "right",
-      cell: (row) => (row.leadsAssigned > 0 ? formatRate(row.conversionRate) : "—"),
+      cell: (row) => (row.leadsAssigned > 0 ? formatRate(row.conversionRate) : "-"),
       sortable: true,
     },
     {
@@ -213,26 +213,26 @@ export function LeadPerformanceDashboard({ me }: LeadPerformanceDashboardProps):
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
               label="Leads created"
-              value={data ? data.totalLeadsCreated : "—"}
+              value={data ? data.totalLeadsCreated : "-"}
               loading={isLoading}
               data-testid="lead-performance-created-kpi"
             />
             <KpiCard
               label="Converted"
-              value={data ? data.totalConverted : "—"}
+              value={data ? data.totalConverted : "-"}
               loading={isLoading}
               data-testid="lead-performance-converted-kpi"
             />
             <KpiCard
               label="Unassigned right now"
-              value={data ? data.unassignedLeads : "—"}
+              value={data ? data.unassignedLeads : "-"}
               icon={<AlertTriangle />}
               loading={isLoading}
               data-testid="lead-performance-unassigned-kpi"
             />
             <KpiCard
               label="Never contacted"
-              value={data ? data.uncontactedLeads : "—"}
+              value={data ? data.uncontactedLeads : "-"}
               icon={<PhoneOff />}
               loading={isLoading}
               data-testid="lead-performance-uncontacted-kpi"

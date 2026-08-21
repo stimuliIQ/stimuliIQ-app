@@ -94,7 +94,7 @@ export type NotificationChannel = z.infer<typeof NotificationChannelSchema>;
  * MUST NOT contain provider message IDs, API keys, or external secrets.
  */
 export const NotificationChannelsRecordSchema = z.object({
-  in_app: z.boolean().describe("Always true — in-app cannot be disabled."),
+  in_app: z.boolean().describe("Always true, in-app cannot be disabled."),
   email: z.boolean().describe("Whether the email channel was used for this notification."),
   sms: z.boolean().describe("Whether the SMS channel was used."),
   whatsapp: z.boolean().describe("Whether the WhatsApp channel was used."),
@@ -115,7 +115,7 @@ export type NotificationChannelsRecord = z.infer<typeof NotificationChannelsReco
 export const NotificationDtoSchema = z
   .object({
     id: UuidSchema.describe("Notification row ID."),
-    type: NotificationTypeSchema.describe("Notification type — maps to a template for display."),
+    type: NotificationTypeSchema.describe("Notification type. Maps to a template for display."),
     /**
      * Per-channel fan-out record. Shows which channels were used.
      * Does NOT carry raw provider message IDs or secrets.
@@ -136,7 +136,7 @@ export const NotificationDtoSchema = z
      *   lead_assigned:         { leadId, leadName, leadPhone, leadSource, assignedByName }
      * MUST NOT carry: email, phone, providerKey, rawSecret, dltTemplateId.
      */
-    payload: z.record(z.string(), z.unknown()).describe("Typed notification payload — keyed by type."),
+    payload: z.record(z.string(), z.unknown()).describe("Typed notification payload, keyed by type."),
     /** ISO-8601 datetime when the user marked this notification as read. Null = unread. */
     readAt: IsoDateTimeSchema.nullable().describe("Read timestamp. null = unread."),
     /** ISO-8601 datetime when the notification was created. */

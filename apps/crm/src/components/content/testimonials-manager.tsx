@@ -185,7 +185,7 @@ export function TestimonialsManager({ me }: { me: MeResponse | undefined }): Rea
   const columns: Array<DataTableColumn<Testimonial>> = [
     { id: "studentName", header: "Student", cell: (row) => row.studentName },
     { id: "quote", header: "Quote", cell: (row) => <span className="line-clamp-1">{row.quote}</span> },
-    { id: "rating", header: "Rating", cell: (row) => (row.rating ? `${(row.rating / 10).toFixed(1)} ★` : "—") },
+    { id: "rating", header: "Rating", cell: (row) => (row.rating ? `${(row.rating / 10).toFixed(1)} ★` : "-") },
     {
       id: "status",
       header: "On website",
@@ -237,7 +237,7 @@ export function TestimonialsManager({ me }: { me: MeResponse | undefined }): Rea
         description={
           <>
             Student reviews shown in the &quot;What Our Students Say&quot; section on the homepage. Turn on
-            &quot;Show on website&quot; to publish one — the section is hidden entirely while none are live.
+            &quot;Show on website&quot; to publish one. The section is hidden entirely while none are live.
           </>
         }
       />

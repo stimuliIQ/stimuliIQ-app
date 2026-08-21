@@ -130,7 +130,7 @@ export function CtaListField<TForm extends FieldValues>({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-fg-muted">Buttons — up to {max}</p>
+        <p className="text-xs font-medium text-fg-muted">Buttons, up to {max}</p>
         {fields.length < max ? (
           <Button
             type="button"

@@ -48,7 +48,7 @@ export function LeadAssignmentProvenance({ lead }: LeadAssignmentProvenanceProps
         {lead.ownerName ?? <span className="text-warning">Unassigned</span>}
         {lead.assignedAt ? (
           <span className="text-fg-muted">
-            {" — "}
+            {" - "}
             {lead.assignedByName ? `assigned by ${lead.assignedByName}` : "auto-assigned"} on{" "}
             {formatDateTime(lead.assignedAt)}
           </span>

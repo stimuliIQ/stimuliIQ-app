@@ -1,6 +1,6 @@
 // apps/api/src/modules/leave/leave.service.spec.ts
 //
-// Unit tests for the leave business rules, with the repository mocked (the house pattern —
+// Unit tests for the leave business rules, with the repository mocked (the house pattern,
 // the service takes a repository and is constructed with `new`, no Nest testing module and
 // no Prisma mock).
 //
@@ -70,7 +70,7 @@ function makeRequestRow(overrides: Partial<LeaveRequestRow> = {}): LeaveRequestR
 
 function mockRepository(): Mocked<LeaveRepository> {
   return {
-    // The transaction wrapper just runs the callback — the mocked repo methods it calls do
+    // The transaction wrapper just runs the callback, the mocked repo methods it calls do
     // not care about the client, so a bare object stands in for `tx`.
     runInTransaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({})),
     lockUser: jest.fn().mockResolvedValue(undefined),
@@ -381,7 +381,7 @@ describe("LeaveService", () => {
       );
     });
 
-    it("deducts nothing — a rejection leaves the allowance untouched", async () => {
+    it("deducts nothing, a rejection leaves the allowance untouched", async () => {
       await service.rejectRequest(TENANT, "admin-1", "req-1", { reason: "No cover" } as never);
       expect(repo.findQuotasForYear).not.toHaveBeenCalled();
     });
@@ -555,7 +555,7 @@ describe("LeaveService", () => {
       expect(result.holidays[0]?.date).toBe("2026-08-19");
     });
 
-    // The calendar is deliberately not scope-filtered — it has its own permission, and
+    // The calendar is deliberately not scope-filtered, it has its own permission, and
     // "who is out" is the entire point of it.
     it("does not require a scope context", async () => {
       await expect(

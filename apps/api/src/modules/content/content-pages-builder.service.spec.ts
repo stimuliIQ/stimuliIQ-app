@@ -60,7 +60,7 @@ function mockStorageProvider() {
 }
 
 // NOTE: slug is deliberately NON-core (not in page-templates.schemas.ts's
-// CoreTemplateSlugSchema) — these shared fixtures back the generic version-snapshot/
+// CoreTemplateSlugSchema), these shared fixtures back the generic version-snapshot/
 // concurrency/preview/revert tests below, which are orthogonal to the Phase-11
 // locked-template guard (docs/plans/phase-11-locked-templates.md). Dedicated
 // template-lock tests further down use an ACTUAL core slug ("gallery").
@@ -169,7 +169,7 @@ describe("ContentPagesBuilderService", () => {
     });
   });
 
-  describe("save() — version-snapshot semantics + optimistic concurrency (Edge case #5)", () => {
+  describe("save(), version-snapshot semantics + optimistic concurrency (Edge case #5)", () => {
     it("404s when the page does not exist", async () => {
       pagesRepo.findById.mockResolvedValue(null);
       await expect(
@@ -247,7 +247,7 @@ describe("ContentPagesBuilderService", () => {
     });
   });
 
-  describe("preview() — read-only, no persistence", () => {
+  describe("preview(), read-only, no persistence", () => {
     it("404s when the page is not a builder page", async () => {
       pagesRepo.findById.mockResolvedValue(null);
       await expect(
@@ -302,7 +302,7 @@ describe("ContentPagesBuilderService", () => {
     });
   });
 
-  describe("revert() — append-only history (AC 7)", () => {
+  describe("revert(), append-only history (AC 7)", () => {
     it("404s with content.builder.version_not_found when the target version does not exist", async () => {
       pagesRepo.findById.mockResolvedValue(BUILDER_ROW);
       versionsRepo.findVersionByNumber.mockResolvedValue(null);
@@ -366,7 +366,7 @@ describe("ContentPagesBuilderService", () => {
       const corruptedVersion: ContentPageVersionRow = {
         version: 1,
         title: "Home v1 (corrupted)",
-        // `hero` requires `headline` — this snapshot predates that requirement (or the
+        // `hero` requires `headline`, this snapshot predates that requirement (or the
         // registry tightened since it was written) and no longer parses.
         body: [{ type: "hero", data: {} }] as unknown as Prisma.JsonValue,
         seoTitle: null,
@@ -415,9 +415,9 @@ describe("ContentPagesBuilderService", () => {
     });
   });
 
-  describe("Phase-11 locked templates — server-side template guard (docs/plans/phase-11-locked-templates.md P3)", () => {
+  describe("Phase-11 locked templates, server-side template guard (docs/plans/phase-11-locked-templates.md P3)", () => {
     // "gallery" is a real core template slug (page-templates.schemas.ts) with the SHORTEST
-    // fixed section list (hero, gallery_grid) — easiest to construct valid/invalid bodies
+    // fixed section list (hero, gallery_grid), easiest to construct valid/invalid bodies
     // for without hand-maintaining a duplicate of the registry here.
     const GALLERY_ROW: ContentPageRow = { ...BUILDER_ROW, id: "page-gallery", slug: "gallery" };
     const VALID_GALLERY_BODY = defaultBodyForSlug("gallery");
@@ -425,7 +425,7 @@ describe("ContentPagesBuilderService", () => {
     describe("save()", () => {
       it("rejects a body missing a required section (422 content.builder.template_violation)", async () => {
         pagesRepo.findById.mockResolvedValue(GALLERY_ROW);
-        const bodyMissingSection = [VALID_GALLERY_BODY[0]!]; // only `hero` — `gallery_grid` removed
+        const bodyMissingSection = [VALID_GALLERY_BODY[0]!]; // only `hero`, `gallery_grid` removed
 
         let caught: Error | undefined;
         try {

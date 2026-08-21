@@ -1,6 +1,6 @@
 // apps/api/src/modules/growth/landing-pages.service.spec.ts
 //
-// Unit tests for LandingPagesService — closes Phase-9-completion gap #1 (CRM landing
+// Unit tests for LandingPagesService, closes Phase-9-completion gap #1 (CRM landing
 // pages CRUD). Covers: scope gate (all|branch readable; own/assigned fail-closed),
 // draft/publish gate (create with status=published downgraded to draft; publishedAt
 // stamped once on first publish), and the public A/B variant resolver.

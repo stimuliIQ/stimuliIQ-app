@@ -1,7 +1,7 @@
 // apps/api/src/modules/content/content-intake.service.spec.ts
 //
 // Unit tests for ContentIntakeService (docs/plans/phase-9-completion.md T22/T32). Covers:
-// captcha gate, rate-limit gate, server-computed consent (raw IP never stored — only its
+// captcha gate, rate-limit gate, server-computed consent (raw IP never stored, only its
 // hash), free-text sanitization (defense-in-depth on anonymous UGC), the newsletter
 // and the unsubscribe HMAC token (tamper -> rejected, idempotent on unknown/already-
 // deleted id).
@@ -18,7 +18,7 @@ import type { PublicBookingRateLimiter } from "../leads/lib/public-booking-rate-
 
 process.env.NOTIFICATION_SIGNING_SECRET = "test-signing-secret-content-intake-0000000000000000000000";
 // These required-by-schema vars (see config/env.ts) are unconditionally required
-// regardless of NODE_ENV — set them explicitly so validateEnv() succeeds
+// regardless of NODE_ENV, set them explicitly so validateEnv() succeeds
 // deterministically (signUnsubscribeToken calls it),
 // matching the pattern in certificate-pdf.queue-driver-gate.spec.ts's BASE_ENV,
 // instead of relying on cross-file process.env pollution from whichever spec Jest
@@ -106,7 +106,7 @@ describe("ContentIntakeService", () => {
       expect(call.consent.marketing_opt_in).toBe(true);
     });
 
-    it("submitContact strips HTML TAGS from free-text fields (defense-in-depth write-time strip — the tag content, not just the tag, may remain; DOMPurify-at-render-sink per ADR-0045 is the real XSS control for the eventual render surface)", async () => {
+    it("submitContact strips HTML TAGS from free-text fields (defense-in-depth write-time strip, the tag content, not just the tag, may remain; DOMPurify-at-render-sink per ADR-0045 is the real XSS control for the eventual render surface)", async () => {
       const service = makeService();
       await service.submitContact(
         { name: "John", email: "j@test.com", message: "<script>alert(1)</script>Hello", consent: { marketingOptIn: false, tosVersion: "v1.0" }, captchaToken: "tok" },

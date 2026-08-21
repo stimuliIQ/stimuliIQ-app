@@ -190,12 +190,12 @@ export function StudentImportPage({ me }: StudentImportPageProps): React.JSX.Ele
     <div className="space-y-4 md:space-y-5" data-testid="student-import-page">
       <PageHeader
         title="Import Students"
-        description="Upload an Excel (.xlsx/.xls) or CSV sheet, review the parsed rows, pick the ones to import — every row is created through the same validated Add-student flow."
+        description="Upload an Excel (.xlsx/.xls) or CSV sheet, review the parsed rows, pick the ones to import. Every row is created through the same validated Add-student flow."
       />
 
       <Alert tone="neutral" title="Sheet format" data-testid="student-import-format-note">
         First row = headers. Recognized columns (case-insensitive): <strong>name</strong> and{" "}
-        <strong>email</strong> (required), <strong>course type</strong> (B.Tech / Degree / Diploma / MCA / MBA —
+        <strong>email</strong> (required), <strong>course type</strong> (B.Tech / Degree / Diploma / MCA / MBA,
         anything else becomes &quot;other&quot;), <strong>phone</strong>, <strong>college</strong>,{" "}
         <strong>year</strong>, <strong>city</strong>, <strong>source</strong>. Extra columns are ignored. Bare
         10-digit numbers get +91 automatically. LMS credentials are still emailed only when payment completes.
@@ -209,7 +209,7 @@ export function StudentImportPage({ me }: StudentImportPageProps): React.JSX.Ele
         {fileName ? (
           <span className="inline-flex items-center gap-1.5">
             <FileSpreadsheet className="size-4" aria-hidden="true" />
-            {fileName} — choose another file
+            {fileName}, choose another file
           </span>
         ) : (
           "Choose an .xlsx / .xls / .csv file"
@@ -284,11 +284,11 @@ export function StudentImportPage({ me }: StudentImportPageProps): React.JSX.Ele
                         onChange={() => toggleRow(row.index)}
                       />
                     </td>
-                    <td className="p-3 text-fg">{row.name || "—"}</td>
-                    <td className="p-3 text-fg">{row.email || "—"}</td>
-                    <td className="p-3 text-fg">{row.phone || "—"}</td>
+                    <td className="p-3 text-fg">{row.name || "-"}</td>
+                    <td className="p-3 text-fg">{row.email || "-"}</td>
+                    <td className="p-3 text-fg">{row.phone || "-"}</td>
                     <td className="p-3 text-fg">{row.courseType}</td>
-                    <td className="p-3 text-fg">{row.college || "—"}</td>
+                    <td className="p-3 text-fg">{row.college || "-"}</td>
                     <td className="p-3">
                       {row.error ? (
                         <span className="text-danger">{row.error}</span>
@@ -319,7 +319,7 @@ export function StudentImportPage({ me }: StudentImportPageProps): React.JSX.Ele
               ))}
             </ul>
           ) : (
-            <>All selected rows were created — they appear in the Students directory in the Admissions group.</>
+            <>All selected rows were created. They appear in the Students directory in the Admissions group.</>
           )}
         </Alert>
       ) : null}

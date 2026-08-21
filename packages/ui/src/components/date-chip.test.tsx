@@ -11,7 +11,7 @@ describe("formatRelativeDate", () => {
   const now = new Date("2026-06-28T12:00:00Z");
 
   it("returns 'Just now' for < 1 minute diff", () => {
-    const date = new Date(now.getTime() + 20_000); // 20s ahead — rounds to 0 minutes
+    const date = new Date(now.getTime() + 20_000); // 20s ahead, rounds to 0 minutes
     expect(formatRelativeDate(date, now)).toBe("Just now");
   });
 

@@ -124,7 +124,7 @@ export function OwnerSelect({
   // A failed staff lookup must not present an empty dropdown that reads as "nobody can
   // own a lead" — that would invite the user to unassign a lead to "fix" it. Say what
   // actually happened instead, and disable the control.
-  const errorText = isError ? "Couldn't load the team list — refresh to try again." : undefined;
+  const errorText = isError ? "Couldn't load the team list, refresh to try again." : undefined;
 
   return (
     <div className={wrapperClassName}>

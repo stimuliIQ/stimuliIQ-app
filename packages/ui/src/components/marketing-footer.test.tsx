@@ -8,7 +8,7 @@ const columns: FooterColumn[] = [
   { heading: "Company", links: [{ label: "About", href: "/about" }] },
 ];
 
-describe("MarketingFooter — rendering", () => {
+describe("MarketingFooter, rendering", () => {
   it("renders with default data-testid='marketing-footer'", () => {
     render(
       <MarketingFooter
@@ -100,7 +100,7 @@ describe("MarketingFooter — rendering", () => {
   });
 });
 
-describe("MarketingFooter — a11y", () => {
+describe("MarketingFooter, a11y", () => {
   it("has footer landmark", () => {
     const { container } = render(
       <MarketingFooter

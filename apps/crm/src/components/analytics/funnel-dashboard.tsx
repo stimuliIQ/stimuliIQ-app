@@ -82,19 +82,19 @@ export function FunnelDashboard({ me }: FunnelDashboardProps): React.JSX.Element
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <KpiCard
               label="Total leads"
-              value={data ? data.totalLeads : "—"}
+              value={data ? data.totalLeads : "-"}
               loading={isLoading}
               data-testid="funnel-total-leads-kpi"
             />
             <KpiCard
               label="Won"
-              value={data ? data.wonCount : "—"}
+              value={data ? data.wonCount : "-"}
               loading={isLoading}
               data-testid="funnel-won-kpi"
             />
             <KpiCard
               label="Conversion rate"
-              value={data ? `${(data.conversionRate * 100).toFixed(1)}%` : "—"}
+              value={data ? `${(data.conversionRate * 100).toFixed(1)}%` : "-"}
               icon={<Percent />}
               loading={isLoading}
               data-testid="funnel-conversion-kpi"

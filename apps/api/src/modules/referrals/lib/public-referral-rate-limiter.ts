@@ -39,7 +39,7 @@ export class PublicReferralRateLimiter {
       return count > MAX_ATTEMPTS;
     } catch (err) {
       this.logger.error(
-        `[PublicReferralRateLimiter] Redis error for key ${k} — failing closed (treating as rate-limited): ${String(err)}`,
+        `[PublicReferralRateLimiter] Redis error for key ${k}. Failing closed (treating as rate-limited): ${String(err)}`,
       );
       return true;
     }

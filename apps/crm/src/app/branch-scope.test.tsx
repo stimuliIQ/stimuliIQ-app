@@ -9,7 +9,7 @@ import type { MeResponse } from "@repo/types";
 
 import { BranchScopeProvider, useBranchScope } from "./branch-scope";
 
-// The provider's only data dependency is useAllBranches — mock it so the tests
+// The provider's only data dependency is useAllBranches, mock it so the tests
 // are hermetic (no QueryClient / network) and can drive branch availability.
 const useAllBranchesMock = vi.fn();
 vi.mock("../hooks/use-branches", () => ({

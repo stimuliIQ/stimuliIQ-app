@@ -1,10 +1,10 @@
-// Tests for the review drawer's two decisions — grade, and send back for changes.
+// Tests for the review drawer's two decisions, grade, and send back for changes.
 //
 // Send back is the half that never existed: `SubmissionStatus.returned` shipped in Phase 4
 // and nothing in the API ever wrote it, so work needing another attempt had to be graded low
 // (permanent) or left pending forever. These pin the parts that make the loop safe:
 // a reason is mandatory (it is the student's entire instruction set), and the action is only
-// offered on work that is actually awaiting review — the API refuses the rest.
+// offered on work that is actually awaiting review, the API refuses the rest.
 
 import * as React from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -74,14 +74,14 @@ beforeEach(() => {
   });
 });
 
-describe("GradeSubmissionDrawer — send back for changes", () => {
+describe("GradeSubmissionDrawer, send back for changes", () => {
   it("offers Send back alongside grading on work awaiting review", () => {
     renderDrawer();
     expect(screen.getByTestId("return-submission-open")).toBeInTheDocument();
     expect(screen.getByTestId("grade-submission-submit")).toBeInTheDocument();
   });
 
-  // The reason is the student's entire instruction set — "no" is not something they can act
+  // The reason is the student's entire instruction set, "no" is not something they can act
   // on, and an empty one turns a review into a rejection with no route forward.
   it("won't send back without a usable reason", async () => {
     const user = userEvent.setup();
@@ -94,11 +94,11 @@ describe("GradeSubmissionDrawer — send back for changes", () => {
     await user.type(screen.getByTestId("return-reason-input"), "too short");
     expect(screen.getByTestId("return-submission-confirm")).toBeDisabled();
 
-    await user.type(screen.getByTestId("return-reason-input"), " — add the differential diagnosis.");
+    await user.type(screen.getByTestId("return-reason-input"), ", add the differential diagnosis.");
     expect(screen.getByTestId("return-submission-confirm")).toBeEnabled();
   });
 
-  it("sends the reason and nothing else — returning is not grading", async () => {
+  it("sends the reason and nothing else, returning is not grading", async () => {
     const user = userEvent.setup();
     renderDrawer();
 

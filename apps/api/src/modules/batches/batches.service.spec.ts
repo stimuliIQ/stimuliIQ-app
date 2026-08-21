@@ -2,7 +2,7 @@
 //
 // Unit tests for BatchesService scope-resolution + RBAC allow/deny, per CLAUDE.md §3 DoD
 // rule 10. Batches is the module where "branch" AND "assigned" are BOTH fully resolvable
-// (unlike students/courses/faculty in Wave 3a) — these tests prove the positive paths for
+// (unlike students/courses/faculty in Wave 3a), these tests prove the positive paths for
 // each, the fail-closed "own" rejection, and the 404-for-IDOR pattern.
 
 import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
@@ -66,7 +66,7 @@ describe("BatchesService", () => {
     service = new BatchesService(repo as unknown as BatchesRepository);
   });
 
-  describe("scope resolution — list", () => {
+  describe("scope resolution, list", () => {
     it("allows scope=all with no extra restriction", async () => {
       repo.list.mockResolvedValue({ rows: [ROW], total: 1 });
 
@@ -169,7 +169,7 @@ describe("BatchesService", () => {
     });
   });
 
-  describe("create — branch-scoped creators restricted to their own branch", () => {
+  describe("create, branch-scoped creators restricted to their own branch", () => {
     it("rejects creating a batch in a branch the caller does not manage", async () => {
       repo.listCallerBranchIds.mockResolvedValue(["branch-hyderabad"]);
 
@@ -233,7 +233,7 @@ describe("BatchesService", () => {
     });
   });
 
-  describe("assignFaculty — cross-branch mismatch guard", () => {
+  describe("assignFaculty, cross-branch mismatch guard", () => {
     it("rejects assigning a faculty member from a different branch", async () => {
       repo.findById.mockResolvedValue(ROW);
       repo.facultyExists.mockResolvedValue({ id: "faculty-2", branchId: "branch-bengaluru" });

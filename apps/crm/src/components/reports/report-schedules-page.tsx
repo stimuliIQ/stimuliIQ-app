@@ -18,7 +18,7 @@ export function ReportSchedulesPage({ me }: ReportSchedulesPageProps): React.JSX
   return (
     <ReportPageShell
       title="Scheduled reports"
-      description="Recurring CSV/PDF report emails — daily, weekly, or monthly."
+      description="Recurring CSV/PDF report emails, daily, weekly, or monthly."
       canView={canSchedule}
       data-testid="report-schedules-page"
     >

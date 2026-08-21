@@ -174,7 +174,7 @@ export function MentorDetailDrawer({ mentorId, onOpenChange, me }: MentorDetailD
                       />
                     ) : (
                       <span aria-hidden="true" className="text-xl font-semibold text-fg-muted" data-testid="mentor-detail-monogram">
-                        {initialsOf(mentor.fullName) || "—"}
+                        {initialsOf(mentor.fullName) || "-"}
                       </span>
                     )}
                   </div>
@@ -209,11 +209,11 @@ export function MentorDetailDrawer({ mentorId, onOpenChange, me }: MentorDetailD
                 <dl className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <dt className="text-fg-muted">Phone</dt>
-                    <dd className="mt-1 text-fg">{mentor.phone ?? "—"}</dd>
+                    <dd className="mt-1 text-fg">{mentor.phone ?? "-"}</dd>
                   </div>
                   <div>
                     <dt className="text-fg-muted">Joined</dt>
-                    <dd className="mt-1 text-fg">{mentor.joinedAt ? new Date(mentor.joinedAt).toLocaleDateString() : "—"}</dd>
+                    <dd className="mt-1 text-fg">{mentor.joinedAt ? new Date(mentor.joinedAt).toLocaleDateString() : "-"}</dd>
                   </div>
                   <div>
                     <dt className="text-fg-muted">External institute</dt>
@@ -222,14 +222,14 @@ export function MentorDetailDrawer({ mentorId, onOpenChange, me }: MentorDetailD
                   <div>
                     <dt className="text-fg-muted">Years of experience</dt>
                     <dd className="mt-1 text-fg">
-                      {typeof mentor.yearsExperience === "number" ? `${mentor.yearsExperience} yrs` : "—"}
+                      {typeof mentor.yearsExperience === "number" ? `${mentor.yearsExperience} yrs` : "-"}
                     </dd>
                   </div>
                   <div className="col-span-2">
                     <dt className="text-fg-muted">Expertise</dt>
                     <dd className="mt-1 flex flex-wrap gap-1.5">
                       {mentor.expertise.length === 0 ? (
-                        <span className="text-fg">—</span>
+                        <span className="text-fg">-</span>
                       ) : (
                         mentor.expertise.map((skill) => (
                           <span
@@ -244,7 +244,7 @@ export function MentorDetailDrawer({ mentorId, onOpenChange, me }: MentorDetailD
                   </div>
                   <div className="col-span-2">
                     <dt className="text-fg-muted">Notes</dt>
-                    <dd className="mt-1 whitespace-pre-line text-fg">{mentor.notes ?? "—"}</dd>
+                    <dd className="mt-1 whitespace-pre-line text-fg">{mentor.notes ?? "-"}</dd>
                   </div>
                 </dl>
 

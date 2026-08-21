@@ -1,12 +1,12 @@
 // Courses access gating.
 //
-// Faculty hold `courses.view` at scope `assigned` — "programmes this faculty authors" — but
+// Faculty hold `courses.view` at scope `assigned`, "programmes this faculty authors", but
 // `programs` has no author column, so courses.service.ts rejects any scope other than `all`
 // with 403 `courses.scope_unresolvable` rather than widening it to the whole catalogue.
 //
 // Holding the key is therefore NOT the same as being able to use it. Before this gate, a
 // faculty login rendered the Courses screen, fired two doomed requests, and showed a
-// "Couldn't load programs — try again" state that blamed the network for an RBAC decision
+// "Couldn't load programs, try again" state that blamed the network for an RBAC decision
 // no amount of retrying would change.
 import * as React from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -85,7 +85,7 @@ beforeEach(() => {
   });
 });
 
-describe("ProgramDirectory — scope gating", () => {
+describe("ProgramDirectory, scope gating", () => {
   it("shows a no-access state for a scope the API cannot serve", () => {
     renderDirectory("assigned");
     expect(screen.getByTestId("programs-no-access")).toBeInTheDocument();
@@ -100,7 +100,7 @@ describe("ProgramDirectory — scope gating", () => {
     }
   });
 
-  // "Couldn't load — try again" invites a retry that can never succeed.
+  // "Couldn't load, try again" invites a retry that can never succeed.
   it("does not offer a retry for what is a permission decision", () => {
     renderDirectory("assigned");
     expect(screen.queryByTestId("programs-retry")).not.toBeInTheDocument();

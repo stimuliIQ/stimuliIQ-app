@@ -114,7 +114,7 @@ export class LiveClassWebhookController {
 
     if (!isValid) {
       this.logger.warn(
-        "[LiveClassWebhook] Signature verification failed — rejecting webhook (fail closed). " +
+        "[LiveClassWebhook] Signature verification failed, rejecting webhook (fail closed). " +
           `Has-Zoom-header=${Boolean(zmSig)} Has-Noop-header=${Boolean(noopSig)}`,
       );
       throw new UnauthorizedException({
@@ -126,7 +126,7 @@ export class LiveClassWebhookController {
 
     const event = this.liveClassProvider.parseRecordingEvent(body);
     if (!event) {
-      this.logger.debug("[LiveClassWebhook] Unrecognised event payload — ignoring (safe no-op)");
+      this.logger.debug("[LiveClassWebhook] Unrecognised event payload, ignoring (safe no-op)");
       return { received: true };
     }
 

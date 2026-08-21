@@ -1,7 +1,7 @@
 // apps/api/src/modules/notifications/dispatch/dispatch.queue-driver-gate.spec.ts
 //
 // Verifies DispatchModule's QUEUE_DRIVER gate for NOTIFICATION_DISPATCH_PORT and
-// CAMPAIGN_SEND_PORT (docs/plans/phase-9-completion.md T18/R1). `bullmq` is mocked —
+// CAMPAIGN_SEND_PORT (docs/plans/phase-9-completion.md T18/R1). `bullmq` is mocked,
 // no real Redis connection is opened.
 
 jest.mock("bullmq", () => ({

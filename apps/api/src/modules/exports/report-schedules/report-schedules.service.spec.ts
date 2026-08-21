@@ -5,7 +5,7 @@
 // (matches exports.service.spec.ts's established pattern).
 //
 // Coverage (per the backend-builder DoD):
-//   - Create requires the domain-specific view permission (mirrors AC-34's pattern) —
+//   - Create requires the domain-specific view permission (mirrors AC-34's pattern),
 //     403 and repo.create never called when missing.
 //   - nextRunAt is computed one cadence AFTER creation, never immediately due.
 //   - List/get/update/delete: "all"-scope sees every schedule; every other scope is
@@ -75,7 +75,7 @@ describe("ReportSchedulesService", () => {
     service = new ReportSchedulesService(repo as unknown as ReportSchedulesRepository);
   });
 
-  // ─── create() — permission gating ───────────────────────────────────────────
+  // ─── create(), permission gating ───────────────────────────────────────────
 
   describe("create()", () => {
     it("403s and NEVER creates a row when the caller lacks the matching view permission", async () => {
@@ -119,7 +119,7 @@ describe("ReportSchedulesService", () => {
     });
   });
 
-  // ─── list()/getById() — ownership scope split ───────────────────────────────
+  // ─── list()/getById(), ownership scope split ───────────────────────────────
 
   describe("scope isolation", () => {
     it("'all' scope passes no createdById filter (sees every schedule)", async () => {
@@ -156,7 +156,7 @@ describe("ReportSchedulesService", () => {
     });
   });
 
-  // ─── update() — frequency change re-bases nextRunAt ─────────────────────────
+  // ─── update(), frequency change re-bases nextRunAt ─────────────────────────
 
   describe("update()", () => {
     it("re-bases nextRunAt from lastRunAt when the frequency changes", async () => {

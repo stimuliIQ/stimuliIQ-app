@@ -602,7 +602,7 @@ export class LmsService {
       });
     } catch (err) {
       this.logger.error(
-        `[stream-url] VideoProvider.mintSignedHlsUrl failed for lessonId=${lessonId} — returning 503`,
+        `[stream-url] VideoProvider.mintSignedHlsUrl failed for lessonId=${lessonId}, returning 503`,
         err instanceof Error ? err.message : String(err),
       );
       // FAIL CLOSED: never return a raw/unsigned fallback URL.

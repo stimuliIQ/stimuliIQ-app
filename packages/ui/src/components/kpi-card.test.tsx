@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 
 import { KpiCard } from "./kpi-card";
 
-describe("KpiCard — rendering", () => {
+describe("KpiCard, rendering", () => {
   it("renders with default data-testid='kpi-card'", () => {
     render(<KpiCard label="Revenue (MTD)" value="₹48,200.00" />);
     expect(screen.getByTestId("kpi-card")).toBeInTheDocument();
@@ -25,7 +25,7 @@ describe("KpiCard — rendering", () => {
   });
 });
 
-describe("KpiCard — a11y", () => {
+describe("KpiCard, a11y", () => {
   it("has an accessible group name combining label, value, and trend direction+delta", () => {
     render(
       <KpiCard label="Revenue (MTD)" value="₹48,200.00" delta="+12.4%" trendDirection="up" />,
@@ -40,7 +40,7 @@ describe("KpiCard — a11y", () => {
     expect(screen.getByRole("group", { name: "Active students: 1,284" })).toBeInTheDocument();
   });
 
-  it("never conveys trend by color alone — an icon + text delta are both present", () => {
+  it("never conveys trend by color alone, an icon + text delta are both present", () => {
     const { container } = render(
       <KpiCard label="Refund rate" value="1.2%" delta="-0.4pp" trendDirection="down" trendTone="success" />,
     );
@@ -59,7 +59,7 @@ describe("KpiCard — a11y", () => {
   });
 });
 
-describe("KpiCard — sparkline", () => {
+describe("KpiCard, sparkline", () => {
   it("renders a decorative (aria-hidden) sparkline container when 2+ points are given", () => {
     render(
       <KpiCard

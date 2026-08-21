@@ -2,7 +2,7 @@
 //
 // The two cases that carry the most weight: a reviewer without `leave.approve` must not be
 // shown Approve/Turn down buttons the API would 403 (the UI only hides what the server
-// already forbids), and turning a request down must be impossible without a reason — that
+// already forbids), and turning a request down must be impossible without a reason, that
 // text is emailed to the applicant verbatim, and an empty rejection is what makes somebody
 // re-apply for the same dates next week.
 import * as React from "react";
@@ -95,7 +95,7 @@ describe("LeaveApprovalsWorkspace", () => {
     useLeaveRequestMock.mockReturnValue({ data: undefined, isLoading: false, isError: false });
   });
 
-  // The queue exists to answer "what is waiting on me?" — opening it on decided requests
+  // The queue exists to answer "what is waiting on me?", opening it on decided requests
   // buries the rows that need action.
   it("defaults to the pending filter", () => {
     renderWorkspace();
@@ -158,7 +158,7 @@ describe("LeaveApprovalsWorkspace", () => {
       expect(screen.getByTestId("leave-reject-start")).toBeInTheDocument();
     });
 
-    // The UI only hides what the API already forbids — but it must actually hide it.
+    // The UI only hides what the API already forbids, but it must actually hide it.
     it("offers neither to a viewer without leave.approve", async () => {
       await openDrawer(PLAIN_ADMIN);
       expect(await screen.findByText("Family wedding")).toBeInTheDocument();
@@ -172,7 +172,7 @@ describe("LeaveApprovalsWorkspace", () => {
       await user.click(screen.getByTestId("leave-reject-confirm"));
 
       expect(rejectMutate).not.toHaveBeenCalled();
-      expect(screen.getByText("Tell them why — they'll see this.")).toBeInTheDocument();
+      expect(screen.getByText("Tell them why, they'll see this.")).toBeInTheDocument();
     });
 
     it("sends the reason when one is given", async () => {

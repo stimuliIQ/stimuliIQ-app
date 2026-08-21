@@ -62,7 +62,7 @@ export function AuditLogDirectory(): React.JSX.Element {
       header: "Action",
       cell: (row) => <AuditActionChip action={row.action} />,
     },
-    { id: "ip", header: "IP", cell: (row) => row.ip ?? "—" },
+    { id: "ip", header: "IP", cell: (row) => row.ip ?? "-" },
   ];
 
   if (isError) {
@@ -84,7 +84,7 @@ export function AuditLogDirectory(): React.JSX.Element {
     <div className="space-y-4 md:space-y-5" data-testid="audit-logs-directory">
       <PageHeader
         title="Audit logs"
-        description="Who changed what, and when — across every CRM module."
+        description="Who changed what, and when, across every CRM module."
       />
 
       <DataFilterBar data-testid="audit-logs-filter-bar">

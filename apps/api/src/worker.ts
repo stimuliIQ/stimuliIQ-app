@@ -43,7 +43,7 @@ async function bootstrapWorker(): Promise<void> {
     // Not a hard error — the worker can run idle — but this is almost always a
     // misconfiguration (deploying a worker process with nothing to consume).
     console.warn(
-      `[worker] QUEUE_DRIVER=${env.QUEUE_DRIVER} — no producer in the API process will ever enqueue a ` +
+      `[worker] QUEUE_DRIVER=${env.QUEUE_DRIVER}. No producer in the API process will ever enqueue a ` +
         "job onto these queues. Set QUEUE_DRIVER=bullmq on the API deployment for this worker to do anything.",
     );
   }
@@ -250,13 +250,13 @@ async function bootstrapWorker(): Promise<void> {
   }
 
   console.log(
-    `[worker] Ready — listening on queues: ${workers.map((w) => w.name).join(", ")} ` +
+    `[worker] Ready, listening on queues: ${workers.map((w) => w.name).join(", ")} ` +
       `(isProduction=${isProductionEnv(env)})`,
   );
 
   // ─── Graceful shutdown ─────────────────────────────────────────────────────────
   const shutdown = async (signal: string): Promise<void> => {
-    console.log(`[worker] Received ${signal} — closing workers (waiting for in-flight jobs)...`);
+    console.log(`[worker] Received ${signal}. Closing workers (waiting for in-flight jobs)...`);
     await Promise.all(workers.map((w) => w.close()));
     await app.close();
     console.log("[worker] Shutdown complete.");

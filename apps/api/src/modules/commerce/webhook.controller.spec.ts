@@ -1,7 +1,7 @@
 // apps/api/src/modules/commerce/webhook.controller.spec.ts
 //
 // Unit tests for WebhookController's signature-freshness check (Phase-7 Wave 2 security
-// hardening batch A, item 2a — extends P6 M-3 to Razorpay). Razorpay's webhook scheme
+// hardening batch A, item 2a, extends P6 M-3 to Razorpay). Razorpay's webhook scheme
 // has no dedicated timestamp header; the check reads `payload.created_at` from the
 // (already-HMAC-covered) body when present, and is skipped (not rejected) when absent.
 
@@ -27,7 +27,7 @@ function makeRequest(body: Record<string, unknown>): RawBodyRequest<Request> {
   return { rawBody: raw, body } as unknown as RawBodyRequest<Request>;
 }
 
-describe("WebhookController — signature freshness (Razorpay created_at)", () => {
+describe("WebhookController, signature freshness (Razorpay created_at)", () => {
   let originalEnv: NodeJS.ProcessEnv;
   let commerceService: jest.Mocked<CommerceService>;
   let paymentProvider: jest.Mocked<PaymentProvider>;

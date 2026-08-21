@@ -2,7 +2,7 @@ import { __resetEnvCacheForTests } from "../config/env";
 import { startOtel, shutdownOtel } from "./otel";
 
 // REQUIRED_ENV mirrors the pattern used by every other provider-module spec (e.g.
-// mail-provider.spec.ts) — the minimal set of vars `validateEnv()` requires with no
+// mail-provider.spec.ts), the minimal set of vars `validateEnv()` requires with no
 // default, needed here only because `startOtel()` now calls `isProductionEnv()` (which
 // defaults to `validateEnv()`) to decide whether to warn on a missing OTel endpoint.
 const REQUIRED_ENV: Record<string, string> = {
@@ -16,7 +16,7 @@ const REQUIRED_ENV: Record<string, string> = {
 
 /**
  * `process.env.X = undefined` coerces to the literal STRING "undefined" (env vars can
- * only ever be strings in Node) rather than deleting the key — a real footgun in afterEach
+ * only ever be strings in Node) rather than deleting the key, a real footgun in afterEach
  * cleanup that silently leaks a bogus value into whichever spec file runs next in the
  * same Jest worker's shared `process.env`. Always restore via this helper instead of a
  * bare assignment.
@@ -29,7 +29,7 @@ function restoreEnvVar(key: string, value: string | undefined): void {
   }
 }
 
-describe("startOtel — no-op-safety (docs/plans/phase-7.md task #9)", () => {
+describe("startOtel, no-op-safety (docs/plans/phase-7.md task #9)", () => {
   const original = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
   const originalNodeEnv = process.env.NODE_ENV;
   const originalAppEnv = process.env.APP_ENV;
@@ -62,7 +62,7 @@ describe("startOtel — no-op-safety (docs/plans/phase-7.md task #9)", () => {
     await expect(shutdownOtel()).resolves.toBeUndefined();
   });
 
-  it("does NOT crash boot when the collector endpoint is unreachable/misconfigured — logs a warning and continues", async () => {
+  it("does NOT crash boot when the collector endpoint is unreachable/misconfigured, logs a warning and continues", async () => {
     // An obviously-unreachable/malformed endpoint that will fail fast rather than hang.
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://127.0.0.1:1/v1/traces";
     const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -73,7 +73,7 @@ describe("startOtel — no-op-safety (docs/plans/phase-7.md task #9)", () => {
   }, 15_000);
 });
 
-describe("startOtel — T4/B11: loud WARN when the OTel endpoint is unset in production", () => {
+describe("startOtel, T4/B11: loud WARN when the OTel endpoint is unset in production", () => {
   const originalEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
   const originalNodeEnv = process.env.NODE_ENV;
   const originalAppEnv = process.env.APP_ENV;

@@ -146,8 +146,8 @@ export class EnrollmentsService {
         code: "enrollments.batch_closed",
         title: "Batch is closed",
         detail: batchClosed
-          ? "This batch has been completed or archived — pick a batch that is still running."
-          : "This batch's end date has passed — pick a batch that is still running.",
+          ? "This batch has been completed or archived. Pick a batch that is still running."
+          : "This batch's end date has passed. Pick a batch that is still running.",
       });
     }
 

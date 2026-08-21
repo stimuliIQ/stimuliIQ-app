@@ -127,7 +127,7 @@ describe("CertificateCard", () => {
   it("renders a StatusChip that does not rely on color alone (text label present)", () => {
     render(<CertificateCard {...baseProps} status="revoked" downloadUrl={null} />);
     const chip = screen.getByTestId("certificate-card-status");
-    // The chip must have visible text (not just color) — the label is the
+    // The chip must have visible text (not just color), the label is the
     // non-color differentiator; chips are icon-free by design (flat soft badge).
     expect(chip.textContent).toContain("Revoked");
   });

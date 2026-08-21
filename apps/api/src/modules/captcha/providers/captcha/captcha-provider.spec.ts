@@ -1,31 +1,31 @@
 // apps/api/src/modules/captcha/providers/captcha/captcha-provider.spec.ts
 //
 // Unit tests for the CaptchaProvider adapters:
-//   - NoopCaptchaProvider   — always success, no network
-//   - TurnstileCaptchaProvider — success/fail path (mocked fetch); fail-closed
+//   - NoopCaptchaProvider  , always success, no network
+//   - TurnstileCaptchaProvider, success/fail path (mocked fetch); fail-closed
 //     when CAPTCHA_SECRET_KEY is absent; no secret in any return value/log
-//   - FailClosedCaptchaProvider — always returns { success: false }
+//   - FailClosedCaptchaProvider, always returns { success: false }
 //
 // Test strategy (docs/plans/phase-5.md task #3 DoD, CLAUDE.md §3.10):
-//   - All tests are UNIT — no live network calls, no real Cloudflare endpoint.
+//   - All tests are UNIT, no live network calls, no real Cloudflare endpoint.
 //   - global.fetch is mocked per-test via jest.spyOn so individual tests can
 //     control success/failure/timeout paths.
 //   - Tests cover:
-//       1. NoopCaptchaProvider — always returns { success: true }.
-//       2. NoopCaptchaProvider — deterministic (same result every call).
-//       3. NoopCaptchaProvider — SECURITY: returns no secret key material.
-//       4. TurnstileCaptchaProvider — success path (mocked fetch 200 + {success:true}).
-//       5. TurnstileCaptchaProvider — failure path (mocked fetch 200 + {success:false}).
-//       6. TurnstileCaptchaProvider — fail-closed when CAPTCHA_SECRET_KEY absent.
-//       7. TurnstileCaptchaProvider — fail-closed on network error.
-//       8. TurnstileCaptchaProvider — fail-closed on HTTP non-200.
-//       9. TurnstileCaptchaProvider — fail-closed on JSON parse error.
-//      10. TurnstileCaptchaProvider — SECURITY: secret key NEVER appears in result.
-//      11. TurnstileCaptchaProvider — propagates error-codes from Cloudflare.
-//      12. TurnstileCaptchaProvider — constructor does NOT throw when key absent.
-//      13. FailClosedCaptchaProvider — always returns { success: false }.
-//      14. FailClosedCaptchaProvider — errorCodes includes 'captcha-provider-not-configured'.
-//      15. FailClosedCaptchaProvider — constructor does NOT throw.
+//       1. NoopCaptchaProvider, always returns { success: true }.
+//       2. NoopCaptchaProvider, deterministic (same result every call).
+//       3. NoopCaptchaProvider, SECURITY: returns no secret key material.
+//       4. TurnstileCaptchaProvider, success path (mocked fetch 200 + {success:true}).
+//       5. TurnstileCaptchaProvider, failure path (mocked fetch 200 + {success:false}).
+//       6. TurnstileCaptchaProvider, fail-closed when CAPTCHA_SECRET_KEY absent.
+//       7. TurnstileCaptchaProvider, fail-closed on network error.
+//       8. TurnstileCaptchaProvider, fail-closed on HTTP non-200.
+//       9. TurnstileCaptchaProvider, fail-closed on JSON parse error.
+//      10. TurnstileCaptchaProvider, SECURITY: secret key NEVER appears in result.
+//      11. TurnstileCaptchaProvider, propagates error-codes from Cloudflare.
+//      12. TurnstileCaptchaProvider, constructor does NOT throw when key absent.
+//      13. FailClosedCaptchaProvider, always returns { success: false }.
+//      14. FailClosedCaptchaProvider, errorCodes includes 'captcha-provider-not-configured'.
+//      15. FailClosedCaptchaProvider, constructor does NOT throw.
 //
 // Secrets invariant: CAPTCHA_SECRET_KEY never appears in any returned object or
 // log output. This is verified in tests 6 and 10.
@@ -130,7 +130,7 @@ describe("NoopCaptchaProvider", () => {
     expect(result.success).toBe(true);
   });
 
-  it("is deterministic — same result every call", async () => {
+  it("is deterministic, same result every call", async () => {
     const r1 = await provider.verify("token-a");
     const r2 = await provider.verify("token-b");
     expect(r1.success).toBe(true);
@@ -365,7 +365,7 @@ describe("TurnstileCaptchaProvider", () => {
 
     const callArgs = fetchSpy.mock.calls[0] as [string, RequestInit];
     const url = callArgs[0] as string;
-    // Secret must not appear in the URL (only in the POST body — server-to-server).
+    // Secret must not appear in the URL (only in the POST body, server-to-server).
     expect(url).not.toContain(TEST_SECRET);
   });
 
@@ -416,7 +416,7 @@ describe("FailClosedCaptchaProvider", () => {
     expect(result.errorCodes).toContain("captcha-provider-not-configured");
   });
 
-  it("is deterministic — always the same failure", async () => {
+  it("is deterministic, always the same failure", async () => {
     const r1 = await provider.verify("token-a");
     const r2 = await provider.verify("token-b");
     expect(r1.success).toBe(false);

@@ -1,6 +1,6 @@
 // apps/api/src/config/scheduler.spec.ts
 //
-// Unit tests for `isSchedulerEnabled()` — the single gate every Phase-7 Wave-2 cron
+// Unit tests for `isSchedulerEnabled()`, the single gate every Phase-7 Wave-2 cron
 // consumer (AnalyticsMvRefreshScheduler, ReportScheduleDispatchScheduler) checks before
 // registering a real interval. CRITICAL test-safety property: a bare `jest` run
 // (NODE_ENV=test, SCHEDULER_ENABLED unset) must resolve to `false`.

@@ -45,7 +45,7 @@ export function createMailProviderForTest(): MailProvider {
               `The application will NOT start without them in production.`,
           );
         }
-        testLogger.warn(`[TEST] Missing ${missing} — falling back to NoopMailProvider`);
+        testLogger.warn(`[TEST] Missing ${missing}, falling back to NoopMailProvider`);
         return new NoopMailProvider();
       }
       return new ResendMailProvider();

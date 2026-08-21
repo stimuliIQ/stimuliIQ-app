@@ -51,7 +51,7 @@ export class DeadlineRemindersScheduler implements OnModuleInit, OnApplicationSh
     const env = validateEnv();
     if (!isSchedulerEnabled(env)) {
       this.logger.log(
-        "[DeadlineRemindersScheduler] SCHEDULER_ENABLED is false (or NODE_ENV=test) — scan interval NOT registered.",
+        "[DeadlineRemindersScheduler] SCHEDULER_ENABLED is false (or NODE_ENV=test), scan interval NOT registered.",
       );
       return;
     }
@@ -62,7 +62,7 @@ export class DeadlineRemindersScheduler implements OnModuleInit, OnApplicationSh
     }, intervalMs);
     timer.unref?.();
     this.schedulerRegistry.addInterval(INTERVAL_NAME, timer);
-    this.logger.log(`[DeadlineRemindersScheduler] registered — scanning every ${intervalMs}ms.`);
+    this.logger.log(`[DeadlineRemindersScheduler] registered, scanning every ${intervalMs}ms.`);
   }
 
   onApplicationShutdown(): void {

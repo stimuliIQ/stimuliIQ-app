@@ -32,9 +32,9 @@ import { surfaceError } from "../../lib/surface-error";
 import { jobOpeningDisplayUrl } from "../../lib/public-urls";
 
 const STATUS_OPTIONS: Array<{ value: JobOpeningStatus; label: string; hint: string }> = [
-  { value: "draft", label: "Draft — not on the website", hint: "Write it now, publish when you are ready." },
-  { value: "published", label: "Published — live on the website", hint: "Visible on /careers and accepting applications." },
-  { value: "closed", label: "Closed — taken down", hint: "Off the website. Its applications are kept." },
+  { value: "draft", label: "Draft, not on the website", hint: "Write it now, publish when you are ready." },
+  { value: "published", label: "Published, live on the website", hint: "Visible on /careers and accepting applications." },
+  { value: "closed", label: "Closed, taken down", hint: "Off the website. Its applications are kept." },
 ];
 
 const WORK_MODE_OPTIONS: Array<{ value: JobOpeningWorkMode; label: string }> = [
@@ -263,7 +263,7 @@ export function JobOpeningFormDrawer({ open, onOpenChange, opening }: JobOpening
               rows={5}
               value={responsibilities}
               onChange={(e) => setResponsibilities(e.target.value)}
-              helperText="One per line — each line becomes a bullet point."
+              helperText="One per line. Each line becomes a bullet point."
               data-testid="opening-responsibilities"
             />
 
@@ -272,7 +272,7 @@ export function JobOpeningFormDrawer({ open, onOpenChange, opening }: JobOpening
               rows={5}
               value={requirements}
               onChange={(e) => setRequirements(e.target.value)}
-              helperText="One per line — each line becomes a bullet point."
+              helperText="One per line. Each line becomes a bullet point."
               data-testid="opening-requirements"
             />
 
@@ -290,7 +290,7 @@ export function JobOpeningFormDrawer({ open, onOpenChange, opening }: JobOpening
                 type="date"
                 value={closesOn}
                 onChange={(e) => setClosesOn(e.target.value)}
-                helperText="Optional. The role comes off the site by itself after this date — no need to remember."
+                helperText="Optional. The role comes off the site by itself after this date, no need to remember."
                 data-testid="opening-closes-on"
               />
             </div>

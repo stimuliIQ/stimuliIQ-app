@@ -103,7 +103,7 @@ export type ListStudentsQuery = z.infer<typeof ListStudentsQuerySchema>;
 
 /** Row shape for the student directory table — minimal, no entity leakage. */
 export const StudentSummarySchema = z.object({
-  id: UuidSchema.describe("student_profiles.id — the canonical student identifier used everywhere else (enrollments.studentId, etc.)."),
+  id: UuidSchema.describe("student_profiles.id. The canonical student identifier used everywhere else (enrollments.studentId, etc.)."),
   userId: UuidSchema,
   name: z.string(),
   email: z.string().email(),

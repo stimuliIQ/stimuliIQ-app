@@ -32,7 +32,7 @@ import { AppAudienceSchema } from "./auth.schemas.js";
 export const TwoFactorRecoveryRequestSchema = z
   .object({
     email: z.string().email().max(254),
-    password: z.string().min(1).describe("Current password — recovery must never be reachable with inbox access alone."),
+    password: z.string().min(1).describe("Current password. Recovery must never be reachable with inbox access alone."),
     // Which app initiated recovery, so the email can name the right surface. Each
     // frontend hard-codes its own audience (mirrors POST /auth/login).
     audience: AppAudienceSchema.optional(),
@@ -41,7 +41,7 @@ export const TwoFactorRecoveryRequestSchema = z
 export type TwoFactorRecoveryRequest = z.infer<typeof TwoFactorRecoveryRequestSchema>;
 
 export const TwoFactorRecoveryRequestResponseSchema = z.object({
-  message: z.string().describe("Generic confirmation — never reveals whether the account exists or has 2FA enrolled."),
+  message: z.string().describe("Generic confirmation. Never reveals whether the account exists or has 2FA enrolled."),
 });
 export type TwoFactorRecoveryRequestResponse = z.infer<typeof TwoFactorRecoveryRequestResponseSchema>;
 
@@ -79,12 +79,12 @@ export type TwoFactorRecoveryConfirmResponse = z.infer<typeof TwoFactorRecoveryC
  */
 export const AdminClearTwoFactorRequestSchema = z
   .object({
-    reason: z.string().trim().min(10).max(500).describe("Why this reset was performed — recorded in the audit log."),
+    reason: z.string().trim().min(10).max(500).describe("Why this reset was performed. Recorded in the audit log."),
   })
   .strict();
 export type AdminClearTwoFactorRequest = z.infer<typeof AdminClearTwoFactorRequestSchema>;
 
 export const AdminClearTwoFactorResponseSchema = z.object({
-  cleared: z.boolean().describe("False when the target had no 2FA enrolled — the call is idempotent, not an error."),
+  cleared: z.boolean().describe("False when the target had no 2FA enrolled. The call is idempotent, not an error."),
 });
 export type AdminClearTwoFactorResponse = z.infer<typeof AdminClearTwoFactorResponseSchema>;

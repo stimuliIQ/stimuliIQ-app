@@ -70,7 +70,7 @@ export function BlockDataFields({
       if (!liveCollection) {
         return (
           <p role="alert" className="text-sm text-danger">
-            This section is missing its fixed collection — check page-templates.schemas.ts.
+            This section is missing its fixed collection, check page-templates.schemas.ts.
           </p>
         );
       }

@@ -41,7 +41,7 @@ export async function startOtel(): Promise<void> {
       // Loud (not fatal): see the sentry.ts equivalent for the fail-safe rationale.
       // pino isn't bootstrapped yet at this point in boot, so use console directly.
       console.warn(
-        "[api] OTEL_EXPORTER_OTLP_ENDPOINT is not set in a production environment — " +
+        "[api] OTEL_EXPORTER_OTLP_ENDPOINT is not set in a production environment, " +
           "distributed tracing is DISABLED. Set OTEL_EXPORTER_OTLP_ENDPOINT to enable " +
           "production tracing.",
       );
@@ -68,7 +68,7 @@ export async function startOtel(): Promise<void> {
     // Fail-safe: an unreachable/misconfigured hosted collector must never crash boot.
     // pino isn't bootstrapped yet at this point in boot, so use console directly.
     console.warn(
-      `[api] OpenTelemetry failed to start — continuing WITHOUT tracing: ${
+      `[api] OpenTelemetry failed to start, continuing WITHOUT tracing: ${
         err instanceof Error ? err.message : String(err)
       }`,
     );

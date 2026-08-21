@@ -58,11 +58,11 @@ export const VideoMetaSchema = z.object({
   ),
   captionTracks: z.array(z.string()).describe(
     "Language codes (e.g. ['en', 'hi']) for available caption tracks. " +
-    "Actual caption data comes via the HLS manifest — not exposed here.",
+    "Actual caption data comes via the HLS manifest, not exposed here.",
   ),
   provider: z.enum(["noop", "cloudflare_stream", "mux"]).describe(
     "Which VideoProvider backend holds the asset. Informational for the player; " +
-    "the player does NOT need this to play — it uses the signed HLS URL from stream-url.",
+    "the player does NOT need this to play. It uses the signed HLS URL from stream-url.",
   ),
 });
 export type VideoMeta = z.infer<typeof VideoMetaSchema>;
@@ -155,7 +155,7 @@ export const LessonDetailResponseSchema = z.object({
   ),
   videoMeta: VideoMetaSchema.nullable().describe(
     "Present only when type='video' and a videos row exists. Null otherwise. " +
-    "No raw URL here — call GET /lessons/:id/stream-url to get a playable signed HLS URL.",
+    "No raw URL here. Call GET /lessons/:id/stream-url to get a playable signed HLS URL.",
   ),
   resources: z.array(ResourceMetaSchema).describe(
     "Lesson attachments (metadata only in P3). Empty array if none.",
@@ -188,7 +188,7 @@ export const WatermarkPayloadSchema = z.object({
     "Derived server-side from the student's name + user id/student-id. " +
     "The frontend renders this as a semi-transparent overlay on the video.",
   ),
-  studentId: UuidSchema.describe("The authenticated student's user id — for traceability."),
+  studentId: UuidSchema.describe("The authenticated student's user id, for traceability."),
 });
 export type WatermarkPayload = z.infer<typeof WatermarkPayloadSchema>;
 
@@ -223,14 +223,14 @@ export const StreamUrlResponseSchema = z.object({
   url: z.string().url().describe(
     "Short-TTL signed HLS manifest URL. Expires at `expiresAt`. " +
     "Minted per-(user, lesson) by the VideoProvider. NOT a raw asset URL. " +
-    "Re-call this endpoint on expiry — do NOT cache this URL.",
+    "Re-call this endpoint on expiry. Do NOT cache this URL.",
   ),
   expiresAt: IsoDateTimeSchema.describe(
     "ISO-8601 datetime when `url` expires. The player should re-call this endpoint " +
     "before this time (or immediately on a 403 from the CDN). Typically ≤5 min from now.",
   ),
   provider: z.enum(["noop", "cloudflare_stream", "mux"]).describe(
-    "Which VideoProvider produced this URL. Informational — the player does not " +
+    "Which VideoProvider produced this URL. Informational, the player does not " +
     "need to branch on this; all providers return a standard HLS manifest URL.",
   ),
   watermark: WatermarkPayloadSchema.describe(

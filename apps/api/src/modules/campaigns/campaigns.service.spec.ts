@@ -1,6 +1,6 @@
 // apps/api/src/modules/campaigns/campaigns.service.spec.ts
 //
-// Unit tests for CampaignsService — paying down the debt noted in task #12
+// Unit tests for CampaignsService, paying down the debt noted in task #12
 // (campaigns module had NO dedicated unit tests).
 //
 // AC coverage:
@@ -206,7 +206,7 @@ describe("CampaignsService", () => {
 
     it("AC-31 / AC-78: rejects SMS template without dltTemplateId → 422 DLT_TEMPLATE_ID_REQUIRED", async () => {
       const { service } = makeService();
-      // Intentionally invalid input (dltTemplateId absent) — cast past the compile-time
+      // Intentionally invalid input (dltTemplateId absent), cast past the compile-time
       // discriminated-union requirement so the runtime 422 guard is what we assert.
       const dto = {
         channel: "sms",
@@ -222,7 +222,7 @@ describe("CampaignsService", () => {
 
     it("AC-78: rejects WhatsApp template without dltTemplateId → 422", async () => {
       const { service } = makeService();
-      // Intentionally invalid input (dltTemplateId absent) — cast past the compile-time
+      // Intentionally invalid input (dltTemplateId absent), cast past the compile-time
       // discriminated-union requirement so the runtime 422 guard is what we assert.
       const dto = {
         channel: "whatsapp",
@@ -321,7 +321,7 @@ describe("CampaignsService", () => {
 
   // ─── AC-31: DLT gate at campaign send time ─────────────────────────────────
 
-  describe("sendCampaign — AC-31 DLT gate", () => {
+  describe("sendCampaign, AC-31 DLT gate", () => {
     it("AC-31: rejects WhatsApp campaign when template has no dltTemplateId → 422", async () => {
       const campaign = makeCampaignRow({
         channel: "whatsapp",
@@ -367,14 +367,14 @@ describe("CampaignsService", () => {
 
       const result = await service.sendCampaign(TENANT_ID, ACTOR_ID, "camp-1");
       expect(result).toBeDefined();
-      // No 422 thrown — email campaigns don't require DLT id
+      // No 422 thrown, email campaigns don't require DLT id
       expect(repo.updateCampaignStatus).toHaveBeenCalledWith(TENANT_ID, "camp-1", "sending");
     });
   });
 
   // ─── AC-27 / AC-29 / AC-30: Exactly-once + consent + suppression ─────────
 
-  describe("sendCampaign — exactly-once, consent, suppression", () => {
+  describe("sendCampaign, exactly-once, consent, suppression", () => {
     it("AC-27: 3 queued recipients → exactly 3 provider sends, then no-op on replay", async () => {
       const campaign = makeCampaignRow({ channel: "email", status: "draft" });
       const r1 = makeRecipientRow({ id: "r1", to: "r1@example.com", leadId: "lead-1" });
@@ -467,12 +467,12 @@ describe("CampaignsService", () => {
 
   // What actually lands in a student's inbox. Before this, the sender passed only
   // { to, campaignName } while templates were authored with {{name}} / {{program_title}},
-  // and the renderer leaves unknown placeholders alone — so real sends went out reading
+  // and the renderer leaves unknown placeholders alone, so real sends went out reading
   // "Hi {{name}},". These pin the substitution map against CAMPAIGN_TEMPLATE_VARIABLES.
-  describe("sendCampaign — variable substitution", () => {
+  describe("sendCampaign, variable substitution", () => {
     function makeSendHarness(recipient: CampaignRecipientRow, templateBody: string) {
       // The send path reads the template off the CAMPAIGN row (campaign.template), not via
-      // a separate findTemplateById — mocking the latter has no effect here.
+      // a separate findTemplateById, mocking the latter has no effect here.
       const campaign = makeCampaignRow({
         channel: "email",
         status: "draft",
@@ -520,12 +520,12 @@ describe("CampaignsService", () => {
         leadId: "lead-1",
         lead: { name: "Ravi Kumar", programInterest: { title: "Cardiology" } },
       });
-      const { service, port } = makeSendHarness(recipient, "Hi {{name}} — about {{program_title}}");
+      const { service, port } = makeSendHarness(recipient, "Hi {{name}}, about {{program_title}}");
 
       await service.sendCampaign(TENANT_ID, ACTOR_ID, "camp-1");
 
       expect(((port.send as jest.Mock).mock.calls[0][0] as { body: string }).body).toBe(
-        "Hi Ravi Kumar — about Cardiology",
+        "Hi Ravi Kumar, about Cardiology",
       );
     });
 
@@ -565,7 +565,7 @@ describe("CampaignsService", () => {
     });
   });
 
-  describe("cancelCampaign — AC-36", () => {
+  describe("cancelCampaign, AC-36", () => {
     it("transitions campaign to cancelled + bulk-fails queued recipients", async () => {
       const campaign = makeCampaignRow({ status: "scheduled" });
       const { service, repo } = makeService({
@@ -594,7 +594,7 @@ describe("CampaignsService", () => {
 
   // ─── AC-37 / AC-38 / AC-40: Webhook ingestion ─────────────────────────────
 
-  describe("handleWebhookEvent — AC-37, AC-38, AC-40", () => {
+  describe("handleWebhookEvent, AC-37, AC-38, AC-40", () => {
     it("AC-37: updates recipient status on delivered webhook", async () => {
       const sentRecipient = makeRecipientRow({ status: "sent", providerMessageId: "msg-M1" });
       const { service, repo } = makeService({
@@ -637,7 +637,7 @@ describe("CampaignsService", () => {
       expect(repo.updateRecipientStatus).not.toHaveBeenCalled();
     });
 
-    it("AC-38: status never downgrades — a terminal 'read' recipient is not overwritten by a later 'failed' event", async () => {
+    it("AC-38: status never downgrades, a terminal 'read' recipient is not overwritten by a later 'failed' event", async () => {
       // "read" is a terminal status. A late/out-of-order "failed" webhook must not
       // roll it backwards, so updateRecipientStatus must never be called.
       const readRecipient = makeRecipientRow({ status: "read", providerMessageId: "msg-M3" });
@@ -695,7 +695,7 @@ describe("CampaignsService", () => {
 
   // ─── AC-60: bounce→suppression is idempotent + monotonic ─────────────────
 
-  describe("handleWebhookEvent — AC-60 bounce→suppression idempotency", () => {
+  describe("handleWebhookEvent, AC-60 bounce→suppression idempotency", () => {
     it("a bounced webhook on a non-terminal recipient inserts exactly one suppression row", async () => {
       const sentRecipient = makeRecipientRow({ status: "sent", providerMessageId: "msg-B1", to: "bounce1@example.com" });
       const { service, repo } = makeService({
@@ -720,8 +720,8 @@ describe("CampaignsService", () => {
       });
     });
 
-    it("a replayed bounced event for an ALREADY-failed recipient is an AC-38 no-op — no second suppression insert", async () => {
-      // Recipient is already terminal ("failed") — isStatusAdvance blocks the update
+    it("a replayed bounced event for an ALREADY-failed recipient is an AC-38 no-op, no second suppression insert", async () => {
+      // Recipient is already terminal ("failed"), isStatusAdvance blocks the update
       // (and therefore the suppression call) before it is ever reached, regardless of
       // event ordering. This is the exact "out-of-order delivery" scenario AC-60 covers:
       // a second (possibly earlier-timestamped) bounce arriving after the recipient is
@@ -748,7 +748,7 @@ describe("CampaignsService", () => {
         updateRecipientStatus: jest.fn().mockResolvedValue({ ...sentRecipient, status: "failed" }),
         countRecipientsByStatus: jest.fn().mockResolvedValue({ total: 1, sent: 0, delivered: 0, read: 0, failed: 1, queued: 0 }),
         findCampaignById: jest.fn().mockResolvedValue(makeCampaignRow({ status: "sent" })),
-        // Simulates the DB partial-unique index catching a concurrent duplicate insert —
+        // Simulates the DB partial-unique index catching a concurrent duplicate insert,
         // an active suppression row already exists for this (tenant, channel, address).
         createBounceSuppression: jest.fn().mockResolvedValue(false),
       });
@@ -871,7 +871,7 @@ describe("CampaignsService", () => {
 
   // ─── T5/R2: bounded recipient batch (docs/plans/phase-9-completion.md) ───────
 
-  describe("sendCampaign — T5/R2 bounded recipient batch", () => {
+  describe("sendCampaign, T5/R2 bounded recipient batch", () => {
     afterEach(() => {
       delete process.env["CAMPAIGN_SEND_BATCH_SIZE"];
       __resetEnvCacheForTests();

@@ -256,7 +256,7 @@ export function AssessmentFormDrawer({
               onValueChange={setCourseId}
               helperText={
                 coursesQuery.isError
-                  ? "Couldn't load the course list — reopen this form to retry."
+                  ? "Couldn't load the course list. Reopen this form to retry."
                   : "Which course this belongs to. Pick it first; the modules below follow."
               }
               data-testid="assessment-form-course"
@@ -288,7 +288,7 @@ export function AssessmentFormDrawer({
               error={errors.moduleId?.message}
               helperText={
                 courseId && !curriculumQuery.isLoading && moduleOptions.length === 0
-                  ? "Add a module to this course under Courses ▸ Curriculum first — every assessment has to hang off one."
+                  ? "Add a module to this course under Courses ▸ Curriculum first. Every assessment has to hang off one."
                   : "The module this assessment belongs to. Students reach it from there."
               }
               data-testid="assessment-form-module-id"
@@ -456,7 +456,7 @@ export function AssessmentFormDrawer({
                       className="flex flex-col gap-3 rounded-md border border-border p-4"
                     >
                       <legend className="px-1 text-sm font-medium text-fg">
-                        Question {index + 1} —{" "}
+                        Question {index + 1} ·{" "}
                         {qType === "mcq" ? "Multiple choice" : "Descriptive"}
                       </legend>
 
@@ -501,7 +501,7 @@ export function AssessmentFormDrawer({
                             </div>
                           ) : (
                             <Textarea
-                              label="Grading rubric notes (faculty reference — not shown to students)"
+                              label="Grading rubric notes (faculty reference, not shown to students)"
                               id={`question-${index}-rubric`}
                               rows={2}
                               {...register(`questions.${index}.answerKey` as `questions.0.answerKey`)}

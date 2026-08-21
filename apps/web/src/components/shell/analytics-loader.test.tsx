@@ -1,5 +1,5 @@
 /**
- * AnalyticsLoader tests — consent gate invariant (AC-34/35/36).
+ * AnalyticsLoader tests, consent gate invariant (AC-34/35/36).
  *
  * Critical invariant: analytics components MUST NOT render when enabled=false.
  * This is the primary DPDP requirement and a pre-consent firing bug would be a
@@ -43,16 +43,16 @@ vi.mock("next/dynamic", () => ({
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("AnalyticsLoader — consent gate (AC-34 invariant)", () => {
+describe("AnalyticsLoader, consent gate (AC-34 invariant)", () => {
   beforeEach(() => {
     // Clear env between tests
     delete process.env.NEXT_PUBLIC_ANALYTICS_GTM_ID;
     delete process.env.NEXT_PUBLIC_ANALYTICS_MEASUREMENT_ID;
   });
 
-  it("renders null when enabled=false (no consent — analytics MUST NOT load)", () => {
+  it("renders null when enabled=false (no consent, analytics MUST NOT load)", () => {
     const { container } = render(<AnalyticsLoader enabled={false} />);
-    // The component returns null — container has no meaningful children
+    // The component returns null, container has no meaningful children
     expect(container.firstChild).toBeNull();
   });
 
@@ -71,7 +71,7 @@ describe("AnalyticsLoader — consent gate (AC-34 invariant)", () => {
   it("renders null when enabled=true but no analytics IDs are configured (Noop)", () => {
     // No GTM_ID, no GA_ID set
     const { container } = render(<AnalyticsLoader enabled={true} />);
-    // Should still render nothing (Noop) — no analytics configured
+    // Should still render nothing (Noop), no analytics configured
     expect(container.firstChild).toBeNull();
   });
 

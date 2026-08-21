@@ -50,7 +50,7 @@ export function KbArticleDirectory({ me }: { me: MeResponse | undefined }): Reac
 
   const columns: Array<DataTableColumn<KbArticleSummary>> = [
     { id: "title", header: "Title", cell: (row) => row.title, sortable: false },
-    { id: "category", header: "Category", cell: (row) => row.category ?? "—" },
+    { id: "category", header: "Category", cell: (row) => row.category ?? "-" },
     {
       id: "published",
       header: "Status",

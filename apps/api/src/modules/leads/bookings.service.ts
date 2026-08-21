@@ -270,7 +270,7 @@ export class BookingsService {
   private async verifyCaptcha(token: string, ip: string | undefined): Promise<void> {
     const result = await this.captchaProvider.verify(token, ip);
     if (!result.success) {
-      this.logger.warn(`[Bookings] Captcha verification failed — codes: ${result.errorCodes?.join(",")}`);
+      this.logger.warn(`[Bookings] Captcha verification failed, codes: ${result.errorCodes?.join(",")}`);
       throw new UnprocessableEntityException({
         code: "public_bookings.captcha_invalid",
         title: "Captcha verification failed",

@@ -69,7 +69,7 @@ export function ReferralDirectory({ me }: { me: MeResponse | undefined }): React
     {
       id: "reward",
       header: "Reward",
-      cell: (row) => (row.reward ? (row.reward.type === "cash" ? `₹${(row.reward.amountPaise / 100).toFixed(2)}` : "Coupon") : "—"),
+      cell: (row) => (row.reward ? (row.reward.type === "cash" ? `₹${(row.reward.amountPaise / 100).toFixed(2)}` : "Coupon") : "-"),
     },
     { id: "createdAt", header: "Created", cell: (row) => new Date(row.createdAt).toLocaleDateString(), align: "right" },
     { id: "actions", header: "", cell: (row) => <RowActions referral={row} canApprove={canApprove} />, align: "right" },
@@ -93,7 +93,7 @@ export function ReferralDirectory({ me }: { me: MeResponse | undefined }): React
     <div className="space-y-4 md:space-y-5" data-testid="referral-directory">
       <PageHeader
         title="Referrals"
-        description="Affiliate/referral program oversight — approve conversions and rewards."
+        description="Affiliate/referral program oversight, approve conversions and rewards."
       />
 
       <DataFilterBar data-testid="referral-filter-bar">

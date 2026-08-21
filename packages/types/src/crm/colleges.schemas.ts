@@ -124,7 +124,7 @@ export type DeleteCollegeResponse = z.infer<typeof DeleteCollegeResponseSchema>;
  */
 export const CollegeLogoUploadUrlRequestSchema = z
   .object({
-    contentType: z.enum(["image/jpeg", "image/png", "image/webp"]).describe("College logos are raster images only — no SVG."),
+    contentType: z.enum(["image/jpeg", "image/png", "image/webp"]).describe("College logos are raster images only, no SVG."),
     fileName: z.string().min(1).max(255),
     sizeBytes: z.number().int().min(1).max(5_242_880).describe("Max 5 MB per college logo."),
   })

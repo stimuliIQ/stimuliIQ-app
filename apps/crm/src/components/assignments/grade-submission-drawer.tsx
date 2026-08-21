@@ -317,7 +317,7 @@ export function GradeSubmissionDrawer({
                     rows={4}
                     value={returnReason}
                     onChange={(e) => setReturnReason(e.target.value)}
-                    placeholder="e.g. The differential diagnosis section is missing — add it and include your references."
+                    placeholder="e.g. The differential diagnosis section is missing. Add it and include your references."
                     helperText="The student is shown this text word for word. Be specific enough that they can act on it without asking."
                     data-testid="return-reason-input"
                   />

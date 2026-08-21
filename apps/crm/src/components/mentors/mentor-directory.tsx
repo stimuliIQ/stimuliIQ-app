@@ -60,7 +60,7 @@ export function MentorDirectory({ me }: MentorDirectoryProps): React.JSX.Element
     {
       id: "expertise",
       header: "Expertise",
-      cell: (row) => (row.expertise.length > 0 ? row.expertise.join(", ") : "—"),
+      cell: (row) => (row.expertise.length > 0 ? row.expertise.join(", ") : "-"),
     },
     {
       id: "engagementStatus",
@@ -95,7 +95,7 @@ export function MentorDirectory({ me }: MentorDirectoryProps): React.JSX.Element
     <div className="space-y-4 md:space-y-5" data-testid="mentor-directory">
       <PageHeader
         title="Mentors"
-        description="Externally-hired subject experts who lead batches to completion — search, filter, and manage hiring records."
+        description="Externally-hired subject experts who lead batches to completion. Search, filter, and manage hiring records."
         actions={
           permissions.canCreate ? (
             <Button onClick={() => setCreateOpen(true)} data-testid="mentor-create-button">

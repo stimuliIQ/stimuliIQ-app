@@ -61,7 +61,7 @@ export const MyEnrollmentSummarySchema = z.object({
   programMode: z.enum(["live", "recorded", "hybrid"]),
   programImageUrl: z.string().url().nullable().describe(
     "Public CDN URL of the program's course-card image (minted server-side from " +
-    "Program.ogImageKey — the raw storage key is never exposed). Null when no image " +
+    "Program.ogImageKey. The raw storage key is never exposed). Null when no image " +
     "has been uploaded in the CRM. Used as the My Courses card thumbnail.",
   ),
   batchId: UuidSchema,

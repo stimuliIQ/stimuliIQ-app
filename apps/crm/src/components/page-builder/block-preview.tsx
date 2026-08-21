@@ -123,7 +123,7 @@ function BlockPreview({ block, index }: { block: ResolvedPageBuilderBlock; index
               <li key={i} className="flex gap-2 text-sm">
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-brand-500 text-xs font-semibold text-brand-foreground">{i + 1}</span>
                 <span>
-                  <span className="font-medium text-fg">{item.title}</span> — <span className="text-fg-muted">{item.description}</span>
+                  <span className="font-medium text-fg">{item.title}</span> - <span className="text-fg-muted">{item.description}</span>
                 </span>
               </li>
             ))}
@@ -206,7 +206,7 @@ function BlockPreview({ block, index }: { block: ResolvedPageBuilderBlock; index
         // rendering nothing, so the author knows why.
         return (
           <p className="rounded-md border border-dashed border-border p-3 text-xs text-fg-muted" data-testid={`page-builder-preview-block-${index}-hidden`}>
-            Live collection ({d.collection}) resolved to 0 items — this block will be hidden on the public page.
+            Live collection ({d.collection}) resolved to 0 items. This block will be hidden on the public page.
           </p>
         );
       }
@@ -257,7 +257,7 @@ function BlockPreview({ block, index }: { block: ResolvedPageBuilderBlock; index
     case "brain_showcase":
       return (
         <div className="flex h-16 items-center justify-center rounded-md border border-dashed border-border text-xs text-fg-subtle">
-          [Brand showcase — fixed asset]
+          [Brand showcase, fixed asset]
         </div>
       );
     default:
@@ -273,7 +273,7 @@ export function PageBuilderPreview({ blocks }: { blocks: ResolvedPageBuilderBloc
   return (
     <div className="flex flex-col gap-3" data-testid="page-builder-preview">
       <p className="rounded-md bg-surface px-3 py-1.5 text-xs font-medium text-fg-muted">
-        Preview (approximate) — a clean typographic rendering, not a pixel match of the live site.
+        Preview (approximate). A clean typographic rendering, not a pixel match of the live site.
       </p>
       {blocks.length === 0 ? (
         <EmptyState title="No sections yet" description="Add a block to see it previewed here." data-testid="page-builder-preview-empty" />

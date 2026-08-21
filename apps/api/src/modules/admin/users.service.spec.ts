@@ -1,6 +1,6 @@
 // apps/api/src/modules/admin/users.service.spec.ts
 //
-// Unit tests for UsersAdminService (Admin ▸ Users — staff-account credential
+// Unit tests for UsersAdminService (Admin ▸ Users, staff-account credential
 // management), focused on the safety guards: duplicate-email 409, student-role
 // rejection, self-disable 403, and session revocation on password reset /
 // deactivation. Mirrors roles.service.spec.ts's mock harness.
@@ -106,7 +106,7 @@ describe("UsersAdminService", () => {
       await expect(service.create(TENANT, ACTOR, BODY)).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it("rejects the student role — student accounts belong to the enrollment flow", async () => {
+    it("rejects the student role, student accounts belong to the enrollment flow", async () => {
       repo.emailTaken.mockResolvedValue(false);
       repo.findRolesByIds.mockResolvedValue([{ id: COUNSELLOR_ROLE.id, key: "student", name: "Student" }]);
       await expect(service.create(TENANT, ACTOR, BODY)).rejects.toBeInstanceOf(BadRequestException);
@@ -207,13 +207,13 @@ describe("UsersAdminService", () => {
       expect(repo.softDelete).not.toHaveBeenCalled();
     });
 
-    it("403s on removing YOURSELF — the classic one-click lockout", async () => {
+    it("403s on removing YOURSELF, the classic one-click lockout", async () => {
       repo.findById.mockResolvedValue({ ...STAFF_ROW, id: ACTOR });
       await expect(service.remove(TENANT, ACTOR, ACTOR)).rejects.toBeInstanceOf(ForbiddenException);
       expect(repo.softDelete).not.toHaveBeenCalled();
     });
 
-    // With no super_admin left, nobody can grant the role back — and `users.remove` itself
+    // With no super_admin left, nobody can grant the role back, and `users.remove` itself
     // becomes unreachable, so the mistake is not even self-correctable.
     it("403s on removing the LAST active super admin", async () => {
       repo.findById.mockResolvedValue(SUPER_ADMIN_ROW);
@@ -248,7 +248,7 @@ describe("UsersAdminService", () => {
       // A removed account must not keep riding an existing refresh token to expiry.
       expect(authRepo.revokeAllSessionsForUser).toHaveBeenCalledWith("user-1");
       // The row stops reading after the delete, so this audit entry is the only surviving
-      // record of who the account belonged to — it has to carry the identity.
+      // record of who the account belonged to, it has to carry the identity.
       expect(repo.recordAudit).toHaveBeenCalledWith(
         expect.objectContaining({
           action: "delete",
@@ -263,7 +263,7 @@ describe("UsersAdminService", () => {
 
   // `users` carries a FULL unique on (tenant, email), so a removed user keeps their address
   // reserved. Re-adding them must restore the row rather than hitting a raw P2002.
-  describe("create — re-adding a removed user", () => {
+  describe("create, re-adding a removed user", () => {
     it("restores the soft-deleted row instead of inserting a duplicate", async () => {
       repo.emailTaken.mockResolvedValue(false);
       repo.findRolesByIds.mockResolvedValue([COUNSELLOR_ROLE]);
@@ -281,7 +281,7 @@ describe("UsersAdminService", () => {
         expect.objectContaining({ userId: "user-1", roleIds: [COUNSELLOR_ROLE.id] }),
       );
       expect(repo.create).not.toHaveBeenCalled();
-      // `restore`, not `create` — the audit log should read as the resurrection it is.
+      // `restore`, not `create`, the audit log should read as the resurrection it is.
       expect(repo.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "restore" }));
       expect(result.email).toBe("priya@stimuliiq.com");
     });
@@ -306,9 +306,9 @@ describe("UsersAdminService", () => {
   });
 
   describe("clearTwoFactor", () => {
-    const REASON = "Verified over a video call — lost phone, no inbox access.";
+    const REASON = "Verified over a video call, lost phone, no inbox access.";
 
-    it("403s on clearing your OWN 2FA — an admin whose session is hijacked must not be able to silently drop their own second factor", async () => {
+    it("403s on clearing your OWN 2FA, an admin whose session is hijacked must not be able to silently drop their own second factor", async () => {
       repo.findById.mockResolvedValue({ ...STAFF_ROW, id: ACTOR });
       await expect(service.clearTwoFactor(TENANT, ACTOR, ACTOR, REASON)).rejects.toBeInstanceOf(ForbiddenException);
       expect(twoFactorStore.deactivate).not.toHaveBeenCalled();
@@ -329,14 +329,14 @@ describe("UsersAdminService", () => {
       expect(result).toEqual({ cleared: true });
       expect(twoFactorStore.deactivate).toHaveBeenCalledWith("user-1");
       expect(authRepo.setTwoFaEnabled).toHaveBeenCalledWith("user-1", false);
-      // A factor just disappeared — pre-existing sessions must not outlive it.
+      // A factor just disappeared, pre-existing sessions must not outlive it.
       expect(authRepo.revokeAllSessionsForUser).toHaveBeenCalledWith("user-1");
       expect(authRepo.recordTwoFactorAudit).toHaveBeenCalledWith(
         expect.objectContaining({ action: "two_factor.admin_clear", userId: "user-1", actorId: ACTOR, reason: REASON }),
       );
     });
 
-    it("is idempotent when the target has no 2FA — reports cleared:false and touches nothing", async () => {
+    it("is idempotent when the target has no 2FA, reports cleared:false and touches nothing", async () => {
       repo.findById.mockResolvedValue(STAFF_ROW);
       authRepo.findUserById.mockResolvedValue({ id: "user-1", twoFaEnabled: false });
 
@@ -388,7 +388,7 @@ describe("UsersAdminService", () => {
       expect(JSON.stringify(arg.before)).not.toContain("password");
     });
 
-    it("rolls the rotation back with its audit row — a half-applied reset locks the holder out", async () => {
+    it("rolls the rotation back with its audit row, a half-applied reset locks the holder out", async () => {
       repo.findById.mockResolvedValue(STAFF_ROW);
       // Exactly the live failure this guards: audit_logs missing a column the client expects.
       repo.setPassword.mockRejectedValue(new Error("column audit_logs.redacted_at does not exist"));
@@ -420,7 +420,7 @@ describe("UsersAdminService", () => {
       await expect(service.resetPassword(TENANT, ACTOR, "nope")).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it("still succeeds when the email bounces — the credential was already rotated", async () => {
+    it("still succeeds when the email bounces, the credential was already rotated", async () => {
       repo.findById.mockResolvedValue(STAFF_ROW);
       mail.send.mockRejectedValue(new Error("mailbox unavailable"));
 

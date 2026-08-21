@@ -1,7 +1,7 @@
 // apps/api/src/modules/exports/providers/pdf/report-pdf.queue-driver-gate.spec.ts
 //
 // Verifies ReportPdfModule's QUEUE_DRIVER gate (docs/plans/phase-9-completion.md
-// T18/R1) — mirrors certificate-pdf.queue-driver-gate.spec.ts. `bullmq` is mocked —
+// T18/R1), mirrors certificate-pdf.queue-driver-gate.spec.ts. `bullmq` is mocked,
 // no real Redis connection is opened.
 
 jest.mock("bullmq", () => ({

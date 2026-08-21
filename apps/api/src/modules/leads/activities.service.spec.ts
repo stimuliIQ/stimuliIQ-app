@@ -1,6 +1,6 @@
 // apps/api/src/modules/leads/activities.service.spec.ts
 //
-// Unit tests for ActivitiesService — scope inheritance via parent lead, and the
+// Unit tests for ActivitiesService, scope inheritance via parent lead, and the
 // "complete task" state transition (sets done_at, rejects non-task types and
 // already-completed tasks).
 
@@ -36,7 +36,7 @@ function mockLeadsRepository(): Mocked<LeadsRepository> {
     softDelete: jest.fn(),
     restore: jest.fn(),
     pickRoundRobinOwner: jest.fn(),
-    // Logging an activity stamps the parent lead's first/last contact timestamps —
+    // Logging an activity stamps the parent lead's first/last contact timestamps,
     // the write that makes first-response-time measurable at all.
     touchLeadContact: jest.fn(),
   } as unknown as Mocked<LeadsRepository>;

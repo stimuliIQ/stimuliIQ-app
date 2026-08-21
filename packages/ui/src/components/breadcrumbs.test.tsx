@@ -13,7 +13,7 @@ const items: BreadcrumbItem[] = [
 // Rendering
 // ---------------------------------------------------------------------------
 
-describe("Breadcrumbs — rendering", () => {
+describe("Breadcrumbs, rendering", () => {
   it("renders with default data-testid='breadcrumbs'", () => {
     render(<Breadcrumbs items={items} />);
     expect(screen.getByTestId("breadcrumbs")).toBeInTheDocument();
@@ -43,7 +43,7 @@ describe("Breadcrumbs — rendering", () => {
 // a11y
 // ---------------------------------------------------------------------------
 
-describe("Breadcrumbs — a11y", () => {
+describe("Breadcrumbs, a11y", () => {
   it("renders inside a <nav> with aria-label='Breadcrumb'", () => {
     render(<Breadcrumbs items={items} />);
     expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toBeInTheDocument();

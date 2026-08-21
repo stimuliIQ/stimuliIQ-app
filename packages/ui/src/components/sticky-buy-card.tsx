@@ -222,7 +222,7 @@ export function MobileBuyBar({
   return (
     <div
       data-testid={testId ?? "mobile-buy-bar"}
-      aria-label="Program enrollment — quick access"
+      aria-label="Program enrollment, quick access"
       className={cn(
         "fixed bottom-0 inset-x-0 z-30 border-t border-border bg-card/95 backdrop-blur-sm",
         "flex items-center justify-between gap-3 px-4 py-3 lg:hidden",

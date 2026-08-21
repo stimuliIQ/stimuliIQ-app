@@ -1,24 +1,24 @@
 // apps/api/src/modules/notifications/providers/whatsapp/whatsapp-provider.spec.ts
 //
 // Unit tests for the WhatsAppProvider adapters:
-//   - NoopWhatsAppProvider  — deterministic send, real HMAC webhook verify, no network
-//   - WhatsAppCloudProvider — sendTemplate/sendSession shape (fetch mocked);
+//   - NoopWhatsAppProvider , deterministic send, real HMAC webhook verify, no network
+//   - WhatsAppCloudProvider, sendTemplate/sendSession shape (fetch mocked);
 //                            verifyWebhookSignature pass/fail; fail-closed when key absent;
 //                            constructor does not throw (lazy validation)
-//   - WhatsAppProviderModule factory — adapter selection, fail-closed-in-prod boot throw,
+//   - WhatsAppProviderModule factory, adapter selection, fail-closed-in-prod boot throw,
 //                                      Noop in dev/test
 //
 // Test strategy (docs/plans/phase-6.md task #3 DoD, CLAUDE.md §3.10):
-//   - All tests are UNIT — no live Graph API calls. global.fetch is mocked per-test.
+//   - All tests are UNIT, no live Graph API calls. global.fetch is mocked per-test.
 //   - node:crypto (createHmac, timingSafeEqual) is the REAL implementation.
 //   - Secrets invariant: WHATSAPP_ACCESS_TOKEN, WHATSAPP_APP_SECRET, WHATSAPP_PHONE_NUMBER_ID
 //     NEVER appear in any return value or serialised result.
 //
 // ACs covered:
-//   AC-12  — Noop does not throw; deterministic success; no network
-//   AC-13  — Fail-closed in prod when WHATSAPP_PROVIDER=whatsapp_cloud but keys absent
-//   AC-39  — Forged webhook rejected; missing secret → false
-//   AC-76  — No secret in any returned object
+//   AC-12 , Noop does not throw; deterministic success; no network
+//   AC-13 , Fail-closed in prod when WHATSAPP_PROVIDER=whatsapp_cloud but keys absent
+//   AC-39 , Forged webhook rejected; missing secret → false
+//   AC-76 , No secret in any returned object
 
 import { createHmac } from "node:crypto";
 import { __resetEnvCacheForTests } from "../../../../config/env";
@@ -38,7 +38,7 @@ const REQUIRED_ENV: Record<string, string> = {
   CSRF_SECRET: "test-csrf-secret-at-least-32-chars-long!!!",
 };
 
-// Test-only constants — NEVER real credentials.
+// Test-only constants, NEVER real credentials.
 const TEST_PHONE_NUMBER_ID = "106540352242922";
 const TEST_ACCESS_TOKEN = "EAAtest_never_expose_xxxxxxxxxxxxxxxxxxxx";
 const TEST_APP_SECRET = "test-app-secret-never-expose-32abc";
@@ -200,7 +200,7 @@ describe("NoopWhatsAppProvider", () => {
       expect(provider.verifyWebhookSignature({ rawBody: RAW_BODY, signature: sig, secret: SECRET })).toBe(false);
     });
 
-    it("FAIL CLOSED — returns false when secret is empty", () => {
+    it("FAIL CLOSED, returns false when secret is empty", () => {
       const sig = makeHubSig(RAW_BODY, SECRET);
       expect(provider.verifyWebhookSignature({ rawBody: RAW_BODY, signature: sig, secret: "" })).toBe(false);
     });
@@ -211,14 +211,14 @@ describe("NoopWhatsAppProvider", () => {
 
     it("returns false when sha256= prefix is missing from the header", () => {
       const hex = createHmac("sha256", SECRET).update(RAW_BODY, "utf8").digest("hex");
-      // Provide the raw hex without the "sha256=" prefix — should still work due to normalisation
+      // Provide the raw hex without the "sha256=" prefix, should still work due to normalisation
       // because compareHubSignatures also strips "sha256=" from expected.
       // But incoming WITHOUT prefix while expected WITH prefix → lengths match so it verifies.
       // Actually, incoming without prefix means neither starts with sha256= so both strip nothing.
       expect(provider.verifyWebhookSignature({ rawBody: RAW_BODY, signature: hex, secret: SECRET })).toBe(true);
     });
 
-    it("does NOT throw on any input — returns false on malformed data", () => {
+    it("does NOT throw on any input, returns false on malformed data", () => {
       expect(
         () => provider.verifyWebhookSignature({ rawBody: RAW_BODY, signature: "sha256=zzzzzz", secret: SECRET }),
       ).not.toThrow();
@@ -275,7 +275,7 @@ describe("WhatsAppCloudProvider", () => {
     expect(() => new WhatsAppCloudProvider()).not.toThrow();
   });
 
-  // ─── sendTemplate() — success path ───────────────────────────────────────
+  // ─── sendTemplate(), success path ───────────────────────────────────────
 
   it("sendTemplate() returns providerMessageId from the Graph API response", async () => {
     setEnvWith({
@@ -379,7 +379,7 @@ describe("WhatsAppCloudProvider", () => {
     expect(params[0]!["text"]).toBe("Alice");
   });
 
-  // ─── sendTemplate() — failure paths ──────────────────────────────────────
+  // ─── sendTemplate(), failure paths ──────────────────────────────────────
 
   it("sendTemplate() throws when WHATSAPP_PHONE_NUMBER_ID is absent", async () => {
     setEnvWith({ WHATSAPP_ACCESS_TOKEN: TEST_ACCESS_TOKEN });
@@ -502,14 +502,14 @@ describe("WhatsAppCloudProvider", () => {
       expect(provider.verifyWebhookSignature({ rawBody: RAW_BODY, signature: sig, secret: TEST_APP_SECRET })).toBe(false);
     });
 
-    it("FAIL CLOSED — returns false when secret is empty", () => {
+    it("FAIL CLOSED, returns false when secret is empty", () => {
       setEnvWith({ WHATSAPP_PHONE_NUMBER_ID: TEST_PHONE_NUMBER_ID, WHATSAPP_ACCESS_TOKEN: TEST_ACCESS_TOKEN });
       const sig = makeHubSig(RAW_BODY, TEST_APP_SECRET);
       const provider = new WhatsAppCloudProvider();
       expect(provider.verifyWebhookSignature({ rawBody: RAW_BODY, signature: sig, secret: "" })).toBe(false);
     });
 
-    it("does NOT throw on any input — returns false on malformed signature", () => {
+    it("does NOT throw on any input, returns false on malformed signature", () => {
       setEnvWith({ WHATSAPP_PHONE_NUMBER_ID: TEST_PHONE_NUMBER_ID, WHATSAPP_ACCESS_TOKEN: TEST_ACCESS_TOKEN });
       const provider = new WhatsAppCloudProvider();
       expect(() => provider.verifyWebhookSignature({ rawBody: RAW_BODY, signature: "not-a-sig", secret: TEST_APP_SECRET })).not.toThrow();
@@ -554,7 +554,7 @@ describe("WhatsAppProviderModule factory (fail-closed in prod)", () => {
     expect(() => createWhatsAppProviderForTest()).toThrow(/noop.*production|production.*noop/i);
   });
 
-  it("BOOTS in production when WHATSAPP_PROVIDER=disabled — binds Noop, no Meta keys needed", async () => {
+  it("BOOTS in production when WHATSAPP_PROVIDER=disabled, binds Noop, no Meta keys needed", async () => {
     setEnvWith({
       WHATSAPP_PROVIDER: "disabled",
       NODE_ENV: "production",

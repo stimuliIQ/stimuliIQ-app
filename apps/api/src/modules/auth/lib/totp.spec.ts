@@ -1,7 +1,7 @@
 // apps/api/src/modules/auth/lib/totp.spec.ts
 //
 // Unit tests for the self-contained RFC 6238 TOTP implementation (T28,
-// docs/plans/phase-9-completion.md) — no third-party otplib dependency (see file
+// docs/plans/phase-9-completion.md), no third-party otplib dependency (see file
 // header). Verifies against RFC 6238 Appendix B's PUBLISHED TEST VECTORS to prove the
 // HMAC-SHA1/HOTP/TOTP math is correct, not just self-consistent.
 
@@ -10,12 +10,12 @@ import { generateTotpSecret, buildOtpauthUrl, generateTotpCode, verifyTotpCode }
 // RFC 6238 Appendix B's own test vectors are 8-digit (e.g. seed "12345678901234567890",
 // T=59s / counter=1 → "94287082"); this implementation is fixed at 6 digits (matches the
 // codebase's own `CODE_DIGITS` choice), so those exact vectors don't apply here. Below:
-// self-consistency checks (generate then verify) for the general TOTP behavior, PLUS —
-// in the "RFC 4226 Appendix D test vectors" block further down — the actual published
+// self-consistency checks (generate then verify) for the general TOTP behavior, PLUS,
+// in the "RFC 4226 Appendix D test vectors" block further down, the actual published
 // RFC 4226 HOTP test vectors (counters 0..9 against the same "12345678901234567890" ASCII
 // seed), which ARE 6-digit and directly assertable: this is the externally-verifiable
 // proof that the HMAC-SHA1 + dynamic-truncation math is correct, not just self-consistent.
-const KNOWN_SECRET = "JBSWY3DPEHPK3PXP"; // base32("Hello!\xde\xad\xbe\xef") — a stable, arbitrary fixture.
+const KNOWN_SECRET = "JBSWY3DPEHPK3PXP"; // base32("Hello!\xde\xad\xbe\xef"), a stable, arbitrary fixture.
 
 describe("totp.ts", () => {
   it("generateTotpSecret() returns a valid base32 string of the expected length", () => {
@@ -33,7 +33,9 @@ describe("totp.ts", () => {
     const url = buildOtpauthUrl(KNOWN_SECRET, "student@example.test");
     expect(url).toMatch(/^otpauth:\/\/totp\//);
     expect(url).toContain(`secret=${KNOWN_SECRET}`);
-    expect(url).toContain("issuer=stimuliIQ");
+    // URLSearchParams encodes the space in the brand name as "+", and the label is
+    // encodeURIComponent-ed. Asserting the RAW name here would pass a malformed URL.
+    expect(url).toContain("issuer=Stimuli+IQ");
   });
 
   it("a freshly generated code verifies successfully against the same secret", () => {
@@ -82,9 +84,9 @@ describe("totp.ts", () => {
   });
 
   // ───────────────────────────────────────────────────────────────────────────
-  // RFC 4226 Appendix D — the actual published HOTP test vector (previously only
+  // RFC 4226 Appendix D, the actual published HOTP test vector (previously only
   // claimed by this file's header comment, never asserted). Seed: the 20 ASCII bytes
-  // "12345678901234567890" used AS THE RAW HMAC KEY (not base32-decoded — RFC 4226's
+  // "12345678901234567890" used AS THE RAW HMAC KEY (not base32-decoded, RFC 4226's
   // own vector table works directly off the ASCII string). `hotp()` in totp.ts is not
   // exported, so the vectors are exercised through the public `generateTotpCode()`
   // (TOTP = HOTP at counter = floor(unixSeconds / 30)) by picking `at` = counter*30s,
@@ -121,7 +123,7 @@ describe("totp.ts", () => {
 });
 
 /** RFC 4648 §6 base32 encoder (same alphabet as totp.ts's own, duplicated here so the
- * RFC 4226 test vector — an ASCII seed — can be fed through the public `generateTotpCode`
+ * RFC 4226 test vector, an ASCII seed, can be fed through the public `generateTotpCode`
  * API, which only accepts base32 input). */
 function base32EncodeAscii(ascii: string): string {
   const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";

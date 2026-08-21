@@ -59,8 +59,8 @@ export function RefundList({ me }: RefundListProps): React.JSX.Element {
     { id: "amountPaise", header: "Amount", cell: (row) => formatPaise(row.amountPaise), align: "right" },
     { id: "reason", header: "Reason", cell: (row) => row.reason },
     { id: "status", header: "Status", cell: (row) => <RefundStatusChip status={row.status} /> },
-    { id: "requestedByName", header: "Requested by", cell: (row) => row.requestedByName ?? "—" },
-    { id: "approvedByName", header: "Approved by", cell: (row) => row.approvedByName ?? "—" },
+    { id: "requestedByName", header: "Requested by", cell: (row) => row.requestedByName ?? "-" },
+    { id: "approvedByName", header: "Approved by", cell: (row) => row.approvedByName ?? "-" },
     {
       id: "createdAt",
       header: "Requested",

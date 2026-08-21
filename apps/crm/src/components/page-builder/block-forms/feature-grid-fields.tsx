@@ -42,7 +42,7 @@ export function FeatureGridFields({ control, register, errors, watch, setValue }
         control={control}
         name="columns"
         render={({ field }) => (
-          <Select label="Columns (optional — variant-appropriate default if unset)" value={field.value ?? "__auto__"} onValueChange={(v) => field.onChange(v === "__auto__" ? undefined : v)} data-testid="feature-grid-columns">
+          <Select label="Columns (optional, variant-appropriate default if unset)" value={field.value ?? "__auto__"} onValueChange={(v) => field.onChange(v === "__auto__" ? undefined : v)} data-testid="feature-grid-columns">
             <SelectItem value="__auto__">Auto</SelectItem>
             <SelectItem value="2">2</SelectItem>
             <SelectItem value="3">3</SelectItem>
@@ -64,7 +64,7 @@ export function FeatureGridFields({ control, register, errors, watch, setValue }
 
       <div className="flex items-center justify-between">
         <p className="text-xs font-medium text-fg-muted">
-          Items ({fields.length}/12){variant === "split-media" ? " — exactly 4 required for split-media" : ""}
+          Items ({fields.length}/12){variant === "split-media" ? ". Exactly 4 required for split-media" : ""}
         </p>
         {fields.length < 12 ? (
           <Button type="button" variant="secondary" size="sm" onClick={() => append({ title: "", description: "" })} data-testid="feature-grid-item-add">

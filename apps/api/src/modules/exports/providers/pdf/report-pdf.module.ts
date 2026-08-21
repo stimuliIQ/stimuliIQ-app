@@ -21,13 +21,13 @@ function createReportPdfAdapter(): ReportPdfPort {
   const env = validateEnv();
 
   if (env.NODE_ENV === "test") {
-    bootLogger.warn("[ReportPdfModule] NODE_ENV=test — binding NoopReportPdfAdapter (stub bytes, no real PDF).");
+    bootLogger.warn("[ReportPdfModule] NODE_ENV=test. Binding NoopReportPdfAdapter (stub bytes, no real PDF).");
     return new NoopReportPdfAdapter();
   }
 
   if (env.QUEUE_DRIVER === "bullmq") {
     bootLogger.log(
-      "[ReportPdfModule] QUEUE_DRIVER=bullmq — binding BullMqReportPdfAdapter (renders in worker process).",
+      "[ReportPdfModule] QUEUE_DRIVER=bullmq. Binding BullMqReportPdfAdapter (renders in worker process).",
     );
     return new BullMqReportPdfAdapter();
   }

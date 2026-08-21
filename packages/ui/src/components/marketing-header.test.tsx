@@ -33,7 +33,7 @@ const logo = <img src="/logo.svg" alt="StimuliiQ" />;
 // Rendering
 // ---------------------------------------------------------------------------
 
-describe("MarketingHeader — rendering", () => {
+describe("MarketingHeader, rendering", () => {
   it("renders with default data-testid='marketing-header'", () => {
     render(
       <MarketingHeader
@@ -90,10 +90,10 @@ describe("MarketingHeader — rendering", () => {
 });
 
 // ---------------------------------------------------------------------------
-// a11y — semantic structure
+// a11y, semantic structure
 // ---------------------------------------------------------------------------
 
-describe("MarketingHeader — a11y", () => {
+describe("MarketingHeader, a11y", () => {
   it("renders inside a <header> element", () => {
     const { container } = render(
       <MarketingHeader logo={logo} navItems={navItems} bookSlotHref="/book" />,
@@ -122,7 +122,7 @@ describe("MarketingHeader — a11y", () => {
 // Mega-menu keyboard: open / close / Escape
 // ---------------------------------------------------------------------------
 
-describe("MarketingHeader — mega-menu keyboard", () => {
+describe("MarketingHeader, mega-menu keyboard", () => {
   it("opens mega-menu on click and shows aria-expanded=true", async () => {
     const user = userEvent.setup();
     render(
@@ -173,7 +173,7 @@ describe("MarketingHeader — mega-menu keyboard", () => {
 // Mobile menu
 // ---------------------------------------------------------------------------
 
-describe("MarketingHeader — mobile menu", () => {
+describe("MarketingHeader, mobile menu", () => {
   it("opens mobile menu on hamburger click", async () => {
     const user = userEvent.setup();
     render(
@@ -217,7 +217,7 @@ describe("MarketingHeader — mobile menu", () => {
 // Book slot callback
 // ---------------------------------------------------------------------------
 
-describe("MarketingHeader — onBookSlotClick", () => {
+describe("MarketingHeader, onBookSlotClick", () => {
   it("calls onBookSlotClick when the desktop CTA is clicked", async () => {
     const user = userEvent.setup();
     const onBookSlotClick = vi.fn();
@@ -242,7 +242,7 @@ describe("MarketingHeader — onBookSlotClick", () => {
 /**
  * Force `matchMedia("(hover: hover) and (pointer: fine)")` to a known answer for one
  * test. The shared setup stubs matchMedia to always report `matches: false`, which is
- * the touch-device branch — so hover tests must opt in explicitly.
+ * the touch-device branch, so hover tests must opt in explicitly.
  */
 function setHoverCapable(hoverCapable: boolean): () => void {
   const original = window.matchMedia;
@@ -265,7 +265,7 @@ function setHoverCapable(hoverCapable: boolean): () => void {
   };
 }
 
-describe("MarketingHeader — mega-menu hover", () => {
+describe("MarketingHeader, mega-menu hover", () => {
   it("opens the mega-menu on hover when the device supports hover", async () => {
     const restore = setHoverCapable(true);
     try {
@@ -300,7 +300,7 @@ describe("MarketingHeader — mega-menu hover", () => {
     }
   });
 
-  it("does NOT open on hover for touch devices — click still toggles it open", async () => {
+  it("does NOT open on hover for touch devices, click still toggles it open", async () => {
     const restore = setHoverCapable(false);
     try {
       const user = userEvent.setup();
@@ -324,7 +324,7 @@ describe("MarketingHeader — mega-menu hover", () => {
 // Active state
 // ---------------------------------------------------------------------------
 
-describe("MarketingHeader — active nav state", () => {
+describe("MarketingHeader, active nav state", () => {
   it("marks the plain link whose path is current with aria-current='page'", () => {
     render(
       <MarketingHeader
@@ -384,7 +384,7 @@ describe("MarketingHeader — active nav state", () => {
         activePath="/programs"
       />,
     );
-    // "/programs" is the catalog index — the panel only lists /programs/[slug] pages,
+    // "/programs" is the catalog index, the panel only lists /programs/[slug] pages,
     // so without activeMatch this trigger would stay unlit.
     expect(screen.getByRole("button", { name: /programs/i })).toHaveAttribute(
       "aria-current",
@@ -449,13 +449,13 @@ const badgedNavItems: NavItem[] = [
   },
 ];
 
-describe("MarketingHeader — mega-menu badges", () => {
+describe("MarketingHeader, mega-menu badges", () => {
   it("renders the badge chip on a desktop row that carries one", async () => {
     const user = userEvent.setup();
     render(<MarketingHeader logo={logo} navItems={badgedNavItems} bookSlotHref="/book" />);
     await user.click(screen.getByRole("button", { name: /courses/i }));
 
-    // The chip lives INSIDE the row's link, so the accessible name carries it — this is
+    // The chip lives INSIDE the row's link, so the accessible name carries it, this is
     // what proves it renders next to the right program rather than as a stray node.
     expect(
       screen.getByRole("link", { name: /clinical research\s+new/i }),
@@ -477,7 +477,7 @@ describe("MarketingHeader — mega-menu badges", () => {
     await user.click(screen.getByRole("button", { name: /courses/i }));
 
     expect(screen.getByRole("link", { name: "Neurology Workshop" })).toBeInTheDocument();
-    // Exactly one chip in the panel — a missing badge must not fall back to a placeholder.
+    // Exactly one chip in the panel, a missing badge must not fall back to a placeholder.
     expect(screen.getAllByText("New")).toHaveLength(1);
   });
 

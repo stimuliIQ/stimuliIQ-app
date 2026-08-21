@@ -157,7 +157,7 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
     if (!lead) return;
     try {
       await deleteLead.mutateAsync(lead.id);
-      toast({ title: "Lead deleted", description: "This was a soft delete — restorable from Audit Logs.", variant: "success" });
+      toast({ title: "Lead deleted", description: "This was a soft delete, restorable from Audit Logs.", variant: "success" });
       setDeleteConfirmOpen(false);
       onOpenChange(false);
     } catch (error) {
@@ -258,7 +258,7 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
                               {lead.email}
                             </a>
                           ) : (
-                            "—"
+                            "-"
                           )}
                         </dd>
                       </div>
@@ -279,27 +279,27 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
                       </div>
                       <div>
                         <dt className="text-fg-muted">Score</dt>
-                        <dd className="mt-1 text-fg">{lead.score ?? "—"}</dd>
+                        <dd className="mt-1 text-fg">{lead.score ?? "-"}</dd>
                       </div>
                       <div>
                         <dt className="text-fg-muted">Program interest</dt>
-                        <dd className="mt-1 text-fg">{lead.programInterestTitle ?? "—"}</dd>
+                        <dd className="mt-1 text-fg">{lead.programInterestTitle ?? "-"}</dd>
                       </div>
                       <div>
                         <dt className="text-fg-muted">Course (typed)</dt>
-                        <dd className="mt-1 text-fg">{lead.courseInterest ?? "—"}</dd>
+                        <dd className="mt-1 text-fg">{lead.courseInterest ?? "-"}</dd>
                       </div>
                       <div>
                         <dt className="text-fg-muted">College / University</dt>
-                        <dd className="mt-1 text-fg">{lead.college ?? "—"}</dd>
+                        <dd className="mt-1 text-fg">{lead.college ?? "-"}</dd>
                       </div>
                       <div>
                         <dt className="text-fg-muted">Preferred language</dt>
-                        <dd className="mt-1 text-fg">{lead.language ?? "—"}</dd>
+                        <dd className="mt-1 text-fg">{lead.language ?? "-"}</dd>
                       </div>
                       <div>
                         <dt className="text-fg-muted">Branch</dt>
-                        <dd className="mt-1 text-fg">{lead.branchName ?? "—"}</dd>
+                        <dd className="mt-1 text-fg">{lead.branchName ?? "-"}</dd>
                       </div>
                       <div>
                         <dt className="text-fg-muted">Source</dt>
@@ -307,7 +307,7 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
                       </div>
                       <div>
                         <dt className="text-fg-muted">SLA due</dt>
-                        <dd className="mt-1 text-fg">{lead.slaDueAt ? new Date(lead.slaDueAt).toLocaleString() : "—"}</dd>
+                        <dd className="mt-1 text-fg">{lead.slaDueAt ? new Date(lead.slaDueAt).toLocaleString() : "-"}</dd>
                       </div>
                       {lead.message ? (
                         <div className="col-span-2">
@@ -319,7 +319,7 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
                         <div className="col-span-2">
                           <dt className="text-fg-muted">UTM</dt>
                           <dd className="mt-1 text-fg">
-                            {[lead.utm.source, lead.utm.medium, lead.utm.campaign].filter(Boolean).join(" / ") || "—"}
+                            {[lead.utm.source, lead.utm.medium, lead.utm.campaign].filter(Boolean).join(" / ") || "-"}
                           </dd>
                         </div>
                       ) : null}
@@ -422,8 +422,8 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
                         {ownerId === lead.ownerId ? (
                           <p className="text-xs text-fg-muted" data-testid="lead-detail-owner-unchanged-hint">
                             {ownerId
-                              ? "This is already the owner — pick someone else to change it."
-                              : "This lead has no owner yet — pick someone to assign it."}
+                              ? "This is already the owner. Pick someone else to change it."
+                              : "This lead has no owner yet. Pick someone to assign it."}
                           </p>
                         ) : (
                           <Textarea

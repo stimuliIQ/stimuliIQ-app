@@ -486,7 +486,7 @@ export class CampaignsService {
     if (!recipient) {
       this.logger.warn(
         `[Campaigns] webhook: no campaign recipient for providerMessageId="${dto.providerMessageId}" ` +
-          `event="${dto.event}"${dto.errorDetail ? ` detail="${dto.errorDetail}"` : ""} — ` +
+          `event="${dto.event}"${dto.errorDetail ? ` detail="${dto.errorDetail}"` : ""}, ` +
           "discarding (expected for transactional mail).",
       );
       return;
@@ -498,7 +498,7 @@ export class CampaignsService {
     // AC-38: idempotent — if already in a more-advanced or equal state, skip update.
     if (!isStatusAdvance(recipient.status, newStatus)) {
       this.logger.debug(
-        `[Campaigns] webhook: recipient=${recipient.id} already at status="${recipient.status}" — ` +
+        `[Campaigns] webhook: recipient=${recipient.id} already at status="${recipient.status}" - ` +
           `event="${dto.event}" → no-op (idempotent).`,
       );
       return;
@@ -674,7 +674,7 @@ export class CampaignsService {
       if (stillQueued > 0) {
         this.logger.log(
           `[Campaigns] batch cap reached for campaign=${campaignId}: dispatched=${dispatched} ` +
-            `of this batch (cap=${batchSize}); ${stillQueued} recipient(s) still queued — ` +
+            `of this batch (cap=${batchSize}); ${stillQueued} recipient(s) still queued, ` +
             "call POST /campaigns/:id/send again to continue.",
         );
       }
@@ -811,7 +811,7 @@ export class CampaignsService {
       });
       if (!inserted) {
         this.logger.debug(
-          `[Campaigns] suppression already active for recipient=${recipient.id} — no-op (idempotent, AC-60).`,
+          `[Campaigns] suppression already active for recipient=${recipient.id}, no-op (idempotent, AC-60).`,
         );
       }
     } catch (err) {

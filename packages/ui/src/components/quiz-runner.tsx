@@ -438,7 +438,7 @@ export function QuizRunner({
             data-testid="quiz-runner-expired"
           >
             <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
-            Time is up — your answers have been submitted.
+            Time is up. Your answers have been submitted.
           </div>
         ) : null}
       </div>
@@ -571,7 +571,7 @@ export function QuizRunner({
             data-testid="quiz-runner-submit-hint"
           >
             <span>
-              Answer all questions to submit — {unansweredCount} left.
+              Answer all questions to submit, {unansweredCount} left.
             </span>
             <button
               type="button"

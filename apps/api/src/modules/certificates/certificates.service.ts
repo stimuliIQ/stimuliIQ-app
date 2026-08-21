@@ -476,7 +476,7 @@ export class CertificatesService {
       if (existing.status === "revoked") {
         throw new ConflictException({
           code: "CERTIFICATE_REVOKED_REISSUE",
-          title: "Certificate is revoked — use reissue endpoint",
+          title: "Certificate is revoked, use reissue endpoint",
           detail: "A revoked certificate exists for this enrollment. Use POST /certificates/:enrollmentId/reissue.",
         });
       }
@@ -597,7 +597,7 @@ export class CertificatesService {
       action: actorId === null ? "certificate.auto_issue" : "certificate.issue",
       before: null,
       after: {
-        certUid: "[REDACTED — stored in DB]",
+        certUid: "[REDACTED, stored in DB]",
         enrollmentId: enrollment.id,
         issuedAt: issuedAt.toISOString(),
         overrideEligibility: params.overrideEligibility ?? false,
@@ -696,7 +696,7 @@ export class CertificatesService {
     if (!defaultTemplate) {
       this.logger.warn(
         `[CertificatesService] autoIssueOnCompletion: no active certificate template for ` +
-          `tenantId=${tenantId} — cannot auto-issue for enrollmentId=${enrollmentId}.`,
+          `tenantId=${tenantId}, cannot auto-issue for enrollmentId=${enrollmentId}.`,
       );
       return { issued: false, reason: "no_template" };
     }
@@ -1290,7 +1290,7 @@ export class CertificatesService {
       // certificate that is already earned and independently verifiable. The download path
       // regenerates and re-stores on demand. certUid is never logged (security contract).
       this.logger.warn(
-        `[CertificatesService] StorageProvider write failed — certificate issued without a ` +
+        `[CertificatesService] StorageProvider write failed, certificate issued without a ` +
           `stored PDF; it will be generated on first download. error=${String(storageErr)}`,
       );
       return null;

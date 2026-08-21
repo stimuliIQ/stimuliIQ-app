@@ -12,8 +12,8 @@ function mockResponse(): Response {
 }
 
 describe("HealthController", () => {
-  describe("GET /health (liveness) — AC-41", () => {
-    it("returns ONLY {status:'ok'} — no extra fields (Rule H-3 leak-safety)", () => {
+  describe("GET /health (liveness), AC-41", () => {
+    it("returns ONLY {status:'ok'}, no extra fields (Rule H-3 leak-safety)", () => {
       const controller = buildController({ liveness: () => ({ status: "ok" }) });
 
       const result = controller.liveness();
@@ -23,7 +23,7 @@ describe("HealthController", () => {
     });
   });
 
-  describe("GET /health/ready (readiness) — AC-42", () => {
+  describe("GET /health/ready (readiness), AC-42", () => {
     it("returns HTTP 200 + status ok when DB and Redis are both healthy", async () => {
       const controller = buildController({
         readiness: async () => ({ healthy: true, body: { status: "ok", db: "ok", redis: "ok" } }),

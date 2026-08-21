@@ -1,4 +1,4 @@
-// Unit tests for CompanyProfileService — resolves company-scope settings into a profile
+// Unit tests for CompanyProfileService, resolves company-scope settings into a profile
 // with defaults, and reads via SettingsRepository (no request scope), so it works in the
 // worker/invoice-gen context.
 

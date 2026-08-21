@@ -4,7 +4,7 @@
 // content/content.permission-catalog.spec.ts exactly): every `@RequirePermission("x")`
 // declared by this module's controllers MUST both (a) exist in the seed permission
 // catalog and (b) be granted to at least one non-admin role. `certificates-verify.
-// controller.ts` (public verify) is excluded — no guards, public endpoint.
+// controller.ts` (public verify) is excluded, no guards, public endpoint.
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -64,7 +64,7 @@ describe("Certificates module controllers permission catalog (regression: P6 for
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("Certificates module permission catalog — live seeded DB", () => {
+describeIfDb("Certificates module permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {

@@ -62,11 +62,11 @@ export function PaymentLedger({ me }: PaymentLedgerProps): React.JSX.Element {
     {
       id: "providerPaymentId",
       header: "Provider payment id",
-      cell: (row) => row.providerPaymentId ?? "—",
+      cell: (row) => row.providerPaymentId ?? "-",
     },
     { id: "amountPaise", header: "Amount", cell: (row) => formatPaise(row.amountPaise), align: "right" },
     { id: "status", header: "Status", cell: (row) => <PaymentStatusChip status={row.status} /> },
-    { id: "method", header: "Method", cell: (row) => row.method ?? "—" },
+    { id: "method", header: "Method", cell: (row) => row.method ?? "-" },
     {
       id: "isManual",
       header: "Manual",
@@ -80,7 +80,7 @@ export function PaymentLedger({ me }: PaymentLedgerProps): React.JSX.Element {
     {
       id: "paidAt",
       header: "Paid at",
-      cell: (row) => (row.paidAt ? new Date(row.paidAt).toLocaleString() : "—"),
+      cell: (row) => (row.paidAt ? new Date(row.paidAt).toLocaleString() : "-"),
       align: "right",
     },
   ];
@@ -104,7 +104,7 @@ export function PaymentLedger({ me }: PaymentLedgerProps): React.JSX.Element {
     <div className="space-y-4 md:space-y-5" data-testid="payments-ledger">
       <PageHeader
         title="Payments"
-        description="The authoritative payment ledger — Razorpay-captured and manually recorded payments."
+        description="The authoritative payment ledger. Razorpay-captured and manually recorded payments."
         actions={
           permissions.canCreate ? (
             <Button onClick={() => setManualOpen(true)} data-testid="payments-manual-entry-button">

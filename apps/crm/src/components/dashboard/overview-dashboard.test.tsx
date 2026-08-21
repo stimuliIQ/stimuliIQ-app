@@ -1,7 +1,7 @@
 // Component + a11y tests for OverviewDashboard (R12, docs/plans/phase-9-completion.md
-// T41 — crm test infrastructure). Data hooks are mocked directly. Covers the
+// T41, crm test infrastructure). Data hooks are mocked directly. Covers the
 // HEADLINE requirement (per this component's own file header): "RBAC-aware: every
-// section/query only renders if `me.permissions` already includes the matching key" —
+// section/query only renders if `me.permissions` already includes the matching key",
 // a role with NO matching permissions sees the empty state, never a query/card for a
 // permission it doesn't hold; a role WITH a subset of permissions sees exactly that
 // subset of cards, not the rest.
@@ -60,7 +60,7 @@ beforeEach(() => {
   useTicketsListMock.mockReturnValue({ data: { items: [] }, isLoading: false, isError: false });
 });
 
-describe("OverviewDashboard — RBAC-aware rendering", () => {
+describe("OverviewDashboard, RBAC-aware rendering", () => {
   it("a role with NO matching permissions sees the empty state, no KPI cards, no queries fired", () => {
     render(<OverviewDashboard me={meWithPermissions([])} />);
     expect(screen.getByTestId("overview-dashboard-empty")).toBeInTheDocument();
@@ -108,7 +108,7 @@ describe("OverviewDashboard — RBAC-aware rendering", () => {
   });
 });
 
-describe("OverviewDashboard — a11y", () => {
+describe("OverviewDashboard, a11y", () => {
   it("has no detectable a11y violations for a full-access admin", async () => {
     const { container } = render(
       <OverviewDashboard

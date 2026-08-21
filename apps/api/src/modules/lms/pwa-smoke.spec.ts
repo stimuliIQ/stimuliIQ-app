@@ -1,6 +1,6 @@
 // apps/api/src/modules/lms/pwa-smoke.spec.ts
 //
-// Phase-3 Wave-6 QA: PWA smoke tests (unit — light).
+// Phase-3 Wave-6 QA: PWA smoke tests (unit, light).
 //
 // These tests verify two LMS PWA artefacts at the file-content level:
 //   1. apps/lms/src/app/manifest.ts → Next.js MetadataRoute.Manifest shape
@@ -11,7 +11,7 @@
 // WHY HERE (apps/api unit suite) rather than apps/lms?
 //   The lms app has no test runner configured yet (package.json "test" is a
 //   placeholder echo). The manifest.ts and sw.js are authored artefacts that can
-//   be verified without a browser — reading the compiled manifest function output
+//   be verified without a browser, reading the compiled manifest function output
 //   (Node.js fs) and sw.js source text. Running them here avoids adding a new
 //   jest/vitest install to apps/lms (CLAUDE.md: do NOT install new dependencies).
 //
@@ -25,16 +25,16 @@
 import * as path from "node:path";
 import * as fs from "node:fs";
 
-// Absolute paths — independent of cwd.
+// Absolute paths, independent of cwd.
 const LMS_ROOT = path.resolve(__dirname, "../../../../lms");
 const MANIFEST_TS = path.join(LMS_ROOT, "src/app/manifest.ts");
 const SW_JS = path.join(LMS_ROOT, "public/sw.js");
 
 // ─── AC-5: manifest.ts ────────────────────────────────────────────────────────
 
-describe("AC-5a/b/c: apps/lms/src/app/manifest.ts — PWA manifest shape", () => {
+describe("AC-5a/b/c: apps/lms/src/app/manifest.ts, PWA manifest shape", () => {
   // We require the manifest module via ts-jest (it's compiled inline).
-  // `import type { MetadataRoute }` is a type-only import — safe at runtime,
+  // `import type { MetadataRoute }` is a type-only import, safe at runtime,
   // ts-jest strips it.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const manifestModule = require(MANIFEST_TS) as {
@@ -87,7 +87,7 @@ describe("AC-5a/b/c: apps/lms/src/app/manifest.ts — PWA manifest shape", () =>
 
 // ─── AC-5d/e: sw.js security invariants ──────────────────────────────────────
 
-describe("AC-5d/e: apps/lms/public/sw.js — service worker security guards", () => {
+describe("AC-5d/e: apps/lms/public/sw.js, service worker security guards", () => {
   let swSource: string;
 
   beforeAll(() => {

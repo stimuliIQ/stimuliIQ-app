@@ -78,7 +78,7 @@ export async function hitRedisWindow(
     };
   } catch (err) {
     logger?.error(
-      `[RedisWindowRateLimiter] Redis error for key "${key}" — failing ${
+      `[RedisWindowRateLimiter] Redis error for key "${key}", failing ${
         options.failClosed ? "CLOSED (rate-limited)" : "OPEN (allowed through)"
       }: ${String(err)}`,
     );

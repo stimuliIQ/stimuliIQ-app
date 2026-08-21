@@ -1,6 +1,6 @@
 // apps/api/src/modules/enrollments/enrollments.service.spec.ts
 //
-// Unit tests for EnrollmentsService — scope allow/deny, capacity checks, and the critical
+// Unit tests for EnrollmentsService, scope allow/deny, capacity checks, and the critical
 // re-enrollment hard-restore contract (a student withdrawn (soft-deleted) from a batch and
 // re-enrolled into the SAME batch must restore the existing row, never insert a second
 // one, since `enrollments` has a FULL-COLUMN unique on (studentId, batchId)).
@@ -87,7 +87,7 @@ describe("EnrollmentsService", () => {
     repo.hasPaidOrderForProgram.mockResolvedValue(true);
   });
 
-  describe("scope resolution — list", () => {
+  describe("scope resolution, list", () => {
     it("allows scope=all with no extra restriction", async () => {
       repo.list.mockResolvedValue({ rows: [ROW], total: 1 });
 
@@ -167,7 +167,7 @@ describe("EnrollmentsService", () => {
 
   // CLOSED-BATCH gate: the CRM's pickers already hide finished batches, but the rule has
   // to hold server-side or a direct API call still lands a student in a finished cohort.
-  describe("enroll — closed/expired batch gate", () => {
+  describe("enroll, closed/expired batch gate", () => {
     beforeEach(() => {
       repo.studentExists.mockResolvedValue(true);
       repo.countActiveEnrollments.mockResolvedValue(0);
@@ -217,7 +217,7 @@ describe("EnrollmentsService", () => {
       await expect(enroll()).resolves.toBeDefined();
     });
 
-    it("allows a PLANNED batch — not yet started is not the same as closed", async () => {
+    it("allows a PLANNED batch, not yet started is not the same as closed", async () => {
       repo.findBatchForEnrollment.mockResolvedValue({ ...BATCH, status: "planned", endDate: null });
       repo.enrollOrRestore.mockResolvedValue({ id: "enrollment-1", restored: false });
       repo.findById.mockResolvedValue(ROW);
@@ -226,7 +226,7 @@ describe("EnrollmentsService", () => {
     });
   });
 
-  describe("enroll — capacity + scope validation", () => {
+  describe("enroll, capacity + scope validation", () => {
     it("rejects enrolling into a full batch", async () => {
       repo.studentExists.mockResolvedValue(true);
       repo.findBatchForEnrollment.mockResolvedValue(BATCH);
@@ -242,7 +242,7 @@ describe("EnrollmentsService", () => {
 
     // ENTITLEMENT gate: a student may only be placed into a batch whose PROGRAM they have a
     // paid order for. Without one, enroll() must 409 (enrollments.payment_required) and never
-    // write — this is the server-side enforcement of "always require a paid order", closing
+    // write, this is the server-side enforcement of "always require a paid order", closing
     // the manual roster path's payment-bypass hole.
     it("rejects enrolling a student with no paid order for the batch's program", async () => {
       repo.studentExists.mockResolvedValue(true);
@@ -265,8 +265,8 @@ describe("EnrollmentsService", () => {
       repo.findBatchForEnrollment.mockResolvedValue(BATCH); // capacity 30
       repo.countActiveEnrollments.mockResolvedValue(30); // full
       repo.listSiblingBatchesWithLoad.mockResolvedValue([
-        { id: "batch-2", capacity: 30, load: 30 }, // also full — skipped
-        { id: "batch-3", capacity: 30, load: 12 }, // has room — chosen
+        { id: "batch-2", capacity: 30, load: 30 }, // also full, skipped
+        { id: "batch-3", capacity: 30, load: 12 }, // has room, chosen
       ]);
       repo.enrollOrRestore.mockResolvedValue({ id: "enrollment-spill", restored: false });
       repo.findById.mockResolvedValue({ ...ROW, id: "enrollment-spill", batchId: "batch-3" });
@@ -372,7 +372,7 @@ describe("EnrollmentsService", () => {
     });
 
     // CRITICAL: re-enrollment hard-restore contract. `enrollments` has a FULL-COLUMN
-    // unique on (studentId, batchId) — re-enrolling a student previously withdrawn
+    // unique on (studentId, batchId), re-enrolling a student previously withdrawn
     // (soft-deleted) from the SAME batch MUST hard-restore that existing row, never
     // attempt a second insert (which would violate the unique constraint at the DB
     // level). The service delegates this decision entirely to the repository's
@@ -413,7 +413,7 @@ describe("EnrollmentsService", () => {
     });
   });
 
-  describe("move — re-enrollment collision on the target batch", () => {
+  describe("move, re-enrollment collision on the target batch", () => {
     const TARGET_BATCH = { id: "batch-2", programId: "program-1", branchId: "branch-hyderabad", facultyId: "faculty-1", capacity: 30 };
 
     it("hard-restores a previously soft-deleted row for the target batch instead of inserting a second row", async () => {
@@ -443,7 +443,7 @@ describe("EnrollmentsService", () => {
     });
 
     // ENTITLEMENT gate on cross-program moves: moving a student into a batch of a DIFFERENT
-    // program changes their program, so it needs a paid order for that new program — else
+    // program changes their program, so it needs a paid order for that new program, else
     // move() is a back door around the enroll() payment guard. (Same-program moves, tested
     // above, never hit this check.)
     it("rejects moving into a batch of a DIFFERENT program with no paid order for that program", async () => {

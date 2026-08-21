@@ -34,7 +34,7 @@ export type CreatePaymentLinkResponse = z.infer<typeof CreatePaymentLinkResponse
  */
 export const SendPaymentLinksRequestSchema = z
   .object({
-    orderIds: z.array(UuidSchema).min(1).max(10).describe("Open orders to include — all for the same student."),
+    orderIds: z.array(UuidSchema).min(1).max(10).describe("Open orders to include. All for the same student."),
   })
   .strict();
 export type SendPaymentLinksRequest = z.infer<typeof SendPaymentLinksRequestSchema>;
@@ -58,7 +58,7 @@ export const PublicPayLinkOrderSchema = z.object({
   batchName: z.string(),
   amountPaise: z.number().int().min(0),
   currency: z.string().length(3),
-  status: OrderStatusSchema.describe("Live order status — 'created' is the only payable state."),
+  status: OrderStatusSchema.describe("Live order status, 'created' is the only payable state."),
   expiresAt: IsoDateTimeSchema.describe("Link expiry (from the signed token)."),
 });
 export type PublicPayLinkOrder = z.infer<typeof PublicPayLinkOrderSchema>;

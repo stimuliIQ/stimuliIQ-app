@@ -114,7 +114,7 @@ function createPaymentProvider(): PaymentProvider {
   // online payments yet; set PAYMENT_PROVIDER=razorpay with live keys to enable checkout.
   if (env.PAYMENT_PROVIDER === "disabled") {
     bootLogger.log(
-      "[PaymentProviderModule] PAYMENT_PROVIDER=disabled — online payments are off. " +
+      "[PaymentProviderModule] PAYMENT_PROVIDER=disabled, online payments are off. " +
         "Binding NoopPaymentProvider (checkout/enroll funnel inert; enrol via the CRM).",
     );
     return new NoopPaymentProvider();
@@ -131,7 +131,7 @@ function createPaymentProvider(): PaymentProvider {
       throw new Error(
         `[PaymentProviderModule] The following required Razorpay environment variables are ` +
           `not set: ${missing.join(", ")}. Checkout would fail, and without ` +
-          `RAZORPAY_WEBHOOK_SECRET the webhook endpoint rejects every request — no payment ` +
+          `RAZORPAY_WEBHOOK_SECRET the webhook endpoint rejects every request, no payment ` +
           `would ever become an enrollment. ` +
           `The application will NOT start without them in production.`,
       );

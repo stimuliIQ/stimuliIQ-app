@@ -290,7 +290,7 @@ export function validatePageBodyAgainstTemplate(slug: string, body: unknown): Te
       errors.push({
         code: "extra_section",
         index: i,
-        message: `Section at index ${i} (type "${String(item?.type)}") is not part of the "${slug}" template — sections cannot be added.`,
+        message: `Section at index ${i} (type "${String(item?.type)}") is not part of the "${slug}" template, sections cannot be added.`,
       });
       continue;
     }
@@ -300,7 +300,7 @@ export function validatePageBodyAgainstTemplate(slug: string, body: unknown): Te
         code: "missing_section",
         index: i,
         key: section.key,
-        message: `Section "${section.key}" (${section.blockType}) is missing at index ${i} — every locked template section is required and cannot be removed.`,
+        message: `Section "${section.key}" (${section.blockType}) is missing at index ${i}. Every locked template section is required and cannot be removed.`,
       });
       continue;
     }
@@ -310,7 +310,7 @@ export function validatePageBodyAgainstTemplate(slug: string, body: unknown): Te
         code: "wrong_block_type",
         index: i,
         key: section.key,
-        message: `Section "${section.key}" at index ${i} must be of type "${section.blockType}" (received "${String(item.type)}") — sections cannot be added, removed, or reordered.`,
+        message: `Section "${section.key}" at index ${i} must be of type "${section.blockType}" (received "${String(item.type)}"). Sections cannot be added, removed, or reordered.`,
       });
       continue;
     }
@@ -345,7 +345,7 @@ export function validatePageBodyAgainstTemplate(slug: string, body: unknown): Te
       errors: [
         {
           code: "invalid_section_data",
-          message: "Internal: the reconstructed body failed the page-builder block registry — check page-templates.schemas.ts.",
+          message: "Internal: the reconstructed body failed the page-builder block registry, check page-templates.schemas.ts.",
           issues: finalParse.error.issues,
         },
       ],
@@ -433,7 +433,7 @@ export function defaultBodyForSlug(slug: CoreTemplateSlug): PageBuilderBlock[] {
   const result = validatePageBodyAgainstTemplate(slug, body);
   if (!result.success) {
     // Indicates a bug in this file's default-data generator, not caller input.
-    throw new Error(`defaultBodyForSlug(${slug}): generated defaults failed validation — ${JSON.stringify(result.errors)}`);
+    throw new Error(`defaultBodyForSlug(${slug}): generated defaults failed validation · ${JSON.stringify(result.errors)}`);
   }
   return result.data;
 }

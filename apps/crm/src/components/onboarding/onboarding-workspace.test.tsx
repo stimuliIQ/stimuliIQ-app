@@ -91,7 +91,7 @@ const SUBMISSION: OnboardingSubmissionSummary = {
   programTitle: "Clinical Neurology Fellowship",
   programPricePaise: 2_500_000,
   programCurrency: "INR",
-  status: "hold", // the arrival state — see migration `onboarding_default_hold`.
+  status: "hold", // the arrival state, see migration `onboarding_default_hold`.
   studentProfileId: null,
   hasAttachment: true,
   reviewedAt: null,
@@ -188,7 +188,7 @@ async function openDrawer() {
   return user;
 }
 
-describe("OnboardingWorkspace — submissions list", () => {
+describe("OnboardingWorkspace, submissions list", () => {
   it("renders a submission with its identity columns and program", () => {
     renderWorkspace();
     expect(screen.getByTestId("onboarding-submissions-table")).toBeInTheDocument();
@@ -209,7 +209,7 @@ describe("OnboardingWorkspace — submissions list", () => {
   });
 });
 
-describe("OnboardingWorkspace — RBAC gating", () => {
+describe("OnboardingWorkspace, RBAC gating", () => {
   it("shows the Form fields tab to a user holding onboarding.fields.manage", () => {
     renderWorkspace(FULL_ACCESS_ME);
     expect(screen.getByRole("tab", { name: "Form fields" })).toBeInTheDocument();
@@ -226,7 +226,7 @@ describe("OnboardingWorkspace — RBAC gating", () => {
   });
 });
 
-describe("OnboardingWorkspace — form fields tab", () => {
+describe("OnboardingWorkspace, form fields tab", () => {
   it("lists the questions with their key and type, and offers Add question", async () => {
     const { default: userEvent } = await import("@testing-library/user-event");
     const user = userEvent.setup();
@@ -256,7 +256,7 @@ describe("OnboardingWorkspace — form fields tab", () => {
 
 // The point of this screen: a submission sits on hold until someone accepts or rejects it,
 // and each verb states its consequences before it fires.
-describe("OnboardingWorkspace — accept / reject", () => {
+describe("OnboardingWorkspace, accept / reject", () => {
   it("offers the two decisions and no status picker", async () => {
     await openDrawer();
 
@@ -340,7 +340,7 @@ describe("OnboardingWorkspace — accept / reject", () => {
     expect(screen.queryByTestId("onboarding-accept-record-payment")).not.toBeInTheDocument();
   });
 
-  // Rejecting emails the student, so it confirms — and says what the student will NOT see,
+  // Rejecting emails the student, so it confirms, and says what the student will NOT see,
   // which is the thing a reviewer is most likely to assume wrongly.
   it("confirms a rejection, naming the recipient and excluding the internal notes", async () => {
     const rejectMock = vi.fn().mockResolvedValue(undefined);
@@ -390,7 +390,7 @@ describe("OnboardingWorkspace — accept / reject", () => {
   });
 });
 
-describe("OnboardingWorkspace — a11y", () => {
+describe("OnboardingWorkspace, a11y", () => {
   it("has no detectable a11y violations with a populated list", async () => {
     const { container } = renderWorkspace();
     const results = await axe(container);

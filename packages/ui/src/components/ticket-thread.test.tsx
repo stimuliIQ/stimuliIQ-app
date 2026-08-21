@@ -23,7 +23,7 @@ const MESSAGES: TicketMessage[] = [
   },
 ];
 
-describe("TicketThread — message list", () => {
+describe("TicketThread, message list", () => {
   it("renders all messages with author and role", () => {
     render(<TicketThread messages={MESSAGES} />);
     expect(screen.getByText("Priya Sharma")).toBeInTheDocument();
@@ -86,7 +86,7 @@ describe("TicketThread — message list", () => {
   });
 });
 
-describe("TicketThread — composer", () => {
+describe("TicketThread, composer", () => {
   it("submits the composer body and clears the textarea", async () => {
     const user = userEvent.setup();
     const onSend = vi.fn().mockResolvedValue(undefined);

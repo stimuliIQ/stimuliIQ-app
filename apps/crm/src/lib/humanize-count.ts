@@ -3,5 +3,5 @@
 // "Links — 7 of 12 (keep at least 1)".
 export function humanizeItemCount(noun: string, count: number, max: number, min = 0): string {
   const minSuffix = min > 0 ? ` (keep at least ${min})` : "";
-  return `${noun} — ${count} of ${max}${minSuffix}`;
+  return `${noun} · ${count} of ${max}${minSuffix}`;
 }

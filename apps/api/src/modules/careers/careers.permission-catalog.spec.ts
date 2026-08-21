@@ -51,14 +51,14 @@ describe("Careers module permission catalog (regression: P6 forum.read 403 bug c
     for (const key of referenced) {
       expect(ALL_EXPECTED_KEYS).toContain(key);
     }
-    // And every declared key is actually used — catches a controller drifting off a key
+    // And every declared key is actually used, catches a controller drifting off a key
     // that the seed still grants, which reads as "someone has this access" but grants none.
     for (const key of ALL_EXPECTED_KEYS) {
       expect(referenced.has(key)).toBe(true);
     }
   });
 
-  it("declares NO content.* key — candidate PII is not gated behind 'may edit the website'", () => {
+  it("declares NO content.* key, candidate PII is not gated behind 'may edit the website'", () => {
     expect(controllerSource()).not.toMatch(/@RequirePermission\("content\./);
   });
 
@@ -103,13 +103,13 @@ describe("Careers module permission catalog (regression: P6 forum.read 403 bug c
     /**
      * Every catalog key is granted to admin + super_admin by the catch-all loop that
      * iterates `permissionCatalog`, so "registered in the catalog" IS "has at least one
-     * grant" — this is what rules out the P6 zero-grants bug for all three keys.
+     * grant", this is what rules out the P6 zero-grants bug for all three keys.
      *
      * It deliberately does NOT demand a second, explicit grant reference. Two of these keys
      * have one (branch_manager, asserted below); `careers.openings.manage` intentionally has
      * none, because authoring public job adverts is meant to stop at admin.
      */
-    it("reaches at least one role — it is inside the catalog the admin catch-all grants", () => {
+    it("reaches at least one role, it is inside the catalog the admin catch-all grants", () => {
       const catalogBlock = seedSource.match(/const CAREERS_PERMISSIONS[\s\S]*?\];/);
       expect(catalogBlock).not.toBeNull();
       expect(catalogBlock![0]).toMatch(new RegExp(`key:\\s*"${literal}"`));
@@ -122,7 +122,7 @@ describe("Careers module permission catalog (regression: P6 forum.read 403 bug c
       expect(source).toMatch(/branch_manager|branchManagerRole/);
     }
     // The standalone seed grants by role key, so the pairing is checkable directly.
-    // Terminated on the closing "]," of the ROLE's array rather than a lazy "]" — the inner
+    // Terminated on the closing "]," of the ROLE's array rather than a lazy "]", the inner
     // grant tuples each contain one, and a lazy match stops at the first of those.
     const branchBlock = careersSeedSource.match(/branch_manager:\s*\[([\s\S]*?)\n  \],/);
     expect(branchBlock).not.toBeNull();
@@ -138,7 +138,7 @@ describe("Careers module permission catalog (regression: P6 forum.read 403 bug c
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("Careers module permission catalog — live seeded DB", () => {
+describeIfDb("Careers module permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {

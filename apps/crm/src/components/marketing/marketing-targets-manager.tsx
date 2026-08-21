@@ -130,7 +130,7 @@ export function MarketingTargetsManager({ me }: MarketingTargetsManagerProps): R
       id: "setBy",
       header: "Set by",
       cell: (row: MarketingTargetProgress) => (
-        <span className="text-sm text-fg-muted">{row.setByName ?? "—"}</span>
+        <span className="text-sm text-fg-muted">{row.setByName ?? "-"}</span>
       ),
     },
   ];

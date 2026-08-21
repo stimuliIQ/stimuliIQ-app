@@ -145,7 +145,7 @@ export const MarketingTargetProgressSchema = z
     userId: UuidSchema,
     userName: z.string(),
     userEmail: z.string().email(),
-    roleKeys: z.array(z.string()).describe("e.g. ['marketing'] — how the person is employed."),
+    roleKeys: z.array(z.string()).describe("e.g. ['marketing']. How the person is employed."),
     month: TargetMonthSchema,
 
     conversions: TargetMetricProgressSchema,

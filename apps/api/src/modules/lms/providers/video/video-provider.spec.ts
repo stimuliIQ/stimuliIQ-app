@@ -8,30 +8,30 @@
 //   - timingSafeEqualHex helper
 //
 // Test strategy (docs/plans/phase-3.md task #4 DoD, CLAUDE.md §3.10):
-//   - All tests are UNIT — no live network calls, no real Cloudflare/Mux credentials.
+//   - All tests are UNIT, no live network calls, no real Cloudflare/Mux credentials.
 //   - jose's SignJWT + importPKCS8 are mocked (the unit suite routes jose through
 //     test/unit-mocks/jose.ts via moduleNameMapper in jest.config.js; the per-suite
 //     jest.mock() below installs a controllable mock on top of that).
-//   - node:crypto (createHmac, timingSafeEqual) is the REAL implementation — HMAC
+//   - node:crypto (createHmac, timingSafeEqual) is the REAL implementation, HMAC
 //     correctness is truly tested, not faked.
 //   - Tests cover:
-//       1. Noop: mintSignedHlsUrl — deterministic URL shape + expiry (no secrets in output).
-//       2. Noop: verifyWebhookSignature — correct/incorrect/absent-secret fail-closed.
-//       3. Noop: parseTranscodeEvent — noop / CF-like / Mux-like / unknown payload.
-//       4. Noop: createUploadTarget — deterministic fake output.
+//       1. Noop: mintSignedHlsUrl, deterministic URL shape + expiry (no secrets in output).
+//       2. Noop: verifyWebhookSignature, correct/incorrect/absent-secret fail-closed.
+//       3. Noop: parseTranscodeEvent, noop / CF-like / Mux-like / unknown payload.
+//       4. Noop: createUploadTarget, deterministic fake output.
 //       5. Noop: makeWebhookSignature / buildExpectedUrl static helpers.
-//       6. CF: mintSignedHlsUrl — mocked jose produces a JWT; URL has correct format;
+//       6. CF: mintSignedHlsUrl, mocked jose produces a JWT; URL has correct format;
 //          NO signing key / raw URL in output.
-//       7. CF: verifyWebhookSignature — correct/incorrect/absent-secret/malformed-header.
-//       8. CF: parseTranscodeEvent — ready/errored/processing/null (non-CF) payloads.
+//       7. CF: verifyWebhookSignature, correct/incorrect/absent-secret/malformed-header.
+//       8. CF: parseTranscodeEvent, ready/errored/processing/null (non-CF) payloads.
 //       9. CF: constructor does NOT throw when keys are absent; mintSignedHlsUrl throws lazily.
-//      10. Mux: mintSignedHlsUrl — mocked jose; signed URL appends token query param.
-//      11. Mux: verifyWebhookSignature — correct/incorrect/absent-secret/malformed-header.
-//      12. Mux: parseTranscodeEvent — ready/errored/processing/null payloads.
+//      10. Mux: mintSignedHlsUrl, mocked jose; signed URL appends token query param.
+//      11. Mux: verifyWebhookSignature, correct/incorrect/absent-secret/malformed-header.
+//      12. Mux: parseTranscodeEvent, ready/errored/processing/null payloads.
 //      13. Mux: constructor does NOT throw when keys are absent; mintSignedHlsUrl throws lazily.
-//      14. Helper: parseCloudflareWebhookSignatureHeader — valid/invalid/missing.
-//      15. Helper: parseMuxWebhookSignatureHeader — valid/invalid/missing.
-//      16. Helper: timingSafeEqualHex — equal/unequal/different-length.
+//      14. Helper: parseCloudflareWebhookSignatureHeader, valid/invalid/missing.
+//      15. Helper: parseMuxWebhookSignatureHeader, valid/invalid/missing.
+//      16. Helper: timingSafeEqualHex, equal/unequal/different-length.
 //
 // Secrets invariant: no real Cloudflare or Mux secrets are used; test constants are
 // clearly labelled as test-only and are NEVER asserted to appear in return values.
@@ -135,7 +135,7 @@ const TEST_USER_ID = "user-uuid-00000001";
 const TEST_LESSON_ID = "lesson-uuid-00000001";
 const TEST_TTL = 300;
 
-// A minimal valid-looking PKCS#8 PEM header — not a real key, just enough for
+// A minimal valid-looking PKCS#8 PEM header, not a real key, just enough for
 // the env var check to think a key is present. importPKCS8 is mocked anyway.
 const FAKE_PEM = "-----BEGIN PRIVATE KEY-----\nZmFrZWtleQ==\n-----END PRIVATE KEY-----";
 const FAKE_KEY_ID = "test-signing-key-id";
@@ -186,7 +186,7 @@ function setTestEnvMux(overrides: Record<string, string | undefined> = {}): void
 }
 
 // Storage creds so the VideoProviderModule's imported StorageProviderModule binds a
-// (lazy) S3StorageProvider rather than boot-throwing on noop — isolates the boot-guard
+// (lazy) S3StorageProvider rather than boot-throwing on noop, isolates the boot-guard
 // tests below to the VIDEO_PROVIDER selector alone.
 const STORAGE_KEYS: Record<string, string> = {
   STORAGE_PROVIDER: "r2",
@@ -427,7 +427,7 @@ describe("NoopVideoProvider", () => {
       expect(expMs).toBeLessThanOrEqual(afterMs + DEFAULT_HLS_TTL_SECONDS * 1000 + 1000);
     });
 
-    it("is DETERMINISTIC — same inputs at same second produce same URL (no randomness)", async () => {
+    it("is DETERMINISTIC, same inputs at same second produce same URL (no randomness)", async () => {
       // Freeze time so the expS is the same for both calls within the same second.
       const nowS = Math.floor(Date.now() / 1000);
       const expS = nowS + TEST_TTL;
@@ -504,13 +504,13 @@ describe("NoopVideoProvider", () => {
       expect(provider.verifyWebhookSignature({ rawBody: tampered, signatureHeader: sig })).toBe(false);
     });
 
-    it("FAIL CLOSED — returns false when simulateWebhookSecretAbsent=true", () => {
+    it("FAIL CLOSED, returns false when simulateWebhookSecretAbsent=true", () => {
       const failClosedProvider = new NoopVideoProvider({ simulateWebhookSecretAbsent: true });
       const sig = NoopVideoProvider.makeWebhookSignature(RAW_BODY);
       expect(failClosedProvider.verifyWebhookSignature({ rawBody: RAW_BODY, signatureHeader: sig })).toBe(false);
     });
 
-    it("does NOT throw when signature is absent — returns false", () => {
+    it("does NOT throw when signature is absent, returns false", () => {
       expect(
         () => provider.verifyWebhookSignature({ rawBody: RAW_BODY, signatureHeader: "" }),
       ).not.toThrow();
@@ -594,7 +594,7 @@ describe("NoopVideoProvider", () => {
     });
 
     // The CRM ingest drawer PUTs the file straight at whatever URL we return, so with a
-    // storage seam wired the URL must be a real, reachable signed target — `noop.video.local`
+    // storage seam wired the URL must be a real, reachable signed target, `noop.video.local`
     // does not resolve and surfaced as "Network error during upload".
     it("mints a real signed upload URL from the storage seam when one is wired", async () => {
       const getSignedUploadUrl = jest.fn().mockResolvedValue({
@@ -767,19 +767,19 @@ describe("CloudflareStreamVideoProvider", () => {
       const { importPKCS8: mockImportPKCS8 } = await import("jose");
       const importMock = mockImportPKCS8 as jest.Mock;
 
-      // First call — should trigger importPKCS8
+      // First call, should trigger importPKCS8
       await provider.mintSignedHlsUrl({ assetId: TEST_ASSET_ID, userId: TEST_USER_ID, lessonId: TEST_LESSON_ID });
       expect(importMock).toHaveBeenCalledTimes(1);
 
-      // Second call — key is memoized, importPKCS8 NOT called again
+      // Second call, key is memoized, importPKCS8 NOT called again
       await provider.mintSignedHlsUrl({ assetId: TEST_ASSET_ID, userId: TEST_USER_ID, lessonId: TEST_LESSON_ID });
       expect(importMock).toHaveBeenCalledTimes(1); // still 1
     });
   });
 
-  // ─── Constructor — lazy validation ─────────────────────────────────────────
+  // ─── Constructor, lazy validation ─────────────────────────────────────────
 
-  describe("constructor — lazy validation (does NOT throw when keys absent)", () => {
+  describe("constructor, lazy validation (does NOT throw when keys absent)", () => {
     it("does NOT throw at construction when signing key is absent", () => {
       __resetEnvCacheForTests();
       setTestEnvCf({
@@ -855,7 +855,7 @@ describe("CloudflareStreamVideoProvider", () => {
       ).toBe(false);
     });
 
-    it("FAIL CLOSED — returns false when CLOUDFLARE_STREAM_WEBHOOK_SECRET is not configured", () => {
+    it("FAIL CLOSED, returns false when CLOUDFLARE_STREAM_WEBHOOK_SECRET is not configured", () => {
       __resetEnvCacheForTests();
       setTestEnvCf({ CLOUDFLARE_STREAM_WEBHOOK_SECRET: undefined });
       delete process.env["CLOUDFLARE_STREAM_WEBHOOK_SECRET"];
@@ -866,13 +866,13 @@ describe("CloudflareStreamVideoProvider", () => {
       expect(p.verifyWebhookSignature({ rawBody: RAW_BODY, signatureHeader: sigHeader })).toBe(false);
     });
 
-    it("FAIL CLOSED — returns false for malformed signature header", () => {
+    it("FAIL CLOSED, returns false for malformed signature header", () => {
       expect(
         provider.verifyWebhookSignature({ rawBody: RAW_BODY, signatureHeader: "invalid-header" }),
       ).toBe(false);
     });
 
-    it("does NOT throw — returns false on empty signature header", () => {
+    it("does NOT throw, returns false on empty signature header", () => {
       expect(
         () => provider.verifyWebhookSignature({ rawBody: RAW_BODY, signatureHeader: "" }),
       ).not.toThrow();
@@ -1024,9 +1024,9 @@ describe("MuxVideoProvider", () => {
     });
   });
 
-  // ─── Constructor — lazy validation ─────────────────────────────────────────
+  // ─── Constructor, lazy validation ─────────────────────────────────────────
 
-  describe("constructor — lazy validation (does NOT throw when keys absent)", () => {
+  describe("constructor, lazy validation (does NOT throw when keys absent)", () => {
     it("does NOT throw at construction when signing key is absent", () => {
       __resetEnvCacheForTests();
       setTestEnvMux({
@@ -1102,7 +1102,7 @@ describe("MuxVideoProvider", () => {
       ).toBe(false);
     });
 
-    it("FAIL CLOSED — returns false when MUX_WEBHOOK_SECRET is not configured", () => {
+    it("FAIL CLOSED, returns false when MUX_WEBHOOK_SECRET is not configured", () => {
       __resetEnvCacheForTests();
       setTestEnvMux({ MUX_WEBHOOK_SECRET: undefined });
       delete process.env["MUX_WEBHOOK_SECRET"];
@@ -1113,13 +1113,13 @@ describe("MuxVideoProvider", () => {
       expect(p.verifyWebhookSignature({ rawBody: RAW_BODY, signatureHeader: sigHeader })).toBe(false);
     });
 
-    it("FAIL CLOSED — returns false for malformed Mux-Signature header", () => {
+    it("FAIL CLOSED, returns false for malformed Mux-Signature header", () => {
       expect(
         provider.verifyWebhookSignature({ rawBody: RAW_BODY, signatureHeader: "bad-header" }),
       ).toBe(false);
     });
 
-    it("does NOT throw on empty signature header — returns false", () => {
+    it("does NOT throw on empty signature header, returns false", () => {
       expect(
         () => provider.verifyWebhookSignature({ rawBody: RAW_BODY, signatureHeader: "" }),
       ).not.toThrow();
@@ -1187,10 +1187,10 @@ describe("MuxVideoProvider", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Suite 5: VideoProviderModule — production boot guard (mirrors LiveClassProviderModule)
+// Suite 5: VideoProviderModule, production boot guard (mirrors LiveClassProviderModule)
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("VideoProviderModule — boot guard", () => {
+describe("VideoProviderModule, boot guard", () => {
   it("BOOTS in production when VIDEO_PROVIDER=disabled (feature off, no video vendor needed)", async () => {
     await expect(
       bootVideoModuleWith({ NODE_ENV: "production", VIDEO_PROVIDER: "disabled" }),

@@ -10,7 +10,7 @@
 //   - idempotent single-fire: claimDueSchedule()=false -> the row is skipped entirely
 //     (no permission lookup, no export, no send).
 //   - AC-37 HEADLINE: a creator who lost `reports.export` (or the domain view permission)
-//     does NOT send — the schedule is deactivated instead, and ExportsService.create/
+//     does NOT send, the schedule is deactivated instead, and ExportsService.create/
 //     MailProvider.send are NEVER called.
 //   - AC-37 scope re-evaluation: the scope context ExportsService.create() observes is
 //     built from the creator's CURRENT (freshly-fetched) `reports.export` grant, not a
@@ -129,13 +129,13 @@ describe("ReportScheduleDispatchScheduler", () => {
     jest.restoreAllMocks();
   });
 
-  // ─── onModuleInit() — CRITICAL test-safety gate ─────────────────────────────
+  // ─── onModuleInit(), CRITICAL test-safety gate ─────────────────────────────
 
   describe("onModuleInit()", () => {
     it("does NOT register an interval when SCHEDULER_ENABLED=false", () => {
       __resetEnvCacheForTests();
       // qa-engineer Wave 5 (T41 item 1): validateEnv() requires DATABASE_URL/REDIS_URL/
-      // JWT key paths/COOKIE_SECRET/CSRF_SECRET with NO schema default — without this,
+      // JWT key paths/COOKIE_SECRET/CSRF_SECRET with NO schema default, without this,
       // the test only passed if some EARLIER spec in the same Jest worker had already
       // warmed the (now-just-reset) cache via ambient exported env vars. See
       // test/unit-mocks/minimal-env.ts's header for the full rationale.
@@ -157,7 +157,7 @@ describe("ReportScheduleDispatchScheduler", () => {
     });
   });
 
-  // ─── dispatchDueSchedules() — due-schedule selection ────────────────────────
+  // ─── dispatchDueSchedules(), due-schedule selection ────────────────────────
 
   describe("dispatchDueSchedules()", () => {
     it("scans via findDueCandidates and processes every due row", async () => {
@@ -184,9 +184,9 @@ describe("ReportScheduleDispatchScheduler", () => {
     });
   });
 
-  // ─── processSchedule() — idempotent single-fire ─────────────────────────────
+  // ─── processSchedule(), idempotent single-fire ─────────────────────────────
 
-  describe("processSchedule() — idempotent single-fire", () => {
+  describe("processSchedule(), idempotent single-fire", () => {
     it("skips entirely when claimDueSchedule loses the race (returns false)", async () => {
       repo.claimDueSchedule.mockResolvedValue(false);
       const schedule = baseSchedule();
@@ -200,9 +200,9 @@ describe("ReportScheduleDispatchScheduler", () => {
     });
   });
 
-  // ─── processSchedule() — AC-37: scope re-evaluated at send time ────────────
+  // ─── processSchedule(), AC-37: scope re-evaluated at send time ────────────
 
-  describe("processSchedule() — AC-37 scope re-evaluation", () => {
+  describe("processSchedule(), AC-37 scope re-evaluation", () => {
     it("does NOT send and deactivates the schedule when the creator lost reports.export", async () => {
       authRepository.getRbacProfile.mockResolvedValue({ roleKeys: [], permissions: [] });
       const schedule = baseSchedule();
@@ -230,7 +230,7 @@ describe("ReportScheduleDispatchScheduler", () => {
     });
 
     it("generates under the creator's CURRENT (freshly-fetched) reports.export scope, not a stale value", async () => {
-      // Creator was moved to a DIFFERENT branch scope grant since schedule creation —
+      // Creator was moved to a DIFFERENT branch scope grant since schedule creation,
       // getRbacProfile is the ONLY source of truth this scheduler consults.
       authRepository.getRbacProfile.mockResolvedValue({
         roleKeys: ["branch_manager"],
@@ -257,9 +257,9 @@ describe("ReportScheduleDispatchScheduler", () => {
     });
   });
 
-  // ─── processSchedule() — happy path + AC-39 zero-row + suppression + AC-38 ──
+  // ─── processSchedule(), happy path + AC-39 zero-row + suppression + AC-38 ──
 
-  describe("processSchedule() — send outcomes", () => {
+  describe("processSchedule(), send outcomes", () => {
     it("sends the report and records 'succeeded' on the happy path", async () => {
       const schedule = baseSchedule();
       await scheduler.processSchedule(schedule, NOW);
@@ -287,7 +287,7 @@ describe("ReportScheduleDispatchScheduler", () => {
       expect(repo.recordRunOutcome).toHaveBeenCalledWith("sched-1", "sent_no_data", null);
     });
 
-    it("honors recipient suppression — never sends, records 'skipped_suppressed'", async () => {
+    it("honors recipient suppression, never sends, records 'skipped_suppressed'", async () => {
       notificationsRepository.isSuppressed.mockResolvedValue(true);
       const schedule = baseSchedule();
 

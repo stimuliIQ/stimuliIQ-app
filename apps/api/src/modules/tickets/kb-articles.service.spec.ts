@@ -82,7 +82,7 @@ describe("KbArticlesService", () => {
     });
   });
 
-  describe("public (unauthenticated) read — published only", () => {
+  describe("public (unauthenticated) read, published only", () => {
     it("listPublic resolves the tenant by slug and returns the public projection (no `published`/tenantId fields)", async () => {
       repo.listPublished.mockResolvedValue([ROW]);
       const result = await service.listPublic({ limit: 20 });

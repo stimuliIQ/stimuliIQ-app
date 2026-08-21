@@ -9,7 +9,7 @@ import { CollapsibleSection } from "./collapsible-section";
 // Rendering / defaults
 // ---------------------------------------------------------------------------
 
-describe("CollapsibleSection — rendering", () => {
+describe("CollapsibleSection, rendering", () => {
   it("renders with default data-testid='collapsible-section'", () => {
     render(
       <CollapsibleSection header="1. Hero">
@@ -58,7 +58,7 @@ describe("CollapsibleSection — rendering", () => {
 // Critical constraint: body stays mounted while collapsed
 // ---------------------------------------------------------------------------
 
-describe("CollapsibleSection — mounted-while-collapsed constraint", () => {
+describe("CollapsibleSection, mounted-while-collapsed constraint", () => {
   it("keeps children mounted in the DOM while collapsed", () => {
     render(
       <CollapsibleSection header="1. Hero">
@@ -84,7 +84,7 @@ describe("CollapsibleSection — mounted-while-collapsed constraint", () => {
     // Collapse
     await user.click(screen.getByTestId("collapsible-section-trigger"));
     const fieldWhileCollapsed = screen.getByTestId("live-field");
-    // Same DOM node — proves this was a CSS collapse, not an unmount/remount.
+    // Same DOM node, proves this was a CSS collapse, not an unmount/remount.
     expect(fieldWhileCollapsed).toBe(fieldBeforeToggle);
     expect(fieldWhileCollapsed).toHaveValue("Stimuliiq");
 
@@ -111,10 +111,10 @@ describe("CollapsibleSection — mounted-while-collapsed constraint", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Toggle interaction — mouse + keyboard
+// Toggle interaction, mouse + keyboard
 // ---------------------------------------------------------------------------
 
-describe("CollapsibleSection — toggle interaction", () => {
+describe("CollapsibleSection, toggle interaction", () => {
   it("toggles aria-expanded/data-state on trigger click (uncontrolled)", async () => {
     const user = userEvent.setup();
     render(
@@ -176,7 +176,7 @@ describe("CollapsibleSection — toggle interaction", () => {
 // Controlled mode
 // ---------------------------------------------------------------------------
 
-describe("CollapsibleSection — controlled mode", () => {
+describe("CollapsibleSection, controlled mode", () => {
   it("reflects the `open` prop rather than internal state", () => {
     const { rerender } = render(
       <CollapsibleSection header="1. Hero" open={false} onOpenChange={() => {}}>
@@ -214,10 +214,10 @@ describe("CollapsibleSection — controlled mode", () => {
 });
 
 // ---------------------------------------------------------------------------
-// headerActions — must not toggle the section
+// headerActions, must not toggle the section
 // ---------------------------------------------------------------------------
 
-describe("CollapsibleSection — headerActions", () => {
+describe("CollapsibleSection, headerActions", () => {
   it("renders headerActions as a sibling of the trigger, not toggling on click", async () => {
     const user = userEvent.setup();
     const onRemove = vi.fn();
@@ -265,7 +265,7 @@ describe("CollapsibleSection — headerActions", () => {
 // a11y wiring
 // ---------------------------------------------------------------------------
 
-describe("CollapsibleSection — a11y", () => {
+describe("CollapsibleSection, a11y", () => {
   it("aria-controls on the trigger matches the body element's id", () => {
     render(
       <CollapsibleSection header="1. Hero">
@@ -314,7 +314,7 @@ describe("CollapsibleSection — a11y", () => {
 // Accent tone
 // ---------------------------------------------------------------------------
 
-describe("CollapsibleSection — accent tone", () => {
+describe("CollapsibleSection, accent tone", () => {
   it("applies the chart-1 tinted classes to the icon chip", () => {
     render(
       <CollapsibleSection

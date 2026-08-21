@@ -1,4 +1,4 @@
-// LifecycleStepper — the "you are here" journey path (lifecycle-redesign P2).
+// LifecycleStepper, the "you are here" journey path (lifecycle-redesign P2).
 // Asserts the 8-phase spine renders, the current phase carries aria-current +
 // data-state="current", passed phases read done / future ones upcoming, and the
 // two terminal off-ramps swap the sr-only progress summary for a danger note.
@@ -13,7 +13,7 @@ function stateOf(phase: string): string | null {
   return screen.getByTestId(`lifecycle-step-${phase}`).getAttribute("data-state");
 }
 
-describe("LifecycleStepper — forward ladder", () => {
+describe("LifecycleStepper, forward ladder", () => {
   it("renders all 8 journey phases", () => {
     render(<LifecycleStepper stage="new_lead" />);
     for (const phase of PHASES) {
@@ -51,7 +51,7 @@ describe("LifecycleStepper — forward ladder", () => {
   });
 });
 
-describe("LifecycleStepper — terminal off-ramps", () => {
+describe("LifecycleStepper, terminal off-ramps", () => {
   it("lost renders the journey-ended note after the Lead phase, with no current step", () => {
     render(<LifecycleStepper stage="lost" />);
     expect(screen.getByTestId("lifecycle-stepper-offramp")).toHaveTextContent(/lead marked lost/i);

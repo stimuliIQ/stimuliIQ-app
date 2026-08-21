@@ -98,7 +98,7 @@ export function StudentPaymentsTab({
       await navigator.clipboard.writeText(link.url);
       toast({
         title: "Payment link copied",
-        description: `Valid until ${new Date(link.expiresAt).toLocaleDateString()} — paste it into WhatsApp or a chat.`,
+        description: `Valid until ${new Date(link.expiresAt).toLocaleDateString()}. Paste it into WhatsApp or a chat.`,
         variant: "success",
       });
     } catch (error) {
@@ -117,7 +117,7 @@ export function StudentPaymentsTab({
       const result = await sendLinks.mutateAsync(orderIds);
       toast({
         title: result.count === 1 ? "Payment link emailed" : `${result.count} payment links emailed`,
-        description: `Sent to ${result.email} — the student can pay securely from the email.`,
+        description: `Sent to ${result.email}. The student can pay securely from the email.`,
         variant: "success",
       });
     } catch (error) {
@@ -185,12 +185,12 @@ export function StudentPaymentsTab({
   const columns: Array<DataTableColumn<PaymentSummary>> = [
     { id: "amountPaise", header: "Amount", cell: (row) => formatPaise(row.amountPaise) },
     { id: "status", header: "Status", cell: (row) => <PaymentStatusChip status={row.status} /> },
-    { id: "method", header: "Method", cell: (row) => row.method ?? "—" },
-    { id: "paidAt", header: "Paid", cell: (row) => (row.paidAt ? new Date(row.paidAt).toLocaleDateString() : "—") },
+    { id: "method", header: "Method", cell: (row) => row.method ?? "-" },
+    { id: "paidAt", header: "Paid", cell: (row) => (row.paidAt ? new Date(row.paidAt).toLocaleDateString() : "-") },
     {
       id: "receipt",
       header: "Receipt",
-      cell: (row) => (row.status === "captured" ? <ReceiptButton paymentId={row.id} /> : "—"),
+      cell: (row) => (row.status === "captured" ? <ReceiptButton paymentId={row.id} /> : "-"),
       align: "right",
     },
   ];
@@ -212,7 +212,7 @@ export function StudentPaymentsTab({
         <div className="flex items-center justify-between gap-2">
           <h4 className="text-sm font-medium text-fg">Orders</h4>
           {canRecordPayment && openOrders.length > 1 ? (
-            // One email covering every pending program — a Pay button per program
+            // One email covering every pending program. A Pay button per program
             // plus the total, so the student settles everything from one message.
             <Button
               variant="secondary"

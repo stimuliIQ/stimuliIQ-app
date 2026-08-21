@@ -3,7 +3,7 @@
 // Tests the boot-time fail-closed guard in createSmsProvider (T16/B3, mirrors
 // payment-provider.module.spec.ts / mail-provider.spec.ts's module-boot test strategy).
 // The factory is not exported, so we drive it through the NestJS module exactly as
-// boot does — compiling SmsProviderModule and resolving SMS_PROVIDER.
+// boot does, compiling SmsProviderModule and resolving SMS_PROVIDER.
 
 import { Test } from "@nestjs/testing";
 import { SmsProviderModule } from "./sms-provider.module";
@@ -46,12 +46,12 @@ async function bootWith(env: Record<string, string | undefined>): Promise<unknow
 }
 
 describe("SmsProviderModule fail-closed guard", () => {
-  it("boots outside production with SMS_PROVIDER unset — binds NoopSmsProvider", async () => {
+  it("boots outside production with SMS_PROVIDER unset, binds NoopSmsProvider", async () => {
     const provider = await bootWith({ NODE_ENV: "development", APP_ENV: "local" });
     expect(provider).toBeInstanceOf(NoopSmsProvider);
   });
 
-  it("boots outside production with SMS_PROVIDER=msg91 + all keys — binds Msg91SmsProvider", async () => {
+  it("boots outside production with SMS_PROVIDER=msg91 + all keys, binds Msg91SmsProvider", async () => {
     const provider = await bootWith({
       NODE_ENV: "development",
       APP_ENV: "local",
@@ -61,7 +61,7 @@ describe("SmsProviderModule fail-closed guard", () => {
     expect(provider).toBeInstanceOf(Msg91SmsProvider);
   });
 
-  it("boots outside production with SMS_PROVIDER=msg91 but missing keys — falls back to Noop", async () => {
+  it("boots outside production with SMS_PROVIDER=msg91 but missing keys, falls back to Noop", async () => {
     const provider = await bootWith({ NODE_ENV: "development", APP_ENV: "local", SMS_PROVIDER: "msg91" });
     expect(provider).toBeInstanceOf(NoopSmsProvider);
   });
@@ -87,7 +87,7 @@ describe("SmsProviderModule fail-closed guard", () => {
     expect(provider).toBeInstanceOf(Msg91SmsProvider);
   });
 
-  it("BOOTS in production when SMS_PROVIDER=disabled — binds NoopSmsProvider, no keys needed", async () => {
+  it("BOOTS in production when SMS_PROVIDER=disabled, binds NoopSmsProvider, no keys needed", async () => {
     const provider = await bootWith({ NODE_ENV: "production", SMS_PROVIDER: "disabled" });
     expect(provider).toBeInstanceOf(NoopSmsProvider);
   });

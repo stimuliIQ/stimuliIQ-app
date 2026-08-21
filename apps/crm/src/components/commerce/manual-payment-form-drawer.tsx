@@ -158,7 +158,7 @@ export function ManualPaymentFormDrawer({
               type="datetime-local"
               max={maxPaidAt}
               placeholder="e.g. 2026-07-09T10:30"
-              helperText="When the money was actually received. Can't be in the future — leave blank to use now."
+              helperText="When the money was actually received. Can't be in the future. Leave blank to use now."
               // The rule lives in `register` rather than a check inside the submit handler:
               // RHF discards a `setError` for a field whose register carries no rules, and a
               // validate rule additionally stops handleSubmit from running at all — so a

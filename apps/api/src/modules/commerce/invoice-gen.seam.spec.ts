@@ -92,7 +92,7 @@ describe("SyncInvoiceGenAdapter", () => {
     expect(storage.putObject).not.toHaveBeenCalled();
   });
 
-  it("is idempotent — already-issued invoices are skipped", async () => {
+  it("is idempotent, already-issued invoices are skipped", async () => {
     repo.findInvoiceById.mockResolvedValue({ ...DRAFT_INVOICE, status: "issued" });
     await adapter.enqueue({ invoiceId: "invoice-1", orderId: "order-1", tenantId: "tenant-1" });
     expect(storage.putObject).not.toHaveBeenCalled();
@@ -123,7 +123,7 @@ describe("SyncInvoiceGenAdapter", () => {
     );
   });
 
-  it("fails closed — leaves the invoice draft (never marks issued) when the PDF/upload step throws", async () => {
+  it("fails closed, leaves the invoice draft (never marks issued) when the PDF/upload step throws", async () => {
     repo.findInvoiceById.mockResolvedValue(DRAFT_INVOICE);
     storage.putObject.mockRejectedValue(new Error("S3 unavailable"));
 

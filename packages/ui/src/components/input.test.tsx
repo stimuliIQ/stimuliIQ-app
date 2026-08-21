@@ -37,11 +37,11 @@ describe("Input", () => {
   });
 });
 
-describe("Input — size variant", () => {
+describe("Input, size variant", () => {
   // `md` is density-driven rather than a fixed height: it resolves to 40px under the
   // default comfortable density and 32px under `data-density="compact"` (the CRM shell),
   // so the assertion is on the token, not on a literal `h-10`. `sm` stays a fixed h-8.
-  it("defaults to the density-driven md height when size is omitted — backward compatible", () => {
+  it("defaults to the density-driven md height when size is omitted, backward compatible", () => {
     render(<Input label="Email" name="email" />);
     const input = screen.getByLabelText("Email");
     expect(input.className).toContain("h-[var(--density-control-height)]");

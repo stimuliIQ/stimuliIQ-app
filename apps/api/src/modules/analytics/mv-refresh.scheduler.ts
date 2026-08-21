@@ -41,7 +41,7 @@ export class AnalyticsMvRefreshScheduler implements OnModuleInit, OnApplicationS
     const env = validateEnv();
     if (!isSchedulerEnabled(env)) {
       this.logger.log(
-        "[AnalyticsMvRefreshScheduler] SCHEDULER_ENABLED is false (or NODE_ENV=test) — " +
+        "[AnalyticsMvRefreshScheduler] SCHEDULER_ENABLED is false (or NODE_ENV=test), " +
           "MV-refresh interval NOT registered.",
       );
       return;
@@ -55,7 +55,7 @@ export class AnalyticsMvRefreshScheduler implements OnModuleInit, OnApplicationS
     // (mirrors the standard Nest interval-registration idiom).
     timer.unref?.();
     this.schedulerRegistry.addInterval(INTERVAL_NAME, timer);
-    this.logger.log(`[AnalyticsMvRefreshScheduler] registered — refreshing every ${intervalMs}ms.`);
+    this.logger.log(`[AnalyticsMvRefreshScheduler] registered, refreshing every ${intervalMs}ms.`);
   }
 
   onApplicationShutdown(): void {

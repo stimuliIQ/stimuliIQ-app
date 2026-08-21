@@ -25,7 +25,7 @@ const MATRIX: NotificationMatrix = {
 // Rendering
 // ---------------------------------------------------------------------------
 
-describe("NotificationPrefsMatrix — rendering", () => {
+describe("NotificationPrefsMatrix, rendering", () => {
   it("renders with default data-testid='notification-prefs-matrix'", () => {
     render(
       <NotificationPrefsMatrix
@@ -94,7 +94,7 @@ describe("NotificationPrefsMatrix — rendering", () => {
 // a11y
 // ---------------------------------------------------------------------------
 
-describe("NotificationPrefsMatrix — a11y", () => {
+describe("NotificationPrefsMatrix, a11y", () => {
   it("each checkbox has an aria-label combining type and channel", () => {
     render(
       <NotificationPrefsMatrix
@@ -105,10 +105,10 @@ describe("NotificationPrefsMatrix — a11y", () => {
       />,
     );
     expect(
-      screen.getByRole("checkbox", { name: "Assignment graded — In-app" }),
+      screen.getByRole("checkbox", { name: "Assignment graded, In-app" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("checkbox", { name: "Forum reply — Email" }),
+      screen.getByRole("checkbox", { name: "Forum reply, Email" }),
     ).toBeInTheDocument();
   });
 
@@ -122,7 +122,7 @@ describe("NotificationPrefsMatrix — a11y", () => {
       />,
     );
     // in_app for grade_ready should be disabled because it's alwaysEnabled
-    const checkbox = screen.getByRole("checkbox", { name: "Assignment graded — In-app" });
+    const checkbox = screen.getByRole("checkbox", { name: "Assignment graded, In-app" });
     expect(checkbox).toBeDisabled();
   });
 });
@@ -131,7 +131,7 @@ describe("NotificationPrefsMatrix — a11y", () => {
 // Interactions
 // ---------------------------------------------------------------------------
 
-describe("NotificationPrefsMatrix — interactions", () => {
+describe("NotificationPrefsMatrix, interactions", () => {
   it("calls onMatrixChange when a toggle is clicked", async () => {
     const user = userEvent.setup();
     const onMatrixChange = vi.fn();
@@ -143,7 +143,7 @@ describe("NotificationPrefsMatrix — interactions", () => {
         onMatrixChange={onMatrixChange}
       />,
     );
-    await user.click(screen.getByRole("checkbox", { name: "Forum reply — Email" }));
+    await user.click(screen.getByRole("checkbox", { name: "Forum reply, Email" }));
     expect(onMatrixChange).toHaveBeenCalledWith("forum_reply", "email", true);
   });
 });
@@ -152,7 +152,7 @@ describe("NotificationPrefsMatrix — interactions", () => {
 // Quiet hours
 // ---------------------------------------------------------------------------
 
-describe("NotificationPrefsMatrix — quiet hours", () => {
+describe("NotificationPrefsMatrix, quiet hours", () => {
   it("renders quiet hours fieldset when showQuietHours=true", () => {
     render(
       <NotificationPrefsMatrix

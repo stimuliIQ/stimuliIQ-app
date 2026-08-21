@@ -32,7 +32,7 @@ describe("resolveTenantIdCached", () => {
     expect(load).toHaveBeenCalledTimes(2);
   });
 
-  it("does NOT cache a miss — a tenant seeded later resolves without a restart", async () => {
+  it("does NOT cache a miss, a tenant seeded later resolves without a restart", async () => {
     const load = jest.fn().mockResolvedValueOnce(null).mockResolvedValueOnce("tenant-1");
 
     await expect(resolveTenantIdCached("stimuliiq", load)).resolves.toBeNull();

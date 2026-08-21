@@ -60,7 +60,7 @@ export const ContinueLearningItemSchema = z.object({
   lastPositionS: z.number().int().min(0).describe("Resume seek position in seconds. 0 = start."),
   durationS: z.number().int().min(0).nullable().describe("Total lesson duration in seconds, null if not yet known (video still processing)."),
   progressStatus: z.enum(["not_started", "in_progress", "completed"]),
-  updatedAt: IsoDateTimeSchema.describe("When lesson_progress was last updated — used to pick the most recent."),
+  updatedAt: IsoDateTimeSchema.describe("When lesson_progress was last updated. Used to pick the most recent."),
 });
 export type ContinueLearningItem = z.infer<typeof ContinueLearningItemSchema>;
 
@@ -120,7 +120,7 @@ export const MeDashboardResponseSchema = z.object({
   enrollments: z.array(EnrollmentCardSchema),
   continueLearning: ContinueLearningItemSchema.nullable().describe(
     "Most-recent in-progress lesson to resume. Null if no lesson is in-progress. " +
-    "No video URL here — call GET /lessons/:id/stream-url on play.",
+    "No video URL here. Call GET /lessons/:id/stream-url on play.",
   ),
   progressSummary: z.array(ProgramProgressSummarySchema).describe(
     "Per-program completion rings; same programs as `enrollments`.",

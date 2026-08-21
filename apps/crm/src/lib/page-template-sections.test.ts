@@ -1,5 +1,5 @@
 // Unit tests for the locked-template merge logic (Phase-11 locked templates, docs/plans/
-// phase-11-locked-templates.md P4) — pure, framework-free, per CLAUDE.md §3.10 ("new
+// phase-11-locked-templates.md P4), pure, framework-free, per CLAUDE.md §3.10 ("new
 // feature without tests = not done").
 import { describe, expect, it } from "vitest";
 
@@ -23,7 +23,7 @@ describe("buildTemplateSections", () => {
       { type: "media_gallery", data: { items: [{ imageKey: "x.jpg", alt: "x" }] } }, // wrong type at index 0 (template expects hero)
       { type: "media_gallery", data: { items: [{ imageKey: "gallery/1.jpg", alt: "Campus" }] } },
     ]);
-    // index 0 falls back (hero section, wrong stored type) — never crashes, never keeps the mismatched data.
+    // index 0 falls back (hero section, wrong stored type), never crashes, never keeps the mismatched data.
     expect(slots[0]?.section.key).toBe("hero");
     expect(slots[0]?.data).not.toMatchObject({ items: expect.anything() });
   });
@@ -51,7 +51,7 @@ describe("buildTemplateSections", () => {
     const slots = buildTemplateSections("gallery", [
       { type: "hero", data: { headline: "Welcome" } },
       { type: "media_gallery", data: { items: [{ imageKey: "a.jpg", alt: "a" }] } },
-      { type: "faq", data: { items: [{ question: "Q?", answer: "A" }] } }, // extra — careers/gallery templates have only 2 sections
+      { type: "faq", data: { items: [{ question: "Q?", answer: "A" }] } }, // extra, careers/gallery templates have only 2 sections
     ]);
     expect(slots).toHaveLength(2);
   });

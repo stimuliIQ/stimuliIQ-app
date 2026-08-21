@@ -1,9 +1,9 @@
 // Validates the Phase-10 page-builder seed fixtures (prisma/fixtures/builder-pages/*.json
-// — the block arrays reproducing the 6 migrated `web` pages' pre-migration content,
+//, the block arrays reproducing the 6 migrated `web` pages' pre-migration content,
 // docs/specs/phase-10-page-builder.md) parse against the SAME closed block-registry union
 // (`PageBuilderBlockSchema`) that `apps/api`'s builder save/version endpoints and
 // `prisma/seed.ts`'s upsert both validate against. A fixture that fails here would fail
-// identically at seed time or at a future CRM save — this is the fast, offline signal for
+// identically at seed time or at a future CRM save, this is the fast, offline signal for
 // that, run from the schema's own source of truth (@repo/types) rather than requiring a
 // live DB.
 import { readFileSync, readdirSync } from "node:fs";

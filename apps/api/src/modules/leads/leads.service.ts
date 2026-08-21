@@ -485,7 +485,7 @@ export class LeadsService {
       throw new UnprocessableEntityException({
         code: "leads.not_ready_to_convert",
         title: "Lead is not ready for conversion",
-        detail: `A lost lead can't be converted — reopen it first (current stage: "${lead.stage}").`,
+        detail: `A lost lead can't be converted. Reopen it first (current stage: "${lead.stage}").`,
       });
     }
 

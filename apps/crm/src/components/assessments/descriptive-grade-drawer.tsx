@@ -100,7 +100,7 @@ export function DescriptiveGradeDrawer({
         title="Grade descriptive attempt"
         description={
           attempt
-            ? `Assessment: ${attempt.assessmentTitle} — Attempt #${attempt.attemptNo}`
+            ? `Assessment: ${attempt.assessmentTitle}, Attempt #${attempt.attemptNo}`
             : undefined
         }
         size="lg"
@@ -150,7 +150,7 @@ export function DescriptiveGradeDrawer({
                         data-testid={`descriptive-question-${index}`}
                       >
                         <p className="text-sm font-medium text-fg">
-                          Question {index + 1} — {q.maxPoints} pts max
+                          Question {index + 1}, {q.maxPoints} pts max
                         </p>
                         <p className="text-xs text-fg-muted">
                           Student answer is stored server-side. Max points: {q.maxPoints}

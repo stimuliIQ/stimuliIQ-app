@@ -8,7 +8,7 @@ import { BadRequestException, UnprocessableEntityException } from "@nestjs/commo
 
 // The service builds the reset URL from validateEnv().LMS_APP_URL. Mock it so this spec
 // is self-contained (previously it relied on a warm validateEnv() cache populated by an
-// earlier spec in the same worker — passing in the full suite but failing in isolation).
+// earlier spec in the same worker, passing in the full suite but failing in isolation).
 jest.mock("../../config/env", () => ({
   validateEnv: jest.fn(() => ({
     LMS_APP_URL: "https://lms.stimuliiq.test",
@@ -68,7 +68,7 @@ describe("PasswordResetService", () => {
     );
   });
 
-  describe("request() — enumeration resistance", () => {
+  describe("request(), enumeration resistance", () => {
     it("returns the SAME generic message for an unknown email", async () => {
       repo.findUserByEmail.mockResolvedValue(null);
       const result = await service.request("nobody@example.test");
@@ -105,14 +105,14 @@ describe("PasswordResetService", () => {
       );
     });
 
-    it("does NOT send mail for an OTP-only account (no password set) — same generic response", async () => {
+    it("does NOT send mail for an OTP-only account (no password set), same generic response", async () => {
       repo.findUserByEmail.mockResolvedValue({ ...ACTIVE_USER, passwordHash: "" });
       const result = await service.request(ACTIVE_USER.email);
       expect(result.message).toMatch(/if an account exists/i);
       expect(mail.send).not.toHaveBeenCalled();
     });
 
-    it("does NOT send mail for a suspended account — same generic response", async () => {
+    it("does NOT send mail for a suspended account, same generic response", async () => {
       repo.findUserByEmail.mockResolvedValue({ ...ACTIVE_USER, status: "suspended" });
       const result = await service.request(ACTIVE_USER.email);
       expect(result.message).toMatch(/if an account exists/i);

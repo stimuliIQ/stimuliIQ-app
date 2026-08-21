@@ -7,7 +7,7 @@
 // lib/scope-context.ts.
 //
 // Wave 3b closed the branch/assigned fail-closed gap (see students.service.ts file
-// header) — these tests now assert the REAL branch/assigned filtering behavior instead of
+// header), these tests now assert the REAL branch/assigned filtering behavior instead of
 // a blanket 403, while "own" (still not seeded/resolvable for students.* in P1) keeps
 // failing closed.
 
@@ -200,7 +200,7 @@ describe("StudentsService", () => {
       expect(repo.list).toHaveBeenCalledWith(expect.objectContaining({ restrictToIds: [] }));
     });
 
-    it("explicit branchId can only NARROW a branch-scoped caller — it intersects, never widens", async () => {
+    it("explicit branchId can only NARROW a branch-scoped caller, it intersects, never widens", async () => {
       // Caller is branch-scoped to {student-1, student-2}; the topbar picks a branch
       // whose enrolled set is {student-2, student-3}. The result must be the
       // intersection {student-2}, never student-3 (a branch the caller can't see).
@@ -217,7 +217,7 @@ describe("StudentsService", () => {
       expect(repo.list).toHaveBeenCalledWith(expect.objectContaining({ restrictToIds: ["student-2"] }));
     });
 
-    it("rejects scope=own with 403 (defensive — not a seeded scope for students.*)", async () => {
+    it("rejects scope=own with 403 (defensive, not a seeded scope for students.*)", async () => {
       await expect(
         runWithScope("own", () => service.getById("tenant-1", ROW.id)),
       ).rejects.toBeInstanceOf(ForbiddenException);
@@ -333,7 +333,7 @@ describe("StudentsService", () => {
       expect(result).toEqual({ email: "asha@example.com" });
     });
 
-    it("returns 404 (not 403) when the id is out of the caller's resolved scope — never calls the provisioning service", async () => {
+    it("returns 404 (not 403) when the id is out of the caller's resolved scope, never calls the provisioning service", async () => {
       facultyRepository.listCallerBranchIds.mockResolvedValue(["branch-a"]);
       enrollmentScope.resolveStudentIdsForBranches.mockResolvedValue(["some-other-student"]);
 
@@ -351,7 +351,7 @@ describe("StudentsService", () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it("rejects with 403 for scope=own (not seeded/resolvable) — never calls the provisioning service", async () => {
+    it("rejects with 403 for scope=own (not seeded/resolvable), never calls the provisioning service", async () => {
       await expect(
         runWithScope("own", () => service.resendCredentials("tenant-1", ROW.id)),
       ).rejects.toBeInstanceOf(ForbiddenException);

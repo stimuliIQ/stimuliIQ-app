@@ -56,7 +56,7 @@ export interface DonutChartProps {
 }
 
 function pct(numerator: number, denominator: number): string {
-  if (!denominator) return "—";
+  if (!denominator) return "-";
   return `${((numerator / denominator) * 100).toFixed(1)}%`;
 }
 

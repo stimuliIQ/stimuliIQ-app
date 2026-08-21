@@ -49,7 +49,7 @@ describe("EnvelopeInterceptor", () => {
     )) as { data: typeof payload };
 
     expect(result).toEqual({ data: payload, meta, error: null });
-    // The structured payload must sit directly under `data` — not `data.data`.
+    // The structured payload must sit directly under `data`, not `data.data`.
     expect(result.data.summaries).toHaveLength(1);
   });
 

@@ -303,7 +303,7 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
     <div className="space-y-4 md:space-y-5" data-testid="users-directory">
       <PageHeader
         title="Users"
-        description="Create and manage staff logins for the CRM — counsellors, managers, and admins. Students are managed on the Students screen."
+        description="Create and manage staff logins for the CRM. Counsellors, managers, and admins. Students are managed on the Students screen."
         actions={
           permissions.canCreate ? (
             <Button onClick={() => setCreateOpen(true)} data-testid="users-create-button">
@@ -426,8 +426,8 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
         // so that warning is omitted there rather than stated falsely.
         description={
           resettingPasswordUser?.status === "invited"
-            ? "A one-time password is emailed to them, and they'll be asked to change it the first time they sign in. You won't see it — only they will."
-            : "A one-time password is emailed to them, and they'll be asked to change it the first time they sign in. They'll be signed out everywhere, and their current password stops working immediately. You won't see the new password — only they will."
+            ? "A one-time password is emailed to them, and they'll be asked to change it the first time they sign in. You won't see it, only they will."
+            : "A one-time password is emailed to them, and they'll be asked to change it the first time they sign in. They'll be signed out everywhere, and their current password stops working immediately. You won't see the new password, only they will."
         }
         confirmLabel={resettingPasswordUser?.status === "invited" ? "Send invitation" : "Reset password"}
         loading={resetPassword.isPending}
@@ -443,7 +443,7 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
         title={`Delete ${removingUser?.name ?? "this user"}?`}
         // Says what actually happens, and names the softer option — most people reaching
         // for Delete want Deactivate, and only learn the difference from this sentence.
-        description="They're removed from the CRM and signed out everywhere. Their history — audit trail, leads they own, records they approved — is kept and still shows their name. If they might come back, or you just want to block their login, use Deactivate instead."
+        description="They're removed from the CRM and signed out everywhere. Their history. Audit trail, leads they own, records they approved. Is kept and still shows their name. If they might come back, or you just want to block their login, use Deactivate instead."
         confirmLabel="Delete user"
         tone="danger"
         loading={remove.isPending}

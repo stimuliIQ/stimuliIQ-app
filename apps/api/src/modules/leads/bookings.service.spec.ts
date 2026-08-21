@@ -1,10 +1,10 @@
 // apps/api/src/modules/leads/bookings.service.spec.ts
 //
-// Unit tests for BookingsService — the status state machine and, most importantly, the
+// Unit tests for BookingsService, the status state machine and, most importantly, the
 // UNAUTHENTICATED public booking intake (tenant resolution + lead de-duplication-by-phone
 // + atomic lead+booking creation). Rate-limiting itself is exercised at the controller
 // (PublicBookingRateLimiter is a thin Redis INCR/EXPIRE wrapper, covered by
-// login-rate-limiter's existing test pattern — not re-tested here to avoid duplicating
+// login-rate-limiter's existing test pattern, not re-tested here to avoid duplicating
 // Redis-mock plumbing for an near-identical 5-line class).
 
 import { NotFoundException, UnprocessableEntityException } from "@nestjs/common";
@@ -210,7 +210,7 @@ describe("BookingsService", () => {
       expect(result.bookingId).toBe("second-booking");
     });
 
-    it("never trusts a client-supplied tenantId/leadId/status (strict zod schema strips them before this layer is reached — verified here by confirming the call signature has no such passthrough)", async () => {
+    it("never trusts a client-supplied tenantId/leadId/status (strict zod schema strips them before this layer is reached, verified here by confirming the call signature has no such passthrough)", async () => {
       authRepo.getTenantBySlug.mockResolvedValue({ id: "tenant-1", slug: "stimuliiq" });
       leadsRepo.findByPhone.mockResolvedValue(null);
       repo.createPublicLeadAndBooking.mockResolvedValue({

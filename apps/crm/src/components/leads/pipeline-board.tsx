@@ -277,7 +277,7 @@ export function PipelineBoard({ me, initialOwnerFilter }: PipelineBoardProps): R
         const phone = row.phone.trim();
         return (
           <div className="space-y-0.5">
-            <div>{phone || row.email || "—"}</div>
+            <div>{phone || row.email || "-"}</div>
             {phone && row.email ? <div className="text-xs text-fg-muted">{row.email}</div> : null}
           </div>
         );
@@ -289,7 +289,7 @@ export function PipelineBoard({ me, initialOwnerFilter }: PipelineBoardProps): R
       // Popup leads carry a free-typed course instead of a catalog program id.
       cell: (row) => (
         <div className="space-y-0.5">
-          <div>{row.programInterestTitle ?? row.courseInterest ?? "—"}</div>
+          <div>{row.programInterestTitle ?? row.courseInterest ?? "-"}</div>
           {row.college ? <div className="text-xs text-fg-muted">{row.college}</div> : null}
         </div>
       ),
@@ -329,7 +329,7 @@ export function PipelineBoard({ me, initialOwnerFilter }: PipelineBoardProps): R
     {
       id: "slaDueAt",
       header: "SLA",
-      cell: (row) => (row.slaDueAt ? <SlaChip dueAt={new Date(row.slaDueAt)} /> : "—"),
+      cell: (row) => (row.slaDueAt ? <SlaChip dueAt={new Date(row.slaDueAt)} /> : "-"),
     },
     {
       id: "createdAt",
@@ -494,7 +494,7 @@ export function PipelineBoard({ me, initialOwnerFilter }: PipelineBoardProps): R
           items={kanban.data?.items ?? []}
           getItemId={(lead) => lead.id}
           getItemColumnId={(lead) => lead.stage}
-          getCardAriaLabel={(lead) => `${lead.name} — ${lead.stage}`}
+          getCardAriaLabel={(lead) => `${lead.name} · ${lead.stage}`}
           onMove={handleMove}
           canMove={(_id, from, to) =>
             canMoveLeadStage(from as LeadSummary["stage"], to as LeadSummary["stage"])

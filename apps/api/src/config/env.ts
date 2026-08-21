@@ -539,9 +539,9 @@ const rawEnvSchema = z.object({
 // at the env-validation layer instead of a factory, since these three have no dedicated
 // provider module to gate them.
 const PRODUCTION_REQUIRED_SECRETS = [
-  ["TWO_FACTOR_ENC_KEY", "encrypts 2FA (TOTP) secrets at rest — see auth/lib/two-factor-crypto.ts"],
-  ["CERT_SIGNING_SECRET", "signs the cert_uid embedded in every issued certificate — see cert-uid.util.ts"],
-  ["NOTIFICATION_SIGNING_SECRET", "signs unsubscribe link tokens — see notifications AC-21/24/77"],
+  ["TWO_FACTOR_ENC_KEY", "encrypts 2FA (TOTP) secrets at rest, see auth/lib/two-factor-crypto.ts"],
+  ["CERT_SIGNING_SECRET", "signs the cert_uid embedded in every issued certificate, see cert-uid.util.ts"],
+  ["NOTIFICATION_SIGNING_SECRET", "signs unsubscribe link tokens, see notifications AC-21/24/77"],
 ] as const;
 
 const envSchema = rawEnvSchema.superRefine((data, ctx) => {

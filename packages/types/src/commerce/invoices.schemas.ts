@@ -40,7 +40,7 @@ export type InvoiceStatus = z.infer<typeof InvoiceStatusSchema>;
 export const InvoiceTaxSchema = z
   .record(z.string(), z.unknown())
   .describe(
-    "Tax breakdown JSON (open shape in P2 — GST compliance hardening is a post-P2 follow-up). " +
+    "Tax breakdown JSON (open shape in P2. GST compliance hardening is a post-P2 follow-up). " +
       "May include keys like `cgst`, `sgst`, `igst`, `taxRate`, `taxAmountPaise`.",
   );
 export type InvoiceTax = z.infer<typeof InvoiceTaxSchema>;

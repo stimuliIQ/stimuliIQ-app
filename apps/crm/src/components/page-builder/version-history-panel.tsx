@@ -83,7 +83,7 @@ export function VersionHistoryPanel({
       <Drawer open={open} onOpenChange={onOpenChange}>
         <DrawerContent
           title="Restore an earlier version"
-          description="Every save (including restores) is captured here, newest first. Restoring never deletes anything — the page's current content is kept as its own version too."
+          description="Every save (including restores) is captured here, newest first. Restoring never deletes anything, the page's current content is kept as its own version too."
           size="lg"
           data-testid="page-builder-version-history-panel"
         >
@@ -163,7 +163,7 @@ export function VersionHistoryPanel({
         open={Boolean(revertTarget)}
         onOpenChange={(o) => !o && setRevertTarget(null)}
         title="Restore this earlier version?"
-        description="Your website will immediately show this earlier version — visitors will see it on their next request. Nothing is deleted; the current content is kept as its own version too, so you can always come back to it."
+        description="Your website will immediately show this earlier version. Visitors will see it on their next request. Nothing is deleted; the current content is kept as its own version too, so you can always come back to it."
         confirmLabel="Restore"
         tone="danger"
         onConfirm={handleConfirmRevert}

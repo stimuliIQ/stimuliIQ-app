@@ -22,12 +22,12 @@ export function ContactWhatsappCard({ canEdit }: { canEdit: boolean }): React.JS
               label="Number"
               required
               placeholder="919177748321"
-              helperText="Country code + number, digits only, no spaces or +  — e.g. 919177748321."
+              helperText="Country code + number, digits only, no spaces or + , e.g. 919177748321."
               {...form.register("value.number")}
               error={errors?.number?.message}
               data-testid="contact-whatsapp-number"
             />
-            <Input label="Prefilled message" required helperText="Plain text — do not URL-encode it. The website escapes it automatically." {...form.register("value.message")} error={errors?.message?.message} data-testid="contact-whatsapp-message" />
+            <Input label="Prefilled message" required helperText="Plain text. Do not URL-encode it. The website escapes it automatically." {...form.register("value.message")} error={errors?.message?.message} data-testid="contact-whatsapp-message" />
           </>
         );
       }}

@@ -6,24 +6,24 @@
 //   - sanitiseFilename / validateStorageKey / buildStorageKey helpers
 //
 // Test strategy (docs/plans/phase-4.md task #3 DoD, CLAUDE.md §3.10):
-//   - All tests are UNIT — no live network calls, no real S3/R2 bucket.
+//   - All tests are UNIT, no live network calls, no real S3/R2 bucket.
 //   - @aws-sdk/client-s3 and @aws-sdk/s3-request-presigner are mocked so the
 //     S3StorageProvider tests exercise the adapter logic without network.
-//   - node:crypto is NOT used by StorageProvider (no HMAC signing here — that is
+//   - node:crypto is NOT used by StorageProvider (no HMAC signing here, that is
 //     S3 SDK internal); therefore no crypto mock is needed.
 //   - Tests cover:
-//       1. NoopStorageProvider.getSignedUploadUrl — URL shape, storageKey, TTL, expiry.
-//       2. NoopStorageProvider.getSignedDownloadUrl — URL shape, TTL, expiry.
-//       3. NoopStorageProvider.delete — no-op (does not throw).
-//       4. NoopStorageProvider.head — default "exists" response; headExistsDefault=false.
-//       5. NoopStorageProvider — determinism (same key + same second → same URL).
-//       6. NoopStorageProvider static helpers — buildExpectedUploadUrl / buildExpectedDownloadUrl.
-//       7. sanitiseFilename — path traversal, null bytes, disallowed chars, truncation.
-//       8. validateStorageKey — prefix check, ".." rejection, null byte rejection.
-//       9. buildStorageKey — correct layout for each namespace; error on missing ids.
-//      10. S3StorageProvider — fail-closed: constructor does NOT throw when unconfigured;
+//       1. NoopStorageProvider.getSignedUploadUrl, URL shape, storageKey, TTL, expiry.
+//       2. NoopStorageProvider.getSignedDownloadUrl, URL shape, TTL, expiry.
+//       3. NoopStorageProvider.delete, no-op (does not throw).
+//       4. NoopStorageProvider.head, default "exists" response; headExistsDefault=false.
+//       5. NoopStorageProvider, determinism (same key + same second → same URL).
+//       6. NoopStorageProvider static helpers, buildExpectedUploadUrl / buildExpectedDownloadUrl.
+//       7. sanitiseFilename, path traversal, null bytes, disallowed chars, truncation.
+//       8. validateStorageKey, prefix check, ".." rejection, null byte rejection.
+//       9. buildStorageKey, correct layout for each namespace; error on missing ids.
+//      10. S3StorageProvider, fail-closed: constructor does NOT throw when unconfigured;
 //          calls throw with a clear message; no URL returned.
-//      11. S3StorageProvider — with mocked SDK: getSignedUploadUrl returns url + storageKey
+//      11. S3StorageProvider, with mocked SDK: getSignedUploadUrl returns url + storageKey
 //          + expiresAt + requiredHeaders; getSignedDownloadUrl returns url + expiresAt.
 //      12. Content-type constraint plumbing (requiredHeaders["Content-Type"] === input).
 //
@@ -64,7 +64,7 @@ import {
 const FAKE_PRESIGNED_URL = "https://fake-s3-bucket.s3.amazonaws.com/test-key?X-Amz-Signature=fakeS4sig";
 
 jest.mock("@aws-sdk/s3-request-presigner", () => ({
-  // Literal value — cannot reference the FAKE_PRESIGNED_URL const here (not yet initialized).
+  // Literal value, cannot reference the FAKE_PRESIGNED_URL const here (not yet initialized).
   getSignedUrl: jest.fn().mockResolvedValue(
     "https://fake-s3-bucket.s3.amazonaws.com/test-key?X-Amz-Signature=fakeS4sig",
   ),
@@ -77,7 +77,7 @@ jest.mock("@aws-sdk/client-s3", () => {
     send = mockSend;
   }
 
-  // Minimal command stubs — the adapter only needs the class to exist so the
+  // Minimal command stubs, the adapter only needs the class to exist so the
   // constructor is callable.  The actual SDK call is mocked via `send`.
   class PutObjectCommand {
     constructor(public readonly input: Record<string, unknown>) {}
@@ -181,7 +181,7 @@ describe("sanitiseFilename", () => {
   });
 
   it("returns 'file' when sanitisation removes all characters", () => {
-    // Only disallowed chars — should reduce to empty → 'file'
+    // Only disallowed chars, should reduce to empty → 'file'
     expect(sanitiseFilename("@@@###$$$")).toBe("file");
   });
 
@@ -247,7 +247,7 @@ describe("validateStorageKey", () => {
 
   // Bucket routing: everything mintCdnUrl() turns into a public URL must resolve to the
   // public bucket, or the object is written to the private bucket while the URL points at
-  // the public one — a guaranteed 404 once STORAGE_PUBLIC_BUCKET is configured.
+  // the public one, a guaranteed 404 once STORAGE_PUBLIC_BUCKET is configured.
   it("routes exactly the CDN-served namespaces to the public bucket", () => {
     expect(isPublicAssetKey("program_images/t1/uuid-cover.png")).toBe(true);
     expect(isPublicAssetKey("marketing_images/t1/uuid-hero.webp")).toBe(true);
@@ -261,7 +261,7 @@ describe("validateStorageKey", () => {
     expect(isPublicAssetKey("invoices/t1/inv123.pdf")).toBe(false);
     expect(isPublicAssetKey("receipts/t1/pay-1.pdf")).toBe(false);
     expect(isPublicAssetKey("careers/t1/uuid-resume.pdf")).toBe(false);
-    // Onboarding file answers — a payment receipt carries an amount and a bank/UPI
+    // Onboarding file answers, a payment receipt carries an amount and a bank/UPI
     // reference, so it is signed-URL-only like careers/, never CDN-served.
     expect(isPublicAssetKey("onboarding/t1/uuid-receipt.png")).toBe(false);
     expect(isPublicAssetKey("certificates/t1/cert123.pdf")).toBe(false);
@@ -411,7 +411,7 @@ describe("buildStorageKey", () => {
     });
     // The key must not contain traversal sequences or raw path separators.
     // "../../etc/passwd" → sanitiseFilename strips ".." and "/" → "etcpasswd" (or similar
-    // safe derivative) — the important invariant is no ".." and no "/" in the filename part.
+    // safe derivative), the important invariant is no ".." and no "/" in the filename part.
     expect(key).not.toContain("..");
     // Validate the resulting key is structurally safe (passes the prefix + traversal check).
     expect(() => validateStorageKey(key)).not.toThrow();
@@ -459,7 +459,7 @@ describe("buildStorageKey", () => {
     expect(() => validateStorageKey(key)).not.toThrow();
   });
 
-  // REGRESSION (found during the marketing_images build — mentor_photos/ and
+  // REGRESSION (found during the marketing_images build, mentor_photos/ and
   // program_images/ were valid buildKey() namespaces but were MISSING from
   // ALLOWED_KEY_PREFIXES, so a raw mint against either would have thrown inside
   // getSignedUploadUrl()'s validateStorageKey() call). This test proves EVERY
@@ -746,15 +746,15 @@ describe("NoopStorageProvider", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Suite 5: S3StorageProvider — fail-closed when unconfigured
+// Suite 5: S3StorageProvider, fail-closed when unconfigured
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("S3StorageProvider — fail-closed when unconfigured", () => {
+describe("S3StorageProvider, fail-closed when unconfigured", () => {
   const TEST_KEY = "submissions/tenant-1/enroll-1/uuid-abc.pdf";
 
   beforeEach(() => {
     __resetEnvCacheForTests();
-    // Provide only REQUIRED_ENV — no STORAGE_ keys.
+    // Provide only REQUIRED_ENV, no STORAGE_ keys.
     Object.assign(process.env, REQUIRED_ENV);
   });
 
@@ -821,10 +821,10 @@ describe("S3StorageProvider — fail-closed when unconfigured", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Suite 6: S3StorageProvider — with mocked SDK
+// Suite 6: S3StorageProvider, with mocked SDK
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("S3StorageProvider — with mocked SDK", () => {
+describe("S3StorageProvider, with mocked SDK", () => {
   const TEST_KEY = "submissions/tenant-1/enroll-1/uuid-abc.pdf";
   const TEST_CONTENT_TYPE = "application/pdf";
   const TEST_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -1061,11 +1061,11 @@ describe("S3StorageProvider — with mocked SDK", () => {
 // R2 grants public read access per BUCKET, not per prefix. To put course images
 // behind a CDN without also exposing `submissions/`, `exports/`, `invoices/`,
 // `receipts/` and `careers/`, the four publicly-rendered image namespaces are
-// routed to a separate bucket. These tests pin WHICH namespaces cross that line —
+// routed to a separate bucket. These tests pin WHICH namespaces cross that line,
 // a regression here is a data-exposure bug, not a cosmetic one.
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("S3StorageProvider — public/private bucket split", () => {
+describe("S3StorageProvider, public/private bucket split", () => {
   const PRIVATE_BUCKET = "test-bucket"; // STORAGE_ENV.STORAGE_BUCKET
   const PUBLIC_BUCKET = "test-public-bucket";
 

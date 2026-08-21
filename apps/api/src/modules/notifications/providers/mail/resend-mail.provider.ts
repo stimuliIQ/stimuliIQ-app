@@ -166,7 +166,7 @@ export class ResendMailProvider implements MailProvider {
   verifyWebhookSignature(input: VerifyMailWebhookInput): boolean {
     if (!input.secret) {
       this.logger.warn(
-        "[ResendMailProvider] verifyWebhookSignature: MAIL_WEBHOOK_SECRET is absent — " +
+        "[ResendMailProvider] verifyWebhookSignature: MAIL_WEBHOOK_SECRET is absent, " +
           "returning false (fail-closed). Set MAIL_WEBHOOK_SECRET in your environment.",
       );
       return false;
@@ -190,7 +190,7 @@ export class ResendMailProvider implements MailProvider {
       // Log the error type only — never log the secret or the raw signature.
       const name = err instanceof Error ? err.constructor.name : "UnknownError";
       this.logger.warn(
-        `[ResendMailProvider] verifyWebhookSignature: verification failed (${name}) — returning false.`,
+        `[ResendMailProvider] verifyWebhookSignature: verification failed (${name}), returning false.`,
       );
       return false;
     }

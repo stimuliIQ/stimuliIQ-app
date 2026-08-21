@@ -7,7 +7,7 @@ import { PointsBadge, StreakFlame } from "./points-badge";
 // PointsBadge
 // ---------------------------------------------------------------------------
 
-describe("PointsBadge — rendering", () => {
+describe("PointsBadge, rendering", () => {
   it("renders with default data-testid='points-badge'", () => {
     render(<PointsBadge points={1000} />);
     expect(screen.getByTestId("points-badge")).toBeInTheDocument();
@@ -29,7 +29,7 @@ describe("PointsBadge — rendering", () => {
   });
 });
 
-describe("PointsBadge — a11y", () => {
+describe("PointsBadge, a11y", () => {
   it("icon is aria-hidden", () => {
     const { container } = render(<PointsBadge points={100} />);
     const svg = container.querySelector("svg");
@@ -41,7 +41,7 @@ describe("PointsBadge — a11y", () => {
 // StreakFlame
 // ---------------------------------------------------------------------------
 
-describe("StreakFlame — rendering", () => {
+describe("StreakFlame, rendering", () => {
   it("renders with default data-testid='streak-flame'", () => {
     render(<StreakFlame days={7} />);
     expect(screen.getByTestId("streak-flame")).toBeInTheDocument();
@@ -64,7 +64,7 @@ describe("StreakFlame — rendering", () => {
   });
 });
 
-describe("StreakFlame — reduced-motion awareness", () => {
+describe("StreakFlame, reduced-motion awareness", () => {
   it("has motion-safe:animate-pulse class in the flame SVG class list only when days > 0", () => {
     const { container } = render(<StreakFlame days={10} />);
     // Lucide renders Flame as an <svg>; the className prop is applied as the SVG class attribute.

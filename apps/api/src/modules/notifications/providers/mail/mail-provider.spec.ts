@@ -1,24 +1,24 @@
 // apps/api/src/modules/notifications/providers/mail/mail-provider.spec.ts
 //
 // Unit tests for the MailProvider adapters:
-//   - NoopMailProvider   — deterministic send, real HMAC webhook verification, no network
-//   - ResendMailProvider — send shape + providerMessageId plumbing (Resend SDK mocked);
+//   - NoopMailProvider  , deterministic send, real HMAC webhook verification, no network
+//   - ResendMailProvider, send shape + providerMessageId plumbing (Resend SDK mocked);
 //                         verifyWebhookSignature pass/fail; fail-closed when key absent
-//   - MailProviderModule factory — adapter selection, fail-closed-in-prod boot throw,
+//   - MailProviderModule factory, adapter selection, fail-closed-in-prod boot throw,
 //                                  Noop in dev/test
 //
 // Test strategy (docs/plans/phase-6.md task #3 DoD, CLAUDE.md §3.10):
-//   - All tests are UNIT — no live network calls, no real Resend endpoint.
+//   - All tests are UNIT, no live network calls, no real Resend endpoint.
 //   - The Resend SDK is mocked (jest.mock('resend')) to avoid any network dependency.
 //   - node:crypto (createHmac, timingSafeEqual) is the REAL implementation.
 //   - Secrets invariant: RESEND_API_KEY, MAIL_WEBHOOK_SECRET, and MAIL_FROM NEVER appear
 //     in any return value or serialised result.
 //
 // ACs covered (docs/specs/phase-6-engagement.md):
-//   AC-12  — Noop does not throw; deterministic success; no network
-//   AC-13  — Fail-closed in prod when MAIL_PROVIDER=resend but key absent (boot throw)
-//   AC-39  — Forged webhook rejected (false); missing secret → false
-//   AC-76  — No secret in any returned object
+//   AC-12 , Noop does not throw; deterministic success; no network
+//   AC-13 , Fail-closed in prod when MAIL_PROVIDER=resend but key absent (boot throw)
+//   AC-39 , Forged webhook rejected (false); missing secret → false
+//   AC-76 , No secret in any returned object
 //   Part 4 edge: constructor does NOT throw when keys absent (lazy validation)
 
 import { __resetEnvCacheForTests } from "../../../../config/env";
@@ -54,7 +54,7 @@ const REQUIRED_ENV: Record<string, string> = {
   CSRF_SECRET: "test-csrf-secret-at-least-32-chars-long!!!",
 };
 
-// Test-only constants — NEVER real credentials.
+// Test-only constants, NEVER real credentials.
 const TEST_RESEND_API_KEY = "re_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 const TEST_MAIL_FROM = "test@example.com";
 const TEST_WEBHOOK_SECRET = "whsec_dGVzdC1zZWNyZXQtbmV2ZXItZXhwb3NlLTEyMzQ1Njc4OTAxMjM=";
@@ -201,7 +201,7 @@ describe("NoopMailProvider", () => {
       ).toBe(false);
     });
 
-    it("FAIL CLOSED — returns false when secret is empty", () => {
+    it("FAIL CLOSED, returns false when secret is empty", () => {
       const sig = makeSig();
       expect(
         provider.verifyWebhookSignature({
@@ -240,7 +240,7 @@ describe("NoopMailProvider", () => {
       ).toBe(true);
     });
 
-    it("does NOT throw — returns false on completely malformed input", () => {
+    it("does NOT throw, returns false on completely malformed input", () => {
       expect(() =>
         provider.verifyWebhookSignature({
           rawBody: RAW_BODY,
@@ -261,7 +261,7 @@ describe("NoopMailProvider", () => {
         secret: TEST_WEBHOOK_SECRET,
       });
       expect(result).toBe(false);
-      // Verify the return value itself (boolean) — trivially can't contain a string.
+      // Verify the return value itself (boolean), trivially can't contain a string.
       expect(typeof result).toBe("boolean");
     });
   });
@@ -295,7 +295,7 @@ describe("ResendMailProvider", () => {
     expect(() => new ResendMailProvider()).not.toThrow();
   });
 
-  // ─── send() — success path ────────────────────────────────────────────────
+  // ─── send(), success path ────────────────────────────────────────────────
 
   it("send() returns providerMessageId from the Resend SDK response", async () => {
     setEnvWith({ RESEND_API_KEY: TEST_RESEND_API_KEY, MAIL_FROM: TEST_MAIL_FROM });
@@ -356,7 +356,7 @@ describe("ResendMailProvider", () => {
     expect(serialised).not.toContain(TEST_WEBHOOK_SECRET);
   });
 
-  // ─── send() — failure paths ───────────────────────────────────────────────
+  // ─── send(), failure paths ───────────────────────────────────────────────
 
   it("send() throws when RESEND_API_KEY is absent", async () => {
     setEnvWith({ MAIL_FROM: TEST_MAIL_FROM }); // no RESEND_API_KEY
@@ -437,7 +437,7 @@ describe("ResendMailProvider", () => {
       expect(result).toBe(false);
     });
 
-    it("FAIL CLOSED — returns false when secret is empty", () => {
+    it("FAIL CLOSED, returns false when secret is empty", () => {
       setEnvWith({ RESEND_API_KEY: TEST_RESEND_API_KEY, MAIL_FROM: TEST_MAIL_FROM });
       const provider = new ResendMailProvider();
       const result = provider.verifyWebhookSignature({
@@ -450,7 +450,7 @@ describe("ResendMailProvider", () => {
       expect(result).toBe(false);
     });
 
-    it("FAIL CLOSED — returns false when RESEND_API_KEY is absent (getClient throws)", () => {
+    it("FAIL CLOSED, returns false when RESEND_API_KEY is absent (getClient throws)", () => {
       setEnvWith(); // no keys
       const provider = new ResendMailProvider();
       const result = provider.verifyWebhookSignature({
@@ -463,7 +463,7 @@ describe("ResendMailProvider", () => {
       expect(result).toBe(false);
     });
 
-    it("does NOT throw on any input — always returns boolean", () => {
+    it("does NOT throw on any input, always returns boolean", () => {
       setEnvWith({ RESEND_API_KEY: TEST_RESEND_API_KEY, MAIL_FROM: TEST_MAIL_FROM });
       mockWebhooksVerify.mockImplementationOnce(() => {
         throw new Error("error");

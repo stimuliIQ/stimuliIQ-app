@@ -349,10 +349,10 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         this.logger.warn(`[NotificationsService] SSE Redis subscriber connection error: ${String(err)}`);
       });
       await this.sseSubscriberConn.psubscribe(`${SSE_CHANNEL_PREFIX}*`);
-      this.logger.log("[NotificationsService] SSE Redis pub/sub subscriber connected — multi-instance fan-out active.");
+      this.logger.log("[NotificationsService] SSE Redis pub/sub subscriber connected, multi-instance fan-out active.");
     } catch (err) {
       this.logger.warn(
-        `[NotificationsService] Failed to establish SSE Redis subscriber connection — ` +
+        `[NotificationsService] Failed to establish SSE Redis subscriber connection, ` +
           `falling back to same-instance-only SSE fan-out: ${String(err)}`,
       );
       this.sseSubscriberConn = null;
@@ -489,7 +489,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
 
     for (const channel of channelsToSend) {
       if (!effectivePrefs[channel]) {
-        this.logger.debug(`[NotificationsService] channel=${channel} disabled in prefs — skipping`);
+        this.logger.debug(`[NotificationsService] channel=${channel} disabled in prefs, skipping`);
         continue;
       }
 
@@ -512,7 +512,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       if (qhResult.defer) {
         this.logger.log(
           `[NotificationsService] channel=${channel} deferred until ${qhResult.deferUntil?.toISOString()} ` +
-            `for userId=${userId} (quiet hours; deferUntil recorded, sync-seam cannot delay — skipping this send)`,
+            `for userId=${userId} (quiet hours; deferUntil recorded, sync-seam cannot delay, skipping this send)`,
         );
         // In sync-seam: deferred sends are SKIPPED (not scheduled).
         // BullMQ migration: use qhResult.deferUntil to schedule the job with a delay.
@@ -525,7 +525,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       if ((channel === "sms" || channel === "whatsapp") && template.missingDlt) {
         this.logger.warn(
           `[NotificationsService] DLT template ID not configured for type=${type} channel=${channel} ` +
-            `(DLT_PENDING sentinel — set real DLT ID before production). Skipping external send.`,
+            `(DLT_PENDING sentinel. Set real DLT ID before production). Skipping external send.`,
         );
         // Not a hard error in sync-seam (dev environment). The dispatch adapter will also
         // reject this as a defense-in-depth layer.
@@ -687,7 +687,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       amountRupees,
       currency: payload.currency ?? "INR",
       studentName: payload.studentName ?? "",
-      invoiceNumber: payload.invoiceNumber ?? "—",
+      invoiceNumber: payload.invoiceNumber ?? "-",
     }, contactOpts);
   }
 
@@ -1117,7 +1117,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       const oldest = existing[0];
       this.logger.warn(
         `[NotificationsService] SSE connection cap (${cap}) reached for tenant=${tenantId.slice(0, 8)}... ` +
-          `user=${userId.slice(0, 8)}... — evicting oldest connection`,
+          `user=${userId.slice(0, 8)}..., evicting oldest connection`,
       );
       oldest?.close(); // mutates/removes from `existing` in place via splice above
     }

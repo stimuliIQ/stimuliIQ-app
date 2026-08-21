@@ -5,12 +5,12 @@
 // Test coverage:
 //   - Student can only post in enrolled batch (non-enrolled → 404, AC-56)
 //   - Faculty moderates only assigned batches (non-assigned → 404, AC-64)
-//   - Reply notifies thread/parent author (AC-60) — not self (no self-notify)
+//   - Reply notifies thread/parent author (AC-60), not self (no self-notify)
 //   - Upvote dedupe: one per user per post (AC-61) + self-vote 422 (AC-62)
 //   - HTML-strip defense-in-depth (Risk #7, P5 M-3)
 //   - Cross-tenant isolation: tenantId always threaded through to the repo
 //   - Admin has all-scope moderation (AC-67)
-//   - Student blocked from moderation (AC-68) — role check in helper
+//   - Student blocked from moderation (AC-68), role check in helper
 
 import { NotFoundException, UnprocessableEntityException, ForbiddenException } from "@nestjs/common";
 import { ForumService } from "./forum.service";
@@ -141,7 +141,7 @@ describe("ForumService", () => {
 
   // ─── Enrollment scope: student posts only in enrolled batch ─────────────
 
-  describe("createThread — enrollment scope (AC-56)", () => {
+  describe("createThread, enrollment scope (AC-56)", () => {
     it("allows a student to create a thread in their enrolled batch", async () => {
       (repo.findActiveEnrollment as jest.Mock).mockResolvedValue({
         id: "enroll-1",
@@ -191,9 +191,9 @@ describe("ForumService", () => {
     });
   });
 
-  // ─── createPost — enrollment scope (AC-58) ────────────────────────────
+  // ─── createPost, enrollment scope (AC-58) ────────────────────────────
 
-  describe("createPost — enrollment scope (AC-58)", () => {
+  describe("createPost, enrollment scope (AC-58)", () => {
     it("allows a student to post in enrolled batch thread", async () => {
       (repo.findActiveEnrollment as jest.Mock).mockResolvedValue({
         id: "enroll-1",
@@ -226,7 +226,7 @@ describe("ForumService", () => {
 
   // ─── Reply notification (AC-60) ────────────────────────────────────────
 
-  describe("createPost — reply notification (AC-60)", () => {
+  describe("createPost, reply notification (AC-60)", () => {
     it("notifies the thread author when a different user replies", async () => {
       const threadAuthorId = "author-user-1";
       const replyAuthorId = "student-user-2"; // different from thread author
@@ -276,7 +276,7 @@ describe("ForumService", () => {
 
   // ─── Upvote dedupe + self-vote prevention (AC-61, AC-62) ───────────────
 
-  describe("votePost — upvote dedupe (AC-61, AC-62)", () => {
+  describe("votePost, upvote dedupe (AC-61, AC-62)", () => {
     it("creates a vote and returns hasVoted=true for first vote", async () => {
       (repo.hasActiveVote as jest.Mock).mockResolvedValue(false);
       (repo.createVote as jest.Mock).mockResolvedValue(1);
@@ -325,9 +325,9 @@ describe("ForumService", () => {
     });
   });
 
-  // ─── Moderation — faculty assigned-scope (AC-64) ───────────────────────
+  // ─── Moderation, faculty assigned-scope (AC-64) ───────────────────────
 
-  describe("moderatePost — assigned-scope (AC-64)", () => {
+  describe("moderatePost, assigned-scope (AC-64)", () => {
     it("allows faculty to hide a post in an assigned batch (AC-65)", async () => {
       (repo.isFacultyAssignedToBatch as jest.Mock).mockResolvedValue(true);
       (repo.findPostById as jest.Mock).mockResolvedValue(makePostRow());
@@ -467,7 +467,7 @@ describe("ForumService", () => {
     });
   });
 
-  // ─── listThreads — requires batchId or programId ─────────────────────────
+  // ─── listThreads, requires batchId or programId ─────────────────────────
 
   describe("listThreads", () => {
     it("throws 422 if neither batchId nor programId is supplied", async () => {
@@ -519,9 +519,9 @@ describe("ForumService", () => {
     });
   });
 
-  // ─── votePost — concurrent unique violation handled (AC-63) ─────────────
+  // ─── votePost, concurrent unique violation handled (AC-63) ─────────────
 
-  describe("votePost — concurrent race (AC-63)", () => {
+  describe("votePost, concurrent race (AC-63)", () => {
     it("handles unique constraint violation (P2002) as idempotent", async () => {
       const { Prisma } = jest.requireActual("@prisma/client");
       const uniqueError = new Prisma.PrismaClientKnownRequestError("Unique constraint", {

@@ -3,7 +3,7 @@
 // Unit tests for RazorpayPaymentProvider and the NoopPaymentProvider test double.
 //
 // Test strategy (docs/plans/phase-2.md task #4 DoD, CLAUDE.md §3.10):
-//   - All tests are UNIT tests — no live network calls, no real Razorpay keys.
+//   - All tests are UNIT tests, no live network calls, no real Razorpay keys.
 //   - fetch() is mocked globally; the real `node:crypto` is used for HMAC verification
 //     so that signature correctness is truly tested.
 //   - Tests cover:
@@ -29,7 +29,7 @@ import { RazorpayPaymentProvider, timingSafeEqualStrings } from "./razorpay-paym
 import { NoopPaymentProvider } from "./noop-payment.provider";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test constants (never real values — isolated from any real env)
+// Test constants (never real values, isolated from any real env)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEST_KEY_ID = "rzp_test_TESTKEYID00001";
@@ -269,7 +269,7 @@ describe("RazorpayPaymentProvider", () => {
       ).toBe(false);
     });
 
-    it("FAIL CLOSED — returns false (not throw) when WEBHOOK_SECRET is not configured", () => {
+    it("FAIL CLOSED, returns false (not throw) when WEBHOOK_SECRET is not configured", () => {
       // Re-create the provider without WEBHOOK_SECRET
       __resetEnvCacheForTests();
       setTestEnv({ RAZORPAY_WEBHOOK_SECRET: undefined });
@@ -319,12 +319,12 @@ describe("RazorpayPaymentProvider", () => {
       const headers = init.headers as Record<string, string>;
       expect(headers["Authorization"]).toMatch(/^Basic /);
 
-      // Auth header MUST encode key_id:key_secret — but we only verify the format,
+      // Auth header MUST encode key_id:key_secret, but we only verify the format,
       // not decode the base64, since KEY_SECRET must never be asserted on in tests.
       const authB64 = (headers["Authorization"] as string).replace("Basic ", "");
       const decoded = Buffer.from(authB64, "base64").toString("utf8");
       expect(decoded).toMatch(/^rzp_test_TESTKEYID00001:/);
-      // The part after ":" must NOT be empty (secret is present) — but we do NOT
+      // The part after ":" must NOT be empty (secret is present), but we do NOT
       // assert on the secret value itself.
       const [, secretPart] = decoded.split(":");
       expect(secretPart).toBeTruthy();
@@ -476,11 +476,11 @@ describe("RazorpayPaymentProvider", () => {
   // Boot-time config errors
   // ─────────────────────────────────────────────────────────────────────────
 
-  describe("constructor — config validation (boots without keys, validates lazily)", () => {
+  describe("constructor, config validation (boots without keys, validates lazily)", () => {
     // The provider must NOT throw at construction when keys are absent: the app has
     // to boot in envs without payment configured (dev, Phase-0, integration tests of
     // unrelated modules that build the full AppModule). Instead it warns at construction
-    // and validates LAZILY — payment operations throw at call time, signature checks
+    // and validates LAZILY, payment operations throw at call time, signature checks
     // fail closed.
 
     it("does NOT throw at construction when RAZORPAY_KEY_ID is absent, but createOrder throws lazily", async () => {
@@ -582,7 +582,7 @@ describe("NoopPaymentProvider", () => {
     });
   });
 
-  describe("verifyWebhookSignature — FAIL CLOSED when secret absent", () => {
+  describe("verifyWebhookSignature, FAIL CLOSED when secret absent", () => {
     it("returns false (not throw) when simulateWebhookSecretAbsent is true", () => {
       const provider = new NoopPaymentProvider({ simulateWebhookSecretAbsent: true });
       const rawBody = '{"event":"payment.captured"}';

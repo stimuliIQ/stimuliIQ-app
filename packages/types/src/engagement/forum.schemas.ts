@@ -65,7 +65,7 @@ export type ModerateAction = z.infer<typeof ModerateActionSchema>;
  */
 export const ForumAuthorDtoSchema = z
   .object({
-    id: UuidSchema.describe("User ID — opaque; used for IDOR prevention on own-post checks."),
+    id: UuidSchema.describe("User ID. Opaque; used for IDOR prevention on own-post checks."),
     /** Display name (first name + last initial or full name per user profile). */
     displayName: z.string().min(1).describe("Author display name for forum attribution."),
     /** Role label for context (e.g. 'Student', 'Faculty', 'Admin'). */
@@ -132,18 +132,18 @@ export const CreateThreadDtoSchema = z
     body: z
       .string()
       .min(1, "Body is required (AC: BODY_REQUIRED)")
-      .max(10000, "Body too long — max 10,000 characters (AC-71: BODY_TOO_LONG)")
+      .max(10000, "Body too long. Max 10,000 characters (AC-71: BODY_TOO_LONG)")
       .describe("Opening post body. Plain text, max 10,000 chars."),
     /**
      * Batch to scope this thread to. REQUIRED for batch-scoped threads.
      * The backend validates enrollment before accepting this (AC-56).
      */
-    batchId: UuidSchema.optional().describe("Batch scope — student must be enrolled (IDOR→404)."),
+    batchId: UuidSchema.optional().describe("Batch scope. Student must be enrolled (IDOR→404)."),
     /**
      * Program to scope this thread to. Used for program-level discussions.
      * At least one of batchId or programId must be provided.
      */
-    programId: UuidSchema.optional().describe("Program scope — enrollment verified by the backend."),
+    programId: UuidSchema.optional().describe("Program scope. Enrollment verified by the backend."),
   })
   .strict()
   .refine((d) => d.batchId != null || d.programId != null, {
@@ -177,7 +177,7 @@ export const PostDtoSchema = z
      */
     body: z
       .string()
-      .describe("Post body — stored text. DOMPurify MUST be applied before DOM insertion (AC-70)."),
+      .describe("Post body. Stored text. DOMPurify MUST be applied before DOM insertion (AC-70)."),
     /** Parent post ID for nested replies. Null = top-level post in the thread. */
     parentId: UuidSchema.nullable().describe("Parent post ID for nested replies. Null = top-level."),
     status: PostStatusSchema,
@@ -227,7 +227,7 @@ export const CreatePostDtoSchema = z
     body: z
       .string()
       .min(1, "Body is required (BODY_REQUIRED)")
-      .max(10000, "Body too long — max 10,000 characters (BODY_TOO_LONG, AC-71)")
+      .max(10000, "Body too long. Max 10,000 characters (BODY_TOO_LONG, AC-71)")
       .describe("Post body. Plain text, max 10,000 chars."),
     /**
      * Parent post ID for nested replies (AC-59).
@@ -343,8 +343,8 @@ export type VoteResponse = z.infer<typeof VoteResponseSchema>;
  */
 export const ListThreadsQuerySchema = z
   .object({
-    batchId: UuidSchema.optional().describe("Batch filter — REQUIRED for student access (IDOR→404 if not enrolled)."),
-    programId: UuidSchema.optional().describe("Program filter — alternative to batchId for program-level threads."),
+    batchId: UuidSchema.optional().describe("Batch filter. REQUIRED for student access (IDOR→404 if not enrolled)."),
+    programId: UuidSchema.optional().describe("Program filter. Alternative to batchId for program-level threads."),
     status: ThreadStatusSchema.optional().describe("Filter by thread status."),
     /** Cursor pagination (same as other list endpoints). */
     cursor: z.string().optional(),

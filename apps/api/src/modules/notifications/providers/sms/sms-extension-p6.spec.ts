@@ -3,12 +3,12 @@
 // Unit tests for the REAL Msg91SmsProvider (docs/plans/phase-9-completion.md T16 / B3).
 // Originally covered the Phase-6 STUB `sendSms()` extension; rewritten for the real
 // MSG91 HTTP-backed implementation (msg91-sms.provider.ts). Network calls are mocked
-// via `global.fetch` — no live MSG91 account/credentials are used or required.
+// via `global.fetch`, no live MSG91 account/credentials are used or required.
 //
 // ACs covered:
-//   AC-76  — No secret (MSG91_AUTH_KEY) or OTP code in ANY log line or returned object.
-//   AC-78  — sendSms is parameterized with dltTemplateId (Rule C-3 passthrough).
-//   T16    — real HTTP call behind SmsProvider; no OTP plaintext logging; fails properly
+//   AC-76 , No secret (MSG91_AUTH_KEY) or OTP code in ANY log line or returned object.
+//   AC-78 , sendSms is parameterized with dltTemplateId (Rule C-3 passthrough).
+//   T16   , real HTTP call behind SmsProvider; no OTP plaintext logging; fails properly
 //            (throws for sendSms / returns delivered:false for sendOtp) when creds are
 //            missing, rather than silently no-op.
 
@@ -82,7 +82,7 @@ describe("Msg91SmsProvider (real MSG91 HTTP adapter, T16/B3)", () => {
     it("THROWS when dltTemplateId is missing (Rule C-3 defence-in-depth)", async () => {
       restoreEnv = withEnv(MSG91_KEYS);
       await expect(
-        // @ts-expect-error — intentionally omitting a required field to test the guard
+        // @ts-expect-error, intentionally omitting a required field to test the guard
         provider.sendSms({ phone: "+919876543210", body: "Test message" }),
       ).rejects.toThrow(/dltTemplateId is required/);
     });
@@ -144,7 +144,7 @@ describe("Msg91SmsProvider (real MSG91 HTTP adapter, T16/B3)", () => {
 
       await provider.sendSms({
         phone: "+919876543210",
-        body: "Your score is 99% — private content",
+        body: "Your score is 99%, private content",
         dltTemplateId: "d1",
       });
 
@@ -158,7 +158,7 @@ describe("Msg91SmsProvider (real MSG91 HTTP adapter, T16/B3)", () => {
 
       const result = await provider.sendSms({
         phone: "+919876543210",
-        body: "Your score is 99% — private content",
+        body: "Your score is 99%, private content",
         dltTemplateId: "d1",
       });
 

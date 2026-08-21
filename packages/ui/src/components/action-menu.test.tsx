@@ -23,7 +23,7 @@ describe("ActionMenu", () => {
     expect(screen.getByRole("button", { name: "Actions for Priya Sharma" })).toBeInTheDocument();
   });
 
-  it("renders nothing when there are no items — an empty menu is worse than no menu", () => {
+  it("renders nothing when there are no items, an empty menu is worse than no menu", () => {
     const { container } = render(<ActionMenu triggerLabel="Actions for Priya Sharma" items={[]} />);
     expect(container).toBeEmptyDOMElement();
   });

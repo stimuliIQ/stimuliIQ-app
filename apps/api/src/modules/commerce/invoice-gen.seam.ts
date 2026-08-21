@@ -109,7 +109,7 @@ export class SyncInvoiceGenAdapter implements InvoiceGenPort {
       const pdf = await this.reportPdf.render({
         title: `Tax Invoice ${invoice.number}`,
         generatedAt: issuedAt.toISOString(),
-        subtitle: `Issued by ${issuer} — ${invoice.studentName} · ${invoice.programTitle}`,
+        subtitle: `Issued by ${issuer} · ${invoice.studentName} · ${invoice.programTitle}`,
         headers: ["Description", "Amount"],
         rows: [
           ["Taxable amount", formatPaise(gst.taxableAmountPaise, invoice.currency)],

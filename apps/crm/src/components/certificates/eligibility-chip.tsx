@@ -29,7 +29,7 @@ export function EligibilityGate({ passed, label, detail }: EligibilityGateProps)
       <div>
         <p className={cn("text-sm font-medium", passed ? "text-success" : "text-danger")}>
           {label}
-          <span className="sr-only">{passed ? " — passed" : " — not passed"}</span>
+          <span className="sr-only">{passed ? ", passed" : ", not passed"}</span>
         </p>
         {detail ? <p className="text-xs text-fg-muted">{detail}</p> : null}
       </div>

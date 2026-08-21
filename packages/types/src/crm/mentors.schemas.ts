@@ -149,7 +149,7 @@ export const CreateMentorRequestSchema = z
     // ── Public marketing-profile fields (bound to the web /mentors page) ──
     photoKey: z.string().min(1).max(1024).optional().describe(
       "S3/R2 object key from POST /crm/mentors/photo-upload-url. The API mints a public CDN " +
-        "photoUrl from it — the raw key is never returned.",
+        "photoUrl from it. The raw key is never returned.",
     ),
     title: z.string().max(160).optional().describe("Professional headline, e.g. 'Senior ML Engineer, Microsoft'."),
     bio: z.string().max(4000).optional().describe("Paragraph-length professional biography (public)."),
@@ -213,7 +213,7 @@ export type MentorAssignedBatch = z.infer<typeof MentorAssignedBatchSchema>;
 export const MentorSummarySchema = z.object({
   id: UuidSchema,
   userId: UuidSchema.nullable().describe(
-    "Set only once a dashboard login is granted. Nullable by design (see file header note #1) — " +
+    "Set only once a dashboard login is granted. Nullable by design (see file header note #1), " +
       "no endpoint in this contract sets this field.",
   ),
   fullName: z.string(),
@@ -259,7 +259,7 @@ export const MentorPhotoUploadUrlRequestSchema = z
   .object({
     contentType: z
       .enum(["image/jpeg", "image/png", "image/webp"])
-      .describe("Mentor photos are images only — the signed URL enforces this content-type."),
+      .describe("Mentor photos are images only. The signed URL enforces this content-type."),
     fileName: z.string().min(1).max(255),
     sizeBytes: z.number().int().min(1).max(5_242_880).describe("Max 5 MB per mentor photo."),
   })
@@ -340,7 +340,7 @@ export const BatchCompletionSummaryDtoSchema = z.object({
 
   // ── AC-34 headcount buckets — each MUST equal a direct recomputation ──
   totalActive: z.number().int().min(0).describe(
-    "COUNT(enrollments) WHERE batch_id=B AND status IN ('active','completed') — all non-dropped enrollments.",
+    "COUNT(enrollments) WHERE batch_id=B AND status IN ('active','completed'), all non-dropped enrollments.",
   ),
   certified: z.number().int().min(0).describe("COUNT(enrollments) WHERE batch_id=B AND has a certificate with status='valid'."),
   eligibleNotIssued: z.number().int().min(0).describe(
@@ -354,7 +354,7 @@ export const BatchCompletionSummaryDtoSchema = z.object({
   // ── AC-35 single source of truth for "% complete" (CRM + mentor dashboard both reference this exact value) ──
   percentComplete: z.number().min(0).max(100).nullable().describe(
     "Average of enrollments.progress_pct (which IS lesson-completion %, see lms/progress.schemas.ts) " +
-      "across ACTIVE (non-dropped) enrollments only. `null` when totalActive=0 (AC-36 — a zero-enrollment " +
+      "across ACTIVE (non-dropped) enrollments only. `null` when totalActive=0 (AC-36, a zero-enrollment " +
       "batch is a valid 200, never 404/500; `null` distinguishes 'no data' from a literal 0%).",
   ),
 
@@ -372,7 +372,7 @@ export const BatchCompletionSummaryDtoSchema = z.object({
   ),
 
   canTransitionToComplete: z.boolean().describe(
-    "true iff status === 'active' (AC-39) — a UI convenience flag ONLY. Rule M-2/AC-41: the mark-complete " +
+    "true iff status === 'active' (AC-39). A UI convenience flag ONLY. Rule M-2/AC-41: the mark-complete " +
       "action is NEVER gated by completion numbers above, regardless of this flag's sibling fields.",
   ),
 });
@@ -389,7 +389,7 @@ export const BatchCompletionStudentRowSchema = z.object({
   studentId: UuidSchema,
   studentName: z.string(),
   status: EnrollmentStatusSchema,
-  bucket: BatchCompletionBucketSchema.describe("Server-computed — matches the AC-34 headcount buckets exactly. Never re-derive client-side."),
+  bucket: BatchCompletionBucketSchema.describe("Server-computed. Matches the AC-34 headcount buckets exactly. Never re-derive client-side."),
   eligibility: EligibilityResultSchema,
   certificateStatus: CertificateStatusSchema.nullable(),
   certificateId: UuidSchema.nullable(),
@@ -439,7 +439,7 @@ export const MarkBatchCompleteResponseSchema = z.object({
         .number()
         .int()
         .min(0)
-        .describe("Enrollments passed over — already certified, or withdrawn from the batch."),
+        .describe("Enrollments passed over. Already certified, or withdrawn from the batch."),
       failed: z
         .number()
         .int()
@@ -469,7 +469,7 @@ export const MentorDashboardBatchCardSchema = z.object({
   isLead: z.boolean(),
   studentCount: z.number().int().min(0).describe("Equals BatchCompletionSummaryDto.totalActive for this batch (AC-50)."),
   percentComplete: z.number().min(0).max(100).nullable().describe(
-    "The EXACT AC-35 value for this batch — sourced from the SAME rollup function CRM staff use, never a " +
+    "The EXACT AC-35 value for this batch. Sourced from the SAME rollup function CRM staff use, never a " +
       "separately-maintained mentor-only calculation (AC-50).",
   ),
 });

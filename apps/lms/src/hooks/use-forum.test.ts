@@ -1,4 +1,4 @@
-// use-forum hook tests — Phase 6, Task #10.
+// use-forum hook tests, Phase 6, Task #10.
 //
 // Tests:
 //   - Query key structure (regression guard)
@@ -139,7 +139,7 @@ describe("post body limit (AC-71)", () => {
 //
 // The hook maps 404 errors to isNotEnrolled=true instead of isError=true.
 // This ensures the UI renders the "not enrolled / not found" empty state
-// rather than the generic error state — matching IDOR-safe behavior where
+// rather than the generic error state, matching IDOR-safe behavior where
 // non-enrolled batches appear as "not found" to the student.
 // ---------------------------------------------------------------------------
 

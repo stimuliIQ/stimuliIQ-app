@@ -69,10 +69,10 @@ export function OrderLedger({ me: _me }: OrderLedgerProps): React.JSX.Element {
     {
       id: "discountPaise",
       header: "Discount",
-      cell: (row) => (row.discountPaise > 0 ? formatPaise(row.discountPaise) : "—"),
+      cell: (row) => (row.discountPaise > 0 ? formatPaise(row.discountPaise) : "-"),
       align: "right",
     },
-    { id: "couponCode", header: "Coupon", cell: (row) => row.couponCode ?? "—" },
+    { id: "couponCode", header: "Coupon", cell: (row) => row.couponCode ?? "-" },
     {
       id: "status",
       header: "Status",
@@ -107,7 +107,7 @@ export function OrderLedger({ me: _me }: OrderLedgerProps): React.JSX.Element {
     <div className="space-y-4 md:space-y-5" data-testid="orders-ledger">
       <PageHeader
         title="Orders"
-        description="The order ledger — every program purchase, its coupon, and its enrollment link."
+        description="The order ledger. Every program purchase, its coupon, and its enrollment link."
       />
 
       <DataFilterBar

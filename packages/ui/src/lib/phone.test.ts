@@ -28,7 +28,7 @@ describe("toLocalPhoneDigits", () => {
   });
 
   it("truncates anything longer instead of mis-stripping a country code", () => {
-    // 11 digits that merely START with "91" is a typo, not a country code —
+    // 11 digits that merely START with "91" is a typo, not a country code,
     // stripping it would silently eat the first two digits.
     expect(toLocalPhoneDigits("91876543210")).toBe("9187654321");
   });

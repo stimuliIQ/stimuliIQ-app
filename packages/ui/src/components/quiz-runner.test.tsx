@@ -10,7 +10,7 @@ import {
 } from "./quiz-runner";
 
 // ---------------------------------------------------------------------------
-// SECURITY CONTRACT TEST — No answer-key fields on the public type
+// SECURITY CONTRACT TEST, No answer-key fields on the public type
 // ---------------------------------------------------------------------------
 // These compile-time assertions live in a describe so they run as test-time
 // type checks (TypeScript strict mode + vitest).
@@ -21,7 +21,7 @@ import {
 // under `exactOptionalPropertyTypes` / `strict`.
 //
 // The runtime test also verifies that a provided object without those fields
-// renders without error — proving no answer-key data is required client-side.
+// renders without error, proving no answer-key data is required client-side.
 
 describe("SECURITY: AssessmentQuestionPublic type has no answer-key fields", () => {
   it("renders with a question object that has NO isCorrect / answerKey / correctOptionId", () => {
@@ -42,7 +42,7 @@ describe("SECURITY: AssessmentQuestionPublic type has no answer-key fields", () 
 
     // Runtime assertions: these keys do not exist on the object at runtime.
     // The TypeScript type does not declare them, so accessing them via an
-    // index cast (through unknown) to Record<string, unknown> returns undefined —
+    // index cast (through unknown) to Record<string, unknown> returns undefined,
     // proving no answer-key data is present client-side.
     const record = publicQuestion as unknown as Record<string, unknown>;
     expect(record["answerKey"]).toBeUndefined();
@@ -73,7 +73,7 @@ describe("SECURITY: AssessmentQuestionPublic type has no answer-key fields", () 
 });
 
 // ---------------------------------------------------------------------------
-// Sample data (public shape only — NO answer keys)
+// Sample data (public shape only, NO answer keys)
 // ---------------------------------------------------------------------------
 
 const mcqSingleQuestion: AssessmentQuestionPublic = {
@@ -289,7 +289,7 @@ describe("QuizRunner", () => {
     render(<QuizRunner questions={questions} onSubmit={vi.fn()} />);
     // First question: Next shown, Submit not yet rendered.
     expect(screen.queryByTestId("quiz-runner-submit")).not.toBeInTheDocument();
-    // Jump to the last question — Submit now shows but is disabled (nothing answered).
+    // Jump to the last question, Submit now shows but is disabled (nothing answered).
     await user.click(screen.getByTestId("quiz-nav-3"));
     expect(screen.getByTestId("quiz-runner-submit")).toBeDisabled();
     // The why-disabled hint tells the student what's left.
@@ -311,7 +311,7 @@ describe("QuizRunner", () => {
     await user.click(screen.getByTestId("quiz-runner-submit"));
     expect(onSubmit).not.toHaveBeenCalled();
 
-    // Confirm — now onSubmit fires with the collected answers.
+    // Confirm, now onSubmit fires with the collected answers.
     const confirm = await screen.findByTestId("quiz-runner-submit-confirm");
     await user.click(within(confirm).getByRole("button", { name: "Submit" }));
     expect(onSubmit).toHaveBeenCalledWith(

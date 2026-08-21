@@ -139,7 +139,7 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
       const result = await convertLead.mutateAsync({ id: lead.id, body });
       toast({
         title: "Lead converted",
-        description: "Student created — LMS credentials will be emailed once payment completes.",
+        description: "Student created. LMS credentials will be emailed once payment completes.",
         variant: "success",
       });
       onOpenChange(false);
@@ -194,7 +194,7 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
           <form onSubmit={onSubmit} className="flex flex-1 flex-col overflow-hidden">
             <DrawerBody className="flex flex-col gap-4">
               <p className="text-xs text-fg-muted">
-                Conversion is the full registration — capture every student detail here; there is no separate
+                Conversion is the full registration. Capture every student detail here; there is no separate
                 registration step. LMS login credentials are emailed automatically once their payment completes.
                 Optionally pick a program + batch to also create the order in the same atomic step.
               </p>
@@ -272,7 +272,7 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
               <div className="grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-2">
                 <Select
                   label="Program (optional)"
-                  placeholder="No order — student only"
+                  placeholder="No order, student only"
                   value={programId}
                   onValueChange={(value) => {
                     setValue("programId", value === "__none__" ? undefined : value);
@@ -282,7 +282,7 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
                   error={errors.programId?.message}
                   data-testid="convert-lead-program"
                 >
-                  <SelectItem value="__none__">No order — student only</SelectItem>
+                  <SelectItem value="__none__">No order, student only</SelectItem>
                   {programs.map((program) => (
                     <SelectItem key={program.id} value={program.id}>
                       {program.title}

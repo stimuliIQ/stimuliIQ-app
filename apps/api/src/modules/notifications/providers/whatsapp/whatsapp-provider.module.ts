@@ -103,7 +103,7 @@ function createWhatsAppProvider(): WhatsAppProvider {
       }
 
       bootLogger.log(
-        "[WhatsAppProviderModule] WHATSAPP_PROVIDER=whatsapp_cloud — " +
+        "[WhatsAppProviderModule] WHATSAPP_PROVIDER=whatsapp_cloud, " +
           `binding WhatsAppCloudProvider (phoneNumberId: ${env.WHATSAPP_PHONE_NUMBER_ID}).`,
       );
       return new WhatsAppCloudProvider();
@@ -115,7 +115,7 @@ function createWhatsAppProvider(): WhatsAppProvider {
       // and campaigns are inert. Use ONLY when WhatsApp is not live yet; flip to
       // whatsapp_cloud (with keys) to enable.
       bootLogger.log(
-        "[WhatsAppProviderModule] WHATSAPP_PROVIDER=disabled — WhatsApp feature is off. " +
+        "[WhatsAppProviderModule] WHATSAPP_PROVIDER=disabled, WhatsApp feature is off. " +
           "Binding NoopWhatsAppProvider (no messages sent).",
       );
       return new NoopWhatsAppProvider();
@@ -132,7 +132,7 @@ function createWhatsAppProvider(): WhatsAppProvider {
         );
       }
       bootLogger.warn(
-        "[WhatsAppProviderModule] WHATSAPP_PROVIDER=noop — binding NoopWhatsAppProvider. " +
+        "[WhatsAppProviderModule] WHATSAPP_PROVIDER=noop, binding NoopWhatsAppProvider. " +
           "No WhatsApp messages will be sent. Set WHATSAPP_PROVIDER=whatsapp_cloud " +
           "with required keys for staging/prod.",
       );
@@ -147,7 +147,7 @@ function createWhatsAppProvider(): WhatsAppProvider {
         );
       }
       bootLogger.warn(
-        `[WhatsAppProviderModule] Unrecognised WHATSAPP_PROVIDER='${selector}' — ` +
+        `[WhatsAppProviderModule] Unrecognised WHATSAPP_PROVIDER='${selector}' - ` +
           "falling back to NoopWhatsAppProvider (non-production). " +
           "Valid values: noop | whatsapp_cloud.",
       );

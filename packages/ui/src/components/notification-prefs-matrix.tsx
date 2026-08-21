@@ -151,7 +151,7 @@ export function NotificationPrefsMatrix({
                   return (
                     <td key={ch} className="py-3 px-2 text-center">
                       <Checkbox
-                        aria-label={`${row.label} — ${NOTIFICATION_CHANNEL_LABELS[ch]}`}
+                        aria-label={`${row.label}, ${NOTIFICATION_CHANNEL_LABELS[ch]}`}
                         checked={checked}
                         disabled={isAlways}
                         onCheckedChange={(val) =>

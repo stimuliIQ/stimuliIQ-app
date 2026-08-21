@@ -1,7 +1,7 @@
 // apps/api/src/modules/auth/lib/scope-context.spec.ts
 //
 // Wave 6 security-audit hardening: proves the fail-closed contract on the scope-context
-// ALS — a missing scope context must never be silently treated as unscoped/"all" access.
+// ALS, a missing scope context must never be silently treated as unscoped/"all" access.
 
 import {
   getScopeContext,

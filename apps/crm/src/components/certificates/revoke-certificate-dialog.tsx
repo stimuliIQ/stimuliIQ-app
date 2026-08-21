@@ -91,14 +91,14 @@ export function RevokeCertificateDialog({
         <form onSubmit={onSubmit} className="flex flex-1 flex-col overflow-hidden">
           <DrawerBody className="flex flex-col gap-4">
             <Alert tone="danger" icon={<AlertTriangle />}>
-              This is <strong>instant and irreversible</strong> — the public verify link will
+              This is <strong>instant and irreversible</strong>. The public verify link will
               show "revoked" immediately. You can reissue a new certificate separately.
             </Alert>
 
             <Input
               label="Reason for revocation"
               required
-              placeholder="e.g. Issued in error — student did not complete the program"
+              placeholder="e.g. Issued in error. Student did not complete the program"
               {...register("reason")}
               error={errors.reason?.message}
               helperText="This is for internal audit. Not shown publicly."

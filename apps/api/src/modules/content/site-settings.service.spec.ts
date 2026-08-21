@@ -7,7 +7,7 @@
 // (never 500).
 //
 // P10-2 (real-user defect promoted from follow-up): `stats.headline` was REMOVED
-// entirely — see site-settings.schemas.ts / site-settings.constants.ts header
+// entirely, see site-settings.schemas.ts / site-settings.constants.ts header
 // comments. `not.a.real.key` is used in place of the old "stats.headline" fixture for
 // the "unknown key" 404 assertions below.
 
@@ -71,7 +71,7 @@ describe("SiteSettingsService", () => {
       expect(repo.findByKey).not.toHaveBeenCalled();
     });
 
-    it("404s for the REMOVED stats.headline key (P10-2 — no longer a recognized key)", async () => {
+    it("404s for the REMOVED stats.headline key (P10-2, no longer a recognized key)", async () => {
       await expect(runWithScope("all", () => service.getByKey("tenant-1", "stats.headline"))).rejects.toBeInstanceOf(NotFoundException);
       expect(repo.findByKey).not.toHaveBeenCalled();
     });
@@ -82,7 +82,7 @@ describe("SiteSettingsService", () => {
     });
   });
 
-  describe("upsert() — runtime keyed value validation", () => {
+  describe("upsert(), runtime keyed value validation", () => {
     it("404s for a key outside the 7 seeded literals (this endpoint never creates a new key)", async () => {
       await expect(
         runWithScope("all", () => service.upsert("tenant-1", "not.a.real.key", { value: {} })),
@@ -90,7 +90,7 @@ describe("SiteSettingsService", () => {
       expect(repo.upsert).not.toHaveBeenCalled();
     });
 
-    it("404s for the REMOVED stats.headline key (P10-2) — cannot be re-created via PUT", async () => {
+    it("404s for the REMOVED stats.headline key (P10-2), cannot be re-created via PUT", async () => {
       await expect(
         runWithScope("all", () => service.upsert("tenant-1", "stats.headline", { value: [] })),
       ).rejects.toBeInstanceOf(NotFoundException);
@@ -98,7 +98,7 @@ describe("SiteSettingsService", () => {
     });
 
     it("400s when `value` fails the key's closed SiteSettingValueSchemaByKey shape", async () => {
-      // nav.primary_links expects an array of {label,href} — an object is invalid.
+      // nav.primary_links expects an array of {label,href}, an object is invalid.
       await expect(
         runWithScope("all", () => service.upsert("tenant-1", "nav.primary_links", { value: { not: "an array" } })),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -126,15 +126,15 @@ describe("SiteSettingsService", () => {
     });
   });
 
-  describe("getPublic() — anonymous read, missing/corrupted-row fallback (never 500)", () => {
-    it("returns all 8 seeded values keyed by their SiteSettingKey (and NEVER stats.headline — P10-2)", async () => {
+  describe("getPublic(), anonymous read, missing/corrupted-row fallback (never 500)", () => {
+    it("returns all 8 seeded values keyed by their SiteSettingKey (and NEVER stats.headline, P10-2)", async () => {
       repo.findAll.mockResolvedValue([NAV_ROW]);
       const result = await service.getPublic();
       expect(result["nav.primary_links"]).toEqual(NAV_ROW.value);
-      // Keys never seeded in this test fixture fall back to the hardcoded default —
+      // Keys never seeded in this test fixture fall back to the hardcoded default,
       // never throw/500.
       expect(result["contact.whatsapp"]).toEqual(DEFAULT_PUBLIC_SITE_SETTINGS["contact.whatsapp"]);
-      // announcement.bar defaults to disabled — the web strip renders nothing.
+      // announcement.bar defaults to disabled, the web strip renders nothing.
       expect(result["announcement.bar"]).toEqual(DEFAULT_PUBLIC_SITE_SETTINGS["announcement.bar"]);
       expect((result["announcement.bar"] as { enabled: boolean }).enabled).toBe(false);
       expect(Object.keys(result)).toHaveLength(8);
@@ -142,7 +142,7 @@ describe("SiteSettingsService", () => {
     });
 
     it("derives group=announcement for announcement.bar and validates its closed shape", async () => {
-      const value = { enabled: true, message: "Admissions open — batch starts Aug 15.", mode: "scroll" };
+      const value = { enabled: true, message: "Admissions open, batch starts Aug 15.", mode: "scroll" };
       repo.upsert.mockResolvedValue({ ...NAV_ROW, key: "announcement.bar", group: "announcement", value });
       await runWithScope("all", () => service.upsert("tenant-1", "announcement.bar", { value }));
       expect(repo.upsert).toHaveBeenCalledWith("tenant-1", "announcement.bar", "announcement", value);

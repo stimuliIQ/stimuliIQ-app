@@ -32,14 +32,14 @@ function createCertificatePdfAdapter(): CertificatePdfPort {
 
   if (env.NODE_ENV === "test") {
     bootLogger.warn(
-      "[CertificatePdfModule] NODE_ENV=test — binding NoopCertificatePdfAdapter (stub bytes, no real PDF).",
+      "[CertificatePdfModule] NODE_ENV=test. Binding NoopCertificatePdfAdapter (stub bytes, no real PDF).",
     );
     return new NoopCertificatePdfAdapter();
   }
 
   if (env.QUEUE_DRIVER === "bullmq") {
     bootLogger.log(
-      "[CertificatePdfModule] QUEUE_DRIVER=bullmq — binding BullMqCertificatePdfAdapter (renders in worker process).",
+      "[CertificatePdfModule] QUEUE_DRIVER=bullmq. Binding BullMqCertificatePdfAdapter (renders in worker process).",
     );
     return new BullMqCertificatePdfAdapter();
   }

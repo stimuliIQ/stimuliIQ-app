@@ -95,7 +95,7 @@ export function MarketingFooter({
           <div className="flex flex-col gap-6">
             <a
               href="/"
-              aria-label="StimuliiQ — home"
+              aria-label="StimuliiQ, home"
               className="inline-block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface rounded-sm"
             >
               {logo}

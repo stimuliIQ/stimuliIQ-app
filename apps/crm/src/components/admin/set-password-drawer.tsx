@@ -101,12 +101,12 @@ export function SetPasswordDrawer({ user, onOpenChange }: SetPasswordDrawerProps
       <DrawerContent
         position="center"
         title="Set a new password"
-        description={user ? `${user.name} — ${user.email}` : undefined}
+        description={user ? `${user.name} · ${user.email}` : undefined}
         data-testid="user-set-password-drawer"
       >
         <DrawerBody className="flex flex-col gap-4">
           <Alert tone="warning" title="You will know this password">
-            Unlike “Reset password”, which emails a one-time password only they see, you are choosing this value — so
+            Unlike “Reset password”, which emails a one-time password only they see, you are choosing this value, so
             you can sign in as {user?.name ?? "this user"} until they change it. They will be signed out everywhere,
             and their current password stops working immediately. Share it through something other than email.
           </Alert>

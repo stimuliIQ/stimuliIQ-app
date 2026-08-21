@@ -1,6 +1,6 @@
 // apps/api/src/modules/commerce/webhook-processor.adapter.spec.ts
 //
-// Unit tests for SyncWebhookProcessorAdapter — focuses on H-2 strict-match fix:
+// Unit tests for SyncWebhookProcessorAdapter, focuses on H-2 strict-match fix:
 //   - refund.processed with an unmatched providerRefundId → no-op (no wrong row mutated)
 //   - refund.processed with correct providerRefundId → processed + payment refunded (full)
 //   - refund.processed with correct providerRefundId but partial amount → payment stays captured
@@ -77,7 +77,7 @@ function makeRepository(): Mocked<CommerceRepository> {
     transaction: jest.fn(),
     updateRefundApprove: jest.fn(),
     updatePaymentStatus: jest.fn(),
-    // other repo methods not used by the webhook processor — add minimal stubs
+    // other repo methods not used by the webhook processor, add minimal stubs
     findOrderByIdempotencyKey: jest.fn(),
     findOrderById: jest.fn(),
     listOrders: jest.fn(),
@@ -119,14 +119,14 @@ function makeRepository(): Mocked<CommerceRepository> {
   } as unknown as Mocked<CommerceRepository>;
 }
 
-describe("SyncWebhookProcessorAdapter — refund.processed (H-2 strict match)", () => {
+describe("SyncWebhookProcessorAdapter, refund.processed (H-2 strict match)", () => {
   let adapter: SyncWebhookProcessorAdapter;
   let repository: Mocked<CommerceRepository>;
   const mockInvoiceGen = { enqueue: jest.fn().mockResolvedValue(undefined) };
 
   beforeEach(() => {
     repository = makeRepository();
-    // Direct instantiation — no NestJS DI needed for unit tests on this class
+    // Direct instantiation, no NestJS DI needed for unit tests on this class
     adapter = new SyncWebhookProcessorAdapter(
       repository as unknown as CommerceRepository,
       mockInvoiceGen as never,

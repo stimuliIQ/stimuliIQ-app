@@ -435,7 +435,7 @@ export class AssignmentsService {
         title: "This submission isn't awaiting review",
         detail:
           row.status === "returned"
-            ? "It has already been sent back — the student hasn't resubmitted yet."
+            ? "It has already been sent back, the student hasn't resubmitted yet."
             : "It has already been graded. Re-grade it instead of sending it back.",
       });
     }

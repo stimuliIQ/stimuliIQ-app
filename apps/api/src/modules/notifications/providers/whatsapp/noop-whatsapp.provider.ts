@@ -94,7 +94,7 @@ export class NoopWhatsAppProvider implements WhatsAppProvider {
   verifyWebhookSignature(input: VerifyWhatsAppWebhookInput): boolean {
     if (!input.secret) {
       this.logger.warn(
-        "[NoopWhatsAppProvider] verifyWebhookSignature: secret is absent — returning false (fail-closed).",
+        "[NoopWhatsAppProvider] verifyWebhookSignature: secret is absent, returning false (fail-closed).",
       );
       return false;
     }
@@ -103,7 +103,7 @@ export class NoopWhatsAppProvider implements WhatsAppProvider {
       const expected = NoopWhatsAppProvider.makeHubSignature(input.rawBody, input.secret);
       return NoopWhatsAppProvider.compareHubSignatures(input.signature, expected);
     } catch {
-      this.logger.warn("[NoopWhatsAppProvider] verifyWebhookSignature: error during verification — returning false.");
+      this.logger.warn("[NoopWhatsAppProvider] verifyWebhookSignature: error during verification, returning false.");
       return false;
     }
   }

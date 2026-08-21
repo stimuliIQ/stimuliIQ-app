@@ -569,7 +569,7 @@ function SubmissionsTable({
     {
       id: "milestone",
       header: "Milestone",
-      cell: (row) => row.milestoneTitle ?? <span className="text-fg-subtle">—</span>,
+      cell: (row) => row.milestoneTitle ?? <span className="text-fg-subtle">-</span>,
     },
     {
       id: "status",
@@ -579,7 +579,7 @@ function SubmissionsTable({
     {
       id: "score",
       header: "Score",
-      cell: (row) => (row.score !== null ? `${row.score}/${row.maxScore}` : `—/${row.maxScore}`),
+      cell: (row) => (row.score !== null ? `${row.score}/${row.maxScore}` : `-/${row.maxScore}`),
       align: "right",
     },
     {

@@ -212,7 +212,7 @@ export function BlogManager({ me }: { me: MeResponse | undefined }): React.JSX.E
 
   const columns: Array<DataTableColumn<BlogPostSummary>> = [
     { id: "title", header: "Title", cell: (row) => row.title },
-    { id: "categoryName", header: "Category", cell: (row) => row.categoryName ?? "—" },
+    { id: "categoryName", header: "Category", cell: (row) => row.categoryName ?? "-" },
     { id: "status", header: "Status", cell: (row) => <StatusChip tone={STATUS_TONE[row.status]} label={row.status} size="sm" /> },
     { id: "createdAt", header: "Created", cell: (row) => new Date(row.createdAt).toLocaleDateString(), align: "right" },
     {

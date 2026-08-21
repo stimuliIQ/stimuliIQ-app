@@ -14,7 +14,7 @@ const items: FaqItem[] = [
 // Rendering
 // ---------------------------------------------------------------------------
 
-describe("FaqAccordion — rendering", () => {
+describe("FaqAccordion, rendering", () => {
   it("renders with default data-testid='faq-accordion'", () => {
     render(<FaqAccordion items={items} />);
     expect(screen.getByTestId("faq-accordion")).toBeInTheDocument();
@@ -43,7 +43,7 @@ describe("FaqAccordion — rendering", () => {
 // Keyboard expand/collapse
 // ---------------------------------------------------------------------------
 
-describe("FaqAccordion — keyboard interaction", () => {
+describe("FaqAccordion, keyboard interaction", () => {
   it("expands an item on Enter key", async () => {
     const user = userEvent.setup();
     render(<FaqAccordion items={items} />);
@@ -90,7 +90,7 @@ describe("FaqAccordion — keyboard interaction", () => {
 // JSON-LD emission
 // ---------------------------------------------------------------------------
 
-describe("FaqAccordion — JSON-LD", () => {
+describe("FaqAccordion, JSON-LD", () => {
   it("renders a JSON-LD script when emitJsonLd=true", () => {
     const { container } = render(<FaqAccordion items={items} emitJsonLd />);
     const script = container.querySelector("script[type='application/ld+json']");
@@ -125,7 +125,7 @@ describe("FaqAccordion — JSON-LD", () => {
 // a11y
 // ---------------------------------------------------------------------------
 
-describe("FaqAccordion — a11y", () => {
+describe("FaqAccordion, a11y", () => {
   it("triggers are inside h3 heading elements", () => {
     const { container } = render(<FaqAccordion items={items} />);
     const h3s = container.querySelectorAll("h3");

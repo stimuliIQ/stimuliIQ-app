@@ -1,17 +1,17 @@
 // apps/api/src/modules/mentors/batch-completion.service.spec.ts
 //
 // Unit tests for BatchCompletionService (WS-3, docs/specs/phase-8-mentor.md). Covers:
-//   AC-31/AC-34/AC-35 — the rollup reconciles exactly with a direct recomputation over
+//   AC-31/AC-34/AC-35, the rollup reconciles exactly with a direct recomputation over
 //     mocked enrollment/certificate rows (never a parallel progress system).
-//   AC-33 — per-student eligibility calls CertificatesService.isEligible verbatim (the P4
+//   AC-33, per-student eligibility calls CertificatesService.isEligible verbatim (the P4
 //     engine), never a re-derived formula.
-//   AC-36 — a zero-enrollment batch is a valid 200 (never 404/500).
-//   AC-37/AC-45 — scope resolution: a Mentor requesting an unassigned batch gets 404.
-//   AC-38/39/40 — mark-complete: guard (only from 'active'), idempotent 409 on replay,
+//   AC-36, a zero-enrollment batch is a valid 200 (never 404/500).
+//   AC-37/AC-45, scope resolution: a Mentor requesting an unassigned batch gets 404.
+//   AC-38/39/40, mark-complete: guard (only from 'active'), idempotent 409 on replay,
 //     sets status/completedAt.
-//   AC-41 — Rule M-2: completion numbers are always computed/returned, never gate the
+//   AC-41, Rule M-2: completion numbers are always computed/returned, never gate the
 //     transition.
-//   AC-42 — mark-complete performs a pure status/timestamp write.
+//   AC-42, mark-complete performs a pure status/timestamp write.
 
 import { ConflictException, ForbiddenException, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
 import { BatchCompletionService } from "./batch-completion.service";
@@ -106,7 +106,7 @@ describe("BatchCompletionService", () => {
   });
 
   describe("AC-36: empty batch rollup is a valid zero result", () => {
-    it("returns 200 with all buckets 0 and percentComplete null — never 404/500", async () => {
+    it("returns 200 with all buckets 0 and percentComplete null, never 404/500", async () => {
       repo.findBatchRow.mockResolvedValue(BATCH);
       repo.listEnrollments.mockResolvedValue([]);
 
@@ -151,7 +151,7 @@ describe("BatchCompletionService", () => {
         service.getSummary("tenant-1", "actor-1", "batch-1"),
       );
 
-      expect(summary.totalActive).toBe(3); // completed/active only — dropped excluded
+      expect(summary.totalActive).toBe(3); // completed/active only, dropped excluded
       expect(summary.certified).toBe(1);
       expect(summary.eligibleNotIssued).toBe(1);
       expect(summary.inProgress).toBe(1);
@@ -178,7 +178,7 @@ describe("BatchCompletionService", () => {
     });
   });
 
-  describe("AC-37/AC-45: scope resolution — Mentor requesting an unassigned batch gets 404", () => {
+  describe("AC-37/AC-45: scope resolution, Mentor requesting an unassigned batch gets 404", () => {
     it("a Mentor assigned to the batch succeeds", async () => {
       repo.findBatchRow.mockResolvedValue(BATCH);
       repo.listEnrollments.mockResolvedValue([]);
@@ -234,7 +234,7 @@ describe("BatchCompletionService", () => {
       expect(repo.markComplete).not.toHaveBeenCalled();
     });
 
-    it("succeeds from status='active' — sets status+completedAt via a pure write (AC-42)", async () => {
+    it("succeeds from status='active', sets status+completedAt via a pure write (AC-42)", async () => {
       repo.findBatchRow.mockResolvedValue(BATCH);
       repo.listEnrollments.mockResolvedValue([]);
       repo.markComplete.mockResolvedValue(1); // F2 compare-and-set: 1 row affected = we won

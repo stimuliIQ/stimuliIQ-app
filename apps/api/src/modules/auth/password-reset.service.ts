@@ -55,7 +55,7 @@ export class PasswordResetService {
       // enumeration oracle either (a distinguishable rate-limit response would leak
       // "this email has been requested a lot", which is itself a signal). Silently
       // skip sending; the caller sees no difference from the normal path.
-      this.logger.warn(`[PasswordReset] request rate-limited for a hashed email bucket — skipping send.`);
+      this.logger.warn(`[PasswordReset] request rate-limited for a hashed email bucket, skipping send.`);
       return { message: GENERIC_MESSAGE };
     }
 
@@ -70,14 +70,14 @@ export class PasswordResetService {
       try {
         await this.mail.send({
           to: user.email,
-          subject: "Reset your stimuliIQ password",
+          subject: "Reset your Stimuli IQ password",
           html: renderBrandedEmail({
             title: "Reset your password",
             paragraphs: [
               "Click the button below to reset your password. This link expires in 30 minutes and can only be used once.",
             ],
             button: { label: "Reset Password", url: resetUrl },
-            footnote: "If you did not request this, you can safely ignore this email — your password stays unchanged.",
+            footnote: "If you did not request this, you can safely ignore this email, your password stays unchanged.",
           }),
           tags: [{ name: "category", value: "password_reset" }],
         });

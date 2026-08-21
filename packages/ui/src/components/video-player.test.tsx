@@ -4,7 +4,7 @@ import { render, screen, waitFor, act } from "@testing-library/react";
 import { VideoPlayer, type CreateHlsEngine } from "./video-player";
 
 // ---------------------------------------------------------------------------
-// Helpers — mock canPlayType behavior
+// Helpers, mock canPlayType behavior
 // ---------------------------------------------------------------------------
 
 /**
@@ -28,7 +28,7 @@ beforeEach(() => {
 // Basic rendering
 // ---------------------------------------------------------------------------
 
-describe("VideoPlayer — rendering", () => {
+describe("VideoPlayer, rendering", () => {
   it("renders a <video> element", () => {
     render(<VideoPlayer src="https://cdn.example.com/test.m3u8" />);
     expect(screen.getByTestId("video-element")).toBeInTheDocument();
@@ -65,10 +65,10 @@ describe("VideoPlayer — rendering", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Native HLS path — canPlayType returns truthy
+// Native HLS path, canPlayType returns truthy
 // ---------------------------------------------------------------------------
 
-describe("VideoPlayer — native HLS (Safari)", () => {
+describe("VideoPlayer, native HLS (Safari)", () => {
   it("sets video.src directly when native HLS is supported", () => {
     mockNativeHlsSupport(true);
     render(<VideoPlayer src="https://cdn.example.com/native.m3u8" />);
@@ -91,10 +91,10 @@ describe("VideoPlayer — native HLS (Safari)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Injected HLS engine seam — canPlayType returns falsy
+// Injected HLS engine seam, canPlayType returns falsy
 // ---------------------------------------------------------------------------
 
-describe("VideoPlayer — injected HLS engine seam", () => {
+describe("VideoPlayer, injected HLS engine seam", () => {
   it("invokes createHlsEngine with the video element and src when native HLS unavailable", () => {
     mockNativeHlsSupport(false);
     const destroyFn = vi.fn();
@@ -135,7 +135,7 @@ describe("VideoPlayer — injected HLS engine seam", () => {
 // Unplayable fallback (no native HLS, no engine)
 // ---------------------------------------------------------------------------
 
-describe("VideoPlayer — unplayable fallback", () => {
+describe("VideoPlayer, unplayable fallback", () => {
   it("renders the error fallback when browser cannot play HLS and no engine is provided", async () => {
     mockNativeHlsSupport(false);
     render(<VideoPlayer src="https://cdn.example.com/test.m3u8" />);
@@ -165,7 +165,7 @@ describe("VideoPlayer — unplayable fallback", () => {
 // onReady and onTimeUpdate and onEnded via dispatched events
 // ---------------------------------------------------------------------------
 
-describe("VideoPlayer — event callbacks", () => {
+describe("VideoPlayer, event callbacks", () => {
   it("calls onReady when loadedmetadata fires", async () => {
     mockNativeHlsSupport(true);
     const onReady = vi.fn();
@@ -220,10 +220,10 @@ describe("VideoPlayer — event callbacks", () => {
 });
 
 // ---------------------------------------------------------------------------
-// startPositionS — resume seek
+// startPositionS, resume seek
 // ---------------------------------------------------------------------------
 
-describe("VideoPlayer — startPositionS resume", () => {
+describe("VideoPlayer, startPositionS resume", () => {
   it("seeks to startPositionS when loadedmetadata fires", async () => {
     mockNativeHlsSupport(true);
 
@@ -281,7 +281,7 @@ describe("VideoPlayer — startPositionS resume", () => {
 // Watermark
 // ---------------------------------------------------------------------------
 
-describe("VideoPlayer — watermark", () => {
+describe("VideoPlayer, watermark", () => {
   it("renders the watermark element when watermarkText is provided", () => {
     render(
       <VideoPlayer
@@ -315,7 +315,7 @@ describe("VideoPlayer — watermark", () => {
 // Caption tracks
 // ---------------------------------------------------------------------------
 
-describe("VideoPlayer — captions", () => {
+describe("VideoPlayer, captions", () => {
   it("renders <track> elements for each caption", () => {
     const { container } = render(
       <VideoPlayer

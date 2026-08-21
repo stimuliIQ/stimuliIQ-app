@@ -2,12 +2,12 @@
 //
 // Integration test proving DpdpService.eraseSubjectPii scrubs a subject's PII from
 // REAL, PRE-EXISTING audit_logs rows (Phase-7 Wave 2 security hardening batch B, item 2b
-// — AC-64). Follows the same lightweight "ambient dev DB, skip if DATABASE_URL absent"
-// pattern as apps/api/src/prisma/soft-delete-audit.integration.spec.ts — no new infra
+//, AC-64). Follows the same lightweight "ambient dev DB, skip if DATABASE_URL absent"
+// pattern as apps/api/src/prisma/soft-delete-audit.integration.spec.ts, no new infra
 // dependency, no testcontainers.
 //
-// The historical rows are inserted via the RAW (base) PrismaClient — deliberately NOT
-// through the audit extension — to simulate audit_logs rows written BEFORE the
+// The historical rows are inserted via the RAW (base) PrismaClient, deliberately NOT
+// through the audit extension, to simulate audit_logs rows written BEFORE the
 // write-time PII masking (audit.extension.ts's PII_FIELD_REGISTRY) existed. This is
 // exactly the population the erasure job exists to catch up.
 
@@ -95,7 +95,7 @@ describeIfDb("DpdpService.eraseSubjectPii (integration, AC-64)", () => {
     });
 
     // A correlated Lead row (a prospective-student record this same person also created,
-    // matched by raw email — NOT by entityId, since entityId here is the Lead's own id).
+    // matched by raw email, NOT by entityId, since entityId here is the Lead's own id).
     const leadRow = await raw.auditLog.create({
       data: {
         tenantId,
@@ -107,7 +107,7 @@ describeIfDb("DpdpService.eraseSubjectPii (integration, AC-64)", () => {
       },
     });
 
-    // An UNRELATED row for a different person — must survive untouched.
+    // An UNRELATED row for a different person, must survive untouched.
     const unrelatedRow = await raw.auditLog.create({
       data: {
         tenantId,
@@ -145,7 +145,7 @@ describeIfDb("DpdpService.eraseSubjectPii (integration, AC-64)", () => {
 
     const refetchedUnrelatedRow = await raw.auditLog.findUniqueOrThrow({ where: { id: unrelatedRow.id } });
     const unrelatedAfter = refetchedUnrelatedRow.after as Record<string, unknown>;
-    // Untouched — the unrelated person's data must survive exactly as written.
+    // Untouched, the unrelated person's data must survive exactly as written.
     expect(unrelatedAfter["email"]).toBe("unrelated@example.invalid");
     expect(unrelatedAfter["name"]).toBe("Completely Different Person");
 
@@ -159,7 +159,7 @@ describeIfDb("DpdpService.eraseSubjectPii (integration, AC-64)", () => {
     expect((erasureAuditRow?.after as Record<string, unknown>)?.["redactedRowCount"]).toBe(2);
   });
 
-  it("is idempotent — running the erasure again over already-redacted rows changes nothing further", async () => {
+  it("is idempotent, running the erasure again over already-redacted rows changes nothing further", async () => {
     const result = await service.eraseSubjectPii(tenantId, actorId, subjectUserId);
     expect(result.redactedRowCount).toBe(0);
     expect(result.alreadyRedacted).toBe(true);

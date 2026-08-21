@@ -66,8 +66,8 @@ export function BookingList({ me }: BookingListProps): React.JSX.Element {
   }
 
   const columns: Array<DataTableColumn<BookingSummary>> = [
-    { id: "leadName", header: "Lead", cell: (row) => row.leadName ?? "—" },
-    { id: "programTitle", header: "Program", cell: (row) => row.programTitle ?? "—" },
+    { id: "leadName", header: "Lead", cell: (row) => row.leadName ?? "-" },
+    { id: "programTitle", header: "Program", cell: (row) => row.programTitle ?? "-" },
     {
       id: "slotAt",
       header: "Slot",
@@ -93,7 +93,7 @@ export function BookingList({ me }: BookingListProps): React.JSX.Element {
             ))}
           </Select>
         ) : (
-          "—"
+          "-"
         ),
     },
   ];
@@ -117,7 +117,7 @@ export function BookingList({ me }: BookingListProps): React.JSX.Element {
     <div className="space-y-4 md:space-y-5" data-testid="booking-list">
       <PageHeader
         title="Bookings"
-        description="Demo/slot bookings — manage status from requested through to completed."
+        description="Demo/slot bookings. Manage status from requested through to completed."
         actions={
           canCreate ? (
             <Button onClick={() => setCreateOpen(true)} data-testid="bookings-create-button">

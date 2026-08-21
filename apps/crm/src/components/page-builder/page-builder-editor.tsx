@@ -265,7 +265,7 @@ export function PageBuilderEditor({ pageId, onBack }: { pageId: string; onBack: 
 
       const liveUrl = publicPageUrl(result.slug);
       const toastId = toast({
-        title: "Saved — live in ~5 minutes",
+        title: "Saved, live in ~5 minutes",
         variant: "success",
         duration: 10_000,
         description: (
@@ -401,7 +401,7 @@ export function PageBuilderEditor({ pageId, onBack }: { pageId: string; onBack: 
           <div className="flex items-center gap-3">
             <StatusChip
               tone="warning"
-              label="Live site — saving publishes immediately"
+              label="Live site, saving publishes immediately"
               data-testid="page-builder-live-pill"
             />
             <div className="flex items-center gap-2">
@@ -517,7 +517,7 @@ export function PageBuilderEditor({ pageId, onBack }: { pageId: string; onBack: 
         open={saveConfirmOpen}
         onOpenChange={setSaveConfirmOpen}
         title="Save and publish?"
-        description="This publishes immediately to the live site — there is no draft or approval step. Visitors will see this exact content on their next page load. Your current version is kept as a backup you can restore."
+        description="This publishes immediately to the live site. There is no draft or approval step. Visitors will see this exact content on their next page load. Your current version is kept as a backup you can restore."
         confirmLabel="Save & publish"
         onConfirm={handleConfirmSave}
         loading={saveBuilderPage.isPending}
@@ -538,7 +538,7 @@ export function PageBuilderEditor({ pageId, onBack }: { pageId: string; onBack: 
         open={undoTarget !== null}
         onOpenChange={(open) => !open && setUndoTarget(null)}
         title="Undo your last save?"
-        description="This replaces the live page content immediately with how it looked before your last save — visitors will see this on their next request. Nothing is deleted; the version you just saved stays in your history too."
+        description="This replaces the live page content immediately with how it looked before your last save. Visitors will see this on their next request. Nothing is deleted; the version you just saved stays in your history too."
         confirmLabel="Undo save"
         tone="danger"
         onConfirm={handleConfirmUndo}
@@ -550,7 +550,7 @@ export function PageBuilderEditor({ pageId, onBack }: { pageId: string; onBack: 
         open={backConfirmOpen}
         onOpenChange={setBackConfirmOpen}
         title="Leave without publishing?"
-        description="Your edits haven't been saved yet — they'll be lost if you leave now."
+        description="Your edits haven't been saved yet, they'll be lost if you leave now."
         confirmLabel="Leave"
         tone="danger"
         onConfirm={() => {

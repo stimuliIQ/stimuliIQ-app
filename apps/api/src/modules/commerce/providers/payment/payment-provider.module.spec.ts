@@ -2,7 +2,7 @@
 //
 // Tests the boot-time fail-closed guard in createPaymentProvider (B2, go-live
 // checklist). The factory is not exported, so we drive it through the NestJS module
-// exactly as boot does — compiling PaymentProviderModule and resolving PAYMENT_PROVIDER.
+// exactly as boot does, compiling PaymentProviderModule and resolving PAYMENT_PROVIDER.
 //
 // Two production failure modes must abort boot rather than degrade silently:
 //   1. Missing Razorpay keys (checkout 500s; webhook fails closed → no enrollment ever).
@@ -92,7 +92,7 @@ describe("PaymentProviderModule fail-closed guard", () => {
     ).rejects.toThrow(/LIVE key .* outside a production environment/i);
   });
 
-  it("BOOTS in production when PAYMENT_PROVIDER=disabled — no Razorpay keys needed", async () => {
+  it("BOOTS in production when PAYMENT_PROVIDER=disabled, no Razorpay keys needed", async () => {
     await expect(
       bootWith({ NODE_ENV: "production", PAYMENT_PROVIDER: "disabled" }),
     ).resolves.not.toThrow();

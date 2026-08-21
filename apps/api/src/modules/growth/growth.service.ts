@@ -53,7 +53,7 @@ export class GrowthService {
       seoTitle: `Best Internship Training Programs in ${match.city} | StimuliiQ`,
       seoDescription:
         `Explore ${programs.length} internship-training program${programs.length === 1 ? "" : "s"} ` +
-        `available in ${match.city} — hands-on projects, live mentorship, and certification.`,
+        `available in ${match.city}. Hands-on projects, live mentorship, and certification.`,
       programs,
     };
   }

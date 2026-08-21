@@ -1,7 +1,7 @@
 // Component + a11y tests for LoginForm's two-factor stages.
 //
 // REGRESSION ANCHOR: `auth.2fa_required` is an HTTP 401, and this form's catch-all used
-// to render every 401 as "Incorrect email or password" — with no code field anywhere in
+// to render every 401 as "Incorrect email or password", with no code field anywhere in
 // the app. Enrolling in 2FA therefore locked a user out permanently. The first test
 // below is the one that must never go green-by-accident: it asserts the code step
 // appears INSTEAD of the credentials error.
@@ -74,7 +74,7 @@ beforeEach(() => {
   confirmRecoveryMock.mockReset();
 });
 
-describe("LoginForm — 2FA gate", () => {
+describe("LoginForm, 2FA gate", () => {
   it("shows the code step (NOT a credentials error) when the server answers auth.2fa_required", async () => {
     const user = userEvent.setup();
     loginMock.mockRejectedValue(problem(401, "auth.2fa_required", "Two-factor authentication required"));
@@ -136,14 +136,14 @@ describe("LoginForm — 2FA gate", () => {
     await submitCredentials(user);
     await screen.findByTestId("login-2fa-card");
 
-    // jest-axe's matcher is incompatible with Vitest's expect — assert the violations
+    // jest-axe's matcher is incompatible with Vitest's expect, assert the violations
     // array directly (see apps/crm/src/test/setup.ts's note).
     const results = await axe(container);
     expect(results.violations).toEqual([]);
   });
 });
 
-describe("LoginForm — lost-authenticator recovery", () => {
+describe("LoginForm, lost-authenticator recovery", () => {
   async function reachRecoveryRequest(user: ReturnType<typeof userEvent.setup>) {
     loginMock.mockRejectedValue(problem(401, "auth.2fa_required", "Two-factor authentication required"));
     renderForm();
@@ -162,7 +162,7 @@ describe("LoginForm — lost-authenticator recovery", () => {
     expect(await screen.findByTestId("login-recovery-code-card")).toBeInTheDocument();
   });
 
-  it("never claims an email was definitely sent — the API's response is deliberately ambiguous", async () => {
+  it("never claims an email was definitely sent, the API's response is deliberately ambiguous", async () => {
     const user = userEvent.setup();
     requestRecoveryMock.mockResolvedValue({ message: "generic" });
     await reachRecoveryRequest(user);
@@ -183,7 +183,7 @@ describe("LoginForm — lost-authenticator recovery", () => {
     await user.click(screen.getByTestId("login-recovery-code-submit"));
 
     await waitFor(() => expect(confirmRecoveryMock).toHaveBeenCalledWith({ ...CREDENTIALS, code: "654321" }));
-    // Back to stage one — recovery deliberately does NOT log anyone in.
+    // Back to stage one, recovery deliberately does NOT log anyone in.
     expect(await screen.findByTestId("login-notice")).toHaveTextContent(/set up your authenticator app again/i);
     expect(screen.getByTestId("login-card")).toBeInTheDocument();
     expect(loginVerifyMock).not.toHaveBeenCalled();

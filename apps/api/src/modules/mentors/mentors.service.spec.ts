@@ -51,7 +51,7 @@ const ROW: MentorRow = {
   assignedBatchCount: 0,
 };
 
-/** Minimal StorageProvider stub — only getSignedUploadUrl is exercised (photo-upload-url). */
+/** Minimal StorageProvider stub, only getSignedUploadUrl is exercised (photo-upload-url). */
 function mockStorage() {
   return {
     getSignedUploadUrl: jest.fn().mockResolvedValue({
@@ -89,7 +89,7 @@ describe("MentorsService", () => {
       expect(result.items).toHaveLength(1);
     });
 
-    it("allows scope=branch (flagged gap: also no restriction — mentors has no branch_id)", async () => {
+    it("allows scope=branch (flagged gap: also no restriction, mentors has no branch_id)", async () => {
       repo.list.mockResolvedValue({ rows: [ROW], total: 1 });
 
       const result = await runWithScope("branch", "manager-1", () =>
@@ -99,7 +99,7 @@ describe("MentorsService", () => {
       expect(result.items).toHaveLength(1);
     });
 
-    it("fails closed (403) for scope=assigned — never seeded for mentors.* per Rule M-3", async () => {
+    it("fails closed (403) for scope=assigned, never seeded for mentors.* per Rule M-3", async () => {
       await expect(
         runWithScope("assigned", "mentor-user-1", () =>
           service.list("tenant-1", { page: 1, pageSize: 20, includeDeleted: false }),

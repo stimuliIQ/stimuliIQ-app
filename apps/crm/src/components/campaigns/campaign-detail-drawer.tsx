@@ -135,17 +135,17 @@ export function CampaignDetailDrawer({
     {
       id: "sentAt",
       header: "Sent at",
-      cell: (row) => (row.sentAt ? new Date(row.sentAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }) : "—"),
+      cell: (row) => (row.sentAt ? new Date(row.sentAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }) : "-"),
     },
     {
       id: "deliveredAt",
       header: "Delivered",
-      cell: (row) => (row.deliveredAt ? new Date(row.deliveredAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }) : "—"),
+      cell: (row) => (row.deliveredAt ? new Date(row.deliveredAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }) : "-"),
     },
     {
       id: "error",
       header: "Error",
-      cell: (row) => row.error ?? "—",
+      cell: (row) => row.error ?? "-",
     },
   ];
 

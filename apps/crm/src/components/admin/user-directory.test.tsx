@@ -2,9 +2,9 @@
 //
 // Admin ▸ Users carries several row actions that look alike and are not: Deactivate (blocks
 // the login, keeps the row) vs Delete (removes the account), and Reset password vs Clear
-// two-factor. They ride on DIFFERENT permissions — `users.delete` and `twofa.reset`, which
+// two-factor. They ride on DIFFERENT permissions, `users.delete` and `twofa.reset`, which
 // admin holds, against `users.remove` and `users.reset_password`, seeded for super_admin
-// alone — so these tests pin the gating. The UI only hides what the API already forbids
+// alone, so these tests pin the gating. The UI only hides what the API already forbids
 // (CLAUDE.md §3.5), but an action rendered for an admin is still a promise the product
 // cannot keep, and reads as the permission split having collapsed.
 //
@@ -62,7 +62,7 @@ function me(permissionKeys: string[]): MeResponse {
 
 const ADMIN_PERMISSIONS = ["users.view", "users.create", "users.edit", "users.delete"];
 // `twofa.reset` is a separate module from `users.*` but is held by super_admin, so the
-// fixture includes it — otherwise the menu renders four items and the naming test below
+// fixture includes it, otherwise the menu renders four items and the naming test below
 // silently stops covering the credential action it exists to disambiguate.
 const SUPER_ADMIN_PERMISSIONS = [
   ...ADMIN_PERMISSIONS,
@@ -111,11 +111,11 @@ beforeEach(() => {
 /** Row actions live behind a "⋯" menu, so every assertion has to open it first. */
 async function openRowMenu(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByTestId("user-row-actions"));
-  // Radix portals the panel and moves focus into it — wait for that before asserting.
+  // Radix portals the panel and moves focus into it, wait for that before asserting.
   await screen.findByRole("menu");
 }
 
-describe("UserDirectory — action menu", () => {
+describe("UserDirectory, action menu", () => {
   // The whole reason the menu exists: an icon alone could not say which credential action
   // it performed, and the key glyph got read as "reset password" when it clears 2FA.
   it("names every action instead of relying on a glyph", async () => {
@@ -148,7 +148,7 @@ describe("UserDirectory — action menu", () => {
   });
 });
 
-describe("UserDirectory — delete", () => {
+describe("UserDirectory, delete", () => {
   it("offers Delete to a super admin", async () => {
     const user = userEvent.setup();
     renderDirectory(SUPER_ADMIN_PERMISSIONS);
@@ -184,7 +184,7 @@ describe("UserDirectory — delete", () => {
 
     const dialog = await screen.findByTestId("user-remove-confirm");
     expect(dialog).toHaveTextContent("Delete Priya Sharma?");
-    // Most people reaching for Delete actually want Deactivate — say so before they commit.
+    // Most people reaching for Delete actually want Deactivate, say so before they commit.
     expect(dialog).toHaveTextContent(/use Deactivate instead/i);
     // And be honest that this is not an erasure of their history.
     expect(dialog).toHaveTextContent(/history[\s\S]*is kept/i);
@@ -210,7 +210,7 @@ describe("UserDirectory — delete", () => {
 // `users.reset_password` is super_admin-only for the same reason `users.remove` is: an
 // admin who can mint a super admin's credentials can take that account over through its
 // inbox. If the item ever renders for a plain admin, that escalation path is open.
-describe("UserDirectory — reset password", () => {
+describe("UserDirectory, reset password", () => {
   it("offers Reset password to a super admin", async () => {
     const user = userEvent.setup();
     renderDirectory(SUPER_ADMIN_PERMISSIONS);
@@ -246,7 +246,7 @@ describe("UserDirectory — reset password", () => {
     const dialog = await screen.findByTestId("user-reset-password-confirm");
     expect(dialog).toHaveTextContent("Reset password for Priya Sharma?");
     expect(dialog).toHaveTextContent(/signed out everywhere/i);
-    // The operator never sees the credential — only the account holder does.
+    // The operator never sees the credential, only the account holder does.
     expect(dialog).toHaveTextContent(/won't see the new password/i);
     expect(resetPasswordMock).not.toHaveBeenCalled();
 
@@ -255,7 +255,7 @@ describe("UserDirectory — reset password", () => {
   });
 
   // An `invited` account has never had a working password, so there is nothing to "reset".
-  // ONE action, named for what it does to THIS row — the same endpoint either way.
+  // ONE action, named for what it does to THIS row, the same endpoint either way.
   it("calls the action Resend invitation for someone who never signed in", async () => {
     const user = userEvent.setup();
     renderDirectory(SUPER_ADMIN_PERMISSIONS, [staffUser({ status: "invited" })]);
@@ -266,7 +266,7 @@ describe("UserDirectory — reset password", () => {
     expect(item).not.toHaveTextContent(/Reset password/i);
   });
 
-  it("does not claim an invited user will be signed out — they have no session", async () => {
+  it("does not claim an invited user will be signed out, they have no session", async () => {
     const user = userEvent.setup();
     renderDirectory(SUPER_ADMIN_PERMISSIONS, [staffUser({ status: "invited" })]);
     await openRowMenu(user);
@@ -285,7 +285,7 @@ describe("UserDirectory — reset password", () => {
 //
 // Distinct from Reset password: the operator picks the value and therefore knows it. It
 // rides `users.edit`, matching what PATCH /crm/admin/users/:id already enforces.
-describe("UserDirectory — set new password", () => {
+describe("UserDirectory, set new password", () => {
   it("offers Set new password to anyone who can edit users", async () => {
     const user = userEvent.setup();
     renderDirectory(ADMIN_PERMISSIONS);
@@ -302,7 +302,7 @@ describe("UserDirectory — set new password", () => {
     expect(screen.queryByTestId("user-row-actions-set-password")).not.toBeInTheDocument();
   });
 
-  it("keeps it separate from Reset password — they are different acts", async () => {
+  it("keeps it separate from Reset password, they are different acts", async () => {
     const user = userEvent.setup();
     renderDirectory(SUPER_ADMIN_PERMISSIONS);
     await openRowMenu(user);

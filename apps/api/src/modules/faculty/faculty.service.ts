@@ -267,12 +267,12 @@ export class FacultyService {
     try {
       await this.mail.send({
         to: email,
-        subject: "Your stimuliIQ staff password has been reset",
+        subject: "Your Stimuli IQ staff password has been reset",
         html: renderBrandedEmail({
           title: "Staff password reset",
           greeting: `Hi ${escapeEmailHtml(name)},`,
           paragraphs: [
-            "Your stimuliIQ staff account password has been reset by an administrator. " +
+            "Your Stimuli IQ staff account password has been reset by an administrator. " +
               "Use the details below to sign in to the admin dashboard:",
           ],
           details: [

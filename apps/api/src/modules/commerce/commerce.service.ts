@@ -205,7 +205,7 @@ export class CommerceService {
     // Idempotency check FIRST — replay with same key returns cached order
     const existing = await this.repository.findOrderByIdempotencyKey(tenantId, idempotencyKey);
     if (existing) {
-      this.logger.log(`[Commerce] Order create replay — idempotency_key=${idempotencyKey}`);
+      this.logger.log(`[Commerce] Order create replay, idempotency_key=${idempotencyKey}`);
       return toOrderDetail(existing);
     }
 
@@ -425,7 +425,7 @@ export class CommerceService {
       throw new UnprocessableEntityException({
         code: "commerce.order_not_cancellable",
         title: "Only unpaid orders can be cancelled",
-        detail: `This order is "${order.status}" — a paid order goes through the refund flow instead.`,
+        detail: `This order is "${order.status}". A paid order goes through the refund flow instead.`,
       });
     }
 
@@ -527,7 +527,7 @@ export class CommerceService {
     const existing = await this.repository.findPaymentByProviderPaymentId(razorpay_payment_id);
     if (existing) {
       if (existing.status === "captured") {
-        this.logger.log(`[Commerce] verify replay — provider_payment_id=${razorpay_payment_id}`);
+        this.logger.log(`[Commerce] verify replay, provider_payment_id=${razorpay_payment_id}`);
         return toPaymentDetail(existing);
       }
     }
@@ -583,7 +583,7 @@ export class CommerceService {
     if (!batchId) {
       throw new BadRequestException({
         code: "commerce.order_missing_batch",
-        title: "Order is missing batch context — cannot create enrollment",
+        title: "Order is missing batch context, cannot create enrollment",
       });
     }
 
@@ -978,10 +978,10 @@ export class CommerceService {
       to,
       subject: `Payment received. You're enrolled! Your LMS login is inside`,
       html: renderBrandedEmail({
-        title: "Payment Received — You're Enrolled!",
+        title: "Payment Received, You're Enrolled!",
         greeting: `Hi ${escapeEmailHtml(data.studentName)},`,
         paragraphs: [
-          `We've received your payment of <strong>${amount}</strong> — welcome aboard! ` +
+          `We've received your payment of <strong>${amount}</strong>, welcome aboard! ` +
             `Your learning account is ready; sign in with the details below.`,
         ],
         details: [
@@ -1045,7 +1045,7 @@ export class CommerceService {
         throw new UnprocessableEntityException({
           code: "commerce.order_not_payable",
           title: "Order is not payable",
-          detail: `Order for "${row.programTitle}" is "${row.status}" — only open orders can be paid via a link.`,
+          detail: `Order for "${row.programTitle}" is "${row.status}". Only open orders can be paid via a link.`,
         });
       }
       orders.push(row);
@@ -1081,16 +1081,16 @@ export class CommerceService {
       paragraphs: single
         ? [
             `Your enrollment for <strong>${escapeEmailHtml(links[0]!.order.programTitle)}</strong>` +
-              `${links[0]!.order.batchName ? ` (${escapeEmailHtml(links[0]!.order.batchName)})` : ""} is one step away — ` +
+              `${links[0]!.order.batchName ? ` (${escapeEmailHtml(links[0]!.order.batchName)})` : ""} is one step away, ` +
               `complete the payment of <strong>${fmt(links[0]!.order.amountPaise)}</strong> below.`,
             `<div style="margin:4px 0 6px;">${payButton(links[0]!.url, `Pay ${fmt(links[0]!.order.amountPaise)} securely`)}</div>`,
           ]
         : [
-            `You have ${links.length} program payments pending — pay each one below, in any order.`,
+            `You have ${links.length} program payments pending. Pay each one below, in any order.`,
             ...links.map(
               ({ order, url }) =>
                 `<strong>${escapeEmailHtml(order.programTitle)}</strong>` +
-                `${order.batchName ? ` — ${escapeEmailHtml(order.batchName)}` : ""}<br/>` +
+                `${order.batchName ? ` · ${escapeEmailHtml(order.batchName)}` : ""}<br/>` +
                 `<div style="margin:6px 0 10px;">${payButton(url, `Pay ${fmt(order.amountPaise)}`)}</div>`,
             ),
           ],
@@ -1109,15 +1109,15 @@ export class CommerceService {
           ],
       footnote:
         "Payments are processed securely by Razorpay. " +
-        `Each link expires on ${links[0]!.expiresAt.toLocaleDateString("en-IN")} — ask us for a fresh one anytime.`,
+        `Each link expires on ${links[0]!.expiresAt.toLocaleDateString("en-IN")}. Ask us for a fresh one anytime.`,
     });
 
     try {
       await this.mail.send({
         to: student.email,
         subject: single
-          ? `Complete your payment — ${links[0]!.order.programTitle}`
-          : `Complete your payments — ${links.length} programs pending (${fmt(totalAmountPaise)})`,
+          ? `Complete your payment · ${links[0]!.order.programTitle}`
+          : `Complete your payments · ${links.length} programs pending (${fmt(totalAmountPaise)})`,
         html,
         tags: [{ name: "category", value: "payment_link" }],
       });
@@ -1126,7 +1126,7 @@ export class CommerceService {
       throw new UnprocessableEntityException({
         code: "commerce.payment_link_email_failed",
         title: "Couldn't send the payment email",
-        detail: "The mail provider rejected the send — the links are unaffected; try again or copy the link instead.",
+        detail: "The mail provider rejected the send. The links are unaffected; try again or copy the link instead.",
       });
     }
 
@@ -1370,7 +1370,7 @@ export class CommerceService {
     // M-1 (a): EARLY RETURN for already-processed refund — idempotent no-op.
     // Previously this was an empty `if` block that fell through and called the provider again.
     if (refund.status === "processed") {
-      this.logger.log(`[Commerce] approveRefund idempotent no-op — refund ${refundId} already processed`);
+      this.logger.log(`[Commerce] approveRefund idempotent no-op, refund ${refundId} already processed`);
       return toRefundDetail(refund);
     }
 
@@ -1390,7 +1390,7 @@ export class CommerceService {
     if (!payment || !payment.providerPaymentId) {
       throw new BadRequestException({
         code: "commerce.payment_no_provider_id",
-        title: "Cannot process refund — payment has no provider payment id",
+        title: "Cannot process refund. Payment has no provider payment id",
         detail: "Manual payments may need to be refunded offline.",
       });
     }
@@ -1417,7 +1417,7 @@ export class CommerceService {
       throw new BadRequestException({
         code: "commerce.refund_provider_failed",
         title: "Refund processing failed at the payment provider",
-        detail: "The refund was approved but the provider returned an error. Status set to failed — retry to reprocess.",
+        detail: "The refund was approved but the provider returned an error. Status set to failed, retry to reprocess.",
       });
     }
 

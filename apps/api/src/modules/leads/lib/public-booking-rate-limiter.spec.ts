@@ -1,6 +1,6 @@
 // apps/api/src/modules/leads/lib/public-booking-rate-limiter.spec.ts
 //
-// Unit tests for PublicBookingRateLimiter — covers:
+// Unit tests for PublicBookingRateLimiter, covers:
 //   - Normal operation: allows requests up to MAX_ATTEMPTS per IP per window
 //   - Rate-limited: 6th request in the same window → rate-limited (true)
 //   - H-1 FIX: Redis error → fail CLOSED (returns true, rejects the request)
@@ -84,7 +84,7 @@ describe("PublicBookingRateLimiter", () => {
       const redis = makeMockRedis({ shouldThrow: true, throwOn: "incr" });
       const limiter = makeRateLimiter(redis);
 
-      // Must fail CLOSED — treat as rate-limited, not allow-through
+      // Must fail CLOSED, treat as rate-limited, not allow-through
       const limited = await limiter.hit(TEST_IP);
       expect(limited).toBe(true);
     });
@@ -107,7 +107,7 @@ describe("PublicBookingRateLimiter", () => {
       const redis = makeMockRedis({ shouldThrow: true, throwOn: "incr" });
       const limiter = makeRateLimiter(redis);
 
-      // Must not propagate the error — the caller should receive a boolean, not an exception
+      // Must not propagate the error, the caller should receive a boolean, not an exception
       await expect(limiter.hit(TEST_IP)).resolves.toBe(true);
     });
   });

@@ -16,7 +16,7 @@ import type { BatchDetail } from "@repo/types";
 import { BatchFormDrawer } from "./batch-form-drawer";
 
 // Radix's Select is driven by pointer events jsdom does not implement, so the required
-// program/branch/mode pickers can't be filled through the real component — and this form
+// program/branch/mode pickers can't be filled through the real component, and this form
 // won't submit until they are. Swap ONLY those two exports for native equivalents; every
 // other @repo/ui component (Drawer, Checkbox, Input, Button) stays real, so what's under
 // test here is still the actual form.
@@ -99,7 +99,7 @@ async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>, name
   await user.selectOptions(screen.getByTestId("batch-form-mode"), "live");
 }
 
-describe("BatchFormDrawer — weekly schedule", () => {
+describe("BatchFormDrawer, weekly schedule", () => {
   it("offers every weekday as an independent checkbox, not a single-value dropdown", () => {
     renderDrawer();
     for (const day of ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]) {
@@ -176,7 +176,7 @@ describe("BatchFormDrawer — weekly schedule", () => {
   });
 });
 
-describe("BatchFormDrawer — default status", () => {
+describe("BatchFormDrawer, default status", () => {
   it("opens a NEW batch in Active", async () => {
     const user = userEvent.setup();
     renderDrawer();

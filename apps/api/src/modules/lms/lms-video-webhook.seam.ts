@@ -64,7 +64,7 @@ export class SyncVideoWebhookProcessorAdapter implements VideoWebhookProcessorPo
 
     if (!video) {
       this.logger.warn(
-        `[VideoWebhook] No video row found for providerAssetId=${providerAssetId} — ignoring`,
+        `[VideoWebhook] No video row found for providerAssetId=${providerAssetId}, ignoring`,
       );
       return;
     }
@@ -72,7 +72,7 @@ export class SyncVideoWebhookProcessorAdapter implements VideoWebhookProcessorPo
     // Idempotency: if already at the target status and durationS is already set, no-op.
     if (video.status === status && (durationS === undefined || video.durationS === durationS)) {
       this.logger.log(
-        `[VideoWebhook] Idempotent no-op — video ${video.id} already has status=${status}`,
+        `[VideoWebhook] Idempotent no-op, video ${video.id} already has status=${status}`,
       );
       return;
     }

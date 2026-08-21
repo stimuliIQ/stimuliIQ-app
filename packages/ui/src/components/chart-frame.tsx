@@ -62,7 +62,7 @@ export function ChartFrame({
   children,
 }: ChartFrameProps): React.JSX.Element {
   const resolvedTestId = testId ?? "chart-frame";
-  const accessibleName = description ? `${title} — ${description}` : title;
+  const accessibleName = description ? `${title}, ${description}` : title;
 
   if (loading) {
     return (

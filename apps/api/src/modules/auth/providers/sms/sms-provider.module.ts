@@ -102,7 +102,7 @@ function createSmsProvider(): SmsProvider {
         return new NoopSmsProvider();
       }
 
-      bootLogger.log(`[SmsProviderModule] SMS_PROVIDER=msg91 — binding Msg91SmsProvider (sender: ${env.MSG91_SENDER}).`);
+      bootLogger.log(`[SmsProviderModule] SMS_PROVIDER=msg91, binding Msg91SmsProvider (sender: ${env.MSG91_SENDER}).`);
       return new Msg91SmsProvider();
     }
 
@@ -112,7 +112,7 @@ function createSmsProvider(): SmsProvider {
       // transactional SMS are inert; email/password login is unaffected. Use ONLY when
       // SMS is not live yet; flip to msg91 (with keys) to enable.
       bootLogger.log(
-        "[SmsProviderModule] SMS_PROVIDER=disabled — SMS feature is off. Binding " +
+        "[SmsProviderModule] SMS_PROVIDER=disabled. SMS feature is off. Binding " +
           "NoopSmsProvider (no SMS sent; phone-OTP login inert, password login unaffected).",
       );
       return new NoopSmsProvider();
@@ -122,13 +122,13 @@ function createSmsProvider(): SmsProvider {
       if (isProd) {
         throw new Error(
           "[SmsProviderModule] SMS_PROVIDER=noop in a production environment. This would " +
-            "silently discard every OTP and transactional SMS — including login OTP, a hard " +
+            "silently discard every OTP and transactional SMS. Including login OTP, a hard " +
             "outage. Set SMS_PROVIDER=msg91 with MSG91_AUTH_KEY/MSG91_SENDER/MSG91_TEMPLATE_ID " +
             "for production. The application will NOT start with SMS_PROVIDER=noop in production.",
         );
       }
       bootLogger.warn(
-        "[SmsProviderModule] SMS_PROVIDER=noop — binding NoopSmsProvider. No SMS will be sent " +
+        "[SmsProviderModule] SMS_PROVIDER=noop. Binding NoopSmsProvider. No SMS will be sent " +
           "and OTP codes are never logged. Set SMS_PROVIDER=msg91 for staging/prod.",
       );
       return new NoopSmsProvider();
@@ -142,7 +142,7 @@ function createSmsProvider(): SmsProvider {
         );
       }
       bootLogger.warn(
-        `[SmsProviderModule] Unrecognised SMS_PROVIDER='${selector}' — falling back to ` +
+        `[SmsProviderModule] Unrecognised SMS_PROVIDER='${selector}', falling back to ` +
           "NoopSmsProvider (non-production). Valid values: noop | msg91.",
       );
       return new NoopSmsProvider();

@@ -56,7 +56,7 @@ export class VerifyRateLimiter {
     } catch (err) {
       // Fail CLOSED — treat Redis error as rate-limited (AC-H6 enumeration guard).
       this.logger.error(
-        `[VerifyRateLimiter] Redis error for key ${k} — failing closed: ${String(err)}`,
+        `[VerifyRateLimiter] Redis error for key ${k}, failing closed: ${String(err)}`,
       );
       return true;
     }

@@ -21,7 +21,7 @@ describe("LineChart", () => {
 
   it("has an accessible name via role=img", () => {
     render(<LineChart title="Revenue trend" description="Last 2 days" data={data} xKey="date" series={series} />);
-    expect(screen.getByRole("img", { name: "Revenue trend — Last 2 days" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Revenue trend, Last 2 days" })).toBeInTheDocument();
   });
 
   it("renders a sr-only data table with every row and series", () => {

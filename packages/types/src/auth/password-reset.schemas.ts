@@ -27,7 +27,7 @@ export const RequestPasswordResetRequestSchema = z
 export type RequestPasswordResetRequest = z.infer<typeof RequestPasswordResetRequestSchema>;
 
 export const RequestPasswordResetResponseSchema = z.object({
-  message: z.string().describe("Generic confirmation message — never reveals whether the email exists."),
+  message: z.string().describe("Generic confirmation message. Never reveals whether the email exists."),
 });
 export type RequestPasswordResetResponse = z.infer<typeof RequestPasswordResetResponseSchema>;
 

@@ -82,13 +82,13 @@ describe("BookSlotForm", () => {
     expect(screen.getByTestId("program-step")).toBeInTheDocument();
   });
 
-  it("keeps Continue enabled on the program step — picking a program is optional", () => {
+  it("keeps Continue enabled on the program step, picking a program is optional", () => {
     render(<BookSlotForm />);
     expect(screen.getByTestId("multi-step-next")).toBeEnabled();
   });
 });
 
-describe("BookSlotForm — forward button gating", () => {
+describe("BookSlotForm, forward button gating", () => {
   it("disables Continue on the slot step until a slot is picked", () => {
     vi.mocked(useBookSlot).mockReturnValue({
       ...idleState,
@@ -140,7 +140,7 @@ describe("BookSlotForm — forward button gating", () => {
 });
 
 // Test success state rendering
-describe("BookSlotForm — success state", () => {
+describe("BookSlotForm, success state", () => {
   it("renders success screen when submitState is success", () => {
     vi.mocked(useBookSlot).mockReturnValue({
       ...idleState,

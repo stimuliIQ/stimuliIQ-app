@@ -3,12 +3,12 @@
 // Unit tests for the LMS content module (docs/04 §2.1 DoD rule 10).
 //
 // CRITICAL TESTS (docs/plans/phase-3.md task #5 DoD):
-//   1. resolveEnrollmentForLesson — the enrollment-scope gate.
+//   1. resolveEnrollmentForLesson, the enrollment-scope gate.
 //      a. Enrolled student + non-preview → returns enrollment.
 //      b. Not enrolled + non-preview → returns null (caller 404s).
 //      c. Not enrolled + preview lesson → returns gate with enrollment=null.
 //      d. Another student's enrollment cannot satisfy the gate for userId.
-//   2. stream-url — the security-critical mint flow.
+//   2. stream-url, the security-critical mint flow.
 //      a. Enrolled student + ready video → mints via Noop, returns url/expiresAt/watermark.
 //      b. Not enrolled → NotFoundException (404).
 //      c. Video not ready → ConflictException (409).
@@ -214,7 +214,7 @@ describe("resolveEnrollmentForLesson (enrollment-scope gate)", () => {
     expect(result).toBeNull();
   });
 
-  it("gates on the requesting userId — another student's enrollment does not grant access", async () => {
+  it("gates on the requesting userId, another student's enrollment does not grant access", async () => {
     // USER_ID resolves to no student profile (not a student in this tenant).
     repo.findLessonById.mockResolvedValue(makeLesson({ isPreview: false }));
     repo.findStudentProfileId.mockResolvedValue(null); // no profile for this user
@@ -228,7 +228,7 @@ describe("resolveEnrollmentForLesson (enrollment-scope gate)", () => {
     expect(repo.findActiveEnrollmentForProgram).not.toHaveBeenCalled();
   });
 
-  it("gates on own enrollment in the lesson's program — cross-program enrollment does not grant access", async () => {
+  it("gates on own enrollment in the lesson's program, cross-program enrollment does not grant access", async () => {
     repo.findLessonById.mockResolvedValue(makeLesson({ isPreview: false }));
     repo.findStudentProfileId.mockResolvedValue(STUDENT_ID);
     repo.findActiveEnrollmentForProgram.mockResolvedValue(null); // enrolled in a DIFFERENT program
@@ -291,12 +291,12 @@ describe("LmsService.mintStreamUrl (stream-url security-critical flow)", () => {
     const result = await service.mintStreamUrl(USER_ID, TENANT_ID, LESSON_ID);
 
     // The response object must never have a 'providerAssetId' field.
-    // (The Noop provider embeds the assetId in the URL path — that's its fake-URL format.
+    // (The Noop provider embeds the assetId in the URL path, that's its fake-URL format.
     // The real security property is that the raw DB `providerAssetId` is NEVER returned
     // as a top-level response field or key; only the signed URL from the provider is returned.)
     expect(result).not.toHaveProperty("providerAssetId");
     expect(result).not.toHaveProperty("assetId");
-    // The URL IS a (fake) signed URL from the provider — that's the expected output.
+    // The URL IS a (fake) signed URL from the provider, that's the expected output.
     expect(result.url).toMatch(/^https:\/\/noop\.video\.local\/hls\//);
     // It has the expected token shape (user+lesson scoped).
     expect(result.url).toContain(`noop-signed-${USER_ID}-${LESSON_ID}`);
@@ -408,7 +408,7 @@ describe("LmsService.mintStreamUrl (stream-url security-critical flow)", () => {
 // 3. Curriculum + dashboard enrollment scoping
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("LmsService — curriculum enrollment scoping (IDOR prevention)", () => {
+describe("LmsService, curriculum enrollment scoping (IDOR prevention)", () => {
   let repo: MockRepo;
   let service: LmsService;
 
@@ -491,7 +491,7 @@ describe("LmsService — curriculum enrollment scoping (IDOR prevention)", () =>
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3b. getResourceDownloadUrl — closes the P4 follow-up TODO (Phase-9-completion gap #2)
+// 3b. getResourceDownloadUrl, closes the P4 follow-up TODO (Phase-9-completion gap #2)
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("LmsService.getResourceDownloadUrl (signed download URL mint)", () => {
@@ -569,10 +569,10 @@ describe("LmsService.getResourceDownloadUrl (signed download URL mint)", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 4. Webhook controller — fail-closed + idempotency via SyncAdapter
+// 4. Webhook controller, fail-closed + idempotency via SyncAdapter
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("VideoWebhookController — fail-closed + idempotency", () => {
+describe("VideoWebhookController, fail-closed + idempotency", () => {
   let repo: MockRepo;
   let noopProvider: NoopVideoProvider;
   let webhookAdapter: SyncVideoWebhookProcessorAdapter;
@@ -621,7 +621,7 @@ describe("VideoWebhookController — fail-closed + idempotency", () => {
     );
   });
 
-  it("idempotency — replaying the same event with same status → no DB update", async () => {
+  it("idempotency, replaying the same event with same status → no DB update", async () => {
     const rawBody = Buffer.from(JSON.stringify({ uid: "asset-123", readyToStream: true }));
     const validSig = NoopVideoProvider.makeWebhookSignature(rawBody);
 

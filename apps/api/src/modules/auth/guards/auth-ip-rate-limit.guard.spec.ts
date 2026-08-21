@@ -36,7 +36,7 @@ function buildContext(opts: { ip?: string; handlerName?: string; setHeader?: jes
   } as unknown as ExecutionContext;
 }
 
-describe("AuthIpRateLimitGuard — AC-57", () => {
+describe("AuthIpRateLimitGuard, AC-57", () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
@@ -60,7 +60,7 @@ describe("AuthIpRateLimitGuard — AC-57", () => {
   });
 
   it("throws 429 once the per-IP window threshold is exceeded, regardless of which account is targeted", async () => {
-    // AUTH_IP_RATE_LIMIT_MAX_ATTEMPTS default is 20 — simulate the 21st attempt.
+    // AUTH_IP_RATE_LIMIT_MAX_ATTEMPTS default is 20, simulate the 21st attempt.
     const redis = {
       client: { incr: jest.fn().mockResolvedValue(21), expire: jest.fn() },
     } as unknown as RedisService;
@@ -75,7 +75,7 @@ describe("AuthIpRateLimitGuard — AC-57", () => {
     expect(setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
   });
 
-  it("buckets by handler name — a flood on one auth route does not exhaust another route's budget", async () => {
+  it("buckets by handler name, a flood on one auth route does not exhaust another route's budget", async () => {
     const incr = jest.fn().mockResolvedValue(1);
     const redis = { client: { incr, expire: jest.fn() } } as unknown as RedisService;
     const guard = new AuthIpRateLimitGuard(redis);
@@ -87,7 +87,7 @@ describe("AuthIpRateLimitGuard — AC-57", () => {
     expect(incr).toHaveBeenNthCalledWith(2, "auth:ip-rl:requestOtp:10.0.0.1");
   });
 
-  it("FAILS CLOSED when Redis errors — this is the only defense against distributed credential-stuffing here", async () => {
+  it("FAILS CLOSED when Redis errors, this is the only defense against distributed credential-stuffing here", async () => {
     const redis = {
       client: { incr: jest.fn().mockRejectedValue(new Error("Redis unreachable")), expire: jest.fn() },
     } as unknown as RedisService;

@@ -63,7 +63,7 @@ describe("formatDiscountPercent", () => {
 
   // Rounds DOWN so the advertised figure can never exceed the saving actually given.
   it("floors rather than rounding to nearest", () => {
-    // 52.6% would round UP to 53 — that would overstate the discount.
+    // 52.6% would round UP to 53, that would overstate the discount.
     expect(formatDiscountPercent(1000000, 474000)).toBe("52% OFF");
   });
 
@@ -80,7 +80,7 @@ describe("formatDiscountPercent", () => {
   });
 
   it("returns undefined when the saving floors to 0%", () => {
-    // ₹10,000 → ₹9,950 is 0.5% — a rounding artefact, not a discount worth claiming.
+    // ₹10,000 → ₹9,950 is 0.5%, a rounding artefact, not a discount worth claiming.
     expect(formatDiscountPercent(1000000, 995000)).toBeUndefined();
   });
 });

@@ -39,7 +39,7 @@ export function createWhatsAppProviderForTest(): WhatsAppProvider {
               `The application will NOT start without them in production.`,
           );
         }
-        testLogger.warn(`[TEST] Missing ${missing} — falling back to NoopWhatsAppProvider`);
+        testLogger.warn(`[TEST] Missing ${missing}, falling back to NoopWhatsAppProvider`);
         return new NoopWhatsAppProvider();
       }
       return new WhatsAppCloudProvider();

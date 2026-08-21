@@ -170,7 +170,7 @@ export const DltCampaignTemplateDtoSchema = CampaignTemplateBaseSchema.extend({
     .min(1)
     .describe(
       "India DLT-approved template ID (REQUIRED for sms/whatsapp). " +
-        "Issued by the TRAI DLT platform. Not a secret — the approved message template identifier.",
+        "Issued by the TRAI DLT platform. Not a secret. The approved message template identifier.",
     ),
   /** No subject for SMS/WhatsApp. */
   subject: z.null().optional(),
@@ -281,12 +281,12 @@ export const SegmentDefDtoSchema = z
     programIds: z
       .array(UuidSchema)
       .optional()
-      .describe("Program filter — leads interested in or students enrolled in these programs."),
+      .describe("Program filter. Leads interested in or students enrolled in these programs."),
     /** Filter by batch ID (for students). */
     batchIds: z
       .array(UuidSchema)
       .optional()
-      .describe("Batch filter — students enrolled in these batches."),
+      .describe("Batch filter. Students enrolled in these batches."),
     /**
      * Filter by enrollment or lead status.
      * For leads: status values from the CRM pipeline.
@@ -307,7 +307,7 @@ export const SegmentDefDtoSchema = z
     consentRequired: z
       .literal(true)
       .default(true)
-      .describe("Always true — the consent gate is non-bypassable (Rule C-1, AC-42)."),
+      .describe("Always true. The consent gate is non-bypassable (Rule C-1, AC-42)."),
   })
   .strict();
 export type SegmentDefDto = z.infer<typeof SegmentDefDtoSchema>;

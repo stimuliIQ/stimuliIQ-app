@@ -3,7 +3,7 @@
 // Unit tests for the analytics configuration seam (analytics-config.ts).
 //
 // Test strategy:
-//   - All tests are UNIT — no network calls, no vendor SDK.
+//   - All tests are UNIT, no network calls, no vendor SDK.
 //   - resolveAnalyticsConfig() is called with various env configurations.
 //   - Tests cover:
 //       1. Default Noop when ANALYTICS_PROVIDER is unset.
@@ -81,7 +81,7 @@ describe("resolveAnalyticsConfig", () => {
   it("returns Noop config when ANALYTICS_PROVIDER=ga4 but ANALYTICS_MEASUREMENT_ID is absent", () => {
     setEnvWith({ ANALYTICS_PROVIDER: "ga4" }); // no ANALYTICS_MEASUREMENT_ID
     const config = resolveAnalyticsConfig();
-    // Cannot enable GA4 without a Measurement ID — fall back to Noop.
+    // Cannot enable GA4 without a Measurement ID, fall back to Noop.
     expect(config.provider).toBe("noop");
     expect(config.enabled).toBe(false);
   });

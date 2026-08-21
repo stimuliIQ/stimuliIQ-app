@@ -14,7 +14,7 @@ import * as argon2 from "argon2";
 
 // Wraps the REAL argon2.verify in a jest.fn so tests can assert it was actually called
 // (and with what hash) without disturbing its real behavior (argon2.hash() elsewhere in
-// this file still uses the genuine implementation) — argon2's native binding exports are
+// this file still uses the genuine implementation), argon2's native binding exports are
 // non-configurable, so `jest.spyOn(argon2, "verify")` directly throws
 // "Cannot redefine property"; wrapping via jest.mock's factory avoids that.
 jest.mock("argon2", () => {
@@ -153,7 +153,7 @@ describe("AuthService", () => {
     });
 
     // ─── AC: login enumeration resistance (Phase-7 Wave 2 security hardening batch A,
-    // item 4 — closes P0 followups M-5) ─────────────────────────────────────────────
+    // item 4, closes P0 followups M-5) ─────────────────────────────────────────────
 
     describe("enumeration resistance (M-5)", () => {
       async function captureError(email: string, password: string): Promise<{ code: unknown; title: unknown }> {
@@ -205,7 +205,7 @@ describe("AuthService", () => {
 
         await expect(service.login("nobody@stimuliiq.test", "whatever", {})).rejects.toThrow(UnauthorizedException);
 
-        // A real (non-skipped) verify() call happened against the dummy hash — timing
+        // A real (non-skipped) verify() call happened against the dummy hash, timing
         // is not short-circuited for the "no such user" path, closing the
         // response-timing side channel (M-5).
         expect(argon2.verify).toHaveBeenCalledWith(DUMMY_PASSWORD_HASH, "whatever");
@@ -213,7 +213,7 @@ describe("AuthService", () => {
     });
   });
 
-  // ─── AC: app/role boundary gate (audience) — a `student` may only sign into the
+  // ─── AC: app/role boundary gate (audience), a `student` may only sign into the
   // LMS; any staff role may only sign into the CRM. Layered on top of per-endpoint
   // RBAC (see @repo/types AppAudienceSchema). ────────────────────────────────────
   describe("audience / app-role boundary gate", () => {
@@ -279,7 +279,7 @@ describe("AuthService", () => {
     });
   });
 
-  // ─── verifyCredentialsOnly() — T28 2FA login gate (docs/plans/phase-9-completion.md) ──
+  // ─── verifyCredentialsOnly(), T28 2FA login gate (docs/plans/phase-9-completion.md) ──
   // Purely additive method; does NOT touch login()'s tested behavior above.
 
   describe("verifyCredentialsOnly", () => {
@@ -312,7 +312,7 @@ describe("AuthService", () => {
     });
   });
 
-  describe("refresh — rotation + reuse detection", () => {
+  describe("refresh, rotation + reuse detection", () => {
     const SESSION = { id: "session-1", revokedAt: null, expiresAt: new Date(Date.now() + 60_000), refreshHash: "hash(old-refresh)" };
 
     it("rotates the session when the presented token matches the stored hash", async () => {
@@ -345,7 +345,7 @@ describe("AuthService", () => {
       tokens.verifyRefreshToken.mockResolvedValue({ sub: ACTIVE_USER.id, sid: "session-1" });
       repo.findSessionById.mockResolvedValue({ ...SESSION, revokedAt: new Date() });
       await expect(service.refresh("some-token", {})).rejects.toThrow(UnauthorizedException);
-      // No reuse-revocation action needed — session is already revoked, nothing left to revoke.
+      // No reuse-revocation action needed, session is already revoked, nothing left to revoke.
       expect(repo.revokeSession).not.toHaveBeenCalled();
     });
 
@@ -461,7 +461,7 @@ describe("AuthService", () => {
     });
   });
 
-  // lifecycle-redesign P3 — first-login / self-service password change.
+  // lifecycle-redesign P3, first-login / self-service password change.
   describe("changePassword", () => {
     it("rotates the password, clears the gate, and revokes all sessions on success", async () => {
       const passwordHash = await argon2.hash("temp-Password-1");

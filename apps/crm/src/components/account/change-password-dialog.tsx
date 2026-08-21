@@ -85,7 +85,7 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
       });
       toast({
         title: "Password changed",
-        description: "For your security you've been signed out everywhere — sign in again with your new password.",
+        description: "For your security you've been signed out everywhere. Sign in again with your new password.",
         variant: "success",
       });
       onOpenChange(false);

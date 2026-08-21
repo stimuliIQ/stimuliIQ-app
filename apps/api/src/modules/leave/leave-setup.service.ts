@@ -99,7 +99,7 @@ export class LeaveSetupService {
         title: "This leave type is in use",
         detail:
           `${inUse} leave request(s) use this type, so deleting it would leave them unexplained. ` +
-          "Switch it off instead — it disappears from the apply form and the history stays readable.",
+          "Switch it off instead. It disappears from the apply form and the history stays readable.",
       });
     }
     const deleted = await this.repo.deleteLeaveType(tenantId, id);

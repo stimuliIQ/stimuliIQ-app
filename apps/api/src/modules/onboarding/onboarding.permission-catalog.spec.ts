@@ -2,7 +2,7 @@
 //
 // Regression test for the P6 `forum.read`/`notification_prefs.edit` 403 bug class (mirrors
 // content/mentors/tickets `.permission-catalog.spec.ts`): a `@RequirePermission("x")` whose
-// key is missing from the seed catalog — or present but granted to nobody — 403s for every
+// key is missing from the seed catalog, or present but granted to nobody, 403s for every
 // caller, and does so silently at runtime rather than loudly at build time. This spec is
 // what makes that fail here instead.
 //
@@ -24,7 +24,7 @@ const CONTROLLER_FILE = "./onboarding.controller.ts";
 /** Read + triage the intake queue. Granted to counsellor + support as well as admins. */
 const SUBMISSION_KEYS = ["onboarding.view", "onboarding.edit", "onboarding.delete"] as const;
 
-/** Authoring the live form — admin/super_admin only, via the catch-all catalog grant. */
+/** Authoring the live form, admin/super_admin only, via the catch-all catalog grant. */
 const FIELDS_KEY = "onboarding.fields.manage";
 
 const ALL_KNOWN_KEYS = [...SUBMISSION_KEYS, FIELDS_KEY] as const;
@@ -38,7 +38,7 @@ function requiredPermissionKeys(relativePath: string): string[] {
 
 /**
  * Index of a class's `@Controller(...)` decorator, matched at the START of a line so the
- * file-header comment — which documents the very same decorators — cannot be mistaken for
+ * file-header comment, which documents the very same decorators, cannot be mistaken for
  * the code. (It can: the header lists `@Controller("crm/onboarding/fields")` verbatim, and
  * a naive indexOf finds that first, silently producing empty sections that pass by
  * vacuity.)
@@ -62,7 +62,7 @@ describe("Onboarding module permission catalog", () => {
   });
 
   it("PublicOnboardingController declares NO @RequirePermission (anonymous, captcha-gated)", () => {
-    // Bounded by the NEXT controller's @Controller decorator, not its `class` keyword —
+    // Bounded by the NEXT controller's @Controller decorator, not its `class` keyword,
     // a class's guards are declared above it, so slicing to `class Foo` would sweep the
     // following controller's @UseGuards into this section and pass vacuously.
     const publicSection = controllerSource.slice(
@@ -74,7 +74,7 @@ describe("Onboarding module permission catalog", () => {
     expect(publicSection).not.toMatch(/@UseGuards\(/);
   });
 
-  it("every CRM route is permission-gated — no route slips through on JwtAuthGuard alone", () => {
+  it("every CRM route is permission-gated, no route slips through on JwtAuthGuard alone", () => {
     const crmSection = controllerSource.slice(controllerDecoratorIndex(controllerSource, "crm/onboarding/fields"));
     const handlerCount = (crmSection.match(/@(Get|Post|Patch|Delete)\(/g) ?? []).length;
     const keyCount = (crmSection.match(/@RequirePermission\(/g) ?? []).length;

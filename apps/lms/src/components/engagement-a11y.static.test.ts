@@ -1,6 +1,6 @@
 // apps/lms/src/components/engagement-a11y.static.test.ts
 //
-// P6 engagement a11y regression guard — docs/plans/phase-7.md Wave 1 "qa" row
+// P6 engagement a11y regression guard, docs/plans/phase-7.md Wave 1 "qa" row
 // ("axe on NotificationBell/CampaignBuilder/BadgeGrid/PostThread" + LMS engagement
 // screens: notification center, notification prefs, forum thread list + detail,
 // gamification-on-progress).
@@ -8,24 +8,24 @@
 // ─── WHY THIS FILE IS A "STATIC" TEST, NOT AN AXE PASS ──────────────────────────
 //
 // This repo has NO automated a11y harness (jest-axe / @axe-core/playwright / @axe-
-// core/react) installed anywhere — confirmed by `grep -rn axe` across every
+// core/react) installed anywhere, confirmed by `grep -rn axe` across every
 // package.json in apps/{web,lms,crm} and packages/ui. Playwright itself is listed as
 // a dependency in all three apps' package.json but has no playwright.config.* file
 // anywhere in the repo (a carried gap since P1 per docs/plans/phase-6.md Part 5 "Out
-// of P6" table — "Playwright e2e (browser) — Carried stub since P1").
+// of P6" table, "Playwright e2e (browser), Carried stub since P1").
 //
 // `apps/lms` ALSO has no component-RENDER test harness: `@testing-library/react` is
-// NOT a dependency here (only `vitest` + `jsdom` for hook-logic tests — see
+// NOT a dependency here (only `vitest` + `jsdom` for hook-logic tests, see
 // src/hooks/use-notifications.test.ts and siblings, which test pure functions/query
 // keys, never render JSX). Installing `@testing-library/react` for apps/lms would be
 // a new-dependency decision (CLAUDE.md §1 "do not deviate without an ADR" / standing
 // ask-before-install rule) even though it is ALREADY a devDependency of `@repo/ui`
-// (packages/ui/package.json) — extending it to a second app's test config is a
+// (packages/ui/package.json), extending it to a second app's test config is a
 // separate call this QA pass does not make unilaterally.
 //
 // NOTE: the shared, REUSABLE primitives these LMS pages compose (NotificationBell,
 // PostThread, CampaignBuilder, BadgeGrid, ThreadList, LeaderboardTable,
-// NotificationPrefsMatrix — see packages/ui/src/components/*.test.tsx) ALREADY have
+// NotificationPrefsMatrix, see packages/ui/src/components/*.test.tsx) ALREADY have
 // real @testing-library/react render tests with getByRole/getByLabelText assertions
 // from an earlier wave (design-system agent). That is real, if partial (RTL role/name
 // queries, not full axe/WCAG contrast+relationship checks), a11y coverage at the
@@ -44,7 +44,7 @@
 // section landmarks using `aria-labelledby` matched to a real heading `id`, character-
 // count live regions using `aria-live="polite"`) are present and cannot silently
 // regress. This is a deterministic regression guard, not a substitute for a real axe
-// pass — recorded as a followup (see final QA report) to wire `@testing-library/react`
+// pass, recorded as a followup (see final QA report) to wire `@testing-library/react`
 // + `jest-axe` (or a Playwright + `@axe-core/playwright` e2e pass, given Playwright is
 // already a listed dependency) for apps/lms in a future wave.
 
@@ -59,7 +59,7 @@ function readSource(relPath: string): string {
   return readFileSync(join(__dirname, relPath), "utf8");
 }
 
-describe("Notification Center (notification-center-content.tsx) — a11y patterns", () => {
+describe("Notification Center (notification-center-content.tsx), a11y patterns", () => {
   const src = readSource("./notifications/notification-center-content.tsx");
 
   it("loading skeleton announces itself to assistive tech", () => {
@@ -82,7 +82,7 @@ describe("Notification Center (notification-center-content.tsx) — a11y pattern
   });
 });
 
-describe("Notification Preferences (notification-prefs-content.tsx) — a11y patterns", () => {
+describe("Notification Preferences (notification-prefs-content.tsx), a11y patterns", () => {
   const src = readSource("./notifications/notification-prefs-content.tsx");
 
   it("loading skeleton announces itself to assistive tech", () => {
@@ -105,7 +105,7 @@ describe("Notification Preferences (notification-prefs-content.tsx) — a11y pat
   });
 });
 
-describe("Forum Thread List (forum-thread-list-content.tsx) — a11y patterns", () => {
+describe("Forum Thread List (forum-thread-list-content.tsx), a11y patterns", () => {
   const src = readSource("./forum/forum-thread-list-content.tsx");
 
   it("the icon-only 'new thread' button has an accessible name", () => {
@@ -130,7 +130,7 @@ describe("Forum Thread List (forum-thread-list-content.tsx) — a11y patterns", 
   });
 });
 
-describe("Forum Thread Detail (forum-thread-detail-content.tsx) — a11y patterns", () => {
+describe("Forum Thread Detail (forum-thread-detail-content.tsx), a11y patterns", () => {
   const src = readSource("./forum/forum-thread-detail-content.tsx");
 
   it("loading skeleton announces itself to assistive tech", () => {
@@ -160,7 +160,7 @@ describe("Forum Thread Detail (forum-thread-detail-content.tsx) — a11y pattern
   });
 });
 
-describe("Gamification section (gamification-section.tsx) — a11y patterns", () => {
+describe("Gamification section (gamification-section.tsx), a11y patterns", () => {
   const src = readSource("./progress/gamification-section.tsx");
 
   it("loading skeleton announces itself to assistive tech", () => {

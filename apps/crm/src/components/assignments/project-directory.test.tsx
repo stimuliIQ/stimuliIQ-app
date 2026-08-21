@@ -2,7 +2,7 @@
 //
 // The screen was review-only: it listed projects and told an empty tenant to go create
 // project-type assignments somewhere else. These cover the two things that make it an
-// authoring screen — the button exists and is permission-gated, and what it opens can only
+// authoring screen, the button exists and is permission-gated, and what it opens can only
 // ever produce a project (an assignment created from here would never appear here).
 
 import * as React from "react";
@@ -53,7 +53,7 @@ vi.mock("@repo/ui", async (importOriginal) => {
 });
 
 /**
- * Captures which submission the grader was opened on — the assertion that distinguishes
+ * Captures which submission the grader was opened on, the assertion that distinguishes
  * "graded the student I clicked" from the old behaviour, which opened whichever submission
  * happened to be the batch's most recent for that milestone.
  */
@@ -283,14 +283,14 @@ beforeEach(() => {
   gradeSpy.submissionId = null;
 });
 
-describe("ProjectDirectory — authoring", () => {
+describe("ProjectDirectory, authoring", () => {
   it("offers Add project to someone who can create assignments", () => {
     renderDirectory();
     expect(screen.getByTestId("projects-create-button")).toBeInTheDocument();
   });
 
   // A project IS an assignment of kind=project, so authoring rides on the same permission
-  // the server enforces — a reviewer must not get an authoring affordance.
+  // the server enforces, a reviewer must not get an authoring affordance.
   it("hides it from a review-only role", () => {
     renderDirectory(REVIEWER_ME);
     expect(screen.queryByTestId("projects-create-button")).not.toBeInTheDocument();
@@ -320,8 +320,8 @@ describe("ProjectDirectory — authoring", () => {
 });
 
 // Detail opens in a side panel over the still-visible list, not an inline block below the
-// table — the row you clicked stays put and the review sits at a fixed position.
-describe("ProjectDirectory — detail panel", () => {
+// table, the row you clicked stays put and the review sits at a fixed position.
+describe("ProjectDirectory, detail panel", () => {
   it("opens the panel when the row is clicked", async () => {
     const user = userEvent.setup();
     renderWithProject();
@@ -395,7 +395,7 @@ describe("ProjectDirectory — detail panel", () => {
 
     expect(within(table).getByText("Ananya Sharma")).toBeInTheDocument();
     expect(within(table).getByText("Ravi Kumar")).toBeInTheDocument();
-    // Both students submitted the SAME milestone — a per-milestone view could only ever
+    // Both students submitted the SAME milestone, a per-milestone view could only ever
     // have shown one of them.
     expect(within(table).getAllByText("History taking")).toHaveLength(2);
     expect(within(table).getByText("Awaiting review")).toBeInTheDocument();
@@ -404,13 +404,13 @@ describe("ProjectDirectory — detail panel", () => {
 
   it("opens the grader on the student row that was clicked", async () => {
     const user = userEvent.setup();
-    // Faculty holding `projects.review` — the actor who actually grades.
+    // Faculty holding `projects.review`, the actor who actually grades.
     renderWithProject(REVIEWER_ME);
 
     await user.click(screen.getByText("Parkinson's case study"));
     await user.click(await within(await screen.findByTestId("project-submissions-table")).findByText("Ravi Kumar"));
 
-    // sub-2 is Ravi's — the point being it is HIS submission, not whoever submitted last.
+    // sub-2 is Ravi's, the point being it is HIS submission, not whoever submitted last.
     expect(gradeSpy.submissionId).toBe("sub-2");
   });
 
@@ -421,7 +421,7 @@ describe("ProjectDirectory — detail panel", () => {
     await user.click(screen.getByText("Parkinson's case study"));
     await screen.findByTestId("project-submissions-filter");
 
-    // The hook is called with the chosen status — the server does the filtering.
+    // The hook is called with the chosen status, the server does the filtering.
     useSubmissionsListMock.mockClear();
     await user.selectOptions(screen.getByTestId("project-submissions-filter"), "submitted");
 
@@ -431,7 +431,7 @@ describe("ProjectDirectory — detail panel", () => {
     );
   });
 
-  // Reviewers work one cohort at a time — "who in the September batch still owes me this?"
+  // Reviewers work one cohort at a time, "who in the September batch still owes me this?"
   it("shows which batch each submission came from", async () => {
     const user = userEvent.setup();
     renderWithProject();
@@ -482,7 +482,7 @@ describe("ProjectDirectory — detail panel", () => {
   });
 
   // branch_manager oversees submissions across their branch but is not granted
-  // projects.review — they must be able to READ the queue without a grading affordance.
+  // projects.review, they must be able to READ the queue without a grading affordance.
   it("lets an oversight role read the queue without opening the grader", async () => {
     const user = userEvent.setup();
     renderWithProject(BRANCH_MANAGER_ME);
@@ -496,7 +496,7 @@ describe("ProjectDirectory — detail panel", () => {
   });
 
   // The regression this endpoint split exists to prevent: the panel used to read
-  // `.../project` (projects.review), which 403s for both roles below — so clicking a row
+  // `.../project` (projects.review), which 403s for both roles below, so clicking a row
   // showed nothing but "Couldn't load project detail".
   it("still shows the project itself to a role without projects.review", async () => {
     const user = userEvent.setup();
@@ -533,7 +533,7 @@ describe("ProjectDirectory — detail panel", () => {
   });
 });
 
-describe("ProjectDirectory — a11y", () => {
+describe("ProjectDirectory, a11y", () => {
   it("has no detectable violations", async () => {
     const { container } = renderDirectory();
     const results = await axe(container);

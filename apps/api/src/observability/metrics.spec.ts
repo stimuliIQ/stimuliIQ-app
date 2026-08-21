@@ -1,6 +1,6 @@
 import { metricsRegistry } from "./metrics";
 
-describe("metricsRegistry — RED/USE Prometheus text exposition", () => {
+describe("metricsRegistry, RED/USE Prometheus text exposition", () => {
   afterEach(() => {
     metricsRegistry.reset();
   });
@@ -54,7 +54,7 @@ describe("metricsRegistry — RED/USE Prometheus text exposition", () => {
     expect(text).toContain('route="/weird\\"route"');
   });
 
-  it("reset() clears all counters — no cross-test leakage", () => {
+  it("reset() clears all counters, no cross-test leakage", () => {
     metricsRegistry.recordHttpRequest("GET", "/x", 200, 0.01);
     metricsRegistry.reset();
 

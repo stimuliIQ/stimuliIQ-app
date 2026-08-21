@@ -1,10 +1,10 @@
 // Unit tests for the page-builder marketing-image upload contract
-// (ContentPageMediaUploadUrlRequestSchema, pages.schemas.ts) — mints a signed PUT URL for
+// (ContentPageMediaUploadUrlRequestSchema, pages.schemas.ts), mints a signed PUT URL for
 // `POST /crm/content-pages/media-upload-url`. Covers: contentType is a closed raster-image
-// enum (SVG explicitly rejected — a stored-XSS vector on the public marketing site if
+// enum (SVG explicitly rejected, a stored-XSS vector on the public marketing site if
 // served from the CDN), the 5 MB sizeBytes cap, and that a representative
 // `marketing_images/...` storageKey parses against the shared ObjectKeySchema (no leading
-// slash, no scheme, no ".." — see common/primitives.spec.ts for the full ObjectKeySchema
+// slash, no scheme, no "..", see common/primitives.spec.ts for the full ObjectKeySchema
 // attack-vector matrix).
 import { describe, expect, it } from "vitest";
 import { ContentPageMediaUploadUrlRequestSchema } from "./pages.schemas.js";
@@ -19,7 +19,7 @@ describe("ContentPageMediaUploadUrlRequestSchema", () => {
     }
   });
 
-  it("rejects image/svg+xml — SVG is a stored-XSS vector on the public site, not in the enum", () => {
+  it("rejects image/svg+xml, SVG is a stored-XSS vector on the public site, not in the enum", () => {
     const result = ContentPageMediaUploadUrlRequestSchema.safeParse({ ...VALID, contentType: "image/svg+xml" });
     expect(result.success).toBe(false);
   });

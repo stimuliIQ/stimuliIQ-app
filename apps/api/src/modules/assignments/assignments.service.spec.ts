@@ -232,7 +232,7 @@ describe("AssignmentsService", () => {
 
   // ─── 1. Resubmit policy ────────────────────────────────────────────────────
 
-  describe("submitAssignment — resubmit policy", () => {
+  describe("submitAssignment, resubmit policy", () => {
     const setupStudentEnrollment = () => {
       repo.findStudentProfileId.mockResolvedValue(STUDENT_ID);
       repo.findActiveEnrollmentsForStudent.mockResolvedValue([
@@ -298,7 +298,7 @@ describe("AssignmentsService", () => {
 
   // ─── 2. Due-date enforcement ───────────────────────────────────────────────
 
-  describe("submitAssignment — due date", () => {
+  describe("submitAssignment, due date", () => {
     it("AC-A2: returns 422 ASSIGNMENT_OVERDUE when due_at is in the past", async () => {
       repo.findStudentProfileId.mockResolvedValue(STUDENT_ID);
       repo.findActiveEnrollmentsForStudent.mockResolvedValue([
@@ -322,7 +322,7 @@ describe("AssignmentsService", () => {
 
   // ─── 3. Faculty assigned-scope resolver ───────────────────────────────────
 
-  describe("gradeSubmission — faculty assigned-scope", () => {
+  describe("gradeSubmission, faculty assigned-scope", () => {
     const submission = makeSubmission({ batchId: BATCH_ID });
 
     it("AC-B2: faculty from unassigned batch gets 404", async () => {
@@ -371,11 +371,11 @@ describe("AssignmentsService", () => {
   // ─── Send back for changes (the other half of review) ─────────────────────
   //
   // `SubmissionStatus.returned` shipped in Phase 4 and nothing ever wrote it, so review had
-  // one outcome: approve. These pin the loop that makes returning actually work end to end —
+  // one outcome: approve. These pin the loop that makes returning actually work end to end,
   // it must be a pending attempt, resubmission must be possible afterwards, and the student
   // must be told why.
   describe("returnSubmission", () => {
-    const REASON = "The differential diagnosis section is missing — add it with references.";
+    const REASON = "The differential diagnosis section is missing, add it with references.";
 
     beforeEach(() => {
       repo.returnSubmission.mockResolvedValue({ updated: 1 });
@@ -394,13 +394,13 @@ describe("AssignmentsService", () => {
         reason: REASON,
         returnedById: FACULTY_USER_ID,
       });
-      // Returning is not grading — a score here would land in gradedCount and read as done.
+      // Returning is not grading, a score here would land in gradedCount and read as done.
       expect(repo.gradeSubmission).not.toHaveBeenCalled();
       expect(result.status).toBe("returned");
     });
 
     // Without this the student is told to fix and resend something the submit endpoint
-    // refuses with RESUBMIT_NOT_ALLOWED — a dead end from both sides of the product.
+    // refuses with RESUBMIT_NOT_ALLOWED, a dead end from both sides of the product.
     it("turns on resubmission when the project had it switched off", async () => {
       repo.findSubmissionById.mockResolvedValueOnce(makeSubmission({ status: "submitted" }));
       repo.findAssignmentById.mockResolvedValue(makeAssignment({ allowResubmit: false }));
@@ -421,7 +421,7 @@ describe("AssignmentsService", () => {
       expect(repo.enableResubmission).not.toHaveBeenCalled();
     });
 
-    it("notifies the student WITH the reason — a notice they can't act on is worse than none", async () => {
+    it("notifies the student WITH the reason, a notice they can't act on is worse than none", async () => {
       repo.findSubmissionById.mockResolvedValueOnce(makeSubmission({ status: "submitted" }));
       repo.findAssignmentById.mockResolvedValue(makeAssignment({ allowResubmit: true }));
       repo.findSubmissionById.mockResolvedValue(makeSubmission({ status: "returned" }));
@@ -492,7 +492,7 @@ describe("AssignmentsService", () => {
 
   // The student-facing consequence of `returned` existing at all. Before this, a returned
   // submission derived to "submitted", so the student's screen said they were waiting for a
-  // verdict that had already arrived — and the resubmit form is gated on this status.
+  // verdict that had already arrived, and the resubmit form is gated on this status.
   describe("student status derivation", () => {
     it("reports a returned submission as `returned`, not `submitted`", async () => {
       repo.findStudentProfileId.mockResolvedValue(STUDENT_ID);
@@ -527,7 +527,7 @@ describe("AssignmentsService", () => {
   });
 
   // The reviewer's batch filter must NARROW an already-scoped queue, never widen it.
-  describe("listSubmissions — batch narrowing", () => {
+  describe("listSubmissions, batch narrowing", () => {
     it("passes the reviewer's batch alongside the scope-allowed batches, not instead of them", async () => {
       repo.findFacultyProfileId.mockResolvedValue(FACULTY_PROFILE_ID);
       repo.findAssignedBatchIds.mockResolvedValue([BATCH_ID]);
@@ -551,7 +551,7 @@ describe("AssignmentsService", () => {
 
   // ─── Phase-9 Completion T31 / R3: notifyGradeReady wired at the real event site ────
 
-  describe("gradeSubmission — T31/R3: notifyGradeReady fires on successful grading", () => {
+  describe("gradeSubmission, T31/R3: notifyGradeReady fires on successful grading", () => {
     it("calls notifSvc.notifyGradeReady with the student's contact info after grading commits", async () => {
       const submission = makeSubmission({ batchId: BATCH_ID, studentId: "00000000-0000-0000-0000-000000000003" });
       repo.findSubmissionById.mockResolvedValueOnce(submission);
@@ -595,7 +595,7 @@ describe("AssignmentsService", () => {
 
   // ─── 4. Grade audit ───────────────────────────────────────────────────────
 
-  describe("gradeSubmission — audit log (AC-B3)", () => {
+  describe("gradeSubmission, audit log (AC-B3)", () => {
     it("writes audit log with before/after when grading a previously-graded submission", async () => {
       const alreadyGraded = makeSubmission({ status: "graded", score: 70, batchId: BATCH_ID });
       repo.findSubmissionById.mockResolvedValueOnce(alreadyGraded);
@@ -642,7 +642,7 @@ describe("AssignmentsService", () => {
 
   // ─── 5. IDOR: cross-student assignment access ──────────────────────────────
 
-  describe("getMySubmission — IDOR (AC-A3, AC-J1)", () => {
+  describe("getMySubmission, IDOR (AC-A3, AC-J1)", () => {
     it("returns 404 when student is not enrolled in the assignment's program", async () => {
       repo.findStudentProfileId.mockResolvedValue(STUDENT_ID);
       // Student enrolled only in PROGRAM_B, not the assignment's program.
@@ -661,7 +661,7 @@ describe("AssignmentsService", () => {
 
   // ─── 6. Signed download URLs ──────────────────────────────────────────────
 
-  describe("getMySubmission — signed download URLs", () => {
+  describe("getMySubmission, signed download URLs", () => {
     it("mints signed download URLs for submission files (never raw storage keys)", async () => {
       repo.findStudentProfileId.mockResolvedValue(STUDENT_ID);
       repo.findActiveEnrollmentsForStudent.mockResolvedValue([

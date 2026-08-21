@@ -301,7 +301,7 @@ export interface CertificateRenderFields {
   signatoryName?: string;
 
   /**
-   * Designation of the signatory (e.g. "Director, stimuliIQ").
+   * Designation of the signatory (e.g. "Director, Stimuli IQ").
    */
   signatoryDesignation?: string;
 

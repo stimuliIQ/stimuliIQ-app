@@ -134,7 +134,7 @@ function buildMocks() {
       hit: jest.fn().mockResolvedValue(false),
     } as unknown as jest.Mocked<PublicBookingRateLimiter>,
     // Staff-facing: tells the round-robin-assigned rep an inbound lead just landed.
-    // Non-fatal by design — the public visitor's response must not depend on it.
+    // Non-fatal by design, the public visitor's response must not depend on it.
     notifications: {
       notifyLeadAssigned: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<NotificationsService>,
@@ -300,7 +300,7 @@ describe("PublicFunnelService", () => {
       expect(result.type).toBe("pct");
       expect(result.displayCode).toBe("SAVE10");
 
-      // Forbidden fields — coupon internals NEVER in response (AC-9)
+      // Forbidden fields, coupon internals NEVER in response (AC-9)
       expect(result).not.toHaveProperty("id");
       expect(result).not.toHaveProperty("maxUses");
       expect(result).not.toHaveProperty("used");
@@ -356,7 +356,7 @@ describe("PublicFunnelService", () => {
       );
     });
 
-    it("error message for missing vs inactive coupon is identical (AC-10 — no existence leak)", async () => {
+    it("error message for missing vs inactive coupon is identical (AC-10, no existence leak)", async () => {
       // Missing coupon
       mocks.publicRepository.findCouponByCode.mockResolvedValue(null);
       let errorMissing: UnprocessableEntityException | undefined;
@@ -445,7 +445,7 @@ describe("PublicFunnelService", () => {
         avatar: null,
         status: "active" as const,
       } as never);
-      // Should NOT throw — returns a 201-equivalent response
+      // Should NOT throw, returns a 201-equivalent response
       await expect(service.register(VALID_REGISTER_DTO, "1.2.3.4")).resolves.not.toThrow();
     });
 
@@ -491,7 +491,7 @@ describe("PublicFunnelService", () => {
 
     it("refuses to create an order when enrollment is closed for the program", async () => {
       // The website hides every "Enroll Now" CTA for such a program, but /enroll/:slug is
-      // a guessable URL and this endpoint is directly callable — the server must refuse
+      // a guessable URL and this endpoint is directly callable, the server must refuse
       // rather than rely on the hidden button (CLAUDE.md §3.5).
       // Partial row: the guard under test reads only these three fields, and the cast
       // follows this file's existing convention for narrow repository mocks (see the
@@ -565,7 +565,7 @@ describe("PublicFunnelService", () => {
       ).rejects.toThrow(NotFoundException); // Not ForbiddenException
     });
 
-    it("IDOR error is 404 (not 403) — no existence leak", async () => {
+    it("IDOR error is 404 (not 403), no existence leak", async () => {
       mocks.publicRepository.findStudentProfileByUserId.mockResolvedValue(MOCK_OTHER_PROFILE);
       mocks.publicRepository.findOrderForStudent.mockResolvedValue(null);
 

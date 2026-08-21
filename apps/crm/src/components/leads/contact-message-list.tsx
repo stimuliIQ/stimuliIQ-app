@@ -92,7 +92,7 @@ export function ContactMessageList({ me }: ContactMessageListProps): React.JSX.E
   const columns: Array<DataTableColumn<ContactSubmission>> = [
     { id: "name", header: "From", cell: (row) => row.name },
     { id: "email", header: "Email", cell: (row) => row.email },
-    { id: "subject", header: "Subject", cell: (row) => row.subject ?? "—" },
+    { id: "subject", header: "Subject", cell: (row) => row.subject ?? "-" },
     { id: "status", header: "Status", cell: (row) => <StatusChip tone={STATUS_TONE[row.status]} label={statusLabel(row.status)} /> },
     {
       id: "createdAt",
@@ -206,7 +206,7 @@ export function ContactMessageList({ me }: ContactMessageListProps): React.JSX.E
                             {selected.phone}
                           </a>
                         ) : (
-                          "—"
+                          "-"
                         )}
                       </dd>
                     </div>

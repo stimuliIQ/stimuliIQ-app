@@ -119,7 +119,7 @@ export function MentorDashboard({ me }: MentorDashboardProps): React.JSX.Element
         title={`Welcome${data ? `, ${data.mentorFullName}` : ""}`}
         description={
           <>
-            Your assigned batch{batches.length === 1 ? "" : "es"} — this is scoped to you only; you can't see other
+            Your assigned batch{batches.length === 1 ? "" : "es"}. This is scoped to you only; you can't see other
             mentors' batches, students, or data outside this list.
           </>
         }
@@ -129,7 +129,7 @@ export function MentorDashboard({ me }: MentorDashboardProps): React.JSX.Element
         <EmptyState
           data-testid="mentor-dashboard-empty"
           title="No batches assigned yet"
-          description="An Admin or Branch Manager will assign you to a batch — check back once you're staffed."
+          description="An Admin or Branch Manager will assign you to a batch, check back once you're staffed."
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -184,7 +184,7 @@ export function MentorDashboard({ me }: MentorDashboardProps): React.JSX.Element
         title="Mark this batch complete?"
         description={
           completeTarget
-            ? `${completeTarget.batchName}: ${completeTarget.studentCount} student(s), ${completeTarget.percentComplete ?? 0}% average completion. This is an operational milestone — it does not require 100% completion and cannot be undone from here.`
+            ? `${completeTarget.batchName}: ${completeTarget.studentCount} student(s), ${completeTarget.percentComplete ?? 0}% average completion. This is an operational milestone. It does not require 100% completion and cannot be undone from here.`
             : undefined
         }
         confirmLabel="Mark complete"

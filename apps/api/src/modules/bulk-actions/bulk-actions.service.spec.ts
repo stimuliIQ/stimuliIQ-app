@@ -1,6 +1,6 @@
 // apps/api/src/modules/bulk-actions/bulk-actions.service.spec.ts
 //
-// Unit tests for BulkActionsService — per-row isolation: a failure (out-of-scope /
+// Unit tests for BulkActionsService, per-row isolation: a failure (out-of-scope /
 // invalid transition) on one id must never abort the rest of the batch, and the
 // underlying already-scope-checked single-row service methods are what's actually
 // called (never a re-implemented scope filter).
@@ -36,7 +36,7 @@ describe("BulkActionsService", () => {
       expect(result.failureCount).toBe(0);
     });
 
-    it("isolates a row that is out of the caller's scope (404) — does not abort the batch", async () => {
+    it("isolates a row that is out of the caller's scope (404), does not abort the batch", async () => {
       leadsService.assignOwner
         .mockResolvedValueOnce(undefined as never)
         .mockRejectedValueOnce(new NotFoundException({ code: "leads.not_found", title: "Lead not found" }))

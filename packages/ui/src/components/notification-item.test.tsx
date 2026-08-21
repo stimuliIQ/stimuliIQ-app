@@ -8,7 +8,7 @@ const BASE_PROPS = {
   id: "notif-1",
   type: "grade_ready" as const,
   title: "Your assignment has been graded",
-  body: "Python Basics — Module 3: scored 82/100.",
+  body: "Python Basics, Module 3: scored 82/100.",
   timestamp: new Date("2025-01-01T10:00:00Z"),
   isRead: false,
 };
@@ -17,7 +17,7 @@ const BASE_PROPS = {
 // Rendering
 // ---------------------------------------------------------------------------
 
-describe("NotificationItem — rendering", () => {
+describe("NotificationItem, rendering", () => {
   it("renders with default data-testid='notification-item'", () => {
     render(<NotificationItem {...BASE_PROPS} />);
     expect(screen.getByTestId("notification-item")).toBeInTheDocument();
@@ -30,12 +30,12 @@ describe("NotificationItem — rendering", () => {
 
   it("renders the body text", () => {
     render(<NotificationItem {...BASE_PROPS} />);
-    expect(screen.getByText("Python Basics — Module 3: scored 82/100.")).toBeInTheDocument();
+    expect(screen.getByText("Python Basics, Module 3: scored 82/100.")).toBeInTheDocument();
   });
 
   it("renders a <time> element with dateTime attribute", () => {
     render(<NotificationItem {...BASE_PROPS} />);
-    // <time> elements don't have a built-in ARIA role — use querySelector
+    // <time> elements don't have a built-in ARIA role, use querySelector
     const timeEl = document.querySelector("time");
     expect(timeEl).toBeInTheDocument();
     expect(timeEl).toHaveAttribute("dateTime");
@@ -70,10 +70,10 @@ describe("NotificationItem — rendering", () => {
 });
 
 // ---------------------------------------------------------------------------
-// a11y — status never color-only
+// a11y, status never color-only
 // ---------------------------------------------------------------------------
 
-describe("NotificationItem — a11y", () => {
+describe("NotificationItem, a11y", () => {
   it("announces notification type to screen readers via sr-only text", () => {
     const { container } = render(<NotificationItem {...BASE_PROPS} type="grade_ready" />);
     const srSpan = container.querySelector(".sr-only");
@@ -99,7 +99,7 @@ describe("NotificationItem — a11y", () => {
 // Interactions
 // ---------------------------------------------------------------------------
 
-describe("NotificationItem — interactions", () => {
+describe("NotificationItem, interactions", () => {
   it("calls onMarkRead with the notification id when the mark-read button is clicked", async () => {
     const user = userEvent.setup();
     const onMarkRead = vi.fn();

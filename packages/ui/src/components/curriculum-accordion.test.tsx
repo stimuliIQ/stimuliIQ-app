@@ -66,10 +66,10 @@ const modules: CurriculumModule[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// CurriculumAccordion — structure
+// CurriculumAccordion, structure
 // ---------------------------------------------------------------------------
 
-describe("CurriculumAccordion — rendering", () => {
+describe("CurriculumAccordion, rendering", () => {
   it("renders with aria-label='Course curriculum'", () => {
     render(<CurriculumAccordion modules={modules} />);
     expect(screen.getByRole("region", { name: "Course curriculum" })).toBeInTheDocument();
@@ -110,10 +110,10 @@ describe("CurriculumAccordion — rendering", () => {
 });
 
 // ---------------------------------------------------------------------------
-// CurriculumAccordion — keyboard expand/collapse
+// CurriculumAccordion, keyboard expand/collapse
 // ---------------------------------------------------------------------------
 
-describe("CurriculumAccordion — keyboard expand/collapse", () => {
+describe("CurriculumAccordion, keyboard expand/collapse", () => {
   it("collapses a module panel when trigger is activated with keyboard (Enter)", async () => {
     const user = userEvent.setup();
     render(<CurriculumAccordion modules={[modules[0]!]} />);
@@ -152,10 +152,10 @@ describe("CurriculumAccordion — keyboard expand/collapse", () => {
 });
 
 // ---------------------------------------------------------------------------
-// CurriculumAccordion — locked indicator
+// CurriculumAccordion, locked indicator
 // ---------------------------------------------------------------------------
 
-describe("CurriculumAccordion — locked lesson", () => {
+describe("CurriculumAccordion, locked lesson", () => {
   it("renders a 'Locked' text label for locked lessons (never color-only)", () => {
     render(<CurriculumAccordion modules={modules} />);
     // "Advanced topics" is locked
@@ -187,10 +187,10 @@ describe("CurriculumAccordion — locked lesson", () => {
 });
 
 // ---------------------------------------------------------------------------
-// CurriculumAccordion — aria-current (active lesson)
+// CurriculumAccordion, aria-current (active lesson)
 // ---------------------------------------------------------------------------
 
-describe("CurriculumAccordion — aria-current active lesson", () => {
+describe("CurriculumAccordion, aria-current active lesson", () => {
   it("sets aria-current='true' on the active lesson row", () => {
     render(
       <CurriculumAccordion modules={modules} activeLessonId="les-2" />,
@@ -215,10 +215,10 @@ describe("CurriculumAccordion — aria-current active lesson", () => {
 });
 
 // ---------------------------------------------------------------------------
-// CurriculumAccordion — lesson interaction
+// CurriculumAccordion, lesson interaction
 // ---------------------------------------------------------------------------
 
-describe("CurriculumAccordion — lesson click", () => {
+describe("CurriculumAccordion, lesson click", () => {
   it("calls onLessonClick with the lesson id when a non-locked lesson is clicked", async () => {
     const user = userEvent.setup();
     const onLessonClick = vi.fn();
@@ -249,10 +249,10 @@ describe("CurriculumAccordion — lesson click", () => {
 });
 
 // ---------------------------------------------------------------------------
-// CurriculumAccordion — preview indicator
+// CurriculumAccordion, preview indicator
 // ---------------------------------------------------------------------------
 
-describe("CurriculumAccordion — preview lessons", () => {
+describe("CurriculumAccordion, preview lessons", () => {
   it("renders a 'Preview' label for preview lessons", () => {
     render(<CurriculumAccordion modules={modules} />);
     expect(screen.getByText("Preview")).toBeInTheDocument();
@@ -260,10 +260,10 @@ describe("CurriculumAccordion — preview lessons", () => {
 });
 
 // ---------------------------------------------------------------------------
-// CurriculumAccordion — completed indicator
+// CurriculumAccordion, completed indicator
 // ---------------------------------------------------------------------------
 
-describe("CurriculumAccordion — completed lessons", () => {
+describe("CurriculumAccordion, completed lessons", () => {
   it("renders a completed indicator (CheckCircle2 with aria-label='Completed')", () => {
     render(<CurriculumAccordion modules={modules} />);
     // "Variables & types" is completed
@@ -273,7 +273,7 @@ describe("CurriculumAccordion — completed lessons", () => {
 });
 
 // ---------------------------------------------------------------------------
-// LessonList — flat variant
+// LessonList, flat variant
 // ---------------------------------------------------------------------------
 
 describe("LessonList", () => {

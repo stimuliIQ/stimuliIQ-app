@@ -63,26 +63,26 @@ export function ForumHealthDashboard({ me }: ForumHealthDashboardProps): React.J
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
               label="Threads"
-              value={data ? data.threadCount : "—"}
+              value={data ? data.threadCount : "-"}
               icon={<MessagesSquare />}
               loading={isLoading}
               data-testid="forum-thread-count-kpi"
             />
             <KpiCard
               label="Posts"
-              value={data ? data.postCount : "—"}
+              value={data ? data.postCount : "-"}
               loading={isLoading}
               data-testid="forum-post-count-kpi"
             />
             <KpiCard
               label="Reply rate"
-              value={data ? `${data.replyRate.toFixed(1)} posts/thread` : "—"}
+              value={data ? `${data.replyRate.toFixed(1)} posts/thread` : "-"}
               loading={isLoading}
               data-testid="forum-reply-rate-kpi"
             />
             <KpiCard
               label="Resolution rate"
-              value={data ? `${(data.resolutionRate * 100).toFixed(1)}%` : "—"}
+              value={data ? `${(data.resolutionRate * 100).toFixed(1)}%` : "-"}
               loading={isLoading}
               data-testid="forum-resolution-rate-kpi"
             />

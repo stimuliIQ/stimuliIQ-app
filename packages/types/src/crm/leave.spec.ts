@@ -16,7 +16,7 @@ import {
   type LeaveDurationInput,
 } from "./leave.schemas.js";
 
-/** Sunday off, no holidays, half-days permitted — the shape the seed ships. */
+/** Sunday off, no holidays, half-days permitted, the shape the seed ships. */
 function baseInput(overrides: Partial<LeaveDurationInput> = {}): LeaveDurationInput {
   return {
     startDate: "2026-08-17",

@@ -28,7 +28,7 @@ export function StudentTimelineTab({ studentId }: { studentId: string }): React.
     type: "note",
     actorName: entry.actorName ?? "System",
     timestamp: new Date(entry.createdAt),
-    content: `${entry.action[0]?.toUpperCase()}${entry.action.slice(1)} — ${entry.entity}`,
+    content: `${entry.action[0]?.toUpperCase()}${entry.action.slice(1)} · ${entry.entity}`,
   }));
 
   if (items.length === 0) {

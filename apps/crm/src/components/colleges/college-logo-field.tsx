@@ -57,7 +57,7 @@ export function CollegeLogoField({ logoKey, onChange, existingLogoUrl }: College
       onChange(signed.storageKey);
       toast({ title: "Logo uploaded", variant: "success" });
     } catch (error) {
-      surfaceError(toast, error, "Couldn't upload the logo — check your connection and try again.");
+      surfaceError(toast, error, "Couldn't upload the logo. Check your connection and try again.");
     } finally {
       setUploading(false);
     }

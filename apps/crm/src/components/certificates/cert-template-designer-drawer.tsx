@@ -41,7 +41,7 @@ export function CertTemplateDesignerDrawer({ open, onOpenChange }: CertTemplateD
       <DrawerContent title="Certificate template designer" description="Position merge-field placeholders on the certificate layout." size="lg" data-testid="cert-template-designer-drawer">
         <DrawerBody className="flex flex-col gap-4">
           <Alert tone="warning">
-            Layouts aren't saved to the server yet — there's no backend endpoint to persist template field positions. Use
+            Layouts aren't saved to the server yet, there's no backend endpoint to persist template field positions. Use
             this as a visual preview tool; positions reset when you close this drawer.
           </Alert>
 

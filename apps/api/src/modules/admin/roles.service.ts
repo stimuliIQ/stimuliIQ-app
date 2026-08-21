@@ -237,7 +237,7 @@ export class RolesService {
         throw new ForbiddenException({
           code: "roles.privilege_escalation",
           title: "Cannot grant a broader scope than your own",
-          detail: `You hold "${requested.permissionKey}" at scope "${editorScope}" — you cannot grant scope "${requested.scope}" (broader) to another role.`,
+          detail: `You hold "${requested.permissionKey}" at scope "${editorScope}", you cannot grant scope "${requested.scope}" (broader) to another role.`,
         });
       }
     }

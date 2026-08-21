@@ -52,7 +52,7 @@ describe("CareersNotificationService", () => {
       expect(html).toContain("A 45-minute call.");
     });
 
-    it("ESCAPES reviewer-authored text — staff input is still input, and this is an HTML email", async () => {
+    it("ESCAPES reviewer-authored text, staff input is still input, and this is an HTML email", async () => {
       await service.sendNextRound(CANDIDATE, "<script>alert(1)</script>", "Bring <b>notes</b>");
       const html = lastSend(mail).html as string;
       expect(html).not.toContain("<script>alert(1)</script>");
@@ -65,7 +65,7 @@ describe("CareersNotificationService", () => {
       expect(lastSend(mail).html as string).toContain("Line one<br />Line two");
     });
 
-    it("escapes a candidate's own name too — it came from an anonymous public form", async () => {
+    it("escapes a candidate's own name too, it came from an anonymous public form", async () => {
       await service.sendNextRound({ ...CANDIDATE, name: '<img src=x onerror="alert(1)">' }, "Demo", "Details");
       const html = lastSend(mail).html as string;
       expect(html).not.toContain('<img src=x onerror="alert(1)">');
@@ -96,7 +96,7 @@ describe("CareersNotificationService", () => {
   });
 
   describe("rejection", () => {
-    it("carries NO reason — the internal note is never an argument to this method at all", async () => {
+    it("carries NO reason, the internal note is never an argument to this method at all", async () => {
       await service.sendRejection(CANDIDATE);
       const sent = lastSend(mail);
       expect(service.sendRejection.length).toBe(1); // candidate only; there is no notes parameter
@@ -120,7 +120,7 @@ describe("CareersNotificationService", () => {
           service.sendOffer(CANDIDATE, { filename: "o.pdf", content: Buffer.from("x"), contentType: "application/pdf" }, null),
       ],
       ["rejection", () => service.sendRejection(CANDIDATE)],
-    ])("%s returns false instead of throwing — a bounced mailbox must not undo a recorded decision", async (_label, call) => {
+    ])("%s returns false instead of throwing, a bounced mailbox must not undo a recorded decision", async (_label, call) => {
       mail.send.mockRejectedValue(new Error("provider down"));
       await expect(call()).resolves.toBe(false);
     });

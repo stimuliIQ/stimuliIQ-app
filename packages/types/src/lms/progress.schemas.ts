@@ -73,7 +73,7 @@ export const UpdateProgressRequestSchema = z
   })
   .strict()
   .describe(
-    "Position ping — only carries lastPositionS. The student cannot set " +
+    "Position ping. Only carries lastPositionS. The student cannot set " +
     "status=completed here; use POST /me/lessons/:id/complete for completion.",
   );
 export type UpdateProgressRequest = z.infer<typeof UpdateProgressRequestSchema>;
@@ -96,7 +96,7 @@ export const MarkLessonCompleteRequestSchema = z
   .object({})
   .strict()
   .describe(
-    "Empty body — the lessonId is in the path. Idempotency-Key header required. " +
+    "Empty body. The lessonId is in the path. Idempotency-Key header required. " +
     "Idempotent: replaying on an already-completed lesson is a no-op (no double-attendance).",
   );
 export type MarkLessonCompleteRequest = z.infer<typeof MarkLessonCompleteRequestSchema>;

@@ -132,13 +132,13 @@ export class CloudflareStreamVideoProvider implements VideoProvider {
       this.logger.warn(
         `[CloudflareStreamVideoProvider] Missing env vars: ${missingKeys.join(", ")}. ` +
           "Video streaming (mintSignedHlsUrl) will fail until these are set. " +
-          "App boot continues — set VIDEO_PROVIDER=noop in .env for local dev.",
+          "App boot continues. Set VIDEO_PROVIDER=noop in .env for local dev.",
       );
     }
     if (!this.webhookSecret) {
       this.logger.warn(
         "[CloudflareStreamVideoProvider] CLOUDFLARE_STREAM_WEBHOOK_SECRET is not configured. " +
-          "Webhook signature verification will FAIL CLOSED — all incoming transcode webhooks " +
+          "Webhook signature verification will FAIL CLOSED, all incoming transcode webhooks " +
           "will be rejected until this secret is set.",
       );
     }
@@ -156,7 +156,7 @@ export class CloudflareStreamVideoProvider implements VideoProvider {
     if (!this.accountId || !this.apiToken) {
       throw new Error(
         "[CloudflareStreamVideoProvider] CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_STREAM_API_TOKEN " +
-          "not configured — cannot perform this video provider operation. " +
+          "not configured. Cannot perform this video provider operation. " +
           "Add them to .env (see .env.example) or set VIDEO_PROVIDER=noop for local dev.",
       );
     }
@@ -171,7 +171,7 @@ export class CloudflareStreamVideoProvider implements VideoProvider {
     if (!this.signingKeyId || !this.signingKeyPemRaw) {
       throw new Error(
         "[CloudflareStreamVideoProvider] CLOUDFLARE_STREAM_SIGNING_KEY_ID / " +
-          "CLOUDFLARE_STREAM_SIGNING_KEY_PEM not configured — cannot mint signed HLS URLs. " +
+          "CLOUDFLARE_STREAM_SIGNING_KEY_PEM not configured. Cannot mint signed HLS URLs. " +
           "Create a signing key in the Cloudflare Stream dashboard (or via API) and add the " +
           "PEM (base64-decoded) + key id to .env (see .env.example).",
       );
@@ -270,7 +270,7 @@ export class CloudflareStreamVideoProvider implements VideoProvider {
     if (!this.webhookSecret) {
       this.logger.warn(
         "[CloudflareStreamVideoProvider] verifyWebhookSignature called but " +
-          "CLOUDFLARE_STREAM_WEBHOOK_SECRET is not configured — rejecting webhook (fail closed).",
+          "CLOUDFLARE_STREAM_WEBHOOK_SECRET is not configured, rejecting webhook (fail closed).",
       );
       return false;
     }
@@ -283,7 +283,7 @@ export class CloudflareStreamVideoProvider implements VideoProvider {
     if (!parsedSig) {
       this.logger.warn(
         "[CloudflareStreamVideoProvider] verifyWebhookSignature: could not parse " +
-          "Webhook-Signature header — rejecting (fail closed).",
+          "Webhook-Signature header, rejecting (fail closed).",
       );
       return false;
     }
@@ -390,7 +390,7 @@ export class CloudflareStreamVideoProvider implements VideoProvider {
         errText = response.statusText;
       }
       this.logger.error(
-        `[CloudflareStreamVideoProvider] API error creating upload target: HTTP ${response.status} — ${errText}`,
+        `[CloudflareStreamVideoProvider] API error creating upload target: HTTP ${response.status} · ${errText}`,
       );
       throw new Error(
         `[CloudflareStreamVideoProvider] Cloudflare Stream API returned HTTP ${response.status}: ${errText}`,
@@ -401,7 +401,7 @@ export class CloudflareStreamVideoProvider implements VideoProvider {
     if (!data.success || !data.result?.uid || !data.result?.uploadURL) {
       throw new Error(
         "[CloudflareStreamVideoProvider] Cloudflare Stream API returned an unexpected response shape " +
-          "for createUploadTarget — missing uid or uploadURL.",
+          "for createUploadTarget, missing uid or uploadURL.",
       );
     }
 

@@ -1,6 +1,6 @@
 // apps/api/src/modules/onboarding/onboarding-fields.service.spec.ts
 //
-// Unit tests for OnboardingFieldsService — the CRM authoring surface that makes "add a
+// Unit tests for OnboardingFieldsService, the CRM authoring surface that makes "add a
 // question to the onboarding form" a row insert rather than a deploy.
 //
 // The invariants under test are the ones that protect data ALREADY COLLECTED from a later
@@ -9,7 +9,7 @@
 //   - a duplicate key is a 409, not a silent second question with the same identity;
 //   - deleting a question is a soft delete and does not touch existing answers;
 //   - `identityRole` is exclusive, and reassigning it CLEARS the previous holder rather
-//     than erroring — because reassignment is the routine operation staff perform;
+//     than erroring, because reassignment is the routine operation staff perform;
 //   - options/allowOther stay coherent with `type` across a PARTIAL patch, so flipping a
 //     question to "radio" can never leave an unanswerable empty dropdown live.
 
@@ -153,7 +153,7 @@ describe("OnboardingFieldsService", () => {
       const existing = row({ key: "month_opted", type: "radio", options: ["September"] as never });
       repo.findFieldById.mockResolvedValue(existing);
       await runWithScope("all", () => service.update(TENANT, existing.id, { label: "Preferred month" }));
-      // `options` is left out of the patch entirely — an untouched column must not be
+      // `options` is left out of the patch entirely, an untouched column must not be
       // rewritten just because the request didn't mention it.
       expect(repo.updateField).toHaveBeenCalledWith(existing.id, { label: "Preferred month" });
     });

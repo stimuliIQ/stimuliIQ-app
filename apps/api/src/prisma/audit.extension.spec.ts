@@ -3,7 +3,7 @@
 // Unit coverage for the Wave 6 security-audit remediation (H-1/H-2): proves that
 // `before`/`after` snapshots written to `audit_logs` never carry secret/verifier fields
 // for the two models known to hold them (`User.passwordHash`, `Session.refreshHash`),
-// without needing a real Postgres instance — the extension is exercised against a fake
+// without needing a real Postgres instance, the extension is exercised against a fake
 // minimal "client" shaped like what `$allOperations` expects.
 
 import { auditExtension } from "./audit.extension";
@@ -82,7 +82,7 @@ async function runOperation(
   });
 }
 
-describe("auditExtension — secret redaction (Wave 6 H-1/H-2)", () => {
+describe("auditExtension, secret redaction (Wave 6 H-1/H-2)", () => {
   it("strips passwordHash from both before and after snapshots on User update", async () => {
     const before = { id: "u1", tenantId: "t1", email: "a@b.com", passwordHash: "argon2-before-secret" };
     const after = { id: "u1", tenantId: "t1", email: "a@b.com", passwordHash: "argon2-after-secret" };
@@ -101,7 +101,7 @@ describe("auditExtension — secret redaction (Wave 6 H-1/H-2)", () => {
     const row = created[0]?.data as { before: Record<string, unknown>; after: Record<string, unknown> };
     expect(row.before).not.toHaveProperty("passwordHash");
     expect(row.after).not.toHaveProperty("passwordHash");
-    // email is PII-masked (not stripped) as of Phase-7 Wave 2 batch B — see the
+    // email is PII-masked (not stripped) as of Phase-7 Wave 2 batch B, see the
     // dedicated "PII masking at write time" describe block below for full coverage.
     expect(row.before.email).toBe("*@*.com");
     expect(row.after.email).toBe("*@*.com");
@@ -149,9 +149,9 @@ describe("auditExtension — secret redaction (Wave 6 H-1/H-2)", () => {
 });
 
 // ─── Phase-7 Wave 2 security hardening batch B, item 2a: PII masking at WRITE time ───
-// (DPDP right-to-erasure vs audit immutability policy — P5 L-1 / P6 L-2, AC-64 write path)
+// (DPDP right-to-erasure vs audit immutability policy, P5 L-1 / P6 L-2, AC-64 write path)
 
-describe("auditExtension — PII masking at write time (DPDP, P5 L-1 / P6 L-2)", () => {
+describe("auditExtension, PII masking at write time (DPDP, P5 L-1 / P6 L-2)", () => {
   it("masks User.email/phone/name in the after snapshot on create, while leaving id/status untouched", async () => {
     const after = {
       id: "u1",
@@ -231,7 +231,7 @@ describe("auditExtension — PII masking at write time (DPDP, P5 L-1 / P6 L-2)",
     expect(row.after.stage).toBe("new"); // non-PII field untouched
   });
 
-  it("masks CampaignRecipient.to (contact kind — handles either an email or a phone shape)", async () => {
+  it("masks CampaignRecipient.to (contact kind, handles either an email or a phone shape)", async () => {
     const afterEmail = { id: "cr1", tenantId: "t1", to: "recipient@example.com", status: "sent" };
     const { fakeClient: clientA, created: createdA } = buildFakeClient({ mutationResult: afterEmail });
     await auditContextStorage.run({ tenantId: "t1" }, () =>
@@ -272,7 +272,7 @@ describe("auditExtension — PII masking at write time (DPDP, P5 L-1 / P6 L-2)",
     );
 
     const row = created[0]?.data as { after: Record<string, unknown> };
-    // Role.name is a catalog label, not a personal name — must survive verbatim.
+    // Role.name is a catalog label, not a personal name, must survive verbatim.
     expect(row.after.name).toBe("Admin");
   });
 });

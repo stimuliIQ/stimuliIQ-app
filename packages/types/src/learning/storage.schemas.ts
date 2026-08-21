@@ -65,7 +65,7 @@ export const GetUploadUrlRequestSchema = z
         "Upload purpose determines the storage key prefix: " +
           "'submission' → submissions/{tenantId}/{enrollmentId}/... " +
           "'resource' → resources/{tenantId}/... (faculty/admin only) " +
-          "'career_resume' → careers/{tenantId}/... — NOT served by this authenticated " +
+          "'career_resume' → careers/{tenantId}/.... NOT served by this authenticated " +
           "endpoint (POST /storage/upload-url requires JwtAuthGuard); anonymous site " +
           "visitors use the dedicated PUBLIC endpoint instead: " +
           "POST /public/careers/resume-upload-url (client.public.careers." +
@@ -109,7 +109,7 @@ export const SignedUploadResponseSchema = z.object({
     .string()
     .min(1)
     .describe(
-      "Server-assigned S3/R2 object key. Opaque to the client — include this in the " +
+      "Server-assigned S3/R2 object key. Opaque to the client, include this in the " +
         "submission payload. NOT a URL. Example: 'submissions/t-abc/e-xyz/report.pdf'.",
     ),
   uploadUrl: z
@@ -117,7 +117,7 @@ export const SignedUploadResponseSchema = z.object({
     .url()
     .describe(
       "Short-lived signed PUT URL. PUT the file directly to this URL. " +
-        "NOT an API endpoint — this is the S3/R2 presigned URL. " +
+        "NOT an API endpoint. This is the S3/R2 presigned URL. " +
         "NEVER proxy through the API server. Expires at `expiresAt`.",
     ),
   expiresAt: IsoDateTimeSchema.describe("When the signed upload URL expires (≤15 min from now)."),

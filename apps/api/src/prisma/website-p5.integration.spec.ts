@@ -38,9 +38,9 @@ import { purgeAuditLogs } from "./purge-audit-logs";
 // repo-root .env. See local-db-guard.ts.
 const describeIfDb = describeIfLocalDb;
 
-describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + partial-unique (integration)", () => {
+describeIfDb("Phase-5 Marketing Website, schema + projection + is_public + partial-unique (integration)", () => {
   const base = new PrismaClient();
-  // Composition order: audit (inner) then soft-delete (outer) — canonical wiring.
+  // Composition order: audit (inner) then soft-delete (outer), canonical wiring.
   const prisma = base.$extends(auditExtension).$extends(softDeleteExtension);
 
   // Shared test-scope fixture identifiers.
@@ -50,7 +50,7 @@ describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + pa
   beforeAll(async () => {
     await base.$connect();
 
-    // Isolated test tenant — does not pollute the seed data.
+    // Isolated test tenant, does not pollute the seed data.
     const tenant = await base.tenant.upsert({
       where: { slug: "stimuliiq-p5-integration-test" },
       update: {},
@@ -167,7 +167,7 @@ describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + pa
     let firstProgramId: string;
 
     afterEach(async () => {
-      // Hard-delete both programs with this slug after each test — sanctioned test-only
+      // Hard-delete both programs with this slug after each test, sanctioned test-only
       // fixture cleanup (not a production code path): a soft-delete would leave the
       // `(tenant_id, slug)` slot occupied and break the next test run's uniqueness setup,
       // which is exactly the constraint this describe block exists to exercise.
@@ -180,7 +180,7 @@ describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + pa
     });
 
     it("two active programs with the same (tenant_id, slug) violate the partial-unique", async () => {
-      // First program — should succeed.
+      // First program, should succeed.
       await base.program.create({
         data: {
           tenantId,
@@ -190,7 +190,7 @@ describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + pa
           pricePaise: 0,
         },
       });
-      // Second program with the EXACT same slug in the SAME tenant — should fail.
+      // Second program with the EXACT same slug in the SAME tenant, should fail.
       const duplicateSlug = `p5-test-slug-dup-${Date.now()}`;
       await base.program.create({
         data: {
@@ -232,14 +232,14 @@ describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + pa
       });
       firstProgramId = original.id;
 
-      // Soft-delete the original (set deleted_at directly — the extended client's soft-delete
+      // Soft-delete the original (set deleted_at directly, the extended client's soft-delete
       // extension intercepts `delete` calls; using base client with update for clarity).
       await base.program.update({
         where: { id: firstProgramId },
         data: { deletedAt: new Date() },
       });
 
-      // Now create a new program with the same slug — the partial-unique skips deleted rows,
+      // Now create a new program with the same slug, the partial-unique skips deleted rows,
       // so this should succeed (slug is free again for this tenant).
       const replacement = await base.$executeRaw`
         INSERT INTO "programs" (
@@ -251,7 +251,7 @@ describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + pa
           false, NOW(), NOW()
         )
       `;
-      expect(replacement).toBe(1); // 1 row inserted — no conflict.
+      expect(replacement).toBe(1); // 1 row inserted, no conflict.
     });
   });
 
@@ -259,7 +259,7 @@ describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + pa
   // 3. Public projection: does NOT expose draft/internal columns
   // ────────────────────────────────────────────────────────────────────────────
 
-  describe("3. Public projection — shape never includes draft/internal columns", () => {
+  describe("3. Public projection, shape never includes draft/internal columns", () => {
     let publicProgramId: string;
 
     beforeAll(async () => {
@@ -290,7 +290,7 @@ describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + pa
     });
 
     it("public projection select shape contains only the marketing allowlist fields", async () => {
-      // This simulates the repository method used by GET /public/programs — selecting ONLY
+      // This simulates the repository method used by GET /public/programs, selecting ONLY
       // the fields that are safe to expose to anonymous visitors. The test proves the
       // SELECT shape contract: the fields NOT in the allowlist (seo, seoTitle, seoDescription,
       // ogImageKey, emi, outcomes, etc.) are never returned when the projection is applied.
@@ -364,13 +364,13 @@ describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + pa
     });
 
     it("public projection does not include answerKey-analogues (no sensitive internal keys)", async () => {
-      // Analogous to the P4 answer-key isolation test — verifies no internal-only column
+      // Analogous to the P4 answer-key isolation test, verifies no internal-only column
       // leaks through a public select. For programs, the internal-only fields are
-      // ogImageKey (S3 key — backend signs URLs, never exposes raw key), seoTitle
+      // ogImageKey (S3 key, backend signs URLs, never exposes raw key), seoTitle
       // (could expose internal content strategy), and outcomes (detailed curriculum info
       // that should only appear on the detail page, not the listing).
       //
-      // The programs listing projection (GET /public/programs) MUST exclude ogImageKey —
+      // The programs listing projection (GET /public/programs) MUST exclude ogImageKey,
       // the backend converts it to a signed CDN URL before returning; the raw key is
       // internal. This test asserts the Prisma select contract excludes it.
       const listingSelect = {
@@ -405,7 +405,7 @@ describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + pa
   // 4. is_public=false programs excluded by public filter
   // ────────────────────────────────────────────────────────────────────────────
 
-  describe("4. is_public filter — draft/private programs not visible on public catalog", () => {
+  describe("4. is_public filter, draft/private programs not visible on public catalog", () => {
     let publicProgId: string;
     let privateProgId: string;
     let draftProgId: string;
@@ -443,7 +443,7 @@ describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + pa
             domain: "web",
             pricePaise: 100000,
             status: "draft",
-            isPublic: true, // public flag set but status=draft — should NOT appear
+            isPublic: true, // public flag set but status=draft, should NOT appear
           },
         }),
       ]);
@@ -587,10 +587,10 @@ describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + pa
   });
 
   // ────────────────────────────────────────────────────────────────────────────
-  // 6. AppModule boot smoke — PrismaClient syncs with the P5-migrated DB
+  // 6. AppModule boot smoke, PrismaClient syncs with the P5-migrated DB
   // ────────────────────────────────────────────────────────────────────────────
 
-  describe("6. AppModule boot smoke — Prisma client → DB sync after P5 migration", () => {
+  describe("6. AppModule boot smoke, Prisma client → DB sync after P5 migration", () => {
     it("PrismaClient can create/read/update/delete programs with all P5 columns", async () => {
       const ts = Date.now();
       const prog = await base.program.create({
@@ -623,7 +623,7 @@ describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + pa
       expect(found.isPublic).toBe(true);
       expect(typeof found.ratingAvg).toBe("number");
 
-      // Update — verify update path doesn't corrupt other columns.
+      // Update, verify update path doesn't corrupt other columns.
       await base.program.update({
         where: { id: prog.id },
         data: { ratingAvg: 47, ratingCount: 53, isPublic: false },
@@ -717,7 +717,7 @@ describeIfDb("Phase-5 Marketing Website — schema + projection + is_public + pa
       // Read the seeded tenant's programs to confirm the P5 backfill applied by seed.ts.
       const seededTenant = await base.tenant.findUnique({ where: { slug: "stimuliiq" } });
       if (!seededTenant) {
-        // Seed may not have run in this environment — skip gracefully.
+        // Seed may not have run in this environment, skip gracefully.
         return;
       }
 

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 import { ProgramCard } from "./program-card";
 
-describe("ProgramCard — rendering", () => {
+describe("ProgramCard, rendering", () => {
   it("renders with default data-testid='program-card'", () => {
     render(<ProgramCard title="Python for Data Science" />);
     expect(screen.getByTestId("program-card")).toBeInTheDocument();
@@ -74,7 +74,7 @@ describe("ProgramCard — rendering", () => {
   });
 });
 
-describe("ProgramCard — a11y", () => {
+describe("ProgramCard, a11y", () => {
   it("uses an <article> element", () => {
     const { container } = render(<ProgramCard title="T" />);
     expect(container.querySelector("article")).toBeInTheDocument();

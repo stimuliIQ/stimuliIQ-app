@@ -77,7 +77,7 @@ export function expandLeaveEntries(
 
       events.push({
         id: `${entry.id}:${day}`,
-        title: `${entry.userName} — ${entry.leaveTypeName}`,
+        title: `${entry.userName} · ${entry.leaveTypeName}`,
         start: new Date(`${day}T00:00:00`),
         allDay: true,
         // Reuses the live-class status vocabulary the Calendar already tones by: an approved
@@ -182,7 +182,7 @@ export function LeaveCalendarWorkspace(): React.JSX.Element {
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block size-3 rounded-sm border border-warning/30 bg-warning/10" aria-hidden="true" />
-          Optional holiday — still a working day
+          Optional holiday, still a working day
         </span>
       </div>
     </div>

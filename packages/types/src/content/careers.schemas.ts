@@ -130,7 +130,7 @@ export type SubmitCareerApplicationResponse = z.infer<typeof SubmitCareerApplica
  */
 export const PublicCareerResumeUploadUrlRequestSchema = z
   .object({
-    contentType: ResumeContentTypeSchema.describe("MIME type of the resume file — PDF/DOC/DOCX only (Wave 6 M3 allow-list)."),
+    contentType: ResumeContentTypeSchema.describe("MIME type of the resume file. PDF/DOC/DOCX only (Wave 6 M3 allow-list)."),
     fileName: z.string().min(1).max(255),
     sizeBytes: z.number().int().min(1).max(10_485_760).describe("Max 10 MB for a resume upload."),
     captchaToken: z.string().min(1),
@@ -140,7 +140,7 @@ export type PublicCareerResumeUploadUrlRequest = z.infer<typeof PublicCareerResu
 
 export const PublicCareerResumeUploadUrlResponseSchema = z.object({
   storageKey: z.string().min(1).describe("Server-assigned object key. Include this as `resumeStorageKey` in the apply() call. NOT a URL."),
-  uploadUrl: z.string().url().describe("Short-lived signed PUT URL. PUT the file directly here — never proxy through the API server."),
+  uploadUrl: z.string().url().describe("Short-lived signed PUT URL. PUT the file directly here. Never proxy through the API server."),
   expiresAt: IsoDateTimeSchema,
   additionalHeaders: z.record(z.string(), z.string()).optional(),
   maxSizeBytes: z.number().int().min(1),
@@ -261,7 +261,7 @@ export const OfferLetterUploadUrlRequestSchema = z
   .object({
     contentType: OfferLetterContentTypeSchema,
     fileName: z.string().min(1).max(255),
-    sizeBytes: z.number().int().min(1).max(10_485_760).describe("Max 10 MB — an offer letter is a few pages."),
+    sizeBytes: z.number().int().min(1).max(10_485_760).describe("Max 10 MB. An offer letter is a few pages."),
   })
   .strict();
 export type OfferLetterUploadUrlRequest = z.infer<typeof OfferLetterUploadUrlRequestSchema>;

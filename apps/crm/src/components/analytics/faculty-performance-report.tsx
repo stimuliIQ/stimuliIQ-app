@@ -52,7 +52,7 @@ export function FacultyPerformanceReport({ me }: { me: MeResponse | undefined })
       ) : (
         <>
           <p className="text-xs text-fg-muted" data-testid="faculty-performance-freshness-note">
-            Computed live from current batch records — no cached snapshot.
+            Computed live from current batch records, no cached snapshot.
           </p>
 
           <BarChart

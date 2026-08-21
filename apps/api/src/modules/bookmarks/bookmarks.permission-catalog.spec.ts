@@ -46,7 +46,7 @@ describe("Bookmarks module controller permission catalog", () => {
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("Bookmarks permission catalog — live seeded DB", () => {
+describeIfDb("Bookmarks permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {

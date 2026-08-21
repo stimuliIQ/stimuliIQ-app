@@ -214,7 +214,7 @@ function makePublicQuestion(id: string): QuestionPublicRow {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe("gradeMcqQuestion (unit — pure function)", () => {
+describe("gradeMcqQuestion (unit, pure function)", () => {
   it("correct single answer → full points + isCorrect=true", () => {
     const q = makeMcqQuestion("q1", "opt-a", 5);
     const { earned, isCorrect } = gradeMcqQuestion(q, "opt-a");
@@ -586,7 +586,7 @@ describe("AssessmentsService.gradeAttempt (faculty manual grade)", () => {
     repo.findAttemptById.mockResolvedValue(attempt);
     repo.findFacultyProfileId.mockResolvedValue("faculty-profile-1");
     repo.findAssignedBatchIds.mockResolvedValue(["batch-A"]);
-    // Only MCQ questions — no descriptive
+    // Only MCQ questions, no descriptive
     repo.findQuestionsWithAnswerKey.mockResolvedValue([makeMcqQuestion("q1", "opt-a", 10)]);
 
     await expect(
@@ -683,7 +683,7 @@ describe("Answer-key isolation: AssessmentQuestionPublic type assertion", () => 
 });
 
 // ---------------------------------------------------------------------------
-// computeAttemptWave — retry-cooldown eligibility (3 attempts, then a 3h wave reset)
+// computeAttemptWave, retry-cooldown eligibility (3 attempts, then a 3h wave reset)
 // ---------------------------------------------------------------------------
 
 describe("computeAttemptWave", () => {
@@ -723,7 +723,7 @@ describe("computeAttemptWave", () => {
     expect(w.retryAvailableAt).toBeNull();
   });
 
-  it("only attempts within the current wave count — a >3h gap ends the wave", () => {
+  it("only attempts within the current wave count, a >3h gap ends the wave", () => {
     // Two recent attempts, then a big gap to older ones: only the two recent belong to the wave.
     const w = computeAttemptWave(
       [minsAgo(1), minsAgo(30), minsAgo(300), minsAgo(330)],

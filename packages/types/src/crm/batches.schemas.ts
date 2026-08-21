@@ -122,7 +122,7 @@ export type RestoreBatchRequest = z.infer<typeof RestoreBatchRequestSchema>;
 export const BatchSummarySchema = z.object({
   id: UuidSchema,
   programId: UuidSchema,
-  programTitle: z.string().describe("Denormalized for table display — avoids an N+1 program fetch."),
+  programTitle: z.string().describe("Denormalized for table display. Avoids an N+1 program fetch."),
   branchId: UuidSchema,
   branchName: z.string(),
   facultyId: UuidSchema.nullable(),

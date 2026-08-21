@@ -1,7 +1,7 @@
 // apps/api/src/queues/queue-connection.spec.ts
 //
 // Unit tests for getBullMqConnectionOptions() (docs/plans/phase-9-completion.md T18/R1).
-// Pure REDIS_URL parsing — no real Redis connection is opened.
+// Pure REDIS_URL parsing, no real Redis connection is opened.
 
 import { getBullMqConnectionOptions } from "./queue-connection";
 import { __resetEnvCacheForTests } from "../config/env";
@@ -65,7 +65,7 @@ describe("getBullMqConnectionOptions", () => {
   it("NEVER logs or exposes the password outside the returned options object", () => {
     restore = withEnv("redis://:super-secret-password@redis-host:6379");
     const opts = getBullMqConnectionOptions() as { password?: string };
-    // The password IS present in the returned options (BullMQ needs it to connect) —
+    // The password IS present in the returned options (BullMQ needs it to connect),
     // this test asserts the function does not throw or leak it via any side channel
     // (e.g. console) by construction (pure function, no logging calls in the source).
     expect(opts.password).toBe("super-secret-password");

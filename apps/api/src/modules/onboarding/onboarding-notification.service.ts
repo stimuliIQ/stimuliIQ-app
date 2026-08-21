@@ -39,7 +39,7 @@ export class OnboardingNotificationService {
     try {
       await this.mail.send({
         to,
-        subject: "About your stimuliIQ application",
+        subject: "About your Stimuli IQ application",
         html: renderBrandedEmail({
           title: "We couldn't accept your application",
           greeting: `Hi ${escapeEmailHtml(studentName?.trim() || "there")},`,
@@ -49,10 +49,10 @@ export class OnboardingNotificationService {
               : "Thank you for completing our onboarding form. After reviewing your details, we're not able to confirm your seat at this time.",
             // The single most useful thing this email can do is get a human involved:
             // most rejections are a fixable receipt or a mistyped detail, not a verdict.
-            "This is often something straightforward to sort out — an unclear payment receipt, a detail that didn't match, or a batch that filled up. Please get in touch with our support team and we'll walk you through it.",
+            "This is often something straightforward to sort out. An unclear payment receipt, a detail that didn't match, or a batch that filled up. Please get in touch with our support team and we'll walk you through it.",
           ],
           button: { label: "Contact support", url: `mailto:${SUPPORT_EMAIL}` },
-          footnote: `You can reach us any time at ${SUPPORT_EMAIL}. If you've already paid, please keep your payment receipt handy — it helps us resolve this faster.`,
+          footnote: `You can reach us any time at ${SUPPORT_EMAIL}. If you've already paid, please keep your payment receipt handy. It helps us resolve this faster.`,
         }),
         tags: [{ name: "category", value: "onboarding_rejected" }],
       });

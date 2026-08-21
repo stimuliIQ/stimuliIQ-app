@@ -79,7 +79,7 @@ export class LmsAccountProvisioningService {
       select: { id: true, user: { select: { id: true, email: true, name: true, passwordHash: true } } },
     });
     if (!profile?.user) {
-      this.logger.warn(`[LmsProvisioning] no user for student profile ${studentProfileId} — skipping.`);
+      this.logger.warn(`[LmsProvisioning] no user for student profile ${studentProfileId}, skipping.`);
       return null;
     }
 
@@ -195,17 +195,17 @@ export class LmsAccountProvisioningService {
     try {
       await this.mail.send({
         to: email,
-        subject: "Set your stimuliIQ password",
+        subject: "Set your Stimuli IQ password",
         html: renderBrandedEmail({
           title: "Set your password",
           greeting: `Hi ${escapeEmailHtml(name)},`,
           paragraphs: [
-            "Your stimuliIQ learning account is ready. Use the button below to choose your password and sign in.",
+            "Your Stimuli IQ learning account is ready. Use the button below to choose your password and sign in.",
             "This link works once and expires in 24 hours. Your previous password no longer works.",
           ],
           button: { label: "Set my password", url: resetUrl },
           footnote:
-            "If you did not expect this email, you can ignore it — the link cannot be used to read anything " +
+            "If you did not expect this email, you can ignore it. The link cannot be used to read anything " +
             "about your account, and nobody can sign in until a new password is set.",
         }),
         tags: [{ name: "category", value: "lms_set_password" }],
@@ -225,11 +225,11 @@ export class LmsAccountProvisioningService {
     try {
       await this.mail.send({
         to: email,
-        subject: "Welcome to stimuliIQ: your learning account is ready",
+        subject: "Welcome to Stimuli IQ: your learning account is ready",
         html: renderBrandedEmail({
           title: "Your learning account is ready",
           greeting: `Hi ${escapeEmailHtml(name)},`,
-          paragraphs: ["Your stimuliIQ learning account has been created. Use the details below to sign in:"],
+          paragraphs: ["Your Stimuli IQ learning account has been created. Use the details below to sign in:"],
           details: [
             { label: "Username", value: escapeEmailHtml(email) },
             { label: "Temporary password", value: escapeEmailHtml(tempPassword) },

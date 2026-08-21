@@ -38,16 +38,16 @@ export function OrderDetailDrawer({ orderId, onOpenChange }: OrderDetailDrawerPr
     {
       id: "providerPaymentId",
       header: "Provider payment id",
-      cell: (row) => row.providerPaymentId ?? "—",
+      cell: (row) => row.providerPaymentId ?? "-",
     },
     { id: "amountPaise", header: "Amount", cell: (row) => formatPaise(row.amountPaise), align: "right" },
     { id: "status", header: "Status", cell: (row) => <PaymentStatusChip status={row.status} /> },
-    { id: "method", header: "Method", cell: (row) => row.method ?? "—" },
+    { id: "method", header: "Method", cell: (row) => row.method ?? "-" },
     { id: "isManual", header: "Manual", cell: (row) => (row.isManual ? "Yes" : "No") },
     {
       id: "paidAt",
       header: "Paid at",
-      cell: (row) => (row.paidAt ? new Date(row.paidAt).toLocaleString() : "—"),
+      cell: (row) => (row.paidAt ? new Date(row.paidAt).toLocaleString() : "-"),
       align: "right",
     },
   ];
@@ -55,7 +55,7 @@ export function OrderDetailDrawer({ orderId, onOpenChange }: OrderDetailDrawerPr
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent
-        title={order ? `Order — ${order.studentName}` : "Order"}
+        title={order ? `Order · ${order.studentName}` : "Order"}
         description={order?.programTitle}
         size="xl"
         data-testid="order-detail-drawer"

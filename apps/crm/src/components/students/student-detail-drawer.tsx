@@ -175,23 +175,23 @@ export function StudentDetailDrawer({ studentId, onOpenChange, me }: StudentDeta
                             </div>
                             <div>
                               <dt className="text-fg-muted">Phone</dt>
-                              <dd className="mt-1 text-fg">{student.phone ?? "—"}</dd>
+                              <dd className="mt-1 text-fg">{student.phone ?? "-"}</dd>
                             </div>
                             <div>
                               <dt className="text-fg-muted">College</dt>
-                              <dd className="mt-1 text-fg">{student.college ?? "—"}</dd>
+                              <dd className="mt-1 text-fg">{student.college ?? "-"}</dd>
                             </div>
                             <div>
                               <dt className="text-fg-muted">Year</dt>
-                              <dd className="mt-1 text-fg">{student.year ?? "—"}</dd>
+                              <dd className="mt-1 text-fg">{student.year ?? "-"}</dd>
                             </div>
                             <div>
                               <dt className="text-fg-muted">City</dt>
-                              <dd className="mt-1 text-fg">{student.city ?? "—"}</dd>
+                              <dd className="mt-1 text-fg">{student.city ?? "-"}</dd>
                             </div>
                             <div>
                               <dt className="text-fg-muted">Source</dt>
-                              <dd className="mt-1 text-fg">{student.source ?? "—"}</dd>
+                              <dd className="mt-1 text-fg">{student.source ?? "-"}</dd>
                             </div>
                             <div>
                               <dt className="text-fg-muted">Created</dt>

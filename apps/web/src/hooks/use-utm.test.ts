@@ -1,5 +1,5 @@
 /**
- * Tests for useUtm / parseUtmFromSearch (unit — no DOM needed for the parser).
+ * Tests for useUtm / parseUtmFromSearch (unit, no DOM needed for the parser).
  *
  * Covers:
  *   - AC-2: UTM params absent → utm: {} (all fields undefined)

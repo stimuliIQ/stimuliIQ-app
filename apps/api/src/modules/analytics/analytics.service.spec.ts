@@ -5,7 +5,7 @@
 // `scopeContextStorage` ALS, matching leads.service.spec.ts's established pattern.
 //
 // Coverage (per the backend-builder DoD):
-//   - Scope filtering: branch (revenue), assigned (enrollment — IDOR->404),
+//   - Scope filtering: branch (revenue), assigned (enrollment, IDOR->404),
 //     own (funnel).
 //   - 422 INVALID_DATE_RANGE guard (service-layer, not the zod pipe).
 //   - Redis cache-aside: hit short-circuits the repository; miss populates the cache with
@@ -296,7 +296,7 @@ describe("AnalyticsService", () => {
       expect(repo.queryGamificationByUser).toHaveBeenCalledWith(TENANT_ID, ["user-1", "user-2"]);
     });
 
-    it("perStudent carries real name/email (staff-facing — deliberately NOT PII-minimal, AC-24)", async () => {
+    it("perStudent carries real name/email (staff-facing, deliberately NOT PII-minimal, AC-24)", async () => {
       repo.queryGamificationByUser.mockResolvedValue([
         { userId: "user-1", totalXp: 90n, earningEvents: 3n, badgeCount: 1n },
       ]);
@@ -389,7 +389,7 @@ describe("AnalyticsService", () => {
   });
 
   // ─── Engagement: H-1 cross-tenant program IDOR guard ───────────────────────
-  describe("getEngagement — H-1 program tenant-scoping", () => {
+  describe("getEngagement, H-1 program tenant-scoping", () => {
     const engagementQuery = { from: "2026-07-01", to: "2026-07-02", programId: "prog-other-tenant" };
 
     it("a programId not in the caller's tenant → 404, before any curriculum read", async () => {
@@ -399,7 +399,7 @@ describe("AnalyticsService", () => {
         runWithScope("all", () => service.getEngagement(TENANT_ID, engagementQuery)),
       ).rejects.toMatchObject({ response: { code: "reports.not_found" } });
 
-      // The ownership check runs BEFORE listing lessons — no curriculum structure is read.
+      // The ownership check runs BEFORE listing lessons, no curriculum structure is read.
       expect(repo.isProgramInTenant).toHaveBeenCalledWith(TENANT_ID, "prog-other-tenant");
       expect(repo.listLessonsForProgram).not.toHaveBeenCalled();
     });

@@ -185,7 +185,7 @@ export class VideoLibraryService {
       throw new ServiceUnavailableException({
         code: "videolib.not_ready",
         title: "Video not ready",
-        detail: `This video is "${row.status}" — it can be previewed once processing completes.`,
+        detail: `This video is "${row.status}". It can be previewed once processing completes.`,
       });
     }
 

@@ -80,7 +80,7 @@ export function LeaveRequestDrawer({
     // Checked here as well as by the schema so the applicant-facing reason can never be
     // sent empty by a form that only validates on the server's terms.
     if (note.trim().length < 3) {
-      setNoteError("Tell them why — they'll see this.");
+      setNoteError("Tell them why, they'll see this.");
       return;
     }
     try {
@@ -95,7 +95,7 @@ export function LeaveRequestDrawer({
   return (
     <Drawer open={requestId !== null} onOpenChange={onOpenChange}>
       <DrawerContent
-        title={request ? `${request.userName} — ${request.leaveTypeName}` : "Leave request"}
+        title={request ? `${request.userName} · ${request.leaveTypeName}` : "Leave request"}
         description={request ? formatLeaveRange(request.startDate, request.endDate) : undefined}
         data-testid="leave-request-drawer"
       >

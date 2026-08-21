@@ -318,7 +318,7 @@ export function ReportParamsFields({ type, params, onChange, idPrefix }: ReportP
         <Input
           label="From"
           type="date"
-          helperText="Optional — leave blank for all-time."
+          helperText="Optional, leave blank for all-time."
           value={params.from ?? ""}
           onChange={(event) => onChange({ from: event.target.value })}
           data-testid={`${idPrefix}-from`}
@@ -326,7 +326,7 @@ export function ReportParamsFields({ type, params, onChange, idPrefix }: ReportP
         <Input
           label="To"
           type="date"
-          helperText="Optional — leave blank for all-time."
+          helperText="Optional, leave blank for all-time."
           value={params.to ?? ""}
           onChange={(event) => onChange({ to: event.target.value })}
           data-testid={`${idPrefix}-to`}

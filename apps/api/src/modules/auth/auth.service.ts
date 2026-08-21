@@ -212,7 +212,7 @@ export class AuthService {
       // token will simply get a 401 on their next refresh and must re-authenticate,
       // which is the correct fail-safe response to a suspected token leak.
       await this.authRepository.revokeSession(session.id);
-      this.logger.warn(`Refresh token reuse detected for session ${session.id} — session revoked.`);
+      this.logger.warn(`Refresh token reuse detected for session ${session.id}, session revoked.`);
       throw new ConflictException({
         code: "auth.refresh_reuse_detected",
         title: "Refresh token reuse detected",

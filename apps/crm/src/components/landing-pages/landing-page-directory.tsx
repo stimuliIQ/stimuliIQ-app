@@ -85,11 +85,11 @@ export function LandingPageDirectory({ me }: { me: MeResponse | undefined }): Re
         </a>
       ),
     },
-    { id: "campaign", header: "Campaign", cell: (row) => row.campaign ?? "—" },
+    { id: "campaign", header: "Campaign", cell: (row) => row.campaign ?? "-" },
     {
       id: "variant",
       header: (
-        <span title="A/B test versions — visitors are split between versions of the same campaign.">Version</span>
+        <span title="A/B test versions. Visitors are split between versions of the same campaign.">Version</span>
       ),
       cell: (row) => formatVersionLabel(row.variant),
     },

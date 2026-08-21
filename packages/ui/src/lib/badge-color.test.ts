@@ -46,7 +46,7 @@ describe("readableTextOn", () => {
     expect(readableTextOn("#FFFF00")).toBe("#111827");
   });
 
-  // Gamma expansion matters here — a naive (r+g+b)/3 brightness check misjudges
+  // Gamma expansion matters here, a naive (r+g+b)/3 brightness check misjudges
   // saturated mid-tones and would put dark text on this.
   it("picks light text on saturated blue", () => {
     expect(readableTextOn("#2563EB")).toBe("#FFFFFF");
@@ -63,7 +63,7 @@ describe("badgeContrastRatio", () => {
     expect(badgeContrastRatio("#000000")).toBeCloseTo(21, 0);
   });
 
-  // Mid-greys are the worst case — neither text colour has much to work with.
+  // Mid-greys are the worst case, neither text colour has much to work with.
   it("reports a low ratio for a mid-grey", () => {
     expect(badgeContrastRatio("#767676")).toBeLessThan(5);
   });

@@ -51,7 +51,7 @@ function resolveKeyMaterial(): string {
     warnedMissingKey = true;
     // console (not pino) — this util is called outside a Nest request context.
     console.warn(
-      "[two-factor-crypto] TWO_FACTOR_ENC_KEY is not set — using a WELL-KNOWN LOCAL DEV key. " +
+      "[two-factor-crypto] TWO_FACTOR_ENC_KEY is not set. Using a WELL-KNOWN LOCAL DEV key. " +
         "2FA secrets are NOT securely encrypted. Set TWO_FACTOR_ENC_KEY before any non-local use.",
     );
   }

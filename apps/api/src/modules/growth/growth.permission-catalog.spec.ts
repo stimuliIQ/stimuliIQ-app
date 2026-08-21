@@ -63,7 +63,7 @@ describe("Growth module CRM controllers permission catalog (regression: P6 forum
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("Growth module permission catalog — live seeded DB", () => {
+describeIfDb("Growth module permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {

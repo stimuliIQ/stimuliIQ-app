@@ -24,7 +24,7 @@ function buildHost(reqId: string, opts: { originalUrl?: string } = {}): { host: 
   return { host, res };
 }
 
-describe("HttpExceptionFilter — AC-44/AC-45 (traceId + RFC-7807) + AC-43 (Sentry 5xx capture)", () => {
+describe("HttpExceptionFilter, AC-44/AC-45 (traceId + RFC-7807) + AC-43 (Sentry 5xx capture)", () => {
   beforeEach(() => {
     captureException.mockClear();
   });

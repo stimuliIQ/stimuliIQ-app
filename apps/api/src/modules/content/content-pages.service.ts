@@ -52,7 +52,7 @@ export class ContentPagesService {
     throw new ForbiddenException({
       code: "content.builder_managed_forbidden",
       title: "Page is managed by the page builder",
-      detail: "This page is authored through the CRM page builder. Generic content-edit endpoints are blocked for builder-managed pages, unconditionally — use the /builder endpoints (content.builder) for every edit, including reorders/deletes/publishes.",
+      detail: "This page is authored through the CRM page builder. Generic content-edit endpoints are blocked for builder-managed pages, unconditionally. Use the /builder endpoints (content.builder) for every edit, including reorders/deletes/publishes.",
     });
   }
 

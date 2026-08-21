@@ -85,7 +85,7 @@ export function AnalyticsOverview({ me }: AnalyticsOverviewProps): React.JSX.Ele
             {canRevenue ? (
               <KpiCard
                 label="Revenue (30d)"
-                value={revenue.data ? formatPaise(revenue.data.totalPaise) : "—"}
+                value={revenue.data ? formatPaise(revenue.data.totalPaise) : "-"}
                 icon={<DollarSign />}
                 loading={revenue.isLoading}
                 error={revenue.isError ? "Couldn't load" : undefined}
@@ -95,7 +95,7 @@ export function AnalyticsOverview({ me }: AnalyticsOverviewProps): React.JSX.Ele
             {canEnrollment ? (
               <KpiCard
                 label="Enrollments (30d)"
-                value={enrollment.data ? enrollment.data.total : "—"}
+                value={enrollment.data ? enrollment.data.total : "-"}
                 icon={<UserPlus />}
                 loading={enrollment.isLoading}
                 error={enrollment.isError ? "Couldn't load" : undefined}
@@ -105,7 +105,7 @@ export function AnalyticsOverview({ me }: AnalyticsOverviewProps): React.JSX.Ele
             {canFunnel ? (
               <KpiCard
                 label="Lead conversion (30d)"
-                value={funnel.data ? `${(funnel.data.conversionRate * 100).toFixed(1)}%` : "—"}
+                value={funnel.data ? `${(funnel.data.conversionRate * 100).toFixed(1)}%` : "-"}
                 icon={<Percent />}
                 loading={funnel.isLoading}
                 error={funnel.isError ? "Couldn't load" : undefined}
@@ -132,7 +132,7 @@ export function AnalyticsOverview({ me }: AnalyticsOverviewProps): React.JSX.Ele
         </>
       )}
       <p className="text-sm text-fg-muted" data-testid="analytics-overview-freshness-note">
-        Each dashboard shows a "data as of" freshness indicator — figures are backed by a
+        Each dashboard shows a "data as of" freshness indicator. Figures are backed by a
         periodically refreshed materialized view, never a live write-path query.
       </p>
     </div>

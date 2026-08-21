@@ -6,15 +6,15 @@
 // (a) exist in the seed permission catalog and (b) be granted to at least one role.
 // Public controllers must declare NO @RequirePermission at all.
 //
-// Phase-10 page builder (docs/specs/phase-10-page-builder.md) adds THREE keys —
-// `content.builder`, `site_settings.view`, `site_settings.edit` — that are deliberately
+// Phase-10 page builder (docs/specs/phase-10-page-builder.md) adds THREE keys,
+// `content.builder`, `site_settings.view`, `site_settings.edit`, that are deliberately
 // narrower than every other key in this module: they are seeded in a DEDICATED block
 // OUTSIDE the admin/super_admin catch-all loop (prisma/seed.ts "Phase-10 Page Builder
-// permissions — super_admin ONLY" comment) and granted to `super_admin` alone — not even
+// permissions, super_admin ONLY" comment) and granted to `super_admin` alone, not even
 // `admin`, and never `content_editor`/`marketing` despite those roles already holding
 // `content.edit`/`content.publish`. These three are tracked in `PAGE_BUILDER_ONLY_KEYS`,
 // separate from `ALL_EXPECTED_KEYS`, because the generic "non-admin role grant" /
-// "admin+super_admin catch-all" assertions below do not apply to them — dedicated checks
+// "admin+super_admin catch-all" assertions below do not apply to them, dedicated checks
 // exist further down instead.
 
 import { readFileSync } from "node:fs";
@@ -26,7 +26,7 @@ const CRM_CONTROLLER_FILES = [
   "./testimonials.controller.ts",
   "./partners.controller.ts",
   // Colleges (Phase-11 locked templates) deliberately reuses the SAME content.* keys as
-  // partners.controller.ts (crm/colleges.schemas.ts "PERMISSIONS" comment) — no new keys.
+  // partners.controller.ts (crm/colleges.schemas.ts "PERMISSIONS" comment), no new keys.
   "./colleges.controller.ts",
   "./faculty-bios.controller.ts",
   "./content-pages.controller.ts",
@@ -37,7 +37,7 @@ const CRM_CONTROLLER_FILES = [
 
 const ALL_EXPECTED_KEYS = ["content.view", "content.create", "content.edit", "content.delete", "content.publish"] as const;
 
-/** Phase-10 page builder — super_admin-ONLY (see file header). */
+/** Phase-10 page builder, super_admin-ONLY (see file header). */
 const PAGE_BUILDER_ONLY_KEYS = ["content.builder", "site_settings.view", "site_settings.edit"] as const;
 
 const ALL_KNOWN_KEYS = [...ALL_EXPECTED_KEYS, ...PAGE_BUILDER_ONLY_KEYS] as const;
@@ -58,7 +58,7 @@ describe("Content module CRM controllers permission catalog (regression: P6 foru
     for (const key of referenced) {
       expect(ALL_KNOWN_KEYS).toContain(key);
     }
-    // Every key IS used somewhere (sanity — catches a controller drifting away from a key).
+    // Every key IS used somewhere (sanity, catches a controller drifting away from a key).
     for (const key of ALL_KNOWN_KEYS) {
       expect(referenced.has(key)).toBe(true);
     }
@@ -127,7 +127,7 @@ describe("Content module CRM controllers permission catalog (regression: P6 foru
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("Content module permission catalog — live seeded DB", () => {
+describeIfDb("Content module permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {

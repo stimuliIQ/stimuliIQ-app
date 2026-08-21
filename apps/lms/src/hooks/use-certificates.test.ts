@@ -1,4 +1,4 @@
-// use-certificates hook tests — Phase 4 Task #10.
+// use-certificates hook tests, Phase 4 Task #10.
 //
 // Tests query key structure and the download URL handling (no caching guarantee).
 

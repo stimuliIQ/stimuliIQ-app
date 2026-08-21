@@ -3,8 +3,8 @@
 // The property under test is the one that changed shape: `assignments.lesson_id` is a
 // required FK, and this form used to ask for it as a raw uuid typed into a text box. Staff
 // do not know lesson uuids, so the field is now two dependent dropdowns. What matters is
-// that the cascade cannot emit an incoherent pair — a lesson from a course other than the
-// one selected — and that a course with no lessons says so instead of rendering an empty,
+// that the cascade cannot emit an incoherent pair, a lesson from a course other than the
+// one selected, and that a course with no lessons says so instead of rendering an empty,
 // unexplained dropdown.
 
 import * as React from "react";
@@ -18,7 +18,7 @@ import { AssignmentFormDrawer } from "./assignment-form-drawer";
 
 // Radix's Select is driven by pointer events jsdom does not implement, and this form can't
 // be submitted without the two pickers. Swap ONLY Select/SelectItem for native equivalents
-// (the established pattern — see batch-form-drawer.test.tsx); every other @repo/ui
+// (the established pattern, see batch-form-drawer.test.tsx); every other @repo/ui
 // component stays real, so the form under test is still the actual form.
 vi.mock("@repo/ui", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@repo/ui")>();
@@ -82,7 +82,7 @@ const CURRICULA: Record<string, { programId: string; modules: unknown[] }> = {
   [NEURO.id]: {
     programId: NEURO.id,
     modules: [
-      // Deliberately out of order, and with a lesson title that repeats across modules —
+      // Deliberately out of order, and with a lesson title that repeats across modules,
       // the option label has to disambiguate them.
       { id: "m-2", title: "Week 2", order: 1, lessons: [{ id: "l-dup", title: "Intro", type: "video", order: 0, isPreview: false }] },
       {
@@ -132,13 +132,13 @@ beforeEach(() => {
   updateAssignmentMock.mockReset().mockResolvedValue({});
 });
 
-describe("AssignmentFormDrawer — course → lesson cascade", () => {
+describe("AssignmentFormDrawer, course → lesson cascade", () => {
   it("asks for a course and a lesson, never a raw id", () => {
     renderDrawer();
 
     expect(screen.getByTestId("assignment-form-course")).toBeInTheDocument();
     expect(screen.getByTestId("assignment-form-lesson-id")).toBeInTheDocument();
-    // The old free-text affordance is gone — a select has no placeholder attribute here.
+    // The old free-text affordance is gone, a select has no placeholder attribute here.
     expect(screen.queryByPlaceholderText(/lesson_/)).not.toBeInTheDocument();
   });
 
@@ -214,7 +214,7 @@ describe("AssignmentFormDrawer — course → lesson cascade", () => {
   });
 });
 
-describe("AssignmentFormDrawer — locked kind", () => {
+describe("AssignmentFormDrawer, locked kind", () => {
   // A page that only lists projects must not be able to create a plain assignment: it would
   // be created successfully and then never appear.
   it("hides the kind picker and submits as a project", async () => {
@@ -238,7 +238,7 @@ describe("AssignmentFormDrawer — locked kind", () => {
     expect(screen.getByTestId("assignment-form-kind")).toBeInTheDocument();
   });
 
-  // Milestones are what make a project a project — the fieldset has to be reachable from
+  // Milestones are what make a project a project, the fieldset has to be reachable from
   // the Projects screen without first flipping a kind dropdown that isn't there.
   it("offers milestones straight away for a locked project", () => {
     renderDrawer();

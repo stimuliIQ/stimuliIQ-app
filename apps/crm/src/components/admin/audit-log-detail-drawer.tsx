@@ -16,7 +16,7 @@ interface AuditLogDetailDrawerProps {
 }
 
 function formatValue(value: unknown): string {
-  if (value === null || value === undefined) return "—";
+  if (value === null || value === undefined) return "-";
   if (typeof value === "object") return JSON.stringify(value, null, 2);
   return String(value);
 }
@@ -60,7 +60,7 @@ export function AuditLogDetailDrawer({ entry, onOpenChange }: AuditLogDetailDraw
                 </div>
                 <div>
                   <dt className="text-fg-muted">IP address</dt>
-                  <dd className="mt-1 text-fg">{entry.ip ?? "—"}</dd>
+                  <dd className="mt-1 text-fg">{entry.ip ?? "-"}</dd>
                 </div>
               </dl>
 

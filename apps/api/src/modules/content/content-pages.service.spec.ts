@@ -1,13 +1,13 @@
 // apps/api/src/modules/content/content-pages.service.spec.ts
 //
-// Unit tests for ContentPagesService — the generic block-based CMS page surface, INCLUDING
+// Unit tests for ContentPagesService, the generic block-based CMS page surface, INCLUDING
 // the Phase-10 security fix (api-designer review, tightened per Wave security review M2):
 // the generic PATCH/publish/delete endpoints must UNCONDITIONALLY reject mutating an
-// `isBuilderManaged` row — no exception, not even for a caller who additionally holds
-// `content.builder` (docs/specs/phase-10-page-builder.md — every builder edit must go
+// `isBuilderManaged` row, no exception, not even for a caller who additionally holds
+// `content.builder` (docs/specs/phase-10-page-builder.md, every builder edit must go
 // through the versioned `/builder` endpoints, which enforce strict block-union validation
 // + version snapshotting that the generic endpoints do not). The service no longer takes a
-// `user`/permission argument for this check at all — the block is unconditional on
+// `user`/permission argument for this check at all, the block is unconditional on
 // `isBuilderManaged`, so there is nothing left to differentiate by caller permission at
 // this layer; the true end-to-end "even super_admin is blocked via the generic PATCH
 // endpoint" proof lives in test/integration/phase-10-page-builder.integration-spec.ts.
@@ -180,7 +180,7 @@ describe("ContentPagesService", () => {
     });
   });
 
-  describe("getPublicBySlug — builder vs. legacy body resolution", () => {
+  describe("getPublicBySlug, builder vs. legacy body resolution", () => {
     it("resolves live_collection_ref blocks (and sets isBuilderManaged=true) for a builder-managed row", async () => {
       repo.findPublishedBySlug.mockResolvedValue(BUILDER_ROW);
       resolver.resolveRawBlocks.mockResolvedValue([{ type: "brain_showcase", data: {} }]);

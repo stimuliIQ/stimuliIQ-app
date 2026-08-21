@@ -9,14 +9,14 @@
 // never-granted-to-anyone-else permission would still 403 every real caller).
 //
 // Two layers (mirrors analytics.permission-catalog.spec.ts exactly):
-//   1. ALWAYS RUNS (no DB) — static source-text scan of the 4 mentor controllers'
+//   1. ALWAYS RUNS (no DB), static source-text scan of the 4 mentor controllers'
 //      `@RequirePermission(...)` decorators, in file order, checked against prisma/
 //      seed.ts's source text.
-//   2. DB-GUARDED (`describeIfDb`) — queries the LIVE seeded `permissions` +
+//   2. DB-GUARDED (`describeIfDb`), queries the LIVE seeded `permissions` +
 //      `role_permissions` tables to confirm each key exists AND is granted, PLUS the
 //      exact mentor-role/branch_manager-role grants this task's brief calls out
 //      explicitly (batches.view + batches.markComplete at scope=assigned for `mentor`;
-//      batches.markComplete at scope=branch for `branch_manager`) — the specific
+//      batches.markComplete at scope=branch for `branch_manager`), the specific
 //      regression this task exists to prevent, not just "some grant exists somewhere".
 
 import { readFileSync } from "node:fs";
@@ -96,7 +96,7 @@ describe("Mentors module controllers permission catalog (regression: P6 forum.re
     it("is registered in the seed catalog", () => {
       if (key === "batches.view") {
         // Pre-existing P1 cross-product permission (P1_MODULES x P1_ACTIONS), not a
-        // literal `key: "batches.view"` entry — assert the cross-product membership
+        // literal `key: "batches.view"` entry, assert the cross-product membership
         // that generates it instead.
         expect(seedSource).toMatch(/"batches"/);
         expect(seedSource).toMatch(/P1_ACTIONS = \[[^\]]*"view"/);
@@ -109,7 +109,7 @@ describe("Mentors module controllers permission catalog (regression: P6 forum.re
       // A lenient (but real) presence check tolerant of both call shapes this file uses
       // for P8 grants: individual `grant(role.id, p8permId("key"), scope)` calls AND
       // `array.map((key) => grant(role.id, p8permId(key), scope))` loops over a literal
-      // string array — both are legitimate; only a KEY MISSING FROM SEED.TS ENTIRELY
+      // string array, both are legitimate; only a KEY MISSING FROM SEED.TS ENTIRELY
       // (the actual P6 bug class) should fail this. The DB-guarded block below asserts
       // the precise mentor-role/branch_manager-role grants this task calls out.
       const literal = key.replace(/\./g, "\\.");
@@ -126,7 +126,7 @@ describe("Mentors module controllers permission catalog (regression: P6 forum.re
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("Mentors permission catalog — live seeded DB", () => {
+describeIfDb("Mentors permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {

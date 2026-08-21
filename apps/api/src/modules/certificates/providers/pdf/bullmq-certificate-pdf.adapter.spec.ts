@@ -1,7 +1,7 @@
 // apps/api/src/modules/certificates/providers/pdf/bullmq-certificate-pdf.adapter.spec.ts
 //
 // Unit test for BullMqCertificatePdfAdapter (docs/plans/phase-9-completion.md T18/R1).
-// `bullmq`'s `Queue`/`QueueEvents` classes are MOCKED — this suite asserts the RPC-style
+// `bullmq`'s `Queue`/`QueueEvents` classes are MOCKED, this suite asserts the RPC-style
 // producer contract (enqueue, await job.waitUntilFinished(), decode base64 back to
 // Buffer) WITHOUT opening any real Redis connection or rendering a real PDF.
 

@@ -1,4 +1,4 @@
-// use-gamification hook tests — Phase 6, Task #10.
+// use-gamification hook tests, Phase 6, Task #10.
 //
 // Tests:
 //   - Query key structure (regression guard)
@@ -31,7 +31,7 @@ describe("gamification query keys", () => {
 
   it("leaderboardQueryKey with null returns the null marker key", () => {
     const key = leaderboardQueryKey(null);
-    // When batchId is null, the query should be disabled — the key structure
+    // When batchId is null, the query should be disabled, the key structure
     // must not accidentally conflict with a real batch.
     expect(key).toEqual(["lms", "gamification", "leaderboard", null]);
   });
@@ -98,7 +98,7 @@ describe("LeaderboardEntryDto PII-minimal contract (LOCK-D5)", () => {
       displayName: "Priya S",
       totalPoints: 350,
       badgeCount: 2,
-      email: "priya@example.com", // ROGUE — should be stripped or cause failure
+      email: "priya@example.com", // ROGUE, should be stripped or cause failure
     };
 
     const parsed = LeaderboardEntryDtoSchema.safeParse(rogueEntry);

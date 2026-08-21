@@ -1,6 +1,6 @@
 // apps/api/src/modules/auth/guards/must-change-password.guard.spec.ts
 //
-// Unit tests for MustChangePasswordGuard (gap-closing pass — server-side enforcement of
+// Unit tests for MustChangePasswordGuard (gap-closing pass, server-side enforcement of
 // the first-login "must change password" gate, registered globally via APP_GUARD in
 // app.module.ts). Mirrors the ExecutionContext-mocking style of
 // auth-ip-rate-limit.guard.spec.ts.

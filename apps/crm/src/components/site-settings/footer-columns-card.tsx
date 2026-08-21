@@ -149,7 +149,7 @@ export function FooterColumnsCard({ canEdit }: { canEdit: boolean }): React.JSX.
   return (
     <SiteSettingCard
       title="Footer columns"
-      description="Footer link columns, each with a heading and its own links — 1 to 6 columns."
+      description="Footer link columns, each with a heading and its own links, 1 to 6 columns."
       settingKey="footer.columns"
       valueSchema={FooterColumnsValueSchema}
       canEdit={canEdit}

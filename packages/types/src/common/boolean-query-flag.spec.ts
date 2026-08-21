@@ -2,8 +2,8 @@
 //
 // The bug this locks down: `z.coerce.boolean()` is `Boolean(value)`, and a query string
 // only ever carries strings, so "false" parsed as `true`. `toQueryString`
-// (@repo/api-client) always serializes the flag explicitly — `{ includeDeleted: false }`
-// becomes `?includeDeleted=false` — so every CRM list request turned the soft-delete
+// (@repo/api-client) always serializes the flag explicitly, `{ includeDeleted: false }`
+// becomes `?includeDeleted=false`, so every CRM list request turned the soft-delete
 // filter ON. Soft-deleted faculty/students/batches/courses/mentors were listed, while the
 // matching detail route (which filters `deletedAt: null` unconditionally) answered 404 for
 // the very same row a user had just clicked.

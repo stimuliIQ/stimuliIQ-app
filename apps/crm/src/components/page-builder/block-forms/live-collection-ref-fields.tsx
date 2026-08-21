@@ -65,7 +65,7 @@ export function LiveCollectionSectionFields({
         <Link to={manage.to} className="font-medium text-brand-500 hover:underline">
           {manage.label}
         </Link>
-        . Add, edit, or remove the items there — you can only edit the heading and layout below.
+        . Add, edit, or remove the items there. You can only edit the heading and layout below.
       </p>
       <OptionalHeadingFields
         control={control}

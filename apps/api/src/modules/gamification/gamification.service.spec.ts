@@ -1,6 +1,6 @@
 // apps/api/src/modules/gamification/gamification.service.spec.ts
 //
-// Unit tests for GamificationService — paying down the debt noted in task #12
+// Unit tests for GamificationService, paying down the debt noted in task #12
 // (gamification module had NO dedicated unit tests).
 //
 // AC coverage:
@@ -92,7 +92,7 @@ describe("GamificationService", () => {
 
   // ─── AC-43 / AC-44: Points ledger + idempotency ───────────────────────────
 
-  describe("awardForLessonCompleted — AC-43, AC-44", () => {
+  describe("awardForLessonCompleted, AC-43, AC-44", () => {
     it("AC-43: appends a points_ledger row with delta=10 on first call", async () => {
       const repo = makeRepo();
       const service = new GamificationService(repo as unknown as GamificationRepository);
@@ -110,7 +110,7 @@ describe("GamificationService", () => {
       );
     });
 
-    it("AC-44: HEADLINE — replay (P2002 on duplicate key) is a no-op, not a 500", async () => {
+    it("AC-44: HEADLINE, replay (P2002 on duplicate key) is a no-op, not a 500", async () => {
       const repo = makeRepo({
         appendLedgerRow: jest.fn()
           .mockResolvedValueOnce({ id: "row-1" }) // first call succeeds
@@ -121,7 +121,7 @@ describe("GamificationService", () => {
       // First award succeeds
       await service.awardForLessonCompleted(USER_ID, TENANT_ID, LESSON_ID);
 
-      // Replay: should NOT throw — P2002 swallowed
+      // Replay: should NOT throw, P2002 swallowed
       await expect(
         service.awardForLessonCompleted(USER_ID, TENANT_ID, LESSON_ID),
       ).resolves.toBeUndefined();
@@ -144,7 +144,7 @@ describe("GamificationService", () => {
 
   // ─── AC-45 / AC-46: Badge threshold + no double-award ────────────────────
 
-  describe("awardForProjectApproved — AC-45, AC-46 (badge threshold)", () => {
+  describe("awardForProjectApproved, AC-45, AC-46 (badge threshold)", () => {
     it("AC-45: awards first_project_approved badge when project is approved", async () => {
       const repo = makeRepo();
       const service = new GamificationService(repo as unknown as GamificationRepository);
@@ -231,7 +231,7 @@ describe("GamificationService", () => {
       });
       const service = new GamificationService(repo as unknown as GamificationRepository);
 
-      // Should not throw — missing badge is a no-op (warned, not crashed)
+      // Should not throw, missing badge is a no-op (warned, not crashed)
       await expect(
         service.awardForProjectApproved(USER_ID, TENANT_ID, "proj-1"),
       ).resolves.toBeUndefined();
@@ -249,7 +249,7 @@ describe("GamificationService", () => {
 
       await service.awardForLessonCompleted(USER_ID, TENANT_ID, LESSON_ID);
 
-      // The repo mock has no updateLedgerRow or updateMany method — if the service
+      // The repo mock has no updateLedgerRow or updateMany method, if the service
       // tried to call them it would throw a "not a function" error (which is how we
       // assert this: no such method is called and no error is thrown).
       expect(repo.appendLedgerRow).toHaveBeenCalled();
@@ -263,7 +263,7 @@ describe("GamificationService", () => {
 
   // ─── AC-49: Own-scope summary ─────────────────────────────────────────────
 
-  describe("getMyGamification — AC-49", () => {
+  describe("getMyGamification, AC-49", () => {
     it("returns totalPoints, badges, streak, and leaderboardOptIn for the authenticated user", async () => {
       const repo = makeRepo({
         sumPoints: jest.fn().mockResolvedValue(125),
@@ -296,7 +296,7 @@ describe("GamificationService", () => {
 
   // ─── AC-50 / AC-51 / AC-52: Leaderboard ─────────────────────────────────
 
-  describe("getLeaderboard — AC-50, AC-51, AC-52", () => {
+  describe("getLeaderboard, AC-50, AC-51, AC-52", () => {
     it("AC-52: non-enrolled student gets 404 (IDOR-safe)", async () => {
       const repo = makeRepo({
         findEnrollmentForBatch: jest.fn().mockResolvedValue(null), // not enrolled
@@ -424,7 +424,7 @@ describe("GamificationService", () => {
             userId: "u1",
             leaderboardOptIn: true,
             leaderboardDisplayName: "TechWizard99", // custom alias
-            firstName: "Arun Kumar", // real name — should NOT appear
+            firstName: "Arun Kumar", // real name, should NOT appear
           },
         ]),
         sumPointsForUsers: jest.fn().mockResolvedValue(new Map([["u1", 75]])),

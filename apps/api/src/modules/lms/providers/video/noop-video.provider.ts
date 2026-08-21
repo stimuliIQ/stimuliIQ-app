@@ -167,7 +167,7 @@ export class NoopVideoProvider implements VideoProvider {
   verifyWebhookSignature(input: VerifyWebhookSignatureInput): boolean {
     if (this.simulateWebhookSecretAbsent || !this.webhookSecret) {
       this.logger.warn(
-        "[NoopVideoProvider] verifyWebhookSignature: webhook secret absent — " +
+        "[NoopVideoProvider] verifyWebhookSignature: webhook secret absent, " +
           "returning false (fail closed).",
       );
       return false;

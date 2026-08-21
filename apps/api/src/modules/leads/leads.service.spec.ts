@@ -1,6 +1,6 @@
 // apps/api/src/modules/leads/leads.service.spec.ts
 //
-// Unit tests for LeadsService scope-resolution (the headline P2 deliverable — own/
+// Unit tests for LeadsService scope-resolution (the headline P2 deliverable, own/
 // assigned/branch/all via `owner_id`), stage-move state machine, and lead->student
 // conversion (REUSING StudentsRepository + CommerceService, never rebuilding them).
 // Mocks all collaborators and drives scope via the real scopeContextStorage ALS, matching
@@ -60,7 +60,7 @@ function mockActivitiesRepository(): Mocked<ActivitiesRepository> {
 
 /**
  * Assignment notifications are a side effect of the ownership write, never a
- * precondition for it — the service swallows failures here on purpose (a lead that
+ * precondition for it, the service swallows failures here on purpose (a lead that
  * changed hands must not report failure because the bell did not ring), so the mock
  * resolves by default and individual tests override it to assert the failure path.
  */
@@ -191,7 +191,7 @@ describe("LeadsService", () => {
 
   describe("IDOR / object-level authz", () => {
     it("returns 404 (not 403) when the lead is outside the resolved scope", async () => {
-      repo.findById.mockResolvedValue(null); // repository applies scopeWhere — returns null when out of scope.
+      repo.findById.mockResolvedValue(null); // repository applies scopeWhere, returns null when out of scope.
 
       await expect(
         runWithScope("own", () => service.getById("tenant-1", "some-other-lead")),
@@ -281,7 +281,7 @@ describe("LeadsService", () => {
       );
     });
 
-    it("leaves assignedById null for a round-robin pick — nobody made that call", async () => {
+    it("leaves assignedById null for a round-robin pick, nobody made that call", async () => {
       repo.pickRoundRobinOwner.mockResolvedValue("rr-counsellor");
       repo.create.mockResolvedValue({ id: "new-lead" });
       repo.findById.mockResolvedValue({ ...ROW, id: "new-lead", ownerId: "rr-counsellor" });
@@ -303,7 +303,7 @@ describe("LeadsService", () => {
       expect(notifications.notifyLeadAssigned).toHaveBeenCalledWith(
         "rr-counsellor",
         "tenant-1",
-        // A null assignedById on the row means the system chose — the copy says so
+        // A null assignedById on the row means the system chose, the copy says so
         // rather than naming whoever happened to key the lead in.
         expect.objectContaining({ assignedByName: "Auto-assignment" }),
       );
@@ -432,7 +432,7 @@ describe("LeadsService", () => {
       );
 
       expect(repo.isActiveUserInTenant).toHaveBeenCalledWith("tenant-1", "new-owner");
-      // The third argument is the ACTOR — who made the handover, recorded on the row so
+      // The third argument is the ACTOR, who made the handover, recorded on the row so
       // the performance report can distinguish a manual assignment from a round-robin one.
       expect(repo.assignOwner).toHaveBeenCalledWith(ROW.id, "new-owner", "actor-1");
       expect(result.ownerId).toBe("new-owner");
@@ -485,7 +485,7 @@ describe("LeadsService", () => {
       expect(notifications.notifyLeadAssigned).not.toHaveBeenCalled();
     });
 
-    it("does NOT notify on unassign — there is nobody to tell", async () => {
+    it("does NOT notify on unassign, there is nobody to tell", async () => {
       repo.findById.mockResolvedValueOnce(ROW).mockResolvedValueOnce({ ...ROW, ownerId: null });
 
       await runWithScope("branch", () => service.assignOwner("tenant-1", ROW.id, { ownerId: null }));
@@ -493,7 +493,7 @@ describe("LeadsService", () => {
       expect(notifications.notifyLeadAssigned).not.toHaveBeenCalled();
     });
 
-    it("still succeeds when the notification fails — the ownership write is the contract", async () => {
+    it("still succeeds when the notification fails, the ownership write is the contract", async () => {
       repo.isActiveUserInTenant.mockResolvedValue(true);
       repo.findById.mockResolvedValueOnce(ROW).mockResolvedValueOnce({ ...ROW, ownerId: "new-owner" });
       notifications.notifyLeadAssigned.mockRejectedValue(new Error("redis down"));
@@ -502,7 +502,7 @@ describe("LeadsService", () => {
         service.assignOwner("tenant-1", ROW.id, { ownerId: "new-owner" }),
       );
 
-      // A silent bell must never look like a failed reassignment — the lead DID change hands.
+      // A silent bell must never look like a failed reassignment, the lead DID change hands.
       expect(result.ownerId).toBe("new-owner");
       expect(repo.assignOwner).toHaveBeenCalled();
     });

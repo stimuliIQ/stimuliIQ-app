@@ -71,7 +71,7 @@ export const CreateVideoAssetResponseSchema = z.object({
   uploadUrl: z
     .string()
     .describe(
-      "One-time upload URL from the VideoProvider (Cloudflare Stream/Mux/Noop) — the client PUTs the file here directly.",
+      "One-time upload URL from the VideoProvider (Cloudflare Stream/Mux/Noop). The client PUTs the file here directly.",
     ),
 });
 export type CreateVideoAssetResponse = z.infer<typeof CreateVideoAssetResponseSchema>;

@@ -49,7 +49,7 @@ export interface CampaignMetricsCardProps extends Partial<CampaignMetrics> {
 }
 
 function pct(num: number | undefined, denom: number): string {
-  if (!denom || num === undefined) return "—";
+  if (!denom || num === undefined) return "-";
   return `${Math.round((num / denom) * 100)}%`;
 }
 
@@ -140,7 +140,7 @@ export function CampaignMetricsCard({
   return (
     <section
       data-testid={testId ?? "campaign-metrics-card"}
-      aria-label={campaignName ? `${campaignName} — Campaign metrics` : "Campaign metrics"}
+      aria-label={campaignName ? `${campaignName}, Campaign metrics` : "Campaign metrics"}
       className={cn("rounded-lg border border-border bg-card p-4", className)}
     >
       {campaignName ? (
@@ -160,21 +160,21 @@ export function CampaignMetricsCard({
         <MetricCell
           icon={CheckCheck}
           label="Delivered"
-          value={delivered !== undefined ? delivered : "—"}
+          value={delivered !== undefined ? delivered : "-"}
           subLabel={delivered !== undefined ? pct(delivered, totalRecipients) + " delivery rate" : undefined}
           tone={delivered !== undefined ? "success" : "default"}
         />
         <MetricCell
           icon={MailOpen}
           label="Opened / Read"
-          value={opened !== undefined ? opened : "—"}
+          value={opened !== undefined ? opened : "-"}
           subLabel={opened !== undefined ? pct(opened, sent ?? totalRecipients) + " open rate" : undefined}
           tone={opened !== undefined ? "success" : "default"}
         />
         <MetricCell
           icon={AlertCircle}
           label="Failed"
-          value={failed !== undefined ? failed : "—"}
+          value={failed !== undefined ? failed : "-"}
           subLabel={failed !== undefined ? pct(failed, totalRecipients) + " failure rate" : undefined}
           tone={
             failed === undefined

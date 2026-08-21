@@ -419,7 +419,7 @@ function ReviewsSection({ reviews }: { reviews: PublicProgramDetail["reviewsSumm
 }
 
 /**
- * Certificate section — the promise, the verification link, then the artwork.
+ * Certificate section. The promise, the verification link, then the artwork.
  *
  * The specimens are shown on EVERY program page, not just on /verify: "you get a
  * certificate" is a claim a prospect has no reason to believe, and the document itself is

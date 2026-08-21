@@ -146,7 +146,7 @@ export function ProgramDirectory({ me }: ProgramDirectoryProps): React.JSX.Eleme
             {row.badgeLabel}
           </span>
         ) : (
-          <span className="text-xs text-fg-muted">—</span>
+          <span className="text-xs text-fg-muted">-</span>
         ),
     },
   ];
@@ -203,7 +203,7 @@ export function ProgramDirectory({ me }: ProgramDirectoryProps): React.JSX.Eleme
       <EmptyState
         data-testid="programs-no-access"
         title="You don't have access to Courses"
-        description="Your role can only see programmes you author, and the catalogue doesn't record authorship yet — so there's nothing this screen can show you. An admin can grant tenant-wide course access if you need it."
+        description="Your role can only see programmes you author, and the catalogue doesn't record authorship yet, so there's nothing this screen can show you. An admin can grant tenant-wide course access if you need it."
       />
     );
   }

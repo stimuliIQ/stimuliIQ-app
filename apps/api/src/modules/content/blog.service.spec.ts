@@ -99,7 +99,7 @@ describe("BlogService", () => {
       expect(repo.createPost).toHaveBeenCalledWith("tenant-1", expect.objectContaining({ status: "draft", publishedAt: null }));
     });
 
-    it("update() with status='published' in the body is IGNORED — publishedAt is never set via PATCH", async () => {
+    it("update() with status='published' in the body is IGNORED, publishedAt is never set via PATCH", async () => {
       repo.findPostById.mockResolvedValueOnce(ROW).mockResolvedValueOnce(ROW);
       await runWithScope("all", () => service.update("tenant-1", "post-1", { status: "published" }));
       // The repository update call must NOT include `status` at all (silently dropped).
@@ -140,7 +140,7 @@ describe("BlogService", () => {
   });
 
   describe("CDN URL minting", () => {
-    it("the raw coverImageKey never appears in the response — only the minted CDN URL", async () => {
+    it("the raw coverImageKey never appears in the response, only the minted CDN URL", async () => {
       repo.findPostById.mockResolvedValue(ROW);
       const result = await runWithScope("all", () => service.getById("tenant-1", "post-1"));
       expect(result).not.toHaveProperty("coverImageKey");

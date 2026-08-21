@@ -4,13 +4,13 @@
 //
 // Coverage (per the backend-builder DoD):
 //   - CRITICAL test-safety: onModuleInit() does NOT register an interval when the
-//     scheduler is disabled (SCHEDULER_ENABLED=false) — asserted directly rather than
+//     scheduler is disabled (SCHEDULER_ENABLED=false), asserted directly rather than
 //     relying on NODE_ENV=test, so this spec is explicit about the property it pins.
 //   - onModuleInit() DOES register an interval (via SchedulerRegistry.addInterval) when
 //     enabled.
 //   - refreshOnce() invokes AnalyticsRepository.refreshMaterializedViews() (MV-refresh
 //     invocation).
-//   - refreshOnce() never throws when the repository call rejects (failure isolation —
+//   - refreshOnce() never throws when the repository call rejects (failure isolation,
 //     "never let a failed refresh crash the app").
 
 import type { SchedulerRegistry } from "@nestjs/schedule";
@@ -44,11 +44,11 @@ describe("AnalyticsMvRefreshScheduler", () => {
     jest.restoreAllMocks();
   });
 
-  describe("onModuleInit() — CRITICAL test-safety gate", () => {
+  describe("onModuleInit(), CRITICAL test-safety gate", () => {
     it("does NOT register an interval when SCHEDULER_ENABLED=false", () => {
       __resetEnvCacheForTests();
       // qa-engineer Wave 5 (T41 item 1): validateEnv() requires DATABASE_URL/REDIS_URL/
-      // JWT key paths/COOKIE_SECRET/CSRF_SECRET with NO schema default — without this,
+      // JWT key paths/COOKIE_SECRET/CSRF_SECRET with NO schema default, without this,
       // the test only passed if some EARLIER spec in the same Jest worker had already
       // warmed the (now-just-reset) cache via ambient exported env vars. See
       // test/unit-mocks/minimal-env.ts's header for the full rationale.

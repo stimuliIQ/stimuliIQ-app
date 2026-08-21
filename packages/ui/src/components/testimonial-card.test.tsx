@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 
 import { TestimonialCard } from "./testimonial-card";
 
-describe("TestimonialCard — rendering", () => {
+describe("TestimonialCard, rendering", () => {
   it("renders with default data-testid='testimonial-card'", () => {
     render(<TestimonialCard quote="Great program!" studentName="Aditya R." />);
     expect(screen.getByTestId("testimonial-card")).toBeInTheDocument();
@@ -93,7 +93,7 @@ describe("TestimonialCard — rendering", () => {
   });
 });
 
-describe("TestimonialCard — a11y", () => {
+describe("TestimonialCard, a11y", () => {
   it("uses an <article> element", () => {
     const { container } = render(
       <TestimonialCard quote="Q" studentName="A" />,
@@ -101,9 +101,9 @@ describe("TestimonialCard — a11y", () => {
     expect(container.querySelector("article")).toBeInTheDocument();
   });
 
-  it("rating is never color-only — aria-label conveys the value", () => {
+  it("rating is never color-only, aria-label conveys the value", () => {
     render(<TestimonialCard quote="Q" studentName="A" ratingStars={4} />);
-    // The text "4" is not the sole indicator — aria-label carries the full description
+    // The text "4" is not the sole indicator, aria-label carries the full description
     expect(screen.getByLabelText("Rated 4 out of 5 stars")).toBeInTheDocument();
   });
 });

@@ -8,7 +8,7 @@ import { ContinueLearning } from "./continue-learning";
 // Rendering
 // ---------------------------------------------------------------------------
 
-describe("ContinueLearning — rendering", () => {
+describe("ContinueLearning, rendering", () => {
   it("renders the lesson title", () => {
     render(<ContinueLearning lessonTitle="Variables & types" />);
     expect(screen.getByTestId("continue-learning-title")).toHaveTextContent(
@@ -79,10 +79,10 @@ describe("ContinueLearning — rendering", () => {
 });
 
 // ---------------------------------------------------------------------------
-// CTA — onResume callback
+// CTA, onResume callback
 // ---------------------------------------------------------------------------
 
-describe("ContinueLearning — onResume callback", () => {
+describe("ContinueLearning, onResume callback", () => {
   it("renders the CTA as a <button> when onResume is provided (no href)", () => {
     render(<ContinueLearning lessonTitle="Lesson" onResume={vi.fn()} />);
     const cta = screen.getByTestId("continue-learning-cta");
@@ -100,10 +100,10 @@ describe("ContinueLearning — onResume callback", () => {
 });
 
 // ---------------------------------------------------------------------------
-// CTA — resumeHref link
+// CTA, resumeHref link
 // ---------------------------------------------------------------------------
 
-describe("ContinueLearning — resumeHref link", () => {
+describe("ContinueLearning, resumeHref link", () => {
   it("renders the CTA as an anchor when resumeHref is provided", () => {
     render(
       <ContinueLearning
@@ -131,10 +131,10 @@ describe("ContinueLearning — resumeHref link", () => {
 });
 
 // ---------------------------------------------------------------------------
-// a11y — aria attributes on the CTA
+// a11y, aria attributes on the CTA
 // ---------------------------------------------------------------------------
 
-describe("ContinueLearning — a11y", () => {
+describe("ContinueLearning, a11y", () => {
   it("CTA has a non-empty aria-label", () => {
     render(<ContinueLearning lessonTitle="Variables & types" onResume={vi.fn()} />);
     const cta = screen.getByTestId("continue-learning-cta");

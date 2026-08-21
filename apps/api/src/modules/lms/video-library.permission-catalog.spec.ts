@@ -54,7 +54,7 @@ describe("Video library controller permission catalog (regression: P6 forum.read
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("Video library permission catalog — live seeded DB", () => {
+describeIfDb("Video library permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {

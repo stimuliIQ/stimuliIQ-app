@@ -1,6 +1,6 @@
 // apps/api/src/modules/lesson-notes/lesson-notes.service.spec.ts
 //
-// Unit tests for LessonNotesService — enrollment-gated own-scope CRUD + IDOR->404.
+// Unit tests for LessonNotesService, enrollment-gated own-scope CRUD + IDOR->404.
 
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { LessonNotesService } from "./lesson-notes.service";

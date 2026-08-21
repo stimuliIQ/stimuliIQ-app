@@ -24,7 +24,7 @@ describe("BarChart", () => {
         series={[{ key: "count", label: "Leads" }]}
       />,
     );
-    expect(screen.getByRole("img", { name: "Leads by source — Last 30 days" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Leads by source, Last 30 days" })).toBeInTheDocument();
   });
 
   it("renders a sr-only data table with categories and values", () => {

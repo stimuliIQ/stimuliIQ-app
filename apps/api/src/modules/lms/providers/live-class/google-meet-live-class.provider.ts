@@ -148,14 +148,14 @@ export class GoogleMeetLiveClassProvider implements LiveClassProvider {
       this.logger.warn(
         `[GoogleMeetLiveClassProvider] Missing env vars: ${missing.join(", ")}. ` +
           "Meeting creation/join/end will fail until these are set. App boot continues " +
-          "— set LIVE_CLASS_PROVIDER=noop in .env for local dev.",
+          "Set LIVE_CLASS_PROVIDER=noop in .env for local dev.",
       );
     }
     this.logger.warn(
       "[GoogleMeetLiveClassProvider] verifyWebhookSignature/parseRecordingEvent are NOT " +
         "supported for this adapter (Calendar API push notifications carry no vendor HMAC " +
         "and do not cover Meet-specific participant events). Attendance sync must poll the " +
-        "Google Meet REST API instead — see file header.",
+        "Google Meet REST API instead, see file header.",
     );
   }
 
@@ -168,7 +168,7 @@ export class GoogleMeetLiveClassProvider implements LiveClassProvider {
       throw new Error(
         "[GoogleMeetLiveClassProvider] GOOGLE_SERVICE_ACCOUNT_EMAIL / " +
           "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY / GOOGLE_MEET_IMPERSONATE_USER_EMAIL not " +
-          "configured — cannot perform this Google Meet operation. Add them to .env " +
+          "configured. Cannot perform this Google Meet operation. Add them to .env " +
           "(see .env.example) or set LIVE_CLASS_PROVIDER=noop for local dev.",
       );
     }
@@ -280,7 +280,7 @@ export class GoogleMeetLiveClassProvider implements LiveClassProvider {
         errText = response.statusText;
       }
       this.logger.error(
-        `[GoogleMeetLiveClassProvider] API error on ${method} ${path}: HTTP ${response.status} — ${errText}`,
+        `[GoogleMeetLiveClassProvider] API error on ${method} ${path}: HTTP ${response.status} · ${errText}`,
       );
       throw new Error(`[GoogleMeetLiveClassProvider] Google Calendar API returned HTTP ${response.status}: ${errText}`);
     }
@@ -325,7 +325,7 @@ export class GoogleMeetLiveClassProvider implements LiveClassProvider {
     if (!meetUri) {
       throw new Error(
         "[GoogleMeetLiveClassProvider] Calendar event created but no Meet conference link was " +
-          "returned (conferenceData may still be provisioning — this is a transient Google-side " +
+          "returned (conferenceData may still be provisioning. This is a transient Google-side " +
           "condition; retry createMeeting).",
       );
     }
@@ -379,7 +379,7 @@ export class GoogleMeetLiveClassProvider implements LiveClassProvider {
   verifyWebhookSignature(_input: VerifyWebhookSignatureInput): boolean {
     this.logger.warn(
       "[GoogleMeetLiveClassProvider] verifyWebhookSignature: Google Meet has no vendor-signed " +
-        "webhook scheme for participant/recording events — rejecting (fail closed). Use polling " +
+        "webhook scheme for participant/recording events. Rejecting (fail closed). Use polling " +
         "(Google Meet REST API conferenceRecords.participants.list) for attendance sync instead.",
     );
     return false;

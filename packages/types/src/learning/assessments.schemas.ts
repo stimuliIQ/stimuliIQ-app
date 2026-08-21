@@ -76,7 +76,7 @@ export const AssessmentQuestionPublicSchema = z.object({
   type: QuestionTypeSchema,
   prompt: z.string().min(1).describe("The question prompt/stem shown to the student."),
   options: z.array(McqOptionSchema).nullable().describe(
-    "MCQ choices. Each item is {id, text} ONLY — no correctness indicator. " +
+    "MCQ choices. Each item is {id, text} ONLY, no correctness indicator. " +
       "Null for descriptive questions.",
   ),
   points: z.number().int().min(1).describe("Point value for this question."),
@@ -258,7 +258,7 @@ export const AssessmentDetailAuthorSchema = z.object({
   attemptsAllowed: z.number().int().min(1),
   isRequired: z.boolean(),
   shuffle: z.boolean(),
-  questions: z.array(AssessmentQuestionAuthorSchema).describe("Questions WITH answer keys — author view only."),
+  questions: z.array(AssessmentQuestionAuthorSchema).describe("Questions WITH answer keys, author view only."),
   totalPoints: z.number().int().min(0).describe("Sum of all question.points."),
   attemptCount: z.number().int().min(0).describe("Total attempts taken by students."),
   createdAt: IsoDateTimeSchema,
@@ -338,7 +338,7 @@ export type AssessmentDetailPublic = z.infer<typeof AssessmentDetailPublicSchema
  *         422 ATTEMPT_IN_PROGRESS if an unsubmitted non-expired attempt exists.
  */
 export const StartAttemptRequestSchema = z.object({}).strict().describe(
-  "No body required — the server resolves assessment, enrollment, and timing server-side.",
+  "No body required. The server resolves assessment, enrollment, and timing server-side.",
 );
 export type StartAttemptRequest = z.infer<typeof StartAttemptRequestSchema>;
 
@@ -421,7 +421,7 @@ export const QuestionResultSchema = z.object({
   isCorrectForMcq: z.boolean().nullable().describe(
     "For MCQ: true if the student's answer matched the answer key. " +
       "Null for descriptive questions (awaiting manual grade). " +
-      "The CORRECT answer key is never revealed — only correctness of the student's own answer.",
+      "The CORRECT answer key is never revealed. Only correctness of the student's own answer.",
   ),
   // Descriptive questions: pending manual grade from faculty.
   isPendingManualGrade: z.boolean().describe(

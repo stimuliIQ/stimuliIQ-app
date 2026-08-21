@@ -79,7 +79,7 @@ export function PageBuilderList({ onOpenPage }: { onOpenPage: (pageId: string) =
     <div className="space-y-4 md:space-y-5" data-testid="page-builder-list">
       <PageHeader
         title="Page builder"
-        description="Your site's core marketing pages, each with a fixed layout — open one to edit its text, images, and list items. Every save publishes immediately — there is no draft/approval step."
+        description="Your site's core marketing pages, each with a fixed layout. Open one to edit its text, images, and list items. Every save publishes immediately. There is no draft/approval step."
       />
 
       <DataFilterBar data-testid="page-builder-list-filter-bar">
@@ -99,7 +99,7 @@ export function PageBuilderList({ onOpenPage }: { onOpenPage: (pageId: string) =
         getRowId={(row) => row.id}
         loading={isLoading}
         onRowClick={(row) => onOpenPage(row.id)}
-        emptyState={{ title: "No pages yet", description: "Core marketing pages are seeded automatically — check back after the next deploy." }}
+        emptyState={{ title: "No pages yet", description: "Core marketing pages are seeded automatically. Check back after the next deploy." }}
         caption="Page-builder-managed pages"
         data-testid="page-builder-list-table"
       />

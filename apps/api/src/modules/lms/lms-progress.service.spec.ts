@@ -268,7 +268,7 @@ describe("LmsProgressService.pingProgress (position ping)", () => {
       id: "video-aaa", lessonId: LESSON_ID, provider: "noop",
       providerAssetId: "asset-1", durationS: 120, status: "ready", captions: null,
     });
-    // The ping is called with lastPositionS > durationS — should be clamped.
+    // The ping is called with lastPositionS > durationS, should be clamped.
     repo.upsertProgressPing.mockResolvedValue(makeProgressRow({ lastPositionS: 120 }));
     repo.findEnrollmentByIdForStudent.mockResolvedValue(makeEnrollment());
 
@@ -324,7 +324,7 @@ describe("LmsProgressService.markComplete (completion flow)", () => {
     gateSpy.mockRestore();
   });
 
-  it("sets status=completed and recalcs progress_pct — all in txn", async () => {
+  it("sets status=completed and recalcs progress_pct, all in txn", async () => {
     const enrollment = makeEnrollment({ progressPct: 10 });
     gateSpy.mockResolvedValue(makeGate(enrollment));
 
@@ -367,7 +367,7 @@ describe("LmsProgressService.markComplete (completion flow)", () => {
     expect(certificatesService.autoIssueOnCompletion).toHaveBeenCalledWith(TENANT_ID, ENROLLMENT_ID);
   });
 
-  it("autoIssueOnCompletion failure is swallowed — markComplete still resolves (non-fatal)", async () => {
+  it("autoIssueOnCompletion failure is swallowed, markComplete still resolves (non-fatal)", async () => {
     const enrollment = makeEnrollment({ progressPct: 90 });
     gateSpy.mockResolvedValue(makeGate(enrollment));
     repo.markLessonCompleted.mockResolvedValue(
@@ -417,7 +417,7 @@ describe("LmsProgressService.markComplete (completion flow)", () => {
 // 3. Completion idempotency
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("LmsProgressService.markComplete — idempotency", () => {
+describe("LmsProgressService.markComplete, idempotency", () => {
   let repo: MockRepo;
   let prisma: ReturnType<typeof makePrisma>;
   let service: LmsProgressService;
@@ -464,7 +464,7 @@ describe("LmsProgressService.markComplete — idempotency", () => {
 
 
     // Security review Low-2: a replay at 100% (no transition) must NOT re-enter
-    // certificate auto-issue — that would re-run the eligibility computation every time.
+    // certificate auto-issue, that would re-run the eligibility computation every time.
     expect(certificatesService.autoIssueOnCompletion).not.toHaveBeenCalled();
   });
 
@@ -488,7 +488,7 @@ describe("LmsProgressService.markComplete — idempotency", () => {
 // 4. Progress rollup math
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("LmsProgressService.getProgressRollup — rollup math", () => {
+describe("LmsProgressService.getProgressRollup, rollup math", () => {
   let repo: MockRepo;
   let prisma: ReturnType<typeof makePrisma>;
   let service: LmsProgressService;

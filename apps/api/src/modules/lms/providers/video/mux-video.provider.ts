@@ -131,13 +131,13 @@ export class MuxVideoProvider implements VideoProvider {
       this.logger.warn(
         `[MuxVideoProvider] Missing env vars: ${missingKeys.join(", ")}. ` +
           "Video streaming (mintSignedHlsUrl) will fail until these are set. " +
-          "App boot continues — set VIDEO_PROVIDER=noop in .env for local dev.",
+          "App boot continues. Set VIDEO_PROVIDER=noop in .env for local dev.",
       );
     }
     if (!this.webhookSecret) {
       this.logger.warn(
         "[MuxVideoProvider] MUX_WEBHOOK_SECRET is not configured. " +
-          "Webhook signature verification will FAIL CLOSED — all incoming transcode webhooks " +
+          "Webhook signature verification will FAIL CLOSED, all incoming transcode webhooks " +
           "will be rejected until this secret is set.",
       );
     }
@@ -150,7 +150,7 @@ export class MuxVideoProvider implements VideoProvider {
   private requireApiCredentials(): { tokenId: string; tokenSecret: string } {
     if (!this.tokenId || !this.tokenSecret) {
       throw new Error(
-        "[MuxVideoProvider] MUX_TOKEN_ID / MUX_TOKEN_SECRET not configured — " +
+        "[MuxVideoProvider] MUX_TOKEN_ID / MUX_TOKEN_SECRET not configured, " +
           "cannot perform this Mux API operation. " +
           "Add them to .env (see .env.example) or set VIDEO_PROVIDER=noop for local dev.",
       );
@@ -161,7 +161,7 @@ export class MuxVideoProvider implements VideoProvider {
   private async requireSigningKey(): Promise<{ key: CryptoKey; keyId: string }> {
     if (!this.signingKeyId || !this.signingKeyPrivateRaw) {
       throw new Error(
-        "[MuxVideoProvider] MUX_SIGNING_KEY_ID / MUX_SIGNING_KEY_PRIVATE not configured — " +
+        "[MuxVideoProvider] MUX_SIGNING_KEY_ID / MUX_SIGNING_KEY_PRIVATE not configured, " +
           "cannot mint signed playback URLs. " +
           "Create a URL signing key in the Mux dashboard (Settings > URL Signing Keys) " +
           "and add the base64-decoded private key + key id to .env (see .env.example).",
@@ -248,7 +248,7 @@ export class MuxVideoProvider implements VideoProvider {
     if (!this.webhookSecret) {
       this.logger.warn(
         "[MuxVideoProvider] verifyWebhookSignature called but " +
-          "MUX_WEBHOOK_SECRET is not configured — rejecting webhook (fail closed).",
+          "MUX_WEBHOOK_SECRET is not configured, rejecting webhook (fail closed).",
       );
       return false;
     }
@@ -259,7 +259,7 @@ export class MuxVideoProvider implements VideoProvider {
     const parsedSig = parseMuxWebhookSignatureHeader(signatureHeader);
     if (!parsedSig) {
       this.logger.warn(
-        "[MuxVideoProvider] verifyWebhookSignature: could not parse Mux-Signature header — " +
+        "[MuxVideoProvider] verifyWebhookSignature: could not parse Mux-Signature header, " +
           "rejecting (fail closed).",
       );
       return false;
@@ -381,7 +381,7 @@ export class MuxVideoProvider implements VideoProvider {
         errText = response.statusText;
       }
       this.logger.error(
-        `[MuxVideoProvider] API error creating upload target: HTTP ${response.status} — ${errText}`,
+        `[MuxVideoProvider] API error creating upload target: HTTP ${response.status} · ${errText}`,
       );
       throw new Error(`[MuxVideoProvider] Mux API returned HTTP ${response.status}: ${errText}`);
     }
@@ -390,7 +390,7 @@ export class MuxVideoProvider implements VideoProvider {
     if (!data.data?.id) {
       throw new Error(
         "[MuxVideoProvider] Mux API returned an unexpected response shape for createUploadTarget " +
-          "— missing data.id.",
+          "Missing data.id.",
       );
     }
 

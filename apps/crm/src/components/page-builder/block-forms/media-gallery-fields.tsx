@@ -64,7 +64,7 @@ export function MediaGalleryFields({ control, register, errors, watch, setValue 
               }
             />
             <Input
-              label="Alt text (required — accessibility)"
+              label="Alt text (required, accessibility)"
               helperText="A short description for screen readers, e.g. 'Students in the campus lab'."
               required
               {...register(`items.${index}.alt`)}

@@ -99,7 +99,7 @@ export const RejectRefundRequestSchema = z
       .string()
       .min(1)
       .max(500)
-      .describe("Reason for rejection — required for audit trail."),
+      .describe("Reason for rejection, required for audit trail."),
   })
   .strict();
 export type RejectRefundRequest = z.infer<typeof RejectRefundRequestSchema>;

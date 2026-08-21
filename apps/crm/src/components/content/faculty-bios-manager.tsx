@@ -135,7 +135,7 @@ export function FacultyBiosManager({ me }: { me: MeResponse | undefined }): Reac
 
   const columns: Array<DataTableColumn<FacultyBio>> = [
     { id: "name", header: "Name", cell: (row) => row.name },
-    { id: "title", header: "Title", cell: (row) => row.title ?? "—" },
+    { id: "title", header: "Title", cell: (row) => row.title ?? "-" },
     { id: "status", header: "Status", cell: (row) => <StatusChip tone={STATUS_TONE[row.status]} label={row.status} size="sm" /> },
     { id: "order", header: "Order", cell: (row) => row.order, align: "right" },
     {

@@ -217,7 +217,7 @@ export const AssignmentListItemSchema = z.object({
   ),
   submittedAt: IsoDateTimeSchema.nullable(),
   score: z.number().int().nullable().describe("Null until graded."),
-  maxScoreDisplay: z.number().int().describe("Always populated — same as maxScore."),
+  maxScoreDisplay: z.number().int().describe("Always populated, same as maxScore."),
 });
 export type AssignmentListItem = z.infer<typeof AssignmentListItemSchema>;
 
@@ -342,7 +342,7 @@ export const ReturnSubmissionRequestSchema = z
     reason: z
       .string()
       .trim()
-      .min(10, "Give the student something to act on — at least 10 characters.")
+      .min(10, "Give the student something to act on, at least 10 characters.")
       .max(10_000)
       .describe("Shown to the student verbatim. Stored in submissions.feedback."),
   })

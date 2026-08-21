@@ -8,7 +8,7 @@
  *   - Honeypot field on register step (AC-42)
  *   - Register step validation (zod schema)
  *   - Order step: coupon code passes to createOrder
- *   - No secret in any response (type-level, not tested here — AC-41)
+ *   - No secret in any response (type-level, not tested here, AC-41)
  *   - resetFunnel generates a new idempotency key
  *   - retryPayment reuses the same idempotency key (AC-19)
  */
@@ -350,7 +350,7 @@ describe("useEnrollFunnel", () => {
     // This test verifies the submittingRef guard on submitPayment covers the
     // double-click-safe requirement.
     //
-    // In jsdom there is no real Razorpay and no script.onload — loadRazorpayScript
+    // In jsdom there is no real Razorpay and no script.onload, loadRazorpayScript
     // would hang indefinitely. We stub window.Razorpay with a mock that records
     // `open()` calls so we can assert it is only called once even if submitPayment
     // is triggered twice before the first resolves.
@@ -375,15 +375,15 @@ describe("useEnrollFunnel", () => {
     expect(result.current.step).toBe("payment");
     expect(result.current.checkout).not.toBeNull();
 
-    // First submitPayment call — will open Razorpay modal
+    // First submitPayment call, will open Razorpay modal
     // The Razorpay constructor is called synchronously before the promise inside open().
     // We don't await so the submittingRef stays true during the second call.
     const firstCallPromise = act(async () => {
-      // We intentionally do NOT await this — it runs the mock ctor synchronously.
+      // We intentionally do NOT await this, it runs the mock ctor synchronously.
       void result.current.submitPayment();
     });
 
-    // Second call fires before first finishes — ref guard must block it
+    // Second call fires before first finishes, ref guard must block it
     act(() => { void result.current.submitPayment(); });
 
     await firstCallPromise;

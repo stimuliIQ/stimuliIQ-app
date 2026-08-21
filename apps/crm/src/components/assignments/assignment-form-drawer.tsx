@@ -299,7 +299,7 @@ export function AssignmentFormDrawer({
                   onValueChange={setCourseId}
                   helperText={
                     coursesQuery.isError
-                      ? "Couldn't load the course list — reopen this form to retry."
+                      ? "Couldn't load the course list. Reopen this form to retry."
                       : "Which course this belongs to. Pick it first; the lessons below follow."
                   }
                   data-testid="assignment-form-course"
@@ -331,7 +331,7 @@ export function AssignmentFormDrawer({
                   error={errors.lessonId?.message}
                   helperText={
                     courseId && !curriculumQuery.isLoading && lessonOptions.length === 0
-                      ? "Add a lesson to this course under Courses ▸ Curriculum first — every project has to hang off one."
+                      ? "Add a lesson to this course under Courses ▸ Curriculum first. Every project has to hang off one."
                       : "The lesson this is attached to. Students reach it from there."
                   }
                   data-testid="assignment-form-lesson-id"
@@ -355,7 +355,7 @@ export function AssignmentFormDrawer({
                   >
                     {KIND_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label} — {opt.description}
+                        {opt.label}, {opt.description}
                       </SelectItem>
                     ))}
                   </Select>

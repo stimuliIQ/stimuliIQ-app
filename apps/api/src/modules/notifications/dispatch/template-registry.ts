@@ -140,7 +140,7 @@ interface TemplateDefinition {
 // enforces the rejection (Rule C-3, AC-31, AC-78).
 // ─────────────────────────────────────────────────────────────────────────────
 
-const BRAND_NAME = "stimuliIQ";
+const BRAND_NAME = "Stimuli IQ";
 const SUPPORT_EMAIL = "support@stimuliiq.com";
 
 /**
@@ -156,7 +156,7 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
   grade_ready: {
     inAppBody: "Your assignment '{{assignmentTitle}}' has been graded. Score: {{score}}.",
 
-    emailSubject: "Your assignment has been graded — {{assignmentTitle}}",
+    emailSubject: "Your assignment has been graded, {{assignmentTitle}}",
     emailBody: renderBrandedEmail({
       title: "Assignment Graded",
       greeting: "Hi {{studentName}},",
@@ -186,13 +186,13 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
   submission_returned: {
     inAppBody: "Your project '{{assignmentTitle}}' needs changes before it can be accepted.",
 
-    emailSubject: "Changes needed on your project — {{assignmentTitle}}",
+    emailSubject: "Changes needed on your project, {{assignmentTitle}}",
     emailBody: renderBrandedEmail({
       title: "Your project needs changes",
       greeting: "Hi {{studentName}},",
       paragraphs: [
         "Your submission for <strong>{{assignmentTitle}}</strong> has been reviewed and sent back. " +
-          "It hasn't been graded yet — make the changes below and submit it again.",
+          "It hasn't been graded yet. Make the changes below and submit it again.",
       ],
       details: [{ label: "What to change", value: "{{reason}}" }],
       button: { label: "Open and resubmit", url: "{{lmsUrl}}/assignments/{{assignmentId}}" },
@@ -213,7 +213,7 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
   certificate_ready: {
     inAppBody: "Your certificate for '{{programTitle}}' is ready! Download it now.",
 
-    emailSubject: "Your certificate is ready — {{programTitle}}",
+    emailSubject: "Your certificate is ready, {{programTitle}}",
     emailBody: renderBrandedEmail({
       title: "Certificate Ready!",
       greeting: "Hi {{studentName}},",
@@ -236,7 +236,7 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
   live_reminder: {
     inAppBody: "Reminder: '{{eventTitle}}' starts at {{startsAt}}. Join now!",
 
-    emailSubject: "Live class starting soon — {{eventTitle}}",
+    emailSubject: "Live class starting soon, {{eventTitle}}",
     emailBody: renderBrandedEmail({
       title: "Live Class Reminder",
       greeting: "Hi {{studentName}},",
@@ -245,7 +245,7 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
       unsubscribeUrl: "{{unsubscribeUrl}}",
     }),
 
-    smsBody: `${BRAND_NAME}: Reminder — {{eventTitle}} starts at {{startsAt}}. Join: {{joinUrl}}`,
+    smsBody: `${BRAND_NAME}: Reminder, {{eventTitle}} starts at {{startsAt}}. Join: {{joinUrl}}`,
     smsDltTemplateId: "DLT_PENDING",
 
     whatsappTemplateName: "live_reminder_notification",
@@ -257,7 +257,7 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
   forum_reply: {
     inAppBody: "{{authorName}} replied to your thread '{{threadTitle}}'.",
 
-    emailSubject: "New reply on your forum thread — {{threadTitle}}",
+    emailSubject: "New reply on your forum thread, {{threadTitle}}",
     emailBody: renderBrandedEmail({
       title: "New Reply",
       greeting: "Hi {{studentName}},",
@@ -285,7 +285,7 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
       unsubscribeUrl: "{{unsubscribeUrl}}",
     }),
 
-    smsBody: `${BRAND_NAME}: {{title}} — {{body}}`,
+    smsBody: `${BRAND_NAME}: {{title}}, {{body}}`,
     smsDltTemplateId: "DLT_PENDING",
 
     whatsappTemplateName: "announcement_notification",
@@ -297,7 +297,7 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
   lead_confirmation: {
     inAppBody: "Thank you for your interest in {{programTitle}}! Our team will contact you soon.",
 
-    emailSubject: "We received your inquiry — {{programTitle}}",
+    emailSubject: "We received your inquiry, {{programTitle}}",
     emailBody: renderBrandedEmail({
       title: "Thank You!",
       greeting: "Hi {{name}},",
@@ -319,7 +319,7 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
   booking_confirmation: {
     inAppBody: "Your booking for '{{programTitle}}' on {{slotDate}} is confirmed!",
 
-    emailSubject: "Booking confirmed — {{programTitle}} on {{slotDate}}",
+    emailSubject: "Booking confirmed, {{programTitle}} on {{slotDate}}",
     emailBody: renderBrandedEmail({
       title: "Booking Confirmed!",
       greeting: "Hi {{name}},",
@@ -344,7 +344,7 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
   payment_receipt: {
     inAppBody: "Payment of ₹{{amountRupees}} received for your enrollment. Order: {{orderId}}.",
 
-    emailSubject: "Payment receipt — ₹{{amountRupees}} received",
+    emailSubject: "Payment receipt, ₹{{amountRupees}} received",
     emailBody: renderBrandedEmail({
       title: "Payment Received",
       greeting: "Hi {{studentName}},",
@@ -363,7 +363,7 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
     smsDltTemplateId: "DLT_PENDING",
 
     whatsappTemplateName: "payment_receipt_notification",
-    whatsappBody: "Payment of *₹{{amountRupees}}* received for order {{orderId}}. You are enrolled — visit {{lmsUrl}} to start!",
+    whatsappBody: "Payment of *₹{{amountRupees}}* received for order {{orderId}}. You are enrolled, visit {{lmsUrl}} to start!",
     whatsappDltTemplateId: "DLT_PENDING",
   },
 
@@ -371,7 +371,7 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
   welcome: {
     inAppBody: "Welcome to {{brandName}}, {{userName}}! Your learning journey starts now.",
 
-    emailSubject: "Welcome to stimuliIQ, {{userName}}!",
+    emailSubject: "Welcome to Stimuli IQ, {{userName}}!",
     emailBody: renderBrandedEmail({
       title: `Welcome to ${BRAND_NAME}!`,
       greeting: "Hi {{userName}},",
@@ -400,7 +400,7 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
   // correct rather than left as placeholders. `lmsUrl` is deliberately absent: staff live
   // in the CRM, and pointing them at the student portal would be a dead end.
   lead_assigned: {
-    inAppBody: "New lead assigned to you: {{leadName}} ({{leadPhone}}) — from {{leadSource}}.",
+    inAppBody: "New lead assigned to you: {{leadName}} ({{leadPhone}}), from {{leadSource}}.",
 
     emailSubject: "New lead assigned to you: {{leadName}}",
     emailBody: renderBrandedEmail({
@@ -418,11 +418,11 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
       unsubscribeUrl: "{{unsubscribeUrl}}",
     }),
 
-    smsBody: `${BRAND_NAME}: New lead assigned to you — {{leadName}}, {{leadPhone}} (source: {{leadSource}}).`,
+    smsBody: `${BRAND_NAME}: New lead assigned to you, {{leadName}}, {{leadPhone}} (source: {{leadSource}}).`,
     smsDltTemplateId: "DLT_PENDING",
 
     whatsappTemplateName: "lead_assigned_notification",
-    whatsappBody: "New lead assigned to you: *{{leadName}}* — {{leadPhone}} (source: {{leadSource}}).",
+    whatsappBody: "New lead assigned to you: *{{leadName}}*, {{leadPhone}} (source: {{leadSource}}).",
     whatsappDltTemplateId: "DLT_PENDING",
   },
 
@@ -437,9 +437,9 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
   // formatLeaveDays in @repo/types, so the wording reads correctly for a half-day request
   // without the template needing to pluralise anything.
   leave_requested: {
-    inAppBody: "{{applicantName}} has applied for {{leaveTypeName}} — {{dateRange}} ({{days}}).",
+    inAppBody: "{{applicantName}} has applied for {{leaveTypeName}}, {{dateRange}} ({{days}}).",
 
-    emailSubject: "Leave request from {{applicantName}} — {{dateRange}}",
+    emailSubject: "Leave request from {{applicantName}}, {{dateRange}}",
     emailBody: renderBrandedEmail({
       title: "A leave request needs your decision",
       greeting: "Hi,",
@@ -457,19 +457,19 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
       unsubscribeUrl: "{{unsubscribeUrl}}",
     }),
 
-    smsBody: `${BRAND_NAME}: {{applicantName}} applied for {{leaveTypeName}} — {{dateRange}} ({{days}}). Approve in the CRM.`,
+    smsBody: `${BRAND_NAME}: {{applicantName}} applied for {{leaveTypeName}}, {{dateRange}} ({{days}}). Approve in the CRM.`,
     smsDltTemplateId: "DLT_PENDING",
 
     whatsappTemplateName: "leave_requested_notification",
     whatsappBody:
-      "*{{applicantName}}* has applied for {{leaveTypeName}} — {{dateRange}} ({{days}}). Open the CRM to decide.",
+      "*{{applicantName}}* has applied for {{leaveTypeName}}, {{dateRange}} ({{days}}). Open the CRM to decide.",
     whatsappDltTemplateId: "DLT_PENDING",
   },
 
   leave_approved: {
     inAppBody: "Your {{leaveTypeName}} for {{dateRange}} was approved.",
 
-    emailSubject: "Your leave is approved — {{dateRange}}",
+    emailSubject: "Your leave is approved, {{dateRange}}",
     emailBody: renderBrandedEmail({
       title: "Your leave is approved",
       greeting: "Hi {{applicantName}},",
@@ -498,13 +498,13 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
   leave_rejected: {
     inAppBody: "Your {{leaveTypeName}} for {{dateRange}} wasn't approved: {{reason}}",
 
-    emailSubject: "Your leave request wasn't approved — {{dateRange}}",
+    emailSubject: "Your leave request wasn't approved, {{dateRange}}",
     emailBody: renderBrandedEmail({
       title: "Your leave request wasn't approved",
       greeting: "Hi {{applicantName}},",
       paragraphs: [
         "Your request for <strong>{{leaveTypeName}}</strong> on {{dateRange}} hasn't been approved. " +
-          "The reason is below — have a word with your manager if you need to work something out.",
+          "The reason is below. Have a word with your manager if you need to work something out.",
       ],
       details: [
         { label: "Dates", value: "{{dateRange}}" },
@@ -512,7 +512,7 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition
         { label: "Reason", value: "{{reason}}" },
         { label: "Decided by", value: "{{reviewerName}}" },
       ],
-      footnote: "Nothing has come off your allowance — you can apply again for different dates.",
+      footnote: "Nothing has come off your allowance. You can apply again for different dates.",
       unsubscribeUrl: "{{unsubscribeUrl}}",
     }),
 
@@ -561,7 +561,7 @@ export class TemplateRegistry {
     const template = NOTIFICATION_TEMPLATES[type];
 
     if (!template) {
-      this.logger.warn(`[TemplateRegistry] Unknown notification type "${type}" — using fallback.`);
+      this.logger.warn(`[TemplateRegistry] Unknown notification type "${type}", using fallback.`);
       return this.fallbackTemplate(type, channel);
     }
 
@@ -585,7 +585,7 @@ export class TemplateRegistry {
             `[TemplateRegistry] SMS template for "${type}" has no registered DLT template ID ` +
               `(smsDltTemplateId="${dltTemplateId ?? "undefined"}"). ` +
               `Set smsDltTemplateId to the TRAI-registered ID before production. ` +
-              `Returning missingDlt=true — the service MUST reject this send.`,
+              `Returning missingDlt=true. The service MUST reject this send.`,
           );
           return { body, missingDlt: true };
         }
@@ -604,7 +604,7 @@ export class TemplateRegistry {
             `[TemplateRegistry] WhatsApp template for "${type}" has no registered DLT template ID ` +
               `(whatsappDltTemplateId="${dltTemplateId ?? "undefined"}"). ` +
               `Set whatsappDltTemplateId to the TRAI-registered ID. ` +
-              `Returning missingDlt=true — the service MUST reject this send.`,
+              `Returning missingDlt=true. The service MUST reject this send.`,
           );
           return { body, whatsappTemplateName, whatsappVariables, missingDlt: true };
         }
@@ -661,13 +661,13 @@ export class TemplateRegistry {
     return template.replace(/\{\{(\w+)\}\}/g, (match, key: string) => {
       if (!(key in payload)) {
         // Key not present in payload at all → leave placeholder as-is (safe fallback).
-        this.logger.debug(`[TemplateRegistry] Unknown placeholder "{{${key}}}" in template — leaving as-is.`);
+        this.logger.debug(`[TemplateRegistry] Unknown placeholder "{{${key}}}" in template, leaving as-is.`);
         return match;
       }
       const value = payload[key];
       if (value === undefined) {
         // Explicitly undefined key → leave as-is (caller should fix the payload).
-        this.logger.debug(`[TemplateRegistry] Placeholder "{{${key}}}" is undefined in template — leaving as-is.`);
+        this.logger.debug(`[TemplateRegistry] Placeholder "{{${key}}}" is undefined in template, leaving as-is.`);
         return match;
       }
       // null and all other values → coerce to string (null → '').

@@ -1,4 +1,4 @@
-// Manual payment entry — the date cannot be in the future.
+// Manual payment entry, the date cannot be in the future.
 //
 // Recording a manual payment captures it, marks the order paid, creates the enrollment and
 // raises an invoice, all straight away. A future "Paid at" would therefore enroll and
@@ -7,7 +7,7 @@
 // Three guards, and these cover the two in this component: the input's `max` (which stops
 // the picker offering a future date at all) and the submit check (which catches a typed
 // one and puts the message under the field instead of dumping a ZodError into a toast).
-// The third — the shared schema — is covered in @repo/types.
+// The third, the shared schema, is covered in @repo/types.
 
 import * as React from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -42,7 +42,7 @@ function renderDrawer() {
   );
 }
 
-/** `YYYY-MM-DDTHH:mm` in LOCAL time, `days` from now — what the input actually holds. */
+/** `YYYY-MM-DDTHH:mm` in LOCAL time, `days` from now, what the input actually holds. */
 function localDateTime(daysFromNow: number): string {
   const at = new Date(Date.now() + daysFromNow * 24 * 60 * 60 * 1000);
   return new Date(at.getTime() - at.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
@@ -57,7 +57,7 @@ beforeEach(() => {
   recordMock.mockReset().mockResolvedValue({});
 });
 
-describe("ManualPaymentFormDrawer — paid-at cannot be in the future", () => {
+describe("ManualPaymentFormDrawer, paid-at cannot be in the future", () => {
   // The quietest guard: the wrong value never gets entered.
   it("ceilings the date picker at now", () => {
     renderDrawer();
@@ -65,7 +65,7 @@ describe("ManualPaymentFormDrawer — paid-at cannot be in the future", () => {
 
     const max = input.getAttribute("max");
     expect(max).toBeTruthy();
-    // Same minute as "now" in local time — not a UTC ceiling, which would lock out staff
+    // Same minute as "now" in local time, not a UTC ceiling, which would lock out staff
     // in IST (+5:30) from recording a payment they took this morning.
     expect(max).toBe(localDateTime(0));
   });
@@ -76,14 +76,14 @@ describe("ManualPaymentFormDrawer — paid-at cannot be in the future", () => {
   });
 
   // The assertion that actually matters: a future date reaches NOTHING. Recording a payment
-  // captures it, marks the order paid, creates the enrollment and raises an invoice — all of
+  // captures it, marks the order paid, creates the enrollment and raises an invoice, all of
   // that must not happen for money nobody has taken.
   it("sends nothing to the API when the date is in the future", async () => {
     const user = userEvent.setup();
     renderDrawer();
 
     await fillRequiredFields(user);
-    // jsdom won't accept a TYPED datetime-local value — set it the way a picker would.
+    // jsdom won't accept a TYPED datetime-local value, set it the way a picker would.
     fireEvent.change(screen.getByTestId("manual-payment-paid-at"), { target: { value: localDateTime(7) } });
     await user.click(screen.getByTestId("manual-payment-submit"));
 
@@ -92,7 +92,7 @@ describe("ManualPaymentFormDrawer — paid-at cannot be in the future", () => {
 
   // WHICH guard stops it, so a future edit can't quietly remove the wrong one. Past `max`
   // the field fails native constraint validation and the browser refuses to submit the form
-  // at all — that is why the RHF `validate` rule below it never runs here, and why this
+  // at all, that is why the RHF `validate` rule below it never runs here, and why this
   // asserts on validity rather than on an error message that never renders.
   it("marks a future date invalid at the browser level", async () => {
     renderDrawer();
@@ -126,7 +126,7 @@ describe("ManualPaymentFormDrawer — paid-at cannot be in the future", () => {
     expect(recordMock.mock.calls[0]?.[0]).toMatchObject({ orderId: ORDER_ID });
   });
 
-  it("still allows leaving it blank — the server stamps now", async () => {
+  it("still allows leaving it blank, the server stamps now", async () => {
     const user = userEvent.setup();
     renderDrawer();
 

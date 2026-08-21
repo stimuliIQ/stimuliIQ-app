@@ -1,6 +1,6 @@
 // apps/api/src/modules/commerce/commerce.service.spec.ts
 //
-// Unit tests for CommerceService — covers the logic the task spec requires:
+// Unit tests for CommerceService, covers the logic the task spec requires:
 //   1. Amount computation + coupon discount (paise math: pct/flat)
 //   2. Idempotent order create (replay returns cached order)
 //   3. Verify-signature success + atomic enrollment
@@ -206,7 +206,7 @@ describe("CommerceService", () => {
       findBatchNamesByIds: jest.fn().mockResolvedValue(new Map()),
       countBatchEnrollments: jest.fn(),
       findStudentById: jest.fn(),
-      // Defaults: no open order, no live enrollment — the duplicate-order guard is a no-op
+      // Defaults: no open order, no live enrollment, the duplicate-order guard is a no-op
       // for tests that predate it. Cases exercising the guard override these per-test.
       findOpenOrdersForProgram: jest.fn().mockResolvedValue([]),
       hasActiveEnrollment: jest.fn().mockResolvedValue(false),
@@ -284,7 +284,7 @@ describe("CommerceService", () => {
   // ─── 1. COUPON DISCOUNT PAISE MATH ───────────────────────────────────────
 
   describe("coupon discount computation (paise math)", () => {
-    it("computes pct discount as floor(pricePaise * pct / 100) — integer paise, no floats", async () => {
+    it("computes pct discount as floor(pricePaise * pct / 100), integer paise, no floats", async () => {
       // 20% off ₹1001 = floor(100100 * 20 / 100) = floor(20020) = 20020 paise
       // Net = 100100 - 20020 = 80080 paise
       repository.findOrderByIdempotencyKey.mockResolvedValue(null);
@@ -463,7 +463,7 @@ describe("CommerceService", () => {
       });
       repository.countBatchEnrollments.mockResolvedValue(0);
       repository.findStudentById.mockResolvedValue({ id: STUDENT_ID, userId: "u1" });
-      // maxUses=5 used=5 — exhausted: must throw 409 ConflictException, not 400 BadRequestException
+      // maxUses=5 used=5, exhausted: must throw 409 ConflictException, not 400 BadRequestException
       repository.findCouponByCode.mockResolvedValue(
         makeMockCouponRow({ maxUses: 5, used: 5 }),
       );
@@ -538,7 +538,7 @@ describe("CommerceService", () => {
   // ─── 2b. DUPLICATE-ORDER GUARD ────────────────────────────────────────────
   //
   // Regression: "Add program" clicked twice created two identical open orders for the
-  // same student/program/batch (production, 2026-08-06 — 30 seconds apart, ₹6,999 each).
+  // same student/program/batch (production, 2026-08-06, 30 seconds apart, ₹6,999 each).
   // The idempotency key does NOT cover this: a second deliberate click mints a fresh key,
   // so `findOrderByIdempotencyKey` misses and the create sailed through.
 
@@ -624,7 +624,7 @@ describe("CommerceService", () => {
     it("ALLOWS re-enrolling when the previous enrollment was soft-deleted (hard-restore path)", async () => {
       arrangeValidOrderRequest();
       // hasActiveEnrollment already filters `deletedAt: null`, so a soft-deleted
-      // enrollment reads as false — the restore flow must stay open.
+      // enrollment reads as false, the restore flow must stay open.
       repository.hasActiveEnrollment.mockResolvedValue(false);
 
       await withScope("all", () =>
@@ -656,15 +656,15 @@ describe("CommerceService", () => {
         ),
       ).rejects.toBeInstanceOf(ConflictException);
 
-      // The guard runs BEFORE the coupon `used` increment — a rejected duplicate must not
+      // The guard runs BEFORE the coupon `used` increment, a rejected duplicate must not
       // consume one of a limited-use coupon's redemptions.
       expect(repository.incrementCouponUsed).not.toHaveBeenCalled();
     });
   });
 
-  // ─── 3. VERIFY PAYMENT — SUCCESS + ATOMIC ENROLLMENT ─────────────────────
+  // ─── 3. VERIFY PAYMENT, SUCCESS + ATOMIC ENROLLMENT ─────────────────────
 
-  describe("verifyPayment — success path", () => {
+  describe("verifyPayment, success path", () => {
     it("captures payment, marks order paid, creates enrollment atomically", async () => {
       repository.findPaymentByProviderPaymentId.mockResolvedValue(null); // not yet captured
       repository.findPaymentByProviderOrderId.mockResolvedValue(
@@ -820,9 +820,9 @@ describe("CommerceService", () => {
     });
   });
 
-  // ─── 4. VERIFY PAYMENT — SIGNATURE FAILURE ───────────────────────────────
+  // ─── 4. VERIFY PAYMENT, SIGNATURE FAILURE ───────────────────────────────
 
-  describe("verifyPayment — signature failure", () => {
+  describe("verifyPayment, signature failure", () => {
     it("marks payment as failed and throws 422 on bad signature", async () => {
       repository.findPaymentByProviderPaymentId.mockResolvedValue(null);
       repository.findPaymentByProviderOrderId.mockResolvedValue(
@@ -856,7 +856,7 @@ describe("CommerceService", () => {
     });
   });
 
-  // ─── 5. WEBHOOK — FAIL-CLOSED + IDEMPOTENT ───────────────────────────────
+  // ─── 5. WEBHOOK, FAIL-CLOSED + IDEMPOTENT ───────────────────────────────
 
   describe("webhook processing", () => {
     it("calls webhookProcessor.process with the payload", async () => {
@@ -881,7 +881,7 @@ describe("CommerceService", () => {
 
   describe("refund approval", () => {
     it("approves a requested refund, calls provider.refund, marks processed (via transaction)", async () => {
-      // M-2 fix: requestedById must differ from ACTOR_ID (the approver) — maker-checker
+      // M-2 fix: requestedById must differ from ACTOR_ID (the approver), maker-checker
       const refundRow = makeMockRefundRow({ requestedById: REQUESTER_ID });
       repository.findRefundById
         .mockResolvedValueOnce(refundRow) // first call (find by id)
@@ -915,7 +915,7 @@ describe("CommerceService", () => {
         idempotencyKey: REFUND_ID,
         notes: expect.any(Object),
       });
-      // M-1 fix: updateRefundApprove is no longer called directly — writes go via txn
+      // M-1 fix: updateRefundApprove is no longer called directly, writes go via txn
       expect(repository.transaction).toHaveBeenCalledTimes(1);
       expect(fakeTx.refund.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -939,7 +939,7 @@ describe("CommerceService", () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it("rejects refund — finance/owner guard is on the controller (documented)", async () => {
+    it("rejects refund, finance/owner guard is on the controller (documented)", async () => {
       // The 'refunds.approve' permission check is enforced by PermissionsGuard
       // at the controller level (@RequirePermission('refunds.approve')), not
       // in the service. The service trusts that the guard already ran.
@@ -1017,7 +1017,7 @@ describe("CommerceService", () => {
         service.approveRefund(TENANT_ID, ACTOR_ID, REFUND_ID, {}),
       );
 
-      // Should return existing refund immediately — no provider call, no transaction
+      // Should return existing refund immediately, no provider call, no transaction
       expect(result.status).toBe("processed");
       expect(paymentProvider.refund).not.toHaveBeenCalled();
       expect(repository.transaction).not.toHaveBeenCalled();
@@ -1025,9 +1025,9 @@ describe("CommerceService", () => {
     });
   });
 
-  // ─── 6b. MANUAL PAYMENT — reference persisted (M-6) ──────────────────────
+  // ─── 6b. MANUAL PAYMENT, reference persisted (M-6) ──────────────────────
 
-  describe("recordManualPayment — M-6 reference persistence", () => {
+  describe("recordManualPayment, M-6 reference persistence", () => {
     it("persists reference and notes fields on the payment row", async () => {
       const order = makeMockOrderRow({ status: "created", notes: { batchId: BATCH_ID } });
       repository.findOrderById.mockResolvedValue(order);
@@ -1073,7 +1073,7 @@ describe("CommerceService", () => {
         }),
       );
 
-      // Manual/offline payments never get a Razorpay webhook — this path is the ONLY
+      // Manual/offline payments never get a Razorpay webhook, this path is the ONLY
       // place their LMS login can be issued, so the capture must provision.
       expect(lmsProvisioning.provisionQuiet).toHaveBeenCalledWith(TENANT_ID, order.studentId);
     });
@@ -1356,7 +1356,7 @@ describe("CommerceService", () => {
 
     // P2 M-3 fix (Phase-7 Wave 2 security hardening batch B, item 4): getOrderById now
     // pushes restrictToBranchIds straight into findOrderById's own WHERE clause, instead
-    // of re-querying a pageSize:1 list and checking `rows.some(...)` — the prior approach
+    // of re-querying a pageSize:1 list and checking `rows.some(...)`, the prior approach
     // could false-404 an in-scope order that wasn't the single newest match.
     it("getOrderById passes restrictToBranchIds directly into findOrderById (not a list re-query)", async () => {
       repository.listCallerBranchIds.mockResolvedValue(["branch-1"]);
@@ -1368,7 +1368,7 @@ describe("CommerceService", () => {
 
       expect(result).toBeDefined();
       expect(repository.findOrderById).toHaveBeenCalledWith(TENANT_ID, "order-1", false, ["branch-1"]);
-      // The old, replaced approach called listOrders as a side-channel scope check —
+      // The old, replaced approach called listOrders as a side-channel scope check,
       // getOrderById must no longer do that.
       expect(repository.listOrders).not.toHaveBeenCalled();
     });

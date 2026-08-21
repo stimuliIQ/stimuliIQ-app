@@ -32,7 +32,7 @@ export function StudentTicketsTab({ userId }: { userId: string; studentName: str
     { id: "status", header: "Status", cell: (row) => <StatusChip tone={STATUS_TONE[row.status]} label={row.status.replace("_", " ")} size="sm" /> },
     { id: "priority", header: "Priority", cell: (row) => <StatusChip tone={PRIORITY_TONE[row.priority]} label={row.priority} size="sm" /> },
     { id: "assigneeName", header: "Assigned to", cell: (row) => row.assigneeName ?? "Unassigned" },
-    { id: "slaDueAt", header: "SLA", cell: (row) => (row.slaDueAt ? <SlaChip dueAt={new Date(row.slaDueAt)} size="sm" /> : "—") },
+    { id: "slaDueAt", header: "SLA", cell: (row) => (row.slaDueAt ? <SlaChip dueAt={new Date(row.slaDueAt)} size="sm" /> : "-") },
   ];
 
   if (isError) {

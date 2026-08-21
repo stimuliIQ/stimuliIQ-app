@@ -29,7 +29,7 @@ import { hasPermission } from "../../lib/permissions";
 import { CareerApplicationDrawer, applicationStatusLabel, applicationStatusTone } from "./career-application-drawer";
 
 const STATUS_FILTERS: Array<{ value: CareerApplicationStatus | ""; label: string }> = [
-  { value: "new", label: "New — awaiting a decision" },
+  { value: "new", label: "New, awaiting a decision" },
   { value: "shortlisted", label: "Next round" },
   { value: "on_hold", label: "On hold" },
   { value: "selected", label: "Offer sent" },
@@ -113,7 +113,7 @@ export function CareerApplicationsWorkspace({
     {
       id: "decidedBy",
       header: "Decided by",
-      cell: (row) => row.decidedByName ?? <span className="text-xs text-fg-subtle">—</span>,
+      cell: (row) => row.decidedByName ?? <span className="text-xs text-fg-subtle">-</span>,
     },
   ];
 
@@ -137,7 +137,7 @@ export function CareerApplicationsWorkspace({
     <div className="space-y-4 md:space-y-5" data-testid="career-applications-workspace">
       <PageHeader
         title="Applications"
-        description="Everyone who has applied through the careers page. Open a candidate to read their resume and decide — every decision except Hold emails them."
+        description="Everyone who has applied through the careers page. Open a candidate to read their resume and decide. Every decision except Hold emails them."
       />
 
       <div className="flex flex-wrap items-end gap-3">

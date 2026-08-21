@@ -117,7 +117,7 @@ function GradeFeedback({
       {/* Score */}
       <div className="mb-4 flex items-center gap-3" data-testid="assignment-score">
         <span className="text-3xl font-bold tabular-nums text-fg">
-          {score !== null ? score : "—"}
+          {score !== null ? score : "-"}
         </span>
         <span className="text-lg text-fg-muted">/ {maxScore}</span>
         {score !== null ? (

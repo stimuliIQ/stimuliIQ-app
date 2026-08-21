@@ -139,7 +139,7 @@ export type VerifyPaymentRequest = z.infer<typeof VerifyPaymentRequestSchema>;
  * signature verification + `event` field narrowing in the backend handler.
  */
 export const RazorpayWebhookSchema = z.record(z.string(), z.unknown()).describe(
-  "Razorpay webhook payload — intentional passthrough shape. " +
+  "Razorpay webhook payload, intentional passthrough shape. " +
     "Signature MUST be verified via X-Razorpay-Signature header before processing. " +
     "Backend pattern-matches on `event` field for known event types.",
 );
@@ -207,7 +207,7 @@ export const ManualPaymentRequestSchema = z
         message: "A payment can't be recorded as received in the future.",
       })
       .describe(
-        "When the payment was physically RECEIVED — a past instant. Defaults to now if omitted. " +
+        "When the payment was physically RECEIVED. A past instant. Defaults to now if omitted. " +
           "Never a future date: this row asserts money has already arrived.",
       ),
     notes: z.string().max(500).optional().describe("Staff notes on this payment entry."),

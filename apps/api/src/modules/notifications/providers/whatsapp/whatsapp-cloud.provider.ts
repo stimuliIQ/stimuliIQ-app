@@ -217,7 +217,7 @@ export class WhatsAppCloudProvider implements WhatsAppProvider {
   verifyWebhookSignature(input: VerifyWhatsAppWebhookInput): boolean {
     if (!input.secret) {
       this.logger.warn(
-        "[WhatsAppCloudProvider] verifyWebhookSignature: WHATSAPP_APP_SECRET is absent — " +
+        "[WhatsAppCloudProvider] verifyWebhookSignature: WHATSAPP_APP_SECRET is absent, " +
           "returning false (fail-closed). Set WHATSAPP_APP_SECRET in your environment.",
       );
       return false;
@@ -249,7 +249,7 @@ export class WhatsAppCloudProvider implements WhatsAppProvider {
     } catch {
       // Never log the secret or the signature value.
       this.logger.warn(
-        "[WhatsAppCloudProvider] verifyWebhookSignature: exception during HMAC comparison — returning false.",
+        "[WhatsAppCloudProvider] verifyWebhookSignature: exception during HMAC comparison, returning false.",
       );
       return false;
     }

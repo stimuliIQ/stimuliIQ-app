@@ -74,7 +74,7 @@ describe("summariseTargetMetric", () => {
     });
   });
 
-  it("clamps pending at zero when the target is beaten — a bar must not run backwards", () => {
+  it("clamps pending at zero when the target is beaten, a bar must not run backwards", () => {
     const over = summariseTargetMetric(40, 55);
     expect(over.pending).toBe(0);
     expect(over.percent).toBe(1);
@@ -144,7 +144,7 @@ describe("UpsertMarketingTargetRequest", () => {
     expect(r.success).toBe(true);
   });
 
-  it("REJECTS a target that measures nothing — that is what deleting is for", () => {
+  it("REJECTS a target that measures nothing, that is what deleting is for", () => {
     const r = UpsertMarketingTargetRequestSchema.safeParse({
       ...base,
       conversionsTarget: 0,
@@ -153,7 +153,7 @@ describe("UpsertMarketingTargetRequest", () => {
     expect(r.success).toBe(false);
   });
 
-  it("rejects fractional or negative rupees — paise are integer minor units", () => {
+  it("rejects fractional or negative rupees, paise are integer minor units", () => {
     for (const revenueTargetPaise of [-1, 1500.5]) {
       const r = UpsertMarketingTargetRequestSchema.safeParse({
         ...base,

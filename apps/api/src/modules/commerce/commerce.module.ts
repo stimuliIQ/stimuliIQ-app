@@ -51,7 +51,7 @@ const bootLogger = new Logger("CommerceModule");
 function createInvoiceGenPort(sync: SyncInvoiceGenAdapter): InvoiceGenPort {
   const env = validateEnv();
   if (env.QUEUE_DRIVER === "bullmq") {
-    bootLogger.log("[CommerceModule] QUEUE_DRIVER=bullmq — binding BullMqInvoiceGenAdapter.");
+    bootLogger.log("[CommerceModule] QUEUE_DRIVER=bullmq, binding BullMqInvoiceGenAdapter.");
     return new BullMqInvoiceGenAdapter();
   }
   return sync;
@@ -60,7 +60,7 @@ function createInvoiceGenPort(sync: SyncInvoiceGenAdapter): InvoiceGenPort {
 function createWebhookProcessorPort(sync: SyncWebhookProcessorAdapter): WebhookProcessorPort {
   const env = validateEnv();
   if (env.QUEUE_DRIVER === "bullmq") {
-    bootLogger.log("[CommerceModule] QUEUE_DRIVER=bullmq — binding BullMqWebhookProcessorAdapter.");
+    bootLogger.log("[CommerceModule] QUEUE_DRIVER=bullmq, binding BullMqWebhookProcessorAdapter.");
     return new BullMqWebhookProcessorAdapter();
   }
   return sync;
@@ -69,7 +69,7 @@ function createWebhookProcessorPort(sync: SyncWebhookProcessorAdapter): WebhookP
 function createReceiptGenPort(sync: SyncReceiptGenAdapter): ReceiptGenPort {
   const env = validateEnv();
   if (env.QUEUE_DRIVER === "bullmq") {
-    bootLogger.log("[CommerceModule] QUEUE_DRIVER=bullmq — binding BullMqReceiptGenAdapter.");
+    bootLogger.log("[CommerceModule] QUEUE_DRIVER=bullmq, binding BullMqReceiptGenAdapter.");
     return new BullMqReceiptGenAdapter();
   }
   return sync;

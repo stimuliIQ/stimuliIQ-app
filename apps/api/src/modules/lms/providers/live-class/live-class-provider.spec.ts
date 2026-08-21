@@ -3,7 +3,7 @@
 // Unit tests for the LiveClassProvider adapters + the module's fail-closed boot guard
 // (docs/plans/phase-9-completion.md T15). Mirrors video-provider.spec.ts /
 // payment-provider.module.spec.ts's test strategy:
-//   - All tests are UNIT — no live network calls, no real Zoom/Google credentials.
+//   - All tests are UNIT, no live network calls, no real Zoom/Google credentials.
 //   - node:crypto HMAC is real (verifies actual signature correctness).
 //   - The module-level fail-closed guard is driven through NestJS compilation exactly
 //     as boot does.

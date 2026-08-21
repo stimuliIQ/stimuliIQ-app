@@ -91,7 +91,7 @@ export class NoopMailProvider implements MailProvider {
   verifyWebhookSignature(input: VerifyMailWebhookInput): boolean {
     if (!input.secret) {
       this.logger.warn(
-        "[NoopMailProvider] verifyWebhookSignature: secret is absent — returning false (fail-closed).",
+        "[NoopMailProvider] verifyWebhookSignature: secret is absent, returning false (fail-closed).",
       );
       return false;
     }
@@ -106,7 +106,7 @@ export class NoopMailProvider implements MailProvider {
       // Parse incoming svixSignature — may be "v1,<base64>" or multiple comma-separated sigs.
       return NoopMailProvider.compareSvixSignatures(input.svixSignature, expectedSig);
     } catch {
-      this.logger.warn("[NoopMailProvider] verifyWebhookSignature: error during verification — returning false.");
+      this.logger.warn("[NoopMailProvider] verifyWebhookSignature: error during verification, returning false.");
       return false;
     }
   }

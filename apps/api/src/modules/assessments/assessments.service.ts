@@ -611,7 +611,7 @@ export class AssessmentsService {
         code: "ATTEMPTS_EXHAUSTED",
         title: "No attempts remaining",
         detail: wave.retryAvailableAt
-          ? `You have used all ${row.attemptsAllowed} attempts for now. A fresh set opens automatically after the cooldown — please try again once it lifts.`
+          ? `You have used all ${row.attemptsAllowed} attempts for now. A fresh set opens automatically after the cooldown. Please try again once it lifts.`
           : `You have used all ${row.attemptsAllowed} allowed attempt(s) for this assessment.`,
         retryAvailableAt: wave.retryAvailableAt?.toISOString() ?? null,
       });
@@ -717,7 +717,7 @@ export class AssessmentsService {
       const existingFlags = (attempt.flags as Record<string, unknown>) ?? {};
       const qResults = (existingFlags[QUESTION_RESULTS_FLAGS_KEY] ?? null) as QuestionResult[] | null;
       this.logger.log(
-        `[AssessmentsService] Idempotent submit: attempt=${attemptId} already submitted — returning cached result`,
+        `[AssessmentsService] Idempotent submit: attempt=${attemptId} already submitted, returning cached result`,
       );
       return toAttemptResultDto(attempt, qResults, attemptsRemaining);
     }

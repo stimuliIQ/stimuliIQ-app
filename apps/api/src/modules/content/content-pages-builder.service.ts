@@ -70,7 +70,7 @@ function templateViolationError(slug: string, errors: TemplateValidationError[])
   return new UnprocessableEntityException({
     code: "content.builder.template_violation",
     title: "Page layout does not match its locked template",
-    detail: `"${slug}" is a locked-template page (docs/plans/phase-11-locked-templates.md) — sections cannot be added, removed, reordered, or given the wrong type; only field values may change.`,
+    detail: `"${slug}" is a locked-template page (docs/plans/phase-11-locked-templates.md). Sections cannot be added, removed, reordered, or given the wrong type; only field values may change.`,
     errors,
   });
 }

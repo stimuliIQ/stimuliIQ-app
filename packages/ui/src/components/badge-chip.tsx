@@ -126,7 +126,7 @@ export const BadgeChip = React.forwardRef<HTMLDivElement, BadgeChipProps>(
         data-earned={earned}
         data-locked={isLocked}
         title={description}
-        aria-label={`${name}${isLocked ? " — Locked" : ""}`}
+        aria-label={`${name}${isLocked ? ", Locked" : ""}`}
         className={cn(
           "relative flex flex-col items-center justify-center rounded-xl border p-1 text-center",
           "transition-colors",

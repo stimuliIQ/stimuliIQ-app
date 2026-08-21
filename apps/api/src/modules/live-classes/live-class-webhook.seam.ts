@@ -42,7 +42,7 @@ export class SyncLiveClassWebhookProcessorAdapter implements LiveClassWebhookPro
     const liveClass = await this.repository.findByProviderMeetingId(event.providerMeetingId);
     if (!liveClass) {
       this.logger.warn(
-        `[LiveClassWebhook] No live_classes row found for providerMeetingId=${event.providerMeetingId} — ignoring`,
+        `[LiveClassWebhook] No live_classes row found for providerMeetingId=${event.providerMeetingId}, ignoring`,
       );
       return;
     }
@@ -65,7 +65,7 @@ export class SyncLiveClassWebhookProcessorAdapter implements LiveClassWebhookPro
       case "participant_joined": {
         const email = event.participant?.email;
         if (!email) {
-          this.logger.debug("[LiveClassWebhook] participant_joined with no email — cannot resolve internal user, ignoring");
+          this.logger.debug("[LiveClassWebhook] participant_joined with no email. Cannot resolve internal user, ignoring");
           return;
         }
         const enrollment = await this.repository.findActiveEnrollmentForBatchByEmail(
@@ -75,7 +75,7 @@ export class SyncLiveClassWebhookProcessorAdapter implements LiveClassWebhookPro
         );
         if (!enrollment) {
           this.logger.debug(
-            `[LiveClassWebhook] participant_joined email=${email.slice(0, 3)}*** has no active enrollment in batchId=${liveClass.batchId} — ignoring`,
+            `[LiveClassWebhook] participant_joined email=${email.slice(0, 3)}*** has no active enrollment in batchId=${liveClass.batchId}, ignoring`,
           );
           return;
         }

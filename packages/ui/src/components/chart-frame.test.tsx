@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 
 import { ChartFrame, ChartLegend } from "./chart-frame";
 
-describe("ChartFrame — accessible shell", () => {
+describe("ChartFrame, accessible shell", () => {
   it("renders a figure with role=img and an accessible name from title", () => {
     render(
       <ChartFrame title="Revenue trend" table={<tbody><tr><td>1</td></tr></tbody>}>
@@ -23,7 +23,7 @@ describe("ChartFrame — accessible shell", () => {
         <div>chart</div>
       </ChartFrame>,
     );
-    expect(screen.getByRole("img", { name: "Revenue trend — Last 30 days" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Revenue trend, Last 30 days" })).toBeInTheDocument();
   });
 
   it("renders a visually-hidden data table fallback with the same data", () => {

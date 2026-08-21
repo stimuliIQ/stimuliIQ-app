@@ -2,7 +2,7 @@
 //
 // This action is strictly more powerful than "Reset password": the operator chooses the
 // value, so the operator knows it and can sign in as that user. These tests pin the two
-// things that keep it from being a foot-gun — the confirmation field actually blocks a
+// things that keep it from being a foot-gun, the confirmation field actually blocks a
 // typo, and the dialog says out loud who ends up knowing the password.
 import * as React from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -122,7 +122,7 @@ describe("SetPasswordDrawer", () => {
 
 // Sign-in requires a non-empty hash AND status "active". Setting a password on an invited
 // account without promoting it produces a credential that cannot be used.
-describe("SetPasswordDrawer — invited accounts", () => {
+describe("SetPasswordDrawer, invited accounts", () => {
   it("promotes an invited account to active so the new password actually works", async () => {
     const user = userEvent.setup();
     renderDrawer({ ...USER, status: "invited" } as StaffUser);

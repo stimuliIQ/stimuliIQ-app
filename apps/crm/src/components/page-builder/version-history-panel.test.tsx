@@ -1,5 +1,5 @@
 // Regression test for QA D2: version rows must NEVER show a "Current"/live badge, and
-// revert must be enabled on EVERY row (including the newest) — save-before-apply means no
+// revert must be enabled on EVERY row (including the newest), save-before-apply means no
 // version snapshot ever equals the live page, so there is no row to correctly disable.
 import * as React from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -40,14 +40,14 @@ beforeEach(() => {
   useRevertContentPageVersionMock.mockReturnValue({ mutateAsync: vi.fn(), isPending: false });
 });
 
-describe("VersionHistoryPanel — QA D2 (no 'Current' concept; every version revertible)", () => {
+describe("VersionHistoryPanel, QA D2 (no 'Current' concept; every version revertible)", () => {
   it("never renders a 'Current' badge on any row, even when a version number equals currentVersion", () => {
-    // `currentVersion=2` mirrors the OLD (buggy) comparison target — must have NO effect now.
+    // `currentVersion=2` mirrors the OLD (buggy) comparison target, must have NO effect now.
     renderPanel(2);
     expect(screen.queryByText("Current")).not.toBeInTheDocument();
   });
 
-  it("labels only the newest (first, list-position) row 'Before last save' — not by comparing to currentVersion", () => {
+  it("labels only the newest (first, list-position) row 'Before last save', not by comparing to currentVersion", () => {
     renderPanel(2);
     const rows = screen.getAllByText("Before last save");
     expect(rows).toHaveLength(1);

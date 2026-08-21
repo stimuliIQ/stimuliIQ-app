@@ -69,7 +69,7 @@ export class HealthService {
       return "ok";
     } catch (err) {
       this.logger.warn(
-        `Readiness check: Postgres unreachable — ${err instanceof Error ? err.message : "unknown error"}`,
+        `Readiness check: Postgres unreachable · ${err instanceof Error ? err.message : "unknown error"}`,
       );
       return "down";
     }
@@ -81,7 +81,7 @@ export class HealthService {
       return "ok";
     } catch (err) {
       this.logger.warn(
-        `Readiness check: Redis unreachable — ${err instanceof Error ? err.message : "unknown error"}`,
+        `Readiness check: Redis unreachable · ${err instanceof Error ? err.message : "unknown error"}`,
       );
       return "down";
     }

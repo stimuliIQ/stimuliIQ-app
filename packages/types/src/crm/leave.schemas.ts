@@ -221,7 +221,7 @@ export function computeLeaveDuration(input: LeaveDurationInput): LeaveDurationRe
     issues.push({
       code: "invalid_day_part",
       message:
-        "On leave of more than one day, the first day can only be a full day or a second half — " +
+        "On leave of more than one day, the first day can only be a full day or a second half, " +
         "taking just the first half would mean coming back the same afternoon.",
     });
     return empty();
@@ -231,7 +231,7 @@ export function computeLeaveDuration(input: LeaveDurationInput): LeaveDurationRe
     issues.push({
       code: "invalid_day_part",
       message:
-        "On leave of more than one day, the last day can only be a full day or a first half — " +
+        "On leave of more than one day, the last day can only be a full day or a first half, " +
         "taking just the second half would mean working that morning after being away.",
     });
     return empty();

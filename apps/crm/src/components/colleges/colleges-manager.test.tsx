@@ -19,7 +19,7 @@ const useUpdateCollegeMock = vi.fn();
 vi.mock("../../hooks/use-colleges", () => ({
   useCollegesList: (...args: unknown[]) => useCollegesListMock(...args),
   useDeleteCollege: (...args: unknown[]) => useDeleteCollegeMock(...args),
-  // CollegeFormDrawer (always mounted by CollegesManager, gated by its own `open` prop —
+  // CollegeFormDrawer (always mounted by CollegesManager, gated by its own `open` prop,
   // not conditionally rendered on row click) calls both of these unconditionally.
   useCreateCollege: (...args: unknown[]) => useCreateCollegeMock(...args),
   useUpdateCollege: (...args: unknown[]) => useUpdateCollegeMock(...args),
@@ -37,8 +37,8 @@ const FULL_ACCESS_ME: MeResponse = {
   ],
 };
 
-// A role that can only VIEW (mirrors a `content.view`-only grant — e.g. a role with
-// read access to the CMS but no mutation rights) — proves the create button and
+// A role that can only VIEW (mirrors a `content.view`-only grant, e.g. a role with
+// read access to the CMS but no mutation rights), proves the create button and
 // per-row delete button are gated on content.create/content.delete, not merely on
 // being logged in.
 const VIEW_ONLY_ME: MeResponse = {
@@ -77,7 +77,7 @@ beforeEach(() => {
   useCollegesListMock.mockReturnValue({ data: { items: [COLLEGE_A] }, isLoading: false, isError: false, refetch: vi.fn() });
 });
 
-describe("CollegesManager — list rendering", () => {
+describe("CollegesManager, list rendering", () => {
   it("renders a college row with its focus/established/city columns", () => {
     renderManager();
     expect(screen.getByTestId("colleges-table")).toBeInTheDocument();
@@ -94,7 +94,7 @@ describe("CollegesManager — list rendering", () => {
   });
 });
 
-describe("CollegesManager — RBAC gating (content.create / content.delete)", () => {
+describe("CollegesManager, RBAC gating (content.create / content.delete)", () => {
   it("shows the 'New college' button and a per-row delete button for a full-access user", () => {
     renderManager(FULL_ACCESS_ME);
     expect(screen.getByTestId("college-create-button")).toBeInTheDocument();
@@ -108,7 +108,7 @@ describe("CollegesManager — RBAC gating (content.create / content.delete)", ()
   });
 });
 
-describe("CollegesManager — delete confirmation flow", () => {
+describe("CollegesManager, delete confirmation flow", () => {
   it("clicking the row's delete button opens a confirm dialog before mutating", async () => {
     const { default: userEvent } = await import("@testing-library/user-event");
     const user = userEvent.setup();
@@ -119,7 +119,7 @@ describe("CollegesManager — delete confirmation flow", () => {
   });
 });
 
-describe("CollegesManager — a11y", () => {
+describe("CollegesManager, a11y", () => {
   it("has no detectable a11y violations with a populated list", async () => {
     const { container } = renderManager();
     const results = await axe(container);

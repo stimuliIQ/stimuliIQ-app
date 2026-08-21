@@ -82,7 +82,7 @@ export function Topbar({ me, onLogout, loggingOut, onOpenMobileNav }: TopbarProp
       <NotificationsBell />
 
       <AccountMenu
-        name={me?.user.name ?? "—"}
+        name={me?.user.name ?? "-"}
         roles={me?.roles.join(", ") ?? ""}
         avatarUrl={me?.user.avatar ?? null}
         loggingOut={loggingOut}

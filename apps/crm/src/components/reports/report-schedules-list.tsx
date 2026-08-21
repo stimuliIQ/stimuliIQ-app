@@ -120,7 +120,7 @@ export function ReportSchedulesList(): React.JSX.Element {
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm text-fg-muted">
           Recurring report emails. A schedule's data is re-evaluated at send time from the
-          recipient's own permissions — it never sends data the recipient can no longer access.
+          recipient's own permissions. It never sends data the recipient can no longer access.
         </p>
         <Button onClick={() => setCreateOpen(true)} data-testid="schedules-create-button">
           <Plus className="size-4" aria-hidden="true" />

@@ -115,7 +115,7 @@ export function PartnersManager({ me }: { me: MeResponse | undefined }): React.J
 
   const columns: Array<DataTableColumn<Partner>> = [
     { id: "name", header: "Name", cell: (row) => row.name },
-    { id: "category", header: "Category", cell: (row) => row.category ?? "—" },
+    { id: "category", header: "Category", cell: (row) => row.category ?? "-" },
     { id: "status", header: "Status", cell: (row) => <StatusChip tone={STATUS_TONE[row.status]} label={row.status} size="sm" /> },
     { id: "order", header: "Order", cell: (row) => row.order, align: "right" },
     {

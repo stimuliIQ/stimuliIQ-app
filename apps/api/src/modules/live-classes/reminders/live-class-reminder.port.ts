@@ -73,7 +73,7 @@ export class SyncLiveClassReminderAdapter implements LiveClassReminderPort {
 
   async scheduleReminders(input: ScheduleReminderInput): Promise<void> {
     this.logger.warn(
-      `[LiveClassReminder] QUEUE_DRIVER=sync cannot delay work into the future — reminder for ` +
+      `[LiveClassReminder] QUEUE_DRIVER=sync cannot delay work into the future, reminder for ` +
         `liveClassId=${input.liveClassId} (${input.recipients.length} recipients, offset=${input.offsetMinutes}min) ` +
         "was NOT scheduled. Set QUEUE_DRIVER=bullmq for real reminder delivery.",
     );

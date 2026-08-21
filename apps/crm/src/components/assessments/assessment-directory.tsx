@@ -203,7 +203,7 @@ export function AssessmentDirectory({ me }: AssessmentDirectoryProps): React.JSX
         >
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-fg">
-              Question bank (faculty view — answer keys shown here only)
+              Question bank (faculty view. Answer keys shown here only)
             </h2>
             <Button
               variant="ghost"

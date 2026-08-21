@@ -57,7 +57,7 @@ export function VideoLibraryDirectory({ me }: { me: MeResponse | undefined }): R
     {
       id: "durationS",
       header: "Duration",
-      cell: (row) => (row.durationS ? `${Math.floor(row.durationS / 60)}m ${row.durationS % 60}s` : "—"),
+      cell: (row) => (row.durationS ? `${Math.floor(row.durationS / 60)}m ${row.durationS % 60}s` : "-"),
       align: "right",
     },
     { id: "captions", header: "Captions", cell: (row) => (row.captions?.length ? `${row.captions.length} track(s)` : "None") },

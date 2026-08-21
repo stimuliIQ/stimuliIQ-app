@@ -59,7 +59,7 @@ export type CitySeoDetailResponse = z.infer<typeof CitySeoDetailResponseSchema>;
 export const BundleSchema = z.object({
   domain: z
     .string()
-    .describe('`programs.domain` — used as the "track" grouping key (e.g. "Full Stack Development").'),
+    .describe('`programs.domain`, used as the "track" grouping key (e.g. "Full Stack Development").'),
   programCount: z.number().int().min(0),
   minPricePaise: z.number().int().min(0),
   maxPricePaise: z.number().int().min(0),

@@ -78,7 +78,7 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettingsResponse = {
   "seo.defaults": {
     siteName: "StimuliiQ",
     defaultDescription:
-      "StimuliiQ — India's next generation healthcare learning platform. Structured training, real internships, and mentorship from healthcare industry experts for medical, psychology, and allied health science students.",
+      "StimuliiQ, India's next generation healthcare learning platform. Structured training, real internships, and mentorship from healthcare industry experts for medical, psychology, and allied health science students.",
     defaultOgImagePath: "/og-default.png",
   },
   "contact.details": {
@@ -96,7 +96,7 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettingsResponse = {
   // in CRM → Marketing → Site settings → Announcement.
   "announcement.bar": {
     enabled: false,
-    message: "Admissions are open — book a free counselling slot today.",
+    message: "Admissions are open. Book a free counselling slot today.",
     mode: "static",
   },
 };

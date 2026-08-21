@@ -51,7 +51,7 @@ export class PublicBookingRateLimiter {
     } catch (err) {
       // H-1: Fail CLOSED — treat Redis error as rate-limited to preserve abuse protection.
       this.logger.error(
-        `[PublicBookingRateLimiter] Redis error for key ${k} — failing closed (treating as rate-limited): ${String(err)}`,
+        `[PublicBookingRateLimiter] Redis error for key ${k}. Failing closed (treating as rate-limited): ${String(err)}`,
       );
       return true;
     }

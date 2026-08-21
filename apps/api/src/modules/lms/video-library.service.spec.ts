@@ -2,7 +2,7 @@
 //
 // Unit tests for VideoLibraryService: scope resolution (all vs. assigned-faculty via
 // EnrollmentScopeRepository), ingest creates a NEW video for a lesson with none,
-// replace-in-place for a lesson that already has one (hard-unique lessonId — see
+// replace-in-place for a lesson that already has one (hard-unique lessonId, see
 // video-library.repository.ts file header), IDOR -> 404 for an out-of-scope lesson.
 
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
@@ -13,14 +13,14 @@ import { EnrollmentScopeRepository } from "../common-scope/enrollment-scope.repo
 import type { VideoProvider } from "./providers/video/video-provider.interface";
 import { scopeContextStorage, type ScopeContext } from "../auth/lib/scope-context";
 
-// qa-engineer Wave 5 (docs/plans/phase-9-completion.md T41 item 1 — cold-validateEnv
+// qa-engineer Wave 5 (docs/plans/phase-9-completion.md T41 item 1, cold-validateEnv
 // test-hygiene): this spec is a pure unit test (every collaborator above is mocked) and
 // only needs `VideoLibraryService.providerKey()` (video-library.service.ts) to resolve
-// SOME value for `VIDEO_PROVIDER` — it never asserts anything about env validation
+// SOME value for `VIDEO_PROVIDER`, it never asserts anything about env validation
 // itself. Previously it called the REAL `validateEnv()` with no env set up at all, which
 // only passed when an earlier spec in the same Jest worker had already warmed the
 // module-level cache via ambient exported env vars (DATABASE_URL etc. have no schema
-// default — see config/env.ts). Mocking the module at the same specifier every importer
+// default, see config/env.ts). Mocking the module at the same specifier every importer
 // resolves (this file and video-library.service.ts both `require("../../config/env")`
 // from the same `src/modules/lms/` directory, so Jest's module registry treats them as
 // the same mocked module) makes this file self-contained with no dependency on
@@ -115,7 +115,7 @@ describe("VideoLibraryService", () => {
     });
   });
 
-  describe("create() — ingest", () => {
+  describe("create(), ingest", () => {
     it("404s (IDOR) when the lesson does not exist", async () => {
       repo.findLessonForIngest.mockResolvedValue(null);
       await expect(
@@ -147,7 +147,7 @@ describe("VideoLibraryService", () => {
     });
 
     // The LMS renders a player only for `type === "video"` (lesson-detail-content.tsx), and
-    // the CRM lets an author attach to ANY lesson — so without this the upload completes,
+    // the CRM lets an author attach to ANY lesson, so without this the upload completes,
     // the transcode finishes, and the student sees a reading page with no video on it.
     it("makes the lesson a video lesson, so the upload is actually visible to students", async () => {
       repo.findLessonForIngest.mockResolvedValue({ id: "lesson-1", title: "Intro to CSS", programId: "program-1" });

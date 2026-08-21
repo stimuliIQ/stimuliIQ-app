@@ -114,7 +114,7 @@ export class CareersNotificationService {
         title: "You're through to the next round",
         greeting: `Hi ${name},`,
         paragraphs: [
-          `Good news — after reviewing your application for the <strong>${role}</strong> role, we'd like to take you through to the <strong>${round}</strong>.`,
+          `Good news. After reviewing your application for the <strong>${role}</strong> role, we'd like to take you through to the <strong>${round}</strong>.`,
           // Reviewer-authored, newline-preserved: they typed it as a note to this person and
           // it should arrive looking the way they wrote it.
           escapeEmailHtml(details).replace(/\n/g, "<br />"),
@@ -187,7 +187,7 @@ export class CareersNotificationService {
         paragraphs: [
           `Thank you for applying for the <strong>${role}</strong> role at Stimuli IQ, and for the time you put into your application.`,
           "After reviewing it carefully, we've decided not to take it further on this occasion. This reflects what we need for this particular role right now, and nothing more than that.",
-          "We'd genuinely welcome an application from you for a future opening that fits your experience — our open roles are always listed on our careers page.",
+          "We'd genuinely welcome an application from you for a future opening that fits your experience. Our open roles are always listed on our careers page.",
         ],
         button: { label: "See our open roles", url: "https://www.stimuliiq.com/careers" },
         footnote: `We wish you the very best with your search. If you'd like to talk to someone, write to ${CAREERS_REPLY_TO}.`,

@@ -1,5 +1,5 @@
 // Unit tests for ObjectKeySchema's Wave security-review tightening (M1/L1):
-// docs/specs/phase-10-page-builder.md — every `*ImageKey`/`*PhotoKey` field in the
+// docs/specs/phase-10-page-builder.md, every `*ImageKey`/`*PhotoKey` field in the
 // Phase-10 block registry uses this schema. Locks in the exact attack-vector list from
 // the review (open-redirect/traversal-shaped input via a field later concatenated onto
 // a CDN base URL, content.util.ts#mintCdnUrl) and confirms the legacy `/images/...`

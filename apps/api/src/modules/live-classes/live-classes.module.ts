@@ -39,7 +39,7 @@ const bootLogger = new Logger("LiveClassesModule");
 function createReminderPort(): LiveClassReminderPort {
   const env = validateEnv();
   if (env.QUEUE_DRIVER === "bullmq") {
-    bootLogger.log("[LiveClassesModule] QUEUE_DRIVER=bullmq — binding BullMqLiveClassReminderAdapter.");
+    bootLogger.log("[LiveClassesModule] QUEUE_DRIVER=bullmq, binding BullMqLiveClassReminderAdapter.");
     return new BullMqLiveClassReminderAdapter();
   }
   return new SyncLiveClassReminderAdapter();

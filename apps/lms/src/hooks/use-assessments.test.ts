@@ -1,4 +1,4 @@
-// use-assessments hook tests — Phase 4 Task #10.
+// use-assessments hook tests, Phase 4 Task #10.
 //
 // Tests the query key structure and verifies the answer-key absence guarantee
 // at the type level (the actual security guarantee is in @repo/types and the
@@ -47,7 +47,7 @@ describe("answer-key isolation (AC-D2, AC-J9)", () => {
       options: [{ id: "a", text: "3" }, { id: "b", text: "4" }],
       points: 5,
       order: 1,
-      // ROGUE FIELD — should be stripped or cause validation failure
+      // ROGUE FIELD, should be stripped or cause validation failure
       answerKey: "b",
     };
 

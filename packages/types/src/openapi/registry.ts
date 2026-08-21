@@ -515,7 +515,7 @@ registry.registerPath({
   summary: "Reissue a student's LMS login credentials",
   description:
     "Gap-closing pass: staff-triggered reissue for a lost/bounced/compromised credential. Generates a " +
-    "new temporary password, re-raises the must-change-password gate, and re-sends the welcome email — " +
+    "new temporary password, re-raises the must-change-password gate, and re-sends the welcome email, " +
     "works regardless of whether the account was ever provisioned before (unlike the automatic " +
     "on-enrollment provisioning, which only ever acts once on a never-provisioned account).",
   tags: ["crm", "students"],
@@ -972,7 +972,7 @@ registry.registerPath({
   method: "get",
   path: "/api/v1/crm/enrollments",
   summary: "List enrollments",
-  description: "Filter by student/batch/program/status — roster/reporting join only, no commerce (P2).",
+  description: "Filter by student/batch/program/status. Roster/reporting join only, no commerce (P2).",
   tags: ["crm", "enrollments"],
   security: [{ cookieAuth: [] }],
   ...requiredPermission("enrollments.view"),
@@ -983,7 +983,7 @@ registry.registerPath({
   method: "post",
   path: "/api/v1/crm/enrollments",
   summary: "Enroll a student into a batch",
-  description: "Unique (studentId, batchId) — duplicate enroll attempt returns 409.",
+  description: "Unique (studentId, batchId). Duplicate enroll attempt returns 409.",
   tags: ["crm", "enrollments"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
   ...requiredPermission("enrollments.create"),
@@ -1103,7 +1103,7 @@ registry.registerPath({
   path: "/api/v1/crm/admin/roles/{id}/permissions",
   summary: "Replace a role's permission grants (matrix editor save)",
   description:
-    "Full-replace semantics — see packages/types crm/admin.schemas.ts file header. Owner/Admin " +
+    "Full-replace semantics. See packages/types crm/admin.schemas.ts file header. Owner/Admin " +
     "only (docs/03 §9); server MUST reject grants broader than the editor's own resolved scope " +
     "for that module (privilege-escalation guard, security-reviewer task #9). Writes one " +
     "audit-log row with the full before/after grant list.",
@@ -1221,7 +1221,7 @@ registry.registerPath({
     "Finance role sees all; BranchManager sees branch-scoped orders (docs/03 §9).",
   tags: ["commerce", "orders"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("payments.view (scope: all|branch per docs/03 §9 — Finance=all, BranchMgr=branch)"),
+  ...requiredPermission("payments.view (scope: all|branch per docs/03 §9, Finance=all, BranchMgr=branch)"),
   responses: {
     200: { description: "Order ledger page.", content: { "application/json": { schema: OrderListEnvelope } } },
     ...errorResponses,
@@ -1234,8 +1234,8 @@ registry.registerPath({
   summary: "Create an order for a program",
   description:
     "Creates an order for a program. Server computes amount_paise from program.pricePaise minus " +
-    "coupon discount (server is source of truth — client's expectedAmountPaise is informational). " +
-    "The Idempotency-Key header maps to orders.idempotency_key (unique) — replayed requests with " +
+    "coupon discount (server is source of truth, client's expectedAmountPaise is informational). " +
+    "The Idempotency-Key header maps to orders.idempotency_key (unique), replayed requests with " +
     "the same key return the cached order without creating a duplicate (docs/04 §2.6).",
   tags: ["commerce", "orders"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
@@ -1343,12 +1343,12 @@ registry.registerPath({
     "(razorpay_order_id, razorpay_payment_id, razorpay_signature). " +
     "The server verifies the HMAC-SHA256 signature with RAZORPAY_KEY_SECRET. " +
     "On success: marks payment `captured`, order `paid`, creates enrollment atomically " +
-    "($transaction). Idempotent by provider_payment_id (unique) — replaying does NOT " +
+    "($transaction). Idempotent by provider_payment_id (unique), replaying does NOT " +
     "double-enroll or double-pay (phase-2.md §Risks #1). " +
     "Idempotency-Key header required.",
   tags: ["commerce", "payments"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("payments.create (student verifying own payment may also be permitted — backend decides scope)"),
+  ...requiredPermission("payments.create (student verifying own payment may also be permitted, backend decides scope)"),
   request: {
     body: { content: { "application/json": { schema: VerifyPaymentRequest } } },
     headers: idempotencyKeyHeader,
@@ -1362,21 +1362,21 @@ registry.registerPath({
 registry.registerPath({
   method: "post",
   path: "/api/v1/commerce/payments/webhook",
-  summary: "Razorpay webhook receiver (UNAUTHENTICATED — signature-verified)",
+  summary: "Razorpay webhook receiver (UNAUTHENTICATED, signature-verified)",
   description:
-    "UNAUTHENTICATED endpoint — Razorpay calls this from their servers. " +
+    "UNAUTHENTICATED endpoint. Razorpay calls this from their servers. " +
     "Authentication is the HMAC-SHA256 signature in the X-Razorpay-Signature header, " +
     "verified against RAZORPAY_WEBHOOK_SECRET before any business logic runs. " +
     "The endpoint MUST receive the raw request body (bytes) for signature verification " +
-    "— JSON parsing happens AFTER signature check. " +
-    "Replay safety: idempotent by provider_payment_id (unique) — a duplicate webhook " +
+    "JSON parsing happens AFTER signature check. " +
+    "Replay safety: idempotent by provider_payment_id (unique), a duplicate webhook " +
     "is a no-op. Unknown event types are silently ignored (safe-by-default). " +
-    "NOTE: No cookieAuth or csrfHeader — these would break Razorpay's server-to-server calls.",
+    "NOTE: No cookieAuth or csrfHeader, these would break Razorpay's server-to-server calls.",
   tags: ["commerce", "payments"],
   // No security — this is intentionally unauthenticated (Razorpay server-to-server)
   request: {
     body: {
-      description: "Razorpay webhook event payload — passthrough shape, signature-verified.",
+      description: "Razorpay webhook event payload, passthrough shape, signature-verified.",
       content: { "application/json": { schema: registry.register("RazorpayWebhook", RazorpayWebhookSchema) } },
     },
   },
@@ -1470,7 +1470,7 @@ registry.registerPath({
   summary: "Get a pre-signed download URL for an invoice PDF",
   description:
     "Returns a short-lived pre-signed URL for the invoice PDF from object storage. " +
-    "In P2 the StorageProvider may be a stub — `stubMode: true` in the response indicates " +
+    "In P2 the StorageProvider may be a stub, `stubMode: true` in the response indicates " +
     "the PDF is not yet available (queue worker has not generated it, or storage is not configured).",
   tags: ["commerce", "invoices"],
   security: [{ cookieAuth: [] }],
@@ -1514,7 +1514,7 @@ registry.registerPath({
   summary: "Request a refund for a captured payment",
   description:
     "Creates a refund row in `requested` status. Amount must be > 0 and ≤ original captured " +
-    "amount (validated server-side). Triggers an approval workflow — refund is NOT immediately " +
+    "amount (validated server-side). Triggers an approval workflow, refund is NOT immediately " +
     "processed via the provider. Idempotency-Key header required.",
   tags: ["commerce", "refunds"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
@@ -1554,7 +1554,7 @@ registry.registerPath({
     "Idempotency-Key header required.",
   tags: ["commerce", "refunds"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("refunds.approve (Finance + Owner/Admin ONLY — no self-approval escalation)"),
+  ...requiredPermission("refunds.approve (Finance + Owner/Admin ONLY, no self-approval escalation)"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: ApproveRefundRequest } } },
@@ -1571,7 +1571,7 @@ registry.registerPath({
   path: "/api/v1/commerce/refunds/{id}/reject",
   summary: "Reject a refund request",
   description:
-    "Finance + Owner/Admin only (`refunds.approve`). Moves status to `rejected` (terminal — " +
+    "Finance + Owner/Admin only (`refunds.approve`). Moves status to `rejected` (terminal, " +
     "no provider call). Idempotency-Key header required.",
   tags: ["commerce", "refunds"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
@@ -1622,7 +1622,7 @@ registry.registerPath({
   description:
     "Marketing role creates coupons (phase-2.md §Risks #8). `code` must be unique per tenant " +
     "(409 on duplicate). `value` for pct type must be 1–100; for flat type: integer paise. " +
-    "The `used` counter is NOT set by the client — it starts at 0 and is incremented atomically " +
+    "The `used` counter is NOT set by the client. It starts at 0 and is incremented atomically " +
     "at order-creation time. Idempotency-Key header required.",
   tags: ["commerce", "coupons"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
@@ -1680,10 +1680,10 @@ registry.registerPath({
     "Safe, non-mutating preview: returns the discount that would apply for the given code + programId. " +
     "Does NOT change the `used` counter. Use this for real-time discount display in the order UI " +
     "before the user submits. The actual application happens server-side at order-create time. " +
-    "Requires authentication (not a public endpoint — prevents coupon enumeration).",
+    "Requires authentication (not a public endpoint, prevents coupon enumeration).",
   tags: ["commerce", "coupons"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("coupons.view (any authenticated user — no scope restriction on preview)"),
+  ...requiredPermission("coupons.view (any authenticated user. No scope restriction on preview)"),
   request: {
     body: { content: { "application/json": { schema: ValidateCouponRequest } } },
   },
@@ -1715,7 +1715,7 @@ registry.registerPath({
   summary: "List/filter the lead pipeline",
   description:
     "Filter by stage, owner, source, branch, SLA overdue + full-text search. " +
-    "Counsellor: `own`/`assigned` scope (owner_id = current user OR same branch — " +
+    "Counsellor: `own`/`assigned` scope (owner_id = current user OR same branch, " +
     "this is the P1-deferred scope now REAL via leads.owner_id, phase-2.md §Risks #5). " +
     "Marketing: all. BranchManager: branch. Owner/Admin: all.",
   tags: ["crm", "leads"],
@@ -1753,7 +1753,7 @@ registry.registerPath({
   summary: "Get lead detail",
   tags: ["crm", "leads"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("leads.view (scope enforced server-side — Counsellor cannot read out-of-scope leads)"),
+  ...requiredPermission("leads.view (scope enforced server-side. Counsellor cannot read out-of-scope leads)"),
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: {
     200: { description: "Lead detail.", content: { "application/json": { schema: LeadDetailEnvelope } } },
@@ -1803,7 +1803,7 @@ registry.registerPath({
     "state machine. Idempotency-Key required.",
   tags: ["crm", "leads"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("leads.edit (scope: own|assigned — Counsellor can move own/assigned leads)"),
+  ...requiredPermission("leads.edit (scope: own|assigned. Counsellor can move own/assigned leads)"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: MoveLeadStageRequest } } },
@@ -1825,7 +1825,7 @@ registry.registerPath({
     "Idempotency-Key required.",
   tags: ["crm", "leads"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("leads.edit (own|assigned scope — reassign scope depends on role)"),
+  ...requiredPermission("leads.edit (own|assigned scope. Reassign scope depends on role)"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: AssignLeadOwnerRequest } } },
@@ -1846,7 +1846,7 @@ registry.registerPath({
     "(1) Create student_profile from studentFields. " +
     "(2) Set leads.converted_student_id + stage=won. " +
     "(3) If programId+batchId provided: create order (source=conversion) + enrollment atomically. " +
-    "Idempotent by idempotency key — replaying does NOT create a second student/order. " +
+    "Idempotent by idempotency key. Replaying does NOT create a second student/order. " +
     "Counsellor own/assigned + Admin/Owner have `leads.convert` permission; " +
     "Marketing has it via full access; Finance does NOT unless granted explicitly.",
   tags: ["crm", "leads"],
@@ -1878,7 +1878,7 @@ registry.registerPath({
   path: "/api/v1/crm/activities",
   summary: "List/filter activities (timeline + tasks/SLA view)",
   description:
-    "Filter by leadId, studentId, userId, type, due date (for SLA/tasks view — docs/03 §7.12). " +
+    "Filter by leadId, studentId, userId, type, due date (for SLA/tasks view, docs/03 §7.12). " +
     "Use `pendingTasks=true` for counsellor 'today's tasks / due follow-ups' view. " +
     "Counsellor sees only own/assigned lead activities.",
   tags: ["crm", "activities"],
@@ -1895,7 +1895,7 @@ registry.registerPath({
   path: "/api/v1/crm/activities",
   summary: "Log an activity against a lead or student",
   description:
-    "LOGGED RECORD ONLY in P2 — whatsapp/email types are logged but NOT sent. " +
+    "LOGGED RECORD ONLY in P2. Whatsapp/email types are logged but NOT sent. " +
     "Delivery via MailProvider/WhatsAppProvider is P6. " +
     "Exactly one of leadId or studentId must be provided. " +
     "The authenticated user is recorded as the actor. Idempotency-Key required.",
@@ -2040,11 +2040,11 @@ const PublicBookingEnvelope = envelopeOf("PublicBooking", PublicBookingResponse)
 registry.registerPath({
   method: "post",
   path: "/api/v1/public/bookings",
-  summary: "Public book-a-slot intake (UNAUTHENTICATED stub — P2)",
+  summary: "Public book-a-slot intake (UNAUTHENTICATED stub, P2)",
   description:
     "UNAUTHENTICATED open intake for the book-a-slot funnel. Rate-limited per IP. " +
     "Atomically upserts a lead (by phone for the default tenant) and creates a booking " +
-    "in `requested` status. No cookie/CSRF required — this endpoint is open to the public. " +
+    "in `requested` status. No cookie/CSRF required. This endpoint is open to the public. " +
     "NOTE: This is the minimal P2 stub; the full marketing-site book-slot funnel is P5. " +
     "No Idempotency-Key required (not a money mutation; backend deduplicates by phone+slotAt).",
   tags: ["public", "bookings"],
@@ -2138,12 +2138,12 @@ registry.registerPath({
   description:
     "Returns the student's enrollment cards, the continue-learning rail (resume last " +
     "in-progress lesson at last_position_s), per-program progress summary rings, and " +
-    "upcoming unwatched lessons. All data is the STUDENT'S OWN — scope:own enforced " +
+    "upcoming unwatched lessons. All data is the STUDENT'S OWN, scope:own enforced " +
     "server-side. Live-class countdown is omitted (live deferred, docs/plans/phase-3.md §Risks #4). " +
     "Permission: courses.view (scope:own).",
   tags: ["lms", "dashboard"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("courses.view (scope: own — student's own enrollments only)"),
+  ...requiredPermission("courses.view (scope: own, student's own enrollments only)"),
   responses: {
     200: { description: "Dashboard snapshot.", content: { "application/json": { schema: MeDashboardEnvelope } } },
     ...errorResponses,
@@ -2175,7 +2175,7 @@ registry.registerPath({
   summary: "Get detail for one of the student's enrollments",
   description:
     "Full enrollment detail including batch dates and lesson count breakdown. " +
-    "The enrollment MUST belong to the requesting student (scope:own) — 403 otherwise. " +
+    "The enrollment MUST belong to the requesting student (scope:own), 403 otherwise. " +
     "Permission: courses.view (scope:own).",
   tags: ["lms", "enrollments"],
   security: [{ cookieAuth: [] }],
@@ -2200,11 +2200,11 @@ registry.registerPath({
     "module-level progress rollups. Content bodies are omitted (fetch via GET /lessons/:id). " +
     "All lessons are unlocked for enrolled students in P3 (sequential locking is future). " +
     "Preview lessons (is_preview=true) are also included and always unlocked. " +
-    "A non-enrolled student gets 403 — this is an enrollment-scoped resource. " +
+    "A non-enrolled student gets 403. This is an enrollment-scoped resource. " +
     "Permission: courses.view (scope:own, enrollment-gated).",
   tags: ["lms", "curriculum"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("courses.view (scope: own, enrollment-gated — active enrollment required)"),
+  ...requiredPermission("courses.view (scope: own, enrollment-gated, active enrollment required)"),
   request: { params: z.object({ id: z.string().uuid().describe("The enrollment id.") }) },
   responses: {
     200: { description: "Curriculum tree with per-lesson progress.", content: { "application/json": { schema: CurriculumEnvelope } } },
@@ -2219,7 +2219,7 @@ registry.registerPath({
   path: "/api/v1/lessons/{id}",
   summary: "Get lesson detail (content + video meta + resources + progress)",
   description:
-    "Returns the full lesson detail: title, type, content body, video metadata (NO raw URL — " +
+    "Returns the full lesson detail: title, type, content body, video metadata (NO raw URL, " +
     "see GET /lessons/:id/stream-url), resource metadata list (title/type/size only in P3, " +
     "no download URL), and the student's current progress snapshot. " +
     "ENROLLMENT GATE: non-preview lessons (is_preview=false) require an active enrollment " +
@@ -2259,8 +2259,8 @@ registry.registerPath({
     "  - `watermark`: per-user overlay payload (text + studentId). MUST be rendered by the player.\n" +
     "\n" +
     "WHAT IS NEVER RETURNED:\n" +
-    "  - `provider_asset_id` — never exposed to the client.\n" +
-    "  - A raw CDN / manifest URL — the `url` field is ALWAYS a signed URL.\n" +
+    "  - `provider_asset_id`. Never exposed to the client.\n" +
+    "  - A raw CDN / manifest URL, the `url` field is ALWAYS a signed URL.\n" +
     "  - A long-lived token or cache-able link.\n" +
     "\n" +
     "PROVIDER FAIL-CLOSED: if VideoProvider keys are not configured → 503 " +
@@ -2281,7 +2281,7 @@ registry.registerPath({
   security: [{ cookieAuth: [] }],
   ...requiredPermission(
     "videos.stream (scope: own; enrollment-gated for non-preview lessons; " +
-    "preview open without enrollment; AUDITED — every mint writes an audit-log row)",
+    "preview open without enrollment; AUDITED. Every mint writes an audit-log row)",
   ),
   request: { params: z.object({ id: z.string().uuid().describe("The lesson id.") }) },
   responses: {
@@ -2306,9 +2306,9 @@ registry.registerPath({
   summary: "Mint a short-lived signed download URL for a lesson resource",
   description:
     "Mirrors GET /me/certificates/:id/download. Enrollment-gated (same gate as lesson " +
-    "detail / stream-url) — a student must own an active enrollment in the lesson's " +
+    "detail / stream-url). A student must own an active enrollment in the lesson's " +
     "program, or the lesson must be is_preview=true. NEVER a raw S3/R2 bucket URL. " +
-    "Re-call this endpoint to get a fresh URL — do NOT cache it. " +
+    "Re-call this endpoint to get a fresh URL, do NOT cache it. " +
     "Permission: lessons.view (scope: own).",
   tags: ["lms", "lessons"],
   security: [{ cookieAuth: [] }],
@@ -2336,14 +2336,14 @@ registry.registerPath({
     "Called by the player on a throttled onTimeUpdate interval (e.g. every 5–10 s). " +
     "ENROLLMENT-SCOPED: the lesson MUST belong to a program the student is enrolled in. " +
     "The student CANNOT write another student's progress (scope:own, server-enforced). " +
-    "This endpoint does NOT complete the lesson — use POST /me/lessons/:id/complete for that. " +
+    "This endpoint does NOT complete the lesson. Use POST /me/lessons/:id/complete for that. " +
     "No Idempotency-Key required (upsert semantics: last write wins). " +
     "Returns the updated progress row + the enrollment's recalculated progressPct for " +
     "optimistic UI updates. " +
     "Permission: progress.write (scope:own, enrollment-gated).",
   tags: ["lms", "progress"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("progress.write (scope: own, enrollment-gated — cannot write another student's progress)"),
+  ...requiredPermission("progress.write (scope: own, enrollment-gated, cannot write another student's progress)"),
   request: {
     params: z.object({ id: z.string().uuid().describe("The lesson id.") }),
     body: { content: { "application/json": { schema: UpdateProgressRequest } } },
@@ -2365,7 +2365,7 @@ registry.registerPath({
     "  1. Sets lesson_progress.status=completed, completed_at=now().\n" +
     "  2. Rolls up enrollment.progress_pct (completed/total lessons × 100).\n" +
     "  3. Idempotently creates one attendance row (source=recorded, status=present) " +
-    "     for the (enrollment, lesson) pair — replay does NOT double-count.\n" +
+    "     for the (enrollment, lesson) pair, replay does NOT double-count.\n" +
     "  4. Writes an audit-log row.\n" +
     "\n" +
     "IDEMPOTENT: calling complete on an already-completed lesson returns the current " +
@@ -2401,7 +2401,7 @@ registry.registerPath({
     "Permission: progress.write (read is also covered by this permission, scope:own).",
   tags: ["lms", "progress"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("progress.write (scope: own — read of own progress is included)"),
+  ...requiredPermission("progress.write (scope: own. Read of own progress is included)"),
   responses: {
     200: { description: "Progress rollup.", content: { "application/json": { schema: MyProgressEnvelope } } },
     ...errorResponses,
@@ -2582,7 +2582,7 @@ registry.registerPath({
   summary: "Request a signed PUT URL for direct-to-storage file upload",
   description:
     "Mints a short-lived signed PUT URL (≤15 min) scoped to submissions/{tenantId}/{enrollmentId}/... " +
-    "The client PUTs the file directly to S3/R2 — NOT through the API server. " +
+    "The client PUTs the file directly to S3/R2. NOT through the API server. " +
     "After upload, include the returned storageKey in the submission payload. " +
     "Raw bucket URLs are NEVER returned (AC-I2). " +
     "Permission: submissions.create (scope: own) for student uploads; " +
@@ -2609,7 +2609,7 @@ registry.registerPath({
   summary: "List assignments (CRM authoring view, assigned-batch scoped)",
   tags: ["learning", "assignments"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("assignments.view (scope: assigned — faculty sees own batches; all for admin)"),
+  ...requiredPermission("assignments.view (scope: assigned. Faculty sees own batches; all for admin)"),
   responses: { 200: { description: "Assignment list.", content: { "application/json": { schema: AssignmentListEnvelope } } }, ...errorResponses },
 });
 
@@ -2672,7 +2672,7 @@ registry.registerPath({
   summary: "List submissions for an assignment (faculty grading queue)",
   tags: ["learning", "submissions"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("submissions.view (scope: assigned — faculty sees only assigned batches)"),
+  ...requiredPermission("submissions.view (scope: assigned. Faculty sees only assigned batches)"),
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: { 200: { description: "Submission list.", content: { "application/json": { schema: SubmissionListEnvelope } } }, ...errorResponses },
 });
@@ -2700,7 +2700,7 @@ registry.registerPath({
     "Permission: submissions.grade (scope: assigned).",
   tags: ["learning", "submissions"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("submissions.grade (scope: assigned — submission must be in an assigned batch; audited before/after)"),
+  ...requiredPermission("submissions.grade (scope: assigned. Submission must be in an assigned batch; audited before/after)"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: GradeSubmissionRequest } } },
@@ -2763,7 +2763,7 @@ registry.registerPath({
     "Permission: submissions.create (scope: own).",
   tags: ["learning", "assignments"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("submissions.create (scope: own — enrollment-gated; IDOR→404 if not enrolled)"),
+  ...requiredPermission("submissions.create (scope: own. Enrollment-gated; IDOR→404 if not enrolled)"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: SubmitAssignmentRequest } } },
@@ -2846,7 +2846,7 @@ registry.registerPath({
     body: { content: { "application/json": { schema: CreateAssessmentRequest } } },
     headers: idempotencyKeyHeader,
   },
-  responses: { 201: { description: "Assessment created (with answer keys in response — author view).", content: { "application/json": { schema: AssessmentDetailAuthorEnvelope } } }, ...errorResponses },
+  responses: { 201: { description: "Assessment created (with answer keys in response, author view).", content: { "application/json": { schema: AssessmentDetailAuthorEnvelope } } }, ...errorResponses },
 });
 
 registry.registerPath({
@@ -2859,7 +2859,7 @@ registry.registerPath({
     "Permission: assessments.view (scope: assigned).",
   tags: ["learning", "assessments"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("assessments.view (scope: assigned) — INCLUDES answer keys; CRM only"),
+  ...requiredPermission("assessments.view (scope: assigned). INCLUDES answer keys; CRM only"),
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: { 200: { description: "Assessment detail with answer keys.", content: { "application/json": { schema: AssessmentDetailAuthorEnvelope } } }, ...errorResponses },
 });
@@ -2891,7 +2891,7 @@ registry.registerPath({
     "Permission: attempts.grade (scope: assigned).",
   tags: ["learning", "attempts"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("attempts.grade (scope: assigned — only for assigned batch)"),
+  ...requiredPermission("attempts.grade (scope: assigned, only for assigned batch)"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: GradeAttemptRequest } } },
@@ -2917,7 +2917,7 @@ registry.registerPath({
 registry.registerPath({
   method: "get",
   path: "/api/v1/me/assessments/{id}",
-  summary: "Get assessment detail (student view) — NO questions, NO answer key",
+  summary: "Get assessment detail (student view). NO questions, NO answer key",
   description:
     "Returns assessment metadata + attempt stats for the student. " +
     "Does NOT include questions (questions are delivered with the attempt on POST /attempts). " +
@@ -2925,7 +2925,7 @@ registry.registerPath({
     "Permission: assessments.view (scope: own).",
   tags: ["learning", "assessments"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("assessments.view (scope: own) — NO answer key in response"),
+  ...requiredPermission("assessments.view (scope: own). NO answer key in response"),
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: { 200: { description: "Assessment metadata + attempt stats.", content: { "application/json": { schema: AssessmentDetailPublicEnvelope } } }, ...errorResponses },
 });
@@ -2933,7 +2933,7 @@ registry.registerPath({
 registry.registerPath({
   method: "post",
   path: "/api/v1/me/assessments/{id}/attempts",
-  summary: "Start a new attempt (student) — returns shuffled questions WITHOUT answer key",
+  summary: "Start a new attempt (student). Returns shuffled questions WITHOUT answer key",
   description:
     "Server sets started_at=NOW(), time_expires_at=started_at+time_limit_s (null if untimed). " +
     "Returns attempt detail + shuffled questions. Questions have NO answer key (AC-D1, AC-D2). " +
@@ -2941,7 +2941,7 @@ registry.registerPath({
     "Permission: attempts.take (scope: own).",
   tags: ["learning", "attempts"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("attempts.take (scope: own) — time_expires_at set server-side; NO answer key in response"),
+  ...requiredPermission("attempts.take (scope: own). Time_expires_at set server-side; NO answer key in response"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     headers: idempotencyKeyHeader,
@@ -2955,13 +2955,13 @@ registry.registerPath({
   summary: "Submit attempt answers (idempotent; MCQ auto-graded server-side)",
   description:
     "Submits answers for an in-progress attempt. Server checks time_expires_at before accepting " +
-    "(422 ATTEMPT_EXPIRED if late — AC-D4). MCQ auto-graded against server-only answer key. " +
+    "(422 ATTEMPT_EXPIRED if late. AC-D4). MCQ auto-graded against server-only answer key. " +
     "Descriptive → passed=null until faculty manual grade. " +
     "Idempotent: re-submit of an already-submitted attempt returns 200 with cached result (AC-D7). " +
     "Permission: attempts.take (scope: own; attempt must belong to the authenticated student).",
   tags: ["learning", "attempts"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("attempts.take (scope: own) — server-enforced time-box + MCQ auto-grade; idempotent"),
+  ...requiredPermission("attempts.take (scope: own). Server-enforced time-box + MCQ auto-grade; idempotent"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: SubmitAttemptRequest } } },
@@ -2976,7 +2976,7 @@ registry.registerPath({
 registry.registerPath({
   method: "get",
   path: "/api/v1/me/attempts/{id}",
-  summary: "Get attempt detail (own attempt only — IDOR→404)",
+  summary: "Get attempt detail (own attempt only, IDOR→404)",
   description:
     "Returns attempt result including question results (post-submit). " +
     "In-progress: questionResults=null. " +
@@ -2984,7 +2984,7 @@ registry.registerPath({
     "Permission: attempts.view (scope: own).",
   tags: ["learning", "attempts"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("attempts.view (scope: own — cross-student IDOR→404)"),
+  ...requiredPermission("attempts.view (scope: own, cross-student IDOR→404)"),
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: { 200: { description: "Attempt detail.", content: { "application/json": { schema: AttemptResultEnvelope } } }, ...errorResponses },
 });
@@ -2998,7 +2998,7 @@ registry.registerPath({
     "Permission: attempts.take (scope: own).",
   tags: ["learning", "attempts"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("attempts.take (scope: own) — stores flag only, no hard block"),
+  ...requiredPermission("attempts.take (scope: own). Stores flag only, no hard block"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: FlagAttemptRequest } } },
@@ -3032,9 +3032,9 @@ registry.registerPath({
     "One row per batch holding at least one non-dropped enrollment, with cheap headline counts " +
     "(students, issued, revoked, completion-gate-ready). The CRM opens on this table and drills " +
     "into GET /crm/certificates/eligibility?batchId=… for the students. `completionReadyCount` is " +
-    "the progress_pct gate ALONE — the three-gate eligibility engine is NOT run here (it costs ~5 " +
+    "the progress_pct gate ALONE. The three-gate eligibility engine is NOT run here (it costs ~5 " +
     "queries per enrollment; this endpoint is a fixed 5 queries per page). " +
-    "Permission: certificates.view (scope: assigned|all — faculty see only their assigned batches).",
+    "Permission: certificates.view (scope: assigned|all. Faculty see only their assigned batches).",
   tags: ["learning", "certificates"],
   security: [{ cookieAuth: [] }],
   ...requiredPermission("certificates.view (scope: assigned|all)"),
@@ -3056,7 +3056,7 @@ registry.registerPath({
 registry.registerPath({
   method: "post",
   path: "/api/v1/crm/certificates",
-  summary: "Issue a certificate (ops — runs eligibility check first)",
+  summary: "Issue a certificate (ops, runs eligibility check first)",
   description:
     "Runs eligibility engine → generates cert_uid (HMAC-signed) → renders PDF (CertificatePdfPort) → " +
     "stores PDF via StorageProvider → inserts certificates row. Writes audit log entry. " +
@@ -3064,7 +3064,7 @@ registry.registerPath({
     "Permission: certificates.issue (scope: all|branch).",
   tags: ["learning", "certificates"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("certificates.issue (scope: all|branch — audited issuance)"),
+  ...requiredPermission("certificates.issue (scope: all|branch, audited issuance)"),
   request: {
     body: { content: { "application/json": { schema: IssueCertificateRequest } } },
     headers: idempotencyKeyHeader,
@@ -3082,12 +3082,12 @@ registry.registerPath({
   summary: "Issue certificates for a list of eligible enrollments in one audited call",
   description:
     "Runs the same per-enrollment eligibility + duplicate checks as POST /crm/certificates for EACH " +
-    "enrollmentId — one row failing does not abort the others. Every successful issuance writes its " +
+    "enrollmentId. One row failing does not abort the others. Every successful issuance writes its " +
     "own certificate.issue audit row; this endpoint additionally writes ONE certificate.bulk_issue " +
     "summary audit row. Permission: certificates.issue (scope: all|branch).",
   tags: ["learning", "certificates"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("certificates.issue (scope: all|branch — audited, per-row + summary)"),
+  ...requiredPermission("certificates.issue (scope: all|branch, audited, per-row + summary)"),
   request: { body: { content: { "application/json": { schema: BulkIssueCertificatesRequest } } }, headers: idempotencyKeyHeader },
   responses: { 200: { description: "Per-row bulk issuance results.", content: { "application/json": { schema: BulkIssueCertificatesEnvelope } } }, ...errorResponses },
 });
@@ -3110,7 +3110,7 @@ registry.registerPath({
 registry.registerPath({
   method: "get",
   path: "/api/v1/crm/certificates/{id}",
-  summary: "Get certificate detail (CRM — includes student/enrollment info)",
+  summary: "Get certificate detail (CRM, includes student/enrollment info)",
   tags: ["learning", "certificates"],
   security: [{ cookieAuth: [] }],
   ...requiredPermission("certificates.view (scope: assigned|all)"),
@@ -3121,15 +3121,15 @@ registry.registerPath({
 registry.registerPath({
   method: "patch",
   path: "/api/v1/crm/certificates/{id}/revoke",
-  summary: "Revoke a certificate (instant — reflected in public verify immediately)",
+  summary: "Revoke a certificate (instant. Reflected in public verify immediately)",
   description:
-    "Sets certificate.status=revoked. Revocation is instant — public verify reflects it immediately " +
+    "Sets certificate.status=revoked. Revocation is instant. Public verify reflects it immediately " +
     "(no cache window, AC-G1/G2). Writes audit log entry. " +
     "Error: 409 ALREADY_REVOKED. " +
     "Permission: certificates.revoke (scope: all).",
   tags: ["learning", "certificates"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("certificates.revoke (scope: all — audited; instant revocation)"),
+  ...requiredPermission("certificates.revoke (scope: all, audited; instant revocation)"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: RevokeCertificateRequest } } },
@@ -3148,7 +3148,7 @@ registry.registerPath({
     "Permission: certificates.issue (scope: all|branch).",
   tags: ["learning", "certificates"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("certificates.issue (scope: all|branch) — reissue; old cert_uid invalidated"),
+  ...requiredPermission("certificates.issue (scope: all|branch), reissue; old cert_uid invalidated"),
   request: {
     params: z.object({ enrollmentId: z.string().uuid() }),
     body: { content: { "application/json": { schema: ReissueCertificateRequest } } },
@@ -3226,10 +3226,10 @@ registry.registerPath({
 registry.registerPath({
   method: "get",
   path: "/api/v1/me/certificates/{id}",
-  summary: "Get certificate detail (student — own only, IDOR→404)",
+  summary: "Get certificate detail (student, own only, IDOR→404)",
   tags: ["learning", "certificates"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("certificates.view (scope: own — IDOR→404 if not own)"),
+  ...requiredPermission("certificates.view (scope: own, IDOR→404 if not own)"),
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: { 200: { description: "Own certificate detail.", content: { "application/json": { schema: CertificateDetailEnvelope } } }, ...errorResponses },
 });
@@ -3244,7 +3244,7 @@ registry.registerPath({
     "Permission: certificates.view (scope: own).",
   tags: ["learning", "certificates"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("certificates.view (scope: own) — signed URL only; 410 if revoked; 404 if not issued"),
+  ...requiredPermission("certificates.view (scope: own). Signed URL only; 410 if revoked; 404 if not issued"),
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: {
     200: { description: "Signed download URL.", content: { "application/json": { schema: CertificateDownloadEnvelope } } },
@@ -3261,19 +3261,19 @@ registry.registerPath({
   path: "/api/v1/verify/{certUid}",
   summary: "Publicly verify a certificate by cert_uid (unauthenticated, rate-limited)",
   description:
-    "PUBLIC endpoint — no authentication required (AC-H8). " +
+    "PUBLIC endpoint, no authentication required (AC-H8). " +
     "SECURITY: Server RECOMPUTES the cert_uid HMAC signature before any DB lookup. " +
     "A fabricated or tampered cert_uid fails before the DB is queried (AC-H3/H4). " +
     "Response payload is MINIMAL: { valid, status, program, issuedAt, holderName } only. " +
     "NO internal IDs, NO email, NO phone, NO enrollment data (AC-H7). " +
-    "Rate-limited by IP (429 + Retry-After — AC-H6). " +
+    "Rate-limited by IP (429 + Retry-After, AC-H6). " +
     "Valid → 200 { valid: true, status: 'valid', ... }. " +
     "Revoked → 200 { valid: 'revoked', status: 'revoked', ... }. " +
     "Invalid/fabricated/nonexistent → 404. " +
-    "Permission: certificates.verify (public — no permission check).",
+    "Permission: certificates.verify (public, no permission check).",
   tags: ["learning", "certificates", "public"],
   // No security — this is explicitly unauthenticated (AC-H8).
-  ...requiredPermission("certificates.verify (public — unauthenticated; rate-limited; signature-recomputed)"),
+  ...requiredPermission("certificates.verify (public, unauthenticated; rate-limited; signature-recomputed)"),
   request: { params: z.object({ certUid: z.string().min(1).describe("The certificate verification uid (cert_uid from the issued certificate).") }) },
   responses: {
     200: { description: "Verification result (valid or revoked).", content: { "application/json": { schema: VerifyResultEnvelope } } },
@@ -3350,11 +3350,11 @@ const PublicVerifyPaymentEnvelope = envelopeOf("PublicVerifyPayment", PublicVeri
 registry.registerPath({
   method: "get",
   path: "/api/v1/public/programs",
-  summary: "List public programs (SEO catalog — published + is_public only)",
+  summary: "List public programs (SEO catalog, published + is_public only)",
   description:
     "Filterable, sortable, cursor-paginated public catalog of published + is_public programs. " +
     "ONLY programs with status=published AND is_public=true are returned (AC-24). " +
-    "Response projection: public allowlist only — no status, no is_public flag, no og_image_key, " +
+    "Response projection: public allowlist only. No status, no is_public flag, no og_image_key, " +
     "no full emi JSON, no tenantId, no draft/internal fields (AC-26). " +
     "The og_image_url is a backend-minted CDN URL (never the raw storage key). " +
     "Rate-limited per IP (429 + Retry-After). CSRF-excluded (anonymous read). " +
@@ -3376,10 +3376,10 @@ registry.registerPath({
   description:
     "Returns the full public-safe projection for a single program detail page. " +
     "Returns 404 for draft programs (status≠published) or non-public programs " +
-    "(is_public=false) — AC-25. Response is tightly scoped: " +
-    "curriculum outline (module titles + lesson titles + is_preview only — NO content/video), " +
-    "mentor bios (public fields only — no userId/email/phone/branchId), " +
-    "reviews summary (first name + college only — no email/phone/student_id), " +
+    "(is_public=false). AC-25. Response is tightly scoped: " +
+    "curriculum outline (module titles + lesson titles + is_preview only, NO content/video), " +
+    "mentor bios (public fields only, no userId/email/phone/branchId), " +
+    "reviews summary (first name + college only, no email/phone/student_id), " +
     "og_image_url = CDN URL (never raw og_image_key). " +
     "Rate-limited (429 + Retry-After). CSRF-excluded. " +
     "Permissions: None (anonymous public read).",
@@ -3401,12 +3401,12 @@ registry.registerPath({
   summary: "Public lead capture from site forms (inline/sticky/exit-intent/newsletter/career)",
   description:
     "Creates a CRM lead with stage=new from any public form on the marketing site. " +
-    "Captcha-gated (fail-closed in prod — AC-3, AC-44). " +
-    "Rate-limited per IP (429 + Retry-After — AC-4). " +
+    "Captcha-gated (fail-closed in prod, AC-3, AC-44). " +
+    "Rate-limited per IP (429 + Retry-After, AC-4). " +
     "CSRF-excluded (anonymous write). " +
     ".strict() over-post stripping. " +
     "Stores DPDP consent JSON on leads.consent column (AC-37). " +
-    "Enqueues a confirmation domain event in BullMQ (NOT sent — P6 handles fanout — AC-1). " +
+    "Enqueues a confirmation domain event in BullMQ (NOT sent. P6 handles fanout, AC-1). " +
     "UTM + landing_url + referrer + gclid/fbclid stored on the leads row. " +
     "Honeypot field honored at the endpoint layer (AC-42). " +
     "Permissions: None (anonymous public write).",
@@ -3428,21 +3428,21 @@ registry.registerPath({
 registry.registerPath({
   method: "post",
   path: "/api/v1/public/coupons/validate",
-  summary: "Public coupon validation — safe display-only preview (no used counter change)",
+  summary: "Public coupon validation. Safe display-only preview (no used counter change)",
   description:
     "Non-mutating coupon preview for the pricing/checkout coupon field. " +
     "Returns discounted paise amounts for display. NEVER leaks coupon internals " +
-    "(id, max_uses, used count, program_scope, valid_from/to, status, tenantId — AC-9). " +
-    "Invalid/expired/non-existent coupon: 422 with generic message (no existence leak — AC-10). " +
+    "(id, max_uses, used count, program_scope, valid_from/to, status, tenantId, AC-9). " +
+    "Invalid/expired/non-existent coupon: 422 with generic message (no existence leak, AC-10). " +
     "Captcha-gated to prevent automated enumeration (AC-11). " +
-    "Rate-limited per IP (429 + Retry-After — AC-11). CSRF-excluded. .strict() over-post. " +
+    "Rate-limited per IP (429 + Retry-After, AC-11). CSRF-excluded. .strict() over-post. " +
     "Permissions: None (anonymous public write).",
   tags: ["public", "commerce"],
   request: {
     body: { content: { "application/json": { schema: PublicValidateCouponDto } } },
   },
   responses: {
-    200: { description: "Discount preview — original/discount/final paise + type.", content: { "application/json": { schema: PublicCouponDiscountEnvelope } } },
+    200: { description: "Discount preview, original/discount/final paise + type.", content: { "application/json": { schema: PublicCouponDiscountEnvelope } } },
     ...errorResponses,
   },
 });
@@ -3459,8 +3459,8 @@ registry.registerPath({
     "argon2id password hashing. Consent stored on users row. " +
     "OTP verified as part of registration (reuses OtpService). " +
     "Enumeration-resistant: duplicate email returns same HTTP status + generic message (AC-13). " +
-    "Captcha-gated (fail-closed — AC-14). " +
-    "Rate-limited per IP (429 + Retry-After — AC-15). CSRF-excluded. .strict() over-post. " +
+    "Captcha-gated (fail-closed, AC-14). " +
+    "Rate-limited per IP (429 + Retry-After, AC-15). CSRF-excluded. .strict() over-post. " +
     "On OTP expiry: 422, no users row created. " +
     "Permissions: None (anonymous → creates authenticated session).",
   tags: ["public", "auth"],
@@ -3486,11 +3486,11 @@ registry.registerPath({
     "Idempotency: Idempotency-Key header required. Same key → returns existing order (AC-17). " +
     "Own-scoped fail-closed: student can only create orders for themselves (AC-22). " +
     "Auto-selects next available batch for the program (no batchId in public funnel). " +
-    "Calls CommerceService.createOrder() — same idempotency/paise/coupon math as staff endpoint. " +
-    "Permissions: Self (own-scoped — authenticated student).",
+    "Calls CommerceService.createOrder(). Same idempotency/paise/coupon math as staff endpoint. " +
+    "Permissions: Self (own-scoped, authenticated student).",
   tags: ["public", "enroll"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("own-scoped (no RBAC permission key — student acts on own order only)"),
+  ...requiredPermission("own-scoped (no RBAC permission key. Student acts on own order only)"),
   request: {
     body: { content: { "application/json": { schema: PublicCreateOrderDto } } },
     headers: idempotencyKeyHeader,
@@ -3507,7 +3507,7 @@ registry.registerPath({
 registry.registerPath({
   method: "post",
   path: "/api/v1/public/enroll/checkout",
-  summary: "Initiate Razorpay checkout for own order (returns PUBLIC keyId only — never secret)",
+  summary: "Initiate Razorpay checkout for own order (returns PUBLIC keyId only, never secret)",
   description:
     "Calls CommerceService.initiateRazorpayCheckout() for the authenticated student's own order. " +
     "Own-scoped: orderId must belong to the authenticated student → 404 otherwise (AC-22). " +
@@ -3515,16 +3515,16 @@ registry.registerPath({
     "Client opens Razorpay checkout.js with these fields. " +
     "Idempotency-Key header required. " +
     "SECURITY: keyId = RAZORPAY_KEY_ID (public). RAZORPAY_KEY_SECRET NEVER in any response (AC-41). " +
-    "Permissions: Self (own-scoped — authenticated student).",
+    "Permissions: Self (own-scoped, authenticated student).",
   tags: ["public", "enroll"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("own-scoped (student can only checkout their own order — IDOR→404)"),
+  ...requiredPermission("own-scoped (student can only checkout their own order, IDOR→404)"),
   request: {
     body: { content: { "application/json": { schema: PublicCheckoutDto } } },
     headers: idempotencyKeyHeader,
   },
   responses: {
-    200: { description: "Razorpay checkout fields (PUBLIC keyId only — never secret).", content: { "application/json": { schema: PublicCheckoutEnvelope } } },
+    200: { description: "Razorpay checkout fields (PUBLIC keyId only, never secret).", content: { "application/json": { schema: PublicCheckoutEnvelope } } },
     ...errorResponses,
   },
 });
@@ -3539,21 +3539,21 @@ registry.registerPath({
     "Verifies the Razorpay payment using the same CommerceService.verifyPayment() engine as " +
     "the staff /commerce/payments/verify endpoint. " +
     "Own-scoped: razorpay_order_id must map to the authenticated student's order → 404 otherwise (AC-22). " +
-    "HMAC-SHA256 signature verified server-side (AC-20 — forged signature → 400, no enrollment). " +
+    "HMAC-SHA256 signature verified server-side (AC-20. Forged signature → 400, no enrollment). " +
     "Atomic $transaction: payment captured + order paid + enrollment created (ADR-0014). " +
     "Idempotent by provider_payment_id UNIQUE constraint: replay → no double-enrollment (AC-18). " +
     "Response includes lmsRedirectUrl for immediate LMS handoff (AC-23). " +
     "Idempotency-Key header required. " +
-    "Permissions: Self (own-scoped — authenticated student).",
+    "Permissions: Self (own-scoped, authenticated student).",
   tags: ["public", "enroll"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("own-scoped (student can only verify their own order payment — IDOR→404)"),
+  ...requiredPermission("own-scoped (student can only verify their own order payment, IDOR→404)"),
   request: {
     body: { content: { "application/json": { schema: PublicVerifyPaymentDto } } },
     headers: idempotencyKeyHeader,
   },
   responses: {
-    200: { description: "Payment verified. Enrollment created (or already exists — idempotent). LMS redirect URL included.", content: { "application/json": { schema: PublicVerifyPaymentEnvelope } } },
+    200: { description: "Payment verified. Enrollment created (or already exists. Idempotent). LMS redirect URL included.", content: { "application/json": { schema: PublicVerifyPaymentEnvelope } } },
     ...errorResponses,
   },
 });
@@ -3708,10 +3708,10 @@ registry.registerPath({
     "when SSE is unavailable to update the unread badge count. " +
     "IDOR: returns ONLY the authenticated user's notifications (AC-5, AC-72). " +
     "Cross-tenant filter applied before RBAC (AC-72). " +
-    "Permissions: notifications.view (own — all authenticated users).",
+    "Permissions: notifications.view (own, all authenticated users).",
   tags: ["notifications", "me"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("notifications.view (own — IDOR→404 for any other user's notifications)"),
+  ...requiredPermission("notifications.view (own. IDOR→404 for any other user's notifications)"),
   responses: {
     200: { description: "Notification list page.", content: { "application/json": { schema: NotificationListEnvelope } } },
     ...errorResponses,
@@ -3732,7 +3732,7 @@ registry.registerPath({
     "Permissions: notifications.view (own).",
   tags: ["notifications", "me", "sse"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("notifications.view (own — SSE stream scoped to authenticated user only)"),
+  ...requiredPermission("notifications.view (own. SSE stream scoped to authenticated user only)"),
   responses: {
     200: {
       description: "SSE stream opened. Events of type NotificationStreamEvent emitted on new notifications.",
@@ -3755,7 +3755,7 @@ registry.registerPath({
     "Permissions: notifications.view (own).",
   tags: ["notifications", "me"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("notifications.view (own — IDOR→404 if notification belongs to another user)"),
+  ...requiredPermission("notifications.view (own. IDOR→404 if notification belongs to another user)"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     headers: idempotencyKeyHeader,
@@ -3772,13 +3772,13 @@ registry.registerPath({
   summary: "Mark all own notifications as read",
   description:
     "Batch UPDATE: sets read_at = now() for all unread notifications belonging to the " +
-    "authenticated user. Scoped to user_id = currentUser.id — no cross-user effect. " +
+    "authenticated user. Scoped to user_id = currentUser.id, no cross-user effect. " +
     "Executes as a single UPDATE statement (no N+1, AC: 500+ notifications edge case). " +
     "Idempotency-Key header required. " +
     "Permissions: notifications.view (own).",
   tags: ["notifications", "me"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("notifications.view (own — batch mark-all-read on own notifications only)"),
+  ...requiredPermission("notifications.view (own. Batch mark-all-read on own notifications only)"),
   request: { headers: idempotencyKeyHeader },
   responses: {
     200: { description: "All notifications marked read. Returns unreadCount=0.", content: { "application/json": { schema: MarkReadEnvelope } } },
@@ -3792,12 +3792,12 @@ registry.registerPath({
   summary: "Get own notification preferences (type×channel matrix + quiet hours)",
   description:
     "Returns the authenticated user's notification_prefs row. " +
-    "If no row exists, system defaults are returned (NOT a 404 — AC-18). " +
+    "If no row exists, system defaults are returned (NOT a 404, AC-18). " +
     "Includes leaderboard opt-in + display name prefs (LOCK-D5). " +
     "Permissions: notification_prefs.edit (own).",
   tags: ["notifications", "me"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("notification_prefs.edit (own — returns defaults if no row)"),
+  ...requiredPermission("notification_prefs.edit (own. Returns defaults if no row)"),
   responses: {
     200: { description: "Notification preferences (defaults if no row set).", content: { "application/json": { schema: NotificationPrefsEnvelope } } },
     ...errorResponses,
@@ -3807,17 +3807,17 @@ registry.registerPath({
 registry.registerPath({
   method: "put",
   path: "/api/v1/me/notification-prefs",
-  summary: "Update own notification preferences (upsert — partial update supported)",
+  summary: "Update own notification preferences (upsert, partial update supported)",
   description:
     "Upserts the notification_prefs row for the authenticated user. " +
     "Partial update: only supplied matrix keys are updated; absent keys retain defaults. " +
-    "userId is ALWAYS derived from session — never trusted from the request body (AC-20). " +
+    "userId is ALWAYS derived from session. Never trusted from the request body (AC-20). " +
     "Writes an audit-log entry with before/after (AC-19). " +
     "Idempotency-Key header required. " +
     "Permissions: notification_prefs.edit (own).",
   tags: ["notifications", "me"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("notification_prefs.edit (own — userId from session, not body — AC-20)"),
+  ...requiredPermission("notification_prefs.edit (own. UserId from session, not body, AC-20)"),
   request: {
     body: { content: { "application/json": { schema: NotificationPrefsDto } } },
     headers: idempotencyKeyHeader,
@@ -3831,9 +3831,9 @@ registry.registerPath({
 registry.registerPath({
   method: "get",
   path: "/api/v1/unsubscribe/{token}",
-  summary: "Preview unsubscribe (public — no auth, renders confirmation page)",
+  summary: "Preview unsubscribe (public. No auth, renders confirmation page)",
   description:
-    "Public endpoint — no authentication required (AC-22). " +
+    "Public endpoint, no authentication required (AC-22). " +
     "Validates the signed HMAC token (NOTIFICATION_SIGNING_SECRET). " +
     "Returns 200 with the channel that will be unsubscribed (for the confirmation UI). " +
     "Returns 400 INVALID_TOKEN if the token is tampered (AC-24). " +
@@ -3841,7 +3841,7 @@ registry.registerPath({
     "Permissions: none (public, signed token is the authentication).",
   tags: ["notifications", "public"],
   responses: {
-    200: { description: "Token valid — returns confirmation info.", content: { "application/json": { schema: UnsubscribeEnvelope } } },
+    200: { description: "Token valid, returns confirmation info.", content: { "application/json": { schema: UnsubscribeEnvelope } } },
     ...errorResponses,
   },
 });
@@ -3849,15 +3849,15 @@ registry.registerPath({
 registry.registerPath({
   method: "post",
   path: "/api/v1/unsubscribe/{token}",
-  summary: "Submit unsubscribe (public — no auth — DPDP/India compliance)",
+  summary: "Submit unsubscribe (public. No auth, DPDP/India compliance)",
   description:
-    "Public endpoint — no authentication required (AC-22). " +
+    "Public endpoint, no authentication required (AC-22). " +
     "Validates the HMAC token and creates a notification_suppressions row for the user+channel. " +
     "After this, ALL notification fan-outs and campaign sends to this user on this channel " +
     "are suppressed (Rule C-2, AC-23). " +
     "Returns 400 INVALID_TOKEN on tampered token (AC-24). " +
     "Idempotent: double-unsubscribe is a no-op (200). " +
-    "Permissions: none (public — signed token is authentication).",
+    "Permissions: none (public, signed token is authentication).",
   tags: ["notifications", "public"],
   request: {
     params: z.object({ token: z.string().min(1) }),
@@ -3877,7 +3877,7 @@ registry.registerPath({
   description:
     "Returns paginated list of campaign templates for the tenant. " +
     "Filter by channel. " +
-    "Permissions: campaigns.view (all-scope — Marketing/Admin/Owner).",
+    "Permissions: campaigns.view (all-scope, Marketing/Admin/Owner).",
   tags: ["campaigns"],
   security: [{ cookieAuth: [] }],
   ...requiredPermission("campaigns.view (all-scope: Marketing/Admin/Owner)"),
@@ -3890,7 +3890,7 @@ registry.registerPath({
 registry.registerPath({
   method: "post",
   path: "/api/v1/campaigns/templates",
-  summary: "Create a campaign template (DLT template id required for sms/whatsapp — AC-78)",
+  summary: "Create a campaign template (DLT template id required for sms/whatsapp, AC-78)",
   description:
     "Creates a campaign template. " +
     "LOCK-D4 / AC-78: For channel='sms' or channel='whatsapp', dlt_template_id MUST be " +
@@ -3901,7 +3901,7 @@ registry.registerPath({
     "Permissions: campaigns.create (Marketing/Admin/Owner).",
   tags: ["campaigns"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("campaigns.create (Marketing/Admin/Owner — LOCK-D4: dlt_template_id required for sms/whatsapp)"),
+  ...requiredPermission("campaigns.create (Marketing/Admin/Owner. LOCK-D4: dlt_template_id required for sms/whatsapp)"),
   request: {
     body: { content: { "application/json": { schema: CreateCampaignTemplateDto } } },
     headers: idempotencyKeyHeader,
@@ -4060,12 +4060,12 @@ registry.registerPath({
     "Materializes the segment into campaign_recipients (skipping non-consented/suppressed, AC-29, AC-30), " +
     "then dispatches via CampaignSendPort (sync-seam by default, LOCK-D1). " +
     "LOCK-D4: Rejects if template.dlt_template_id is null for sms/whatsapp (AC-31). " +
-    "Idempotent per-recipient: (campaign_id, recipient) partial-unique — double-send = no-op (AC-27, AC-28). " +
+    "Idempotent per-recipient: (campaign_id, recipient) partial-unique. Double-send = no-op (AC-27, AC-28). " +
     "Empty segment = status 'sent', metrics.sent=0, no error (AC-34). " +
     "Permissions: campaigns.send (Marketing/Admin/Owner).",
   tags: ["campaigns"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("campaigns.send (Marketing/Admin/Owner — ALL-scope; non-consented/suppressed skipped)"),
+  ...requiredPermission("campaigns.send (Marketing/Admin/Owner, ALL-scope; non-consented/suppressed skipped)"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     headers: idempotencyKeyHeader,
@@ -4151,16 +4151,16 @@ registry.registerPath({
 registry.registerPath({
   method: "post",
   path: "/api/v1/campaigns/webhooks/{channel}",
-  summary: "Provider delivery/read webhook receiver (UNAUTHENTICATED — HMAC-verified)",
+  summary: "Provider delivery/read webhook receiver (UNAUTHENTICATED, HMAC-verified)",
   description:
-    "UNAUTHENTICATED endpoint — mail or WhatsApp provider posts delivery/read/bounce/complaint events. " +
+    "UNAUTHENTICATED endpoint. Mail or WhatsApp provider posts delivery/read/bounce/complaint events. " +
     "Authentication: HMAC signature verified via provider.verifyWebhookSignature() BEFORE any DB access (AC-39). " +
     "Forged webhook → 401 (fail-closed). " +
     "Idempotent: duplicate event for the same provider_message_id is a no-op (AC-38). " +
     "Unknown provider_message_id: 200 + discard (race safety, AC-40). " +
     "On bounce: adds recipient to notification_suppressions (reason='bounce'). " +
     "Updates campaign_recipients.status + campaigns.metrics. " +
-    "Permissions: none (unauthenticated — HMAC is the authentication).",
+    "Permissions: none (unauthenticated, HMAC is the authentication).",
   tags: ["campaigns", "webhooks"],
   request: {
     params: z.object({ channel: z.enum(["email", "whatsapp", "sms"]) }),
@@ -4186,7 +4186,7 @@ registry.registerPath({
     "Permissions: gamification.view (own).",
   tags: ["gamification", "me"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("gamification.view (own — ledger/badges filtered to currentUser.id)"),
+  ...requiredPermission("gamification.view (own, ledger/badges filtered to currentUser.id)"),
   responses: {
     200: { description: "Gamification summary.", content: { "application/json": { schema: PointsSummaryEnvelope } } },
     ...errorResponses,
@@ -4219,21 +4219,21 @@ registry.registerPath({
 registry.registerPath({
   method: "get",
   path: "/api/v1/batches/{id}/leaderboard",
-  summary: "Get batch leaderboard (opt-in students, alias only — PII-minimal, enrollment-scoped)",
+  summary: "Get batch leaderboard (opt-in students, alias only, PII-minimal, enrollment-scoped)",
   description:
     "Returns the leaderboard for the specified batch. " +
     "LOCK-D5 / AC-50: Only includes students with leaderboard_opt_in=true. " +
-    "Response entries contain ONLY { rank, displayName, totalPoints, badgeCount } — " +
+    "Response entries contain ONLY { rank, displayName, totalPoints, badgeCount }, " +
     "NO email, phone, enrollmentId, studentId, userId, or any PII. " +
     "Enrollment-scoped IDOR: a non-enrolled student gets 404 (AC-52). " +
     "Cache-aside with TTL (default 60 s); opt-out takes effect within TTL (AC-51). " +
-    "Permissions: gamification.view (own — enrollment-scoped for students; all for admin/faculty).",
+    "Permissions: gamification.view (own. Enrollment-scoped for students; all for admin/faculty).",
   tags: ["gamification", "batches"],
   security: [{ cookieAuth: [] }],
   ...requiredPermission("gamification.view (enrollment-scoped: non-enrolled → 404; LOCK-D5: no PII beyond displayName)"),
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: {
-    200: { description: "Leaderboard — opt-in students only, alias/displayName, no PII.", content: { "application/json": { schema: LeaderboardEnvelope } } },
+    200: { description: "Leaderboard. Opt-in students only, alias/displayName, no PII.", content: { "application/json": { schema: LeaderboardEnvelope } } },
     ...errorResponses,
   },
 });
@@ -4253,7 +4253,7 @@ registry.registerPath({
     "Permissions: forum.read (enrolled | assigned | branch | all).",
   tags: ["forum"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("forum.read (enrolled scope for students — IDOR→404 for non-enrolled batches; AC-55)"),
+  ...requiredPermission("forum.read (enrolled scope for students. IDOR→404 for non-enrolled batches; AC-55)"),
   responses: {
     200: { description: "Thread list (cursor-paginated).", content: { "application/json": { schema: ThreadListEnvelope } } },
     ...errorResponses,
@@ -4263,17 +4263,17 @@ registry.registerPath({
 registry.registerPath({
   method: "post",
   path: "/api/v1/forum/threads",
-  summary: "Create a forum thread (enrollment-scoped — student must be enrolled in the batch)",
+  summary: "Create a forum thread (enrollment-scoped. Student must be enrolled in the batch)",
   description:
     "Creates a new forum thread. The atomically-created opening post uses the `body` field. " +
     "IDOR / enrollment check: the student MUST be enrolled in the batchId → 404 if not (AC-56). " +
-    "Non-enrolled attempt: 404 (IDOR-safe — batch existence not revealed to non-enrolled, AC-56). " +
+    "Non-enrolled attempt: 404 (IDOR-safe. Batch existence not revealed to non-enrolled, AC-56). " +
     "Body max 10,000 chars (AC-71). " +
     "Idempotency-Key header required. " +
     "Permissions: forum.post (enrolled scope).",
   tags: ["forum"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("forum.post (enrolled scope — student MUST be enrolled in batchId; IDOR→404 if not, AC-56)"),
+  ...requiredPermission("forum.post (enrolled scope. Student MUST be enrolled in batchId; IDOR→404 if not, AC-56)"),
   request: {
     body: { content: { "application/json": { schema: CreateThreadDto } } },
     headers: idempotencyKeyHeader,
@@ -4293,7 +4293,7 @@ registry.registerPath({
     "Permissions: forum.read (enrolled scope).",
   tags: ["forum"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("forum.read (enrolled scope — IDOR→404 for non-enrolled)"),
+  ...requiredPermission("forum.read (enrolled scope, IDOR→404 for non-enrolled)"),
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: {
     200: { description: "Thread detail.", content: { "application/json": { schema: ThreadEnvelope } } },
@@ -4332,7 +4332,7 @@ registry.registerPath({
     "Permissions: forum.post (enrolled scope).",
   tags: ["forum"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("forum.post (enrolled scope — IDOR→404 for non-enrolled; AC-58, AC-59)"),
+  ...requiredPermission("forum.post (enrolled scope. IDOR→404 for non-enrolled; AC-58, AC-59)"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: CreatePostDto } } },
@@ -4347,7 +4347,7 @@ registry.registerPath({
 registry.registerPath({
   method: "post",
   path: "/api/v1/forum/posts/{id}/vote",
-  summary: "Toggle upvote on a post (deduped — one vote per user per post)",
+  summary: "Toggle upvote on a post (deduped. One vote per user per post)",
   description:
     "Toggles the authenticated user's upvote on the post. " +
     "Second call from the same user removes the vote (toggle off, AC-61). " +
@@ -4355,10 +4355,10 @@ registry.registerPath({
     "Concurrent votes from different users: exactly N rows created, no duplicates (AC-63). " +
     "Enrollment-scope check applied. " +
     "Idempotency-Key header required. " +
-    "Permissions: forum.post (enrolled scope — same as posting).",
+    "Permissions: forum.post (enrolled scope, same as posting).",
   tags: ["forum"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("forum.post (enrolled scope — self-vote: 422 CANNOT_VOTE_OWN_POST; AC-61, AC-62)"),
+  ...requiredPermission("forum.post (enrolled scope. Self-vote: 422 CANNOT_VOTE_OWN_POST; AC-61, AC-62)"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     headers: idempotencyKeyHeader,
@@ -4395,7 +4395,7 @@ registry.registerPath({
 registry.registerPath({
   method: "post",
   path: "/api/v1/forum/threads/{id}/moderate",
-  summary: "Moderate a forum thread (faculty/admin — hide/pin/unpin/delete)",
+  summary: "Moderate a forum thread (faculty/admin, hide/pin/unpin/delete)",
   description:
     "Moderation actions on a thread (hide/unhide/pin/unpin/delete). " +
     "Assigned-scope for faculty: only batches assigned to the faculty (AC-64). " +
@@ -4407,7 +4407,7 @@ registry.registerPath({
     "Permissions: forum.moderate (assigned-scope faculty / all-scope admin).",
   tags: ["forum", "moderation"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("forum.moderate (assigned-scope: faculty sees only assigned batches — IDOR→404, AC-64; all: admin/owner)"),
+  ...requiredPermission("forum.moderate (assigned-scope: faculty sees only assigned batches, IDOR→404, AC-64; all: admin/owner)"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: ModerateDto } } },
@@ -4422,7 +4422,7 @@ registry.registerPath({
 registry.registerPath({
   method: "post",
   path: "/api/v1/forum/posts/{id}/moderate",
-  summary: "Moderate a forum post (faculty/admin — hide/unhide/delete)",
+  summary: "Moderate a forum post (faculty/admin, hide/unhide/delete)",
   description:
     "Moderation actions on a post (hide/unhide/delete). " +
     "Assigned-scope for faculty (AC-64, AC-65). All-scope for admin (AC-67). " +
@@ -4433,7 +4433,7 @@ registry.registerPath({
     "Permissions: forum.moderate.",
   tags: ["forum", "moderation"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("forum.moderate (assigned-scope faculty / all-scope admin — AC-64, AC-65, AC-68)"),
+  ...requiredPermission("forum.moderate (assigned-scope faculty / all-scope admin, AC-64, AC-65, AC-68)"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: ModerateDto } } },
@@ -4448,7 +4448,7 @@ registry.registerPath({
 registry.registerPath({
   method: "get",
   path: "/api/v1/crm/forum/moderation",
-  summary: "CRM moderation queue — reported/hidden posts in assigned batches",
+  summary: "CRM moderation queue. Reported/hidden posts in assigned batches",
   description:
     "Returns a list of posts requiring moderation review (hidden, reported). " +
     "Assigned-scope for faculty (only batches assigned to them). " +
@@ -4531,13 +4531,13 @@ const ForumHealthReportEnvelope = envelopeOf("ForumHealthReport", ForumHealthRep
 registry.registerPath({
   method: "get",
   path: "/api/v1/crm/reports/revenue",
-  summary: "Revenue dashboard — reconciles exactly with the payments ledger",
+  summary: "Revenue dashboard. Reconciles exactly with the payments ledger",
   description:
     "AC-1 (HEADLINE): totalPaise = SUM(payments.amount_paise) WHERE status='captured' AND " +
     "paid_at BETWEEN [from,to] AND tenant_id=T. Branch-scoped for Branch Manager (AC-2); " +
     "tenant-isolated at the repository/MV query level, never post-filtered (AC-3). " +
     "from>to returns 422 INVALID_DATE_RANGE before any query runs (AC-4). Zero data in " +
-    "range is a valid 200 (AC-5), never 404/500. Materialized-view-backed (LOCK-D1) — " +
+    "range is a valid 200 (AC-5), never 404/500. Materialized-view-backed (LOCK-D1), " +
     "response carries asOf/stale freshness.",
   tags: ["crm", "reports"],
   security: [{ cookieAuth: [] }],
@@ -4611,7 +4611,7 @@ registry.registerPath({
   summary: "Campaign performance dashboard",
   description:
     "AC-20: sent/delivered/read/failed counts equal COUNT(campaign_recipients) GROUP BY status " +
-    "matching campaigns.metrics EXACTLY (no drift) — reuses CampaignMetricsDto verbatim " +
+    "matching campaigns.metrics EXACTLY (no drift), reuses CampaignMetricsDto verbatim " +
     "(@repo/types engagement/campaigns.schemas.ts). AC-21: marketing/admin-scoped (403 otherwise). " +
     "AC-22: unknown/cross-tenant campaignId returns 404, not a cross-tenant 403.",
   tags: ["crm", "reports"],
@@ -4627,10 +4627,10 @@ registry.registerPath({
 registry.registerPath({
   method: "get",
   path: "/api/v1/crm/reports/gamification",
-  summary: "Gamification participation dashboard (staff-facing — real names/emails MAY appear, AC-24)",
+  summary: "Gamification participation dashboard (staff-facing. Real names/emails MAY appear, AC-24)",
   description:
     "AC-23: activeEarnersCount/totalXpDistributed/badgeAwardCount reconcile with " +
-    "points_ledger/user_badges for the batch's enrolled students. AC-24: staff-facing view — " +
+    "points_ledger/user_badges for the batch's enrolled students. AC-24: staff-facing view, " +
     "unlike the PII-minimal student leaderboard, this MAY show real names/emails to authorized " +
     "staff; a Faculty member not assigned to the batch still gets 404. AC-25: opted-out students " +
     "ARE included in aggregates and the perStudent breakdown (opt-out only affects the public leaderboard).",
@@ -4679,7 +4679,7 @@ registry.registerPath({
   path: "/api/v1/crm/exports",
   summary: "Trigger an on-demand CSV/PDF export",
   description:
-    "AC-30/31/32/Rule H-2: `params` is the SAME query shape as the on-screen equivalent view — " +
+    "AC-30/31/32/Rule H-2: `params` is the SAME query shape as the on-screen equivalent view, " +
     "structurally no separate, broader export query path. AC-33: 50k+ row exports run as a " +
     "background job (poll GET /crm/exports/:id) rather than loading all rows into memory. " +
     "AC-34: requires reports.export IN ADDITION to the domain's reports.<domain>.view permission " +
@@ -4704,7 +4704,7 @@ registry.registerPath({
   path: "/api/v1/crm/exports/{id}",
   summary: "Poll an export job's status / get its signed download URL",
   description:
-    "AC-35: downloadUrl is a signed, short-lived URL (StorageProvider pattern) — never a raw, " +
+    "AC-35: downloadUrl is a signed, short-lived URL (StorageProvider pattern), never a raw, " +
     "permanently-guessable object URL. Null until status='succeeded'.",
   tags: ["crm", "reports", "exports"],
   security: [{ cookieAuth: [] }],
@@ -4736,7 +4736,7 @@ registry.registerPath({
   summary: "Create a scheduled (recurring) report email",
   description:
     "LOCK-D2: dispatch reuses the P6 Resend sync-seam (no BullMQ). AC-37: the recipient's RBAC " +
-    "scope is re-evaluated at SEND time, not at creation time — this DTO carries no scope " +
+    "scope is re-evaluated at SEND time, not at creation time. This DTO carries no scope " +
     "snapshot. AC-38: send failure is logged/retried, never silently dropped. AC-39: a zero-row " +
     "period still sends a 'no data for this period' notice.",
   tags: ["crm", "reports", "schedules"],
@@ -4770,7 +4770,7 @@ registry.registerPath({
   method: "patch",
   path: "/api/v1/crm/reports/schedules/{id}",
   summary: "Update a scheduled report's cadence/recipient/active flag",
-  description: "type/params are immutable — delete + recreate to change what's reported.",
+  description: "type/params are immutable. Delete + recreate to change what's reported.",
   tags: ["crm", "reports", "schedules"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
   ...requiredPermission("reports.export"),
@@ -4854,7 +4854,7 @@ registry.registerPath({
   description: "Search by name/institute (AC-6), filter by engagementStatus/expertise (AC-7). Tenant/branch-scoped (AC-5).",
   tags: ["crm", "mentors"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("mentors.view (scope: all|branch — NEVER granted to the Mentor role, AC-15)"),
+  ...requiredPermission("mentors.view (scope: all|branch. NEVER granted to the Mentor role, AC-15)"),
   request: { query: ListMentorsQuerySchema },
   responses: { 200: { description: "Mentor directory page.", content: { "application/json": { schema: MentorListEnvelope } } }, ...errorResponses },
 });
@@ -4864,7 +4864,7 @@ registry.registerPath({
   path: "/api/v1/crm/mentors",
   summary: "Create a mentor hiring record",
   description:
-    "Creates ONLY a `mentors` row — unlike POST /crm/students|faculty, this does NOT create a " +
+    "Creates ONLY a `mentors` row. Unlike POST /crm/students|faculty, this does NOT create a " +
     "`users` row (mentors.user_id is nullable; see packages/types crm/mentors.schemas.ts file header). " +
     "422 JOINED_DATE_REQUIRED if engagementStatus='active' with no joinedAt (AC-3). Writes one audit-log row (AC-14).",
   tags: ["crm", "mentors"],
@@ -4909,7 +4909,7 @@ registry.registerPath({
   path: "/api/v1/crm/mentors/{id}",
   summary: "Soft-delete a mentor hiring record",
   description:
-    "409 MENTOR_HAS_ACTIVE_ASSIGNMENTS (AC-12) if the mentor still has ≥1 active batch_mentors row — " +
+    "409 MENTOR_HAS_ACTIVE_ASSIGNMENTS (AC-12) if the mentor still has ≥1 active batch_mentors row, " +
     "remove them from every batch first (DELETE .../batches/:id/mentors/:mentorId). " +
     "Conflicting batches are listed in error.errors[] (path=batchMentorId, message=batchName).",
   tags: ["crm", "mentors"],
@@ -4923,7 +4923,7 @@ registry.registerPath({
   method: "post",
   path: "/api/v1/crm/mentors/{id}/restore",
   summary: "Restore a soft-deleted mentor hiring record",
-  description: "Does NOT reactivate a deactivated linked `users` row, if any — that remains a separate staff action (Part 4 edge case).",
+  description: "Does NOT reactivate a deactivated linked `users` row, if any. That remains a separate staff action (Part 4 edge case).",
   tags: ["crm", "mentors"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
   ...requiredPermission("mentors.edit"),
@@ -4947,10 +4947,10 @@ registry.registerPath({
   method: "get",
   path: "/api/v1/crm/batches/{id}/mentors",
   summary: "List a batch's currently-assigned mentors",
-  description: "AC-23: reuses the caller's existing batches.view scope — no separate permission for reading this list. A batch may have zero mentors (AC-25).",
+  description: "AC-23: reuses the caller's existing batches.view scope. No separate permission for reading this list. A batch may have zero mentors (AC-25).",
   tags: ["crm", "batches", "mentors"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("batches.view (scope: all|branch|assigned — assigned resolved via batch_mentors for Mentor, LOCK-2)"),
+  ...requiredPermission("batches.view (scope: all|branch|assigned. Assigned resolved via batch_mentors for Mentor, LOCK-2)"),
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: { 200: { description: "Batch's mentor list.", content: { "application/json": { schema: MentorBatchAssignmentListEnvelope } } }, ...errorResponses },
 });
@@ -4963,11 +4963,11 @@ registry.registerPath({
     "See packages/types crm/mentors.schemas.ts AssignMentorToBatchRequestSchema doc comment for the full " +
     "assign-vs-update-lead-flag decision tree. 422 MENTOR_NOT_ACTIVE (AC-18), 409 ALREADY_ASSIGNED on a " +
     "literal repeat (AC-19), 422 BATCH_NOT_ASSIGNABLE if the batch is completed/archived (AC-26). At most " +
-    "one lead mentor per batch — designating a new lead clears the previous one (AC-21). Writes one " +
+    "one lead mentor per batch. Designating a new lead clears the previous one (AC-21). Writes one " +
     "audit-log row (entity=batch_mentor, AC-30).",
   tags: ["crm", "batches", "mentors"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("mentors.assign (distinct from mentors.edit — AC-29)"),
+  ...requiredPermission("mentors.assign (distinct from mentors.edit, AC-29)"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: AssignMentorToBatchRequest } } },
@@ -4981,8 +4981,8 @@ registry.registerPath({
   path: "/api/v1/crm/batches/{id}/mentors/{mentorId}",
   summary: "Remove a mentor from a batch (soft-unassign)",
   description:
-    "AC-24/Rule M-5: the batch_mentors row is timestamp-marked removed, never hard-deleted — assignment " +
-    "history is preserved. Leaves the batch with zero mentors if it was the last one (AC-25 — valid). " +
+    "AC-24/Rule M-5: the batch_mentors row is timestamp-marked removed, never hard-deleted, assignment " +
+    "history is preserved. Leaves the batch with zero mentors if it was the last one (AC-25, valid). " +
     "Removing a lead mentor does NOT auto-promote another mentor to lead (Part 4 edge case). Returns the " +
     "batch's updated mentor list. Writes one audit-log row (AC-30).",
   tags: ["crm", "batches", "mentors"],
@@ -5011,12 +5011,12 @@ registry.registerPath({
   summary: "Get a batch's internship-completion rollup (batch-level headcounts + %)",
   description:
     "AC-31 (HEADLINE): every number is a LIVE read of enrollments/lesson_progress/submissions/attempts/" +
-    "assessments/assignments/certificates (or the P4 eligibility engine) — never a parallel progress " +
+    "assessments/assignments/certificates (or the P4 eligibility engine), never a parallel progress " +
     "table. AC-36: a batch with zero enrollments is a valid 200 (all buckets 0, percentComplete null), " +
     "never 404/500. For the paginated per-student breakdown see GET .../completion/students.",
   tags: ["crm", "batches", "mentors"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("batches.view (scope: all|branch|assigned — a Mentor requesting an unassigned batch gets 404, AC-37)"),
+  ...requiredPermission("batches.view (scope: all|branch|assigned. A Mentor requesting an unassigned batch gets 404, AC-37)"),
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: { 200: { description: "Batch completion rollup.", content: { "application/json": { schema: BatchCompletionSummaryEnvelope } } }, ...errorResponses },
 });
@@ -5026,7 +5026,7 @@ registry.registerPath({
   path: "/api/v1/crm/batches/{id}/completion/students",
   summary: "Get the batch's per-student completion breakdown (paginated)",
   description:
-    "Part 4 edge case: server-side pagination for batches with 500+ students — never an unbounded array. " +
+    "Part 4 edge case: server-side pagination for batches with 500+ students, never an unbounded array. " +
     "Optional bucket/status filters. Each row reuses EligibilityResultSchema verbatim (AC-33).",
   tags: ["crm", "batches", "mentors"],
   security: [{ cookieAuth: [] }],
@@ -5040,14 +5040,14 @@ registry.registerPath({
   path: "/api/v1/crm/batches/{id}/complete",
   summary: "Mark a batch's internship program run complete (active → completed)",
   description:
-    "AC-39: valid ONLY from status='active' (422 BATCH_NOT_ACTIVE from 'planned'; 409 ALREADY_COMPLETED — " +
-    "idempotent no-op — from 'completed'/'archived'). AC-40: sets completed_at, never overwritten again. " +
+    "AC-39: valid ONLY from status='active' (422 BATCH_NOT_ACTIVE from 'planned'; 409 ALREADY_COMPLETED, " +
+    "idempotent no-op, from 'completed'/'archived'). AC-40: sets completed_at, never overwritten again. " +
     "AC-41 (Rule M-2): completion numbers are informational only, NEVER gate this transition. AC-42: " +
-    "never mutates enrollment/progress/grading/certificate data — pure status/timestamp write + audit log " +
+    "never mutates enrollment/progress/grading/certificate data. Pure status/timestamp write + audit log " +
     "(AC-43, entity=batch, action=complete).",
   tags: ["crm", "batches", "mentors"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
-  ...requiredPermission("batches.markComplete (scope: all|branch|assigned — every actively-assigned Mentor, lead or not, AC-38; NOT yet seeded, see file-level note above)"),
+  ...requiredPermission("batches.markComplete (scope: all|branch|assigned. Every actively-assigned Mentor, lead or not, AC-38; NOT yet seeded, see file-level note above)"),
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: MarkBatchCompleteRequest } } },
@@ -5066,15 +5066,15 @@ registry.registerPath({
   path: "/api/v1/me/mentor/dashboard",
   summary: "Get the authenticated mentor's own dashboard (assigned batches only)",
   description:
-    "AC-46 (HEADLINE): ONLY the caller's actively-assigned batch(es) — everything else is 404, never a " +
+    "AC-46 (HEADLINE): ONLY the caller's actively-assigned batch(es). Everything else is 404, never a " +
     "403 that would confirm existence (fail-closed, LOCK-2/Rule M-1). AC-47/48: cross-tenant and " +
     "cross-mentor isolation. AC-49/Rule M-4: engagementStatus is re-checked live every request, never " +
     "cached from login. AC-50: each batch card is sourced from the SAME rollup CRM staff use. AC-51: zero " +
     "assignments is a valid 200 with batches:[], not an error. No tenant/branch/mentor selector accepted " +
-    "from the client — scope is entirely session-resolved (CLAUDE.md §3.5).",
+    "from the client. Scope is entirely session-resolved (CLAUDE.md §3.5).",
   tags: ["crm", "mentors", "dashboard"],
   security: [{ cookieAuth: [] }],
-  ...requiredPermission("mentor.dashboard.view (scope: own — re-evaluated live per request, AC-49)"),
+  ...requiredPermission("mentor.dashboard.view (scope: own. Re-evaluated live per request, AC-49)"),
   responses: { 200: { description: "Mentor's own dashboard.", content: { "application/json": { schema: MentorDashboardEnvelope } } }, ...errorResponses },
 });
 
@@ -5088,7 +5088,7 @@ registry.registerPath({
   path: "/api/v1/health",
   summary: "Liveness probe",
   description:
-    "AC-41: PUBLIC, unauthenticated. Minimal payload only ({status:'ok'}) — NEVER package " +
+    "AC-41: PUBLIC, unauthenticated. Minimal payload only ({status:'ok'}), NEVER package " +
     "versions, stack traces, hostnames, connection strings, or env var contents (Rule H-3). " +
     "AC-49: exempt from auth but still rate-limited.",
   tags: ["health"],
@@ -5104,7 +5104,7 @@ registry.registerPath({
   summary: "Readiness probe (DB + Redis)",
   description:
     "AC-42: PUBLIC, unauthenticated. Returns 503 (not 200) when DB or Redis is unreachable, " +
-    "with a per-dependency status label only — no driver error, no connection string, no stack " +
+    "with a per-dependency status label only. No driver error, no connection string, no stack " +
     "trace (Rule H-3). AC-49: exempt from auth but still rate-limited.",
   tags: ["health"],
   responses: {
@@ -5198,7 +5198,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post", path: "/api/v1/crm/live-classes/{id}/join",
-  summary: "Host/staff join — mints a short-lived provider join URL",
+  summary: "Host/staff join. Mints a short-lived provider join URL",
   tags: ["crm", "live-classes"], security: [{ cookieAuth: [], csrfHeader: [] }],
   ...requiredPermission("liveclass.view"),
   request: { params: z.object({ id: z.string().uuid() }) },
@@ -5216,7 +5216,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post", path: "/api/v1/me/live-classes/{id}/join",
-  summary: "Student join — mints a short-lived provider join URL (IDOR->404 if not enrolled in the batch)",
+  summary: "Student join. Mints a short-lived provider join URL (IDOR->404 if not enrolled in the batch)",
   tags: ["lms", "live-classes"], security: [{ cookieAuth: [], csrfHeader: [] }],
   ...requiredPermission("liveclass.view (scope: own)"),
   request: { params: z.object({ id: z.string().uuid() }) },
@@ -5604,13 +5604,13 @@ const ContentPageVersionDetailEnvelope = envelopeOf("ContentPageVersionDetail", 
 const RevertContentPageVersionRequest = registry.register("RevertContentPageVersionRequest", RevertContentPageVersionRequestSchema);
 const ContentPageMediaUploadUrlRequest = registry.register("ContentPageMediaUploadUrlRequest", ContentPageMediaUploadUrlRequestSchema);
 
-registry.registerPath({ method: "post", path: "/api/v1/crm/content-pages/media-upload-url", summary: "Mint a signed PUT URL for a page-builder marketing image (raster only — no SVG, 5 MB cap)", tags: ["crm", "pages", "page-builder"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("content.builder"), request: { body: { content: { "application/json": { schema: ContentPageMediaUploadUrlRequest } } } }, responses: { 200: { description: "Signed upload URL + storageKey.", content: { "application/json": { schema: SignedUploadEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/crm/content-pages/media-upload-url", summary: "Mint a signed PUT URL for a page-builder marketing image (raster only. No SVG, 5 MB cap)", tags: ["crm", "pages", "page-builder"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("content.builder"), request: { body: { content: { "application/json": { schema: ContentPageMediaUploadUrlRequest } } } }, responses: { 200: { description: "Signed upload URL + storageKey.", content: { "application/json": { schema: SignedUploadEnvelope } } }, ...errorResponses } });
 registry.registerPath({ method: "post", path: "/api/v1/crm/content-pages/builder", summary: "Create a new, empty (body=[]) builder-managed page (status forced published; no version row until the first save)", tags: ["crm", "pages", "page-builder"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("content.builder"), request: { body: { content: { "application/json": { schema: CreateBuilderPageRequest } } }, headers: idempotencyKeyHeader }, responses: { 201: { description: "Builder page created.", content: { "application/json": { schema: ContentPageBuilderDetailEnvelope } } }, ...errorResponses } });
-registry.registerPath({ method: "put", path: "/api/v1/crm/content-pages/{id}/builder", summary: "Save a builder page: validates the strict block union, snapshots the PRE-save state to a new ContentPageVersion, applies the new content, forces status=published (save-is-live, AC 1/2/3/5/6/12/13)", tags: ["crm", "pages", "page-builder"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("content.builder"), request: { params: z.object({ id: z.string().uuid() }), body: { content: { "application/json": { schema: SaveBuilderPageRequest } } }, headers: idempotencyKeyHeader }, responses: { 200: { description: "Page saved.", content: { "application/json": { schema: ContentPageBuilderDetailEnvelope } } }, ...errorResponses, 409: { description: "expectedVersion stale — someone else saved since this was loaded (Edge case #5).", content: { "application/json": { schema: ErrorEnvelope } } } } });
+registry.registerPath({ method: "put", path: "/api/v1/crm/content-pages/{id}/builder", summary: "Save a builder page: validates the strict block union, snapshots the PRE-save state to a new ContentPageVersion, applies the new content, forces status=published (save-is-live, AC 1/2/3/5/6/12/13)", tags: ["crm", "pages", "page-builder"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("content.builder"), request: { params: z.object({ id: z.string().uuid() }), body: { content: { "application/json": { schema: SaveBuilderPageRequest } } }, headers: idempotencyKeyHeader }, responses: { 200: { description: "Page saved.", content: { "application/json": { schema: ContentPageBuilderDetailEnvelope } } }, ...errorResponses, 409: { description: "expectedVersion stale. Someone else saved since this was loaded (Edge case #5).", content: { "application/json": { schema: ErrorEnvelope } } } } });
 registry.registerPath({ method: "post", path: "/api/v1/crm/content-pages/{id}/preview", summary: "Render unsaved edits with live_collection_ref resolved server-side, exactly as the public site would (AC 4). Read-only: no persistence, no version bump.", tags: ["crm", "pages", "page-builder"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("content.builder"), request: { params: z.object({ id: z.string().uuid() }), body: { content: { "application/json": { schema: PreviewBuilderPageRequest } } } }, responses: { 200: { description: "Resolved preview blocks.", content: { "application/json": { schema: PreviewBuilderPageEnvelope } } }, ...errorResponses } });
 registry.registerPath({ method: "get", path: "/api/v1/crm/content-pages/{id}/versions", summary: "List version history, newest-first, metadata only (no body) (AC 6)", tags: ["crm", "pages", "page-builder"], security: [{ cookieAuth: [] }], ...requiredPermission("content.builder"), request: { params: z.object({ id: z.string().uuid() }), query: ListContentPageVersionsQuerySchema }, responses: { 200: { description: "Version list.", content: { "application/json": { schema: ContentPageVersionListEnvelope } } }, ...errorResponses } });
 registry.registerPath({ method: "get", path: "/api/v1/crm/content-pages/{id}/versions/{version}", summary: "Get a single version's full snapshot (incl. body)", tags: ["crm", "pages", "page-builder"], security: [{ cookieAuth: [] }], ...requiredPermission("content.builder"), request: { params: z.object({ id: z.string().uuid(), version: z.coerce.number().int().min(1) }) }, responses: { 200: { description: "Version detail.", content: { "application/json": { schema: ContentPageVersionDetailEnvelope } } }, ...errorResponses } });
-registry.registerPath({ method: "post", path: "/api/v1/crm/content-pages/{id}/versions/{version}/revert", summary: "Revert to a prior version: snapshots the CURRENT live state as a new version, then applies the target version's content live (AC 7 — history is append-only, never rewound/deleted)", tags: ["crm", "pages", "page-builder"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("content.builder"), request: { params: z.object({ id: z.string().uuid(), version: z.coerce.number().int().min(1) }), body: { content: { "application/json": { schema: RevertContentPageVersionRequest } } }, headers: idempotencyKeyHeader }, responses: { 200: { description: "Reverted; new version created.", content: { "application/json": { schema: ContentPageBuilderDetailEnvelope } } }, ...errorResponses, 409: { description: "expectedVersion stale (Edge case #5).", content: { "application/json": { schema: ErrorEnvelope } } } } });
+registry.registerPath({ method: "post", path: "/api/v1/crm/content-pages/{id}/versions/{version}/revert", summary: "Revert to a prior version: snapshots the CURRENT live state as a new version, then applies the target version's content live (AC 7. History is append-only, never rewound/deleted)", tags: ["crm", "pages", "page-builder"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("content.builder"), request: { params: z.object({ id: z.string().uuid(), version: z.coerce.number().int().min(1) }), body: { content: { "application/json": { schema: RevertContentPageVersionRequest } } }, headers: idempotencyKeyHeader }, responses: { 200: { description: "Reverted; new version created.", content: { "application/json": { schema: ContentPageBuilderDetailEnvelope } } }, ...errorResponses, 409: { description: "expectedVersion stale (Edge case #5).", content: { "application/json": { schema: ErrorEnvelope } } } } });
 
 // -- Site settings (SiteSetting: nav/footer/SEO/contact primitives) --
 // site_settings.view / site_settings.edit are super_admin-only (see prisma/seed.ts).
@@ -5627,7 +5627,7 @@ const PublicSiteSettingsEnvelope = envelopeOf("PublicSiteSettings", PublicSiteSe
 registry.registerPath({ method: "get", path: "/api/v1/crm/site-settings", summary: "List site settings, optionally filtered by group (small, non-paginated: exactly the 8 seeded keys)", tags: ["crm", "site-settings"], security: [{ cookieAuth: [] }], ...requiredPermission("site_settings.view"), request: { query: ListSiteSettingsQuerySchema }, responses: { 200: { description: "Site setting list.", content: { "application/json": { schema: SiteSettingListEnvelope } } }, ...errorResponses } });
 registry.registerPath({ method: "get", path: "/api/v1/crm/site-settings/{key}", summary: "Get a single site setting by key", tags: ["crm", "site-settings"], security: [{ cookieAuth: [] }], ...requiredPermission("site_settings.view"), request: { params: z.object({ key: SiteSettingKeySchema }) }, responses: { 200: { description: "Site setting detail.", content: { "application/json": { schema: SiteSettingEnvelope } } }, ...errorResponses } });
 registry.registerPath({ method: "put", path: "/api/v1/crm/site-settings/{key}", summary: "Upsert a site setting's value (server validates `value` against that key's closed shape from SiteSettingValueSchemaByKey; 404 for any key outside the 8 seeded literals)", tags: ["crm", "site-settings"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("site_settings.edit"), request: { params: z.object({ key: SiteSettingKeySchema }), body: { content: { "application/json": { schema: UpsertSiteSettingRequest } } }, headers: idempotencyKeyHeader }, responses: { 200: { description: "Site setting set.", content: { "application/json": { schema: SiteSettingEnvelope } } }, ...errorResponses } });
-registry.registerPath({ method: "get", path: "/api/v1/public/site-settings", summary: "Get all 8 sitewide settings values (anonymous, cacheable — nav/footer/SEO/contact/announcement)", tags: ["public", "site-settings"], responses: { 200: { description: "All site settings.", content: { "application/json": { schema: PublicSiteSettingsEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "get", path: "/api/v1/public/site-settings", summary: "Get all 8 sitewide settings values (anonymous, cacheable, nav/footer/SEO/contact/announcement)", tags: ["public", "site-settings"], responses: { 200: { description: "All site settings.", content: { "application/json": { schema: PublicSiteSettingsEnvelope } } }, ...errorResponses } });
 
 // -- Colleges (Phase-11 locked templates, docs/plans/phase-11-locked-templates.md) --
 // A College is a `Partner` row (category="college_partner") on its OWN dedicated CRM
@@ -5644,8 +5644,8 @@ const CollegeListEnvelope = paginatedEnvelopeOf("College", College);
 const DeleteCollegeResponse = registry.register("DeleteCollegeResponse", DeleteCollegeResponseSchema);
 const CollegeLogoUploadUrlRequest = registry.register("CollegeLogoUploadUrlRequest", CollegeLogoUploadUrlRequestSchema);
 
-registry.registerPath({ method: "post", path: "/api/v1/crm/colleges/logo-upload-url", summary: "Mint a signed PUT URL for a college logo (raster only — no SVG, 5 MB cap)", tags: ["crm", "colleges"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("content.edit"), request: { body: { content: { "application/json": { schema: CollegeLogoUploadUrlRequest } } } }, responses: { 200: { description: "Signed upload URL + storageKey.", content: { "application/json": { schema: SignedUploadEnvelope } } }, ...errorResponses } });
-registry.registerPath({ method: "get", path: "/api/v1/crm/colleges", summary: "List colleges (admin) — implicitly scoped to category=college_partner", tags: ["crm", "colleges"], security: [{ cookieAuth: [] }], ...requiredPermission("content.view"), request: { query: ListCollegesQuerySchema }, responses: { 200: { description: "College list.", content: { "application/json": { schema: CollegeListEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/crm/colleges/logo-upload-url", summary: "Mint a signed PUT URL for a college logo (raster only. No SVG, 5 MB cap)", tags: ["crm", "colleges"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("content.edit"), request: { body: { content: { "application/json": { schema: CollegeLogoUploadUrlRequest } } } }, responses: { 200: { description: "Signed upload URL + storageKey.", content: { "application/json": { schema: SignedUploadEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "get", path: "/api/v1/crm/colleges", summary: "List colleges (admin), implicitly scoped to category=college_partner", tags: ["crm", "colleges"], security: [{ cookieAuth: [] }], ...requiredPermission("content.view"), request: { query: ListCollegesQuerySchema }, responses: { 200: { description: "College list.", content: { "application/json": { schema: CollegeListEnvelope } } }, ...errorResponses } });
 registry.registerPath({ method: "post", path: "/api/v1/crm/colleges", summary: "Create a college", tags: ["crm", "colleges"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("content.manage"), request: { body: { content: { "application/json": { schema: CreateCollegeRequest } } }, headers: idempotencyKeyHeader }, responses: { 201: { description: "College created.", content: { "application/json": { schema: CollegeEnvelope } } }, ...errorResponses } });
 registry.registerPath({ method: "patch", path: "/api/v1/crm/colleges/{id}", summary: "Update a college", tags: ["crm", "colleges"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("content.manage"), request: { params: z.object({ id: z.string().uuid() }), body: { content: { "application/json": { schema: UpdateCollegeRequest } } }, headers: idempotencyKeyHeader }, responses: { 200: { description: "College updated.", content: { "application/json": { schema: CollegeEnvelope } } }, ...errorResponses } });
 registry.registerPath({ method: "delete", path: "/api/v1/crm/colleges/{id}", summary: "Soft-delete a college", tags: ["crm", "colleges"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("content.manage"), request: { params: z.object({ id: z.string().uuid() }) }, responses: { 200: { description: "Deleted.", content: { "application/json": { schema: envelopeOf("DeleteCollege", DeleteCollegeResponse) } } }, ...errorResponses } });
@@ -5951,10 +5951,10 @@ const TotpStatusEnvelope = envelopeOf("TotpStatus", TotpStatusResponse);
 const TwoFactorLoginVerifyRequest = registry.register("TwoFactorLoginVerifyRequest", TwoFactorLoginVerifyRequestSchema);
 
 registry.registerPath({ method: "get", path: "/api/v1/auth/2fa/status", summary: "Get the authenticated user's own 2FA enrolment status", tags: ["auth", "2fa"], security: [{ cookieAuth: [] }], ...requiredPermission("twofa.manage (scope: own)"), responses: { 200: { description: "2FA status.", content: { "application/json": { schema: TotpStatusEnvelope } } }, ...errorResponses } });
-registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/enroll", summary: "Begin 2FA enrolment — issues a new TOTP secret + otpauth URL (not yet enabled)", tags: ["auth", "2fa"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("twofa.manage (scope: own)"), responses: { 200: { description: "TOTP secret + QR otpauth URL.", content: { "application/json": { schema: TotpEnrollEnvelope } } }, ...errorResponses } });
-registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/enroll/verify", summary: "Confirm the first TOTP code — enables 2FA, returns one-time backup codes", tags: ["auth", "2fa"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("twofa.manage (scope: own)"), request: { body: { content: { "application/json": { schema: TotpVerifyEnrollRequest } } } }, responses: { 200: { description: "2FA enabled + backup codes (shown once).", content: { "application/json": { schema: TotpVerifyEnrollEnvelope } } }, ...errorResponses } });
-registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/disable", summary: "Disable 2FA — requires a current TOTP code or an unused backup code", tags: ["auth", "2fa"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("twofa.manage (scope: own)"), request: { body: { content: { "application/json": { schema: TotpDisableRequest } } } }, responses: { 200: { description: "2FA disabled.", content: { "application/json": { schema: TotpDisableResponseEnvelope } } }, ...errorResponses } });
-registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/login-verify", summary: "Second step of a 2FA login — verifies credentials + TOTP/backup code, sets session cookies", description: "UNAUTHENTICATED (no session exists yet — same posture as POST /auth/login). Rate-limited by IP.", tags: ["auth", "2fa"], request: { body: { content: { "application/json": { schema: TwoFactorLoginVerifyRequest } } } }, responses: { 200: { description: "Session established.", content: { "application/json": { schema: AuthSessionEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/enroll", summary: "Begin 2FA enrolment. Issues a new TOTP secret + otpauth URL (not yet enabled)", tags: ["auth", "2fa"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("twofa.manage (scope: own)"), responses: { 200: { description: "TOTP secret + QR otpauth URL.", content: { "application/json": { schema: TotpEnrollEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/enroll/verify", summary: "Confirm the first TOTP code. Enables 2FA, returns one-time backup codes", tags: ["auth", "2fa"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("twofa.manage (scope: own)"), request: { body: { content: { "application/json": { schema: TotpVerifyEnrollRequest } } } }, responses: { 200: { description: "2FA enabled + backup codes (shown once).", content: { "application/json": { schema: TotpVerifyEnrollEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/disable", summary: "Disable 2FA. Requires a current TOTP code or an unused backup code", tags: ["auth", "2fa"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("twofa.manage (scope: own)"), request: { body: { content: { "application/json": { schema: TotpDisableRequest } } } }, responses: { 200: { description: "2FA disabled.", content: { "application/json": { schema: TotpDisableResponseEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/login-verify", summary: "Second step of a 2FA login. Verifies credentials + TOTP/backup code, sets session cookies", description: "UNAUTHENTICATED (no session exists yet. Same posture as POST /auth/login). Rate-limited by IP.", tags: ["auth", "2fa"], request: { body: { content: { "application/json": { schema: TwoFactorLoginVerifyRequest } } } }, responses: { 200: { description: "Session established.", content: { "application/json": { schema: AuthSessionEnvelope } } }, ...errorResponses } });
 
 // 2FA recovery — the "lost my authenticator" path. Both routes UNAUTHENTICATED and
 // CSRF-excluded (no session exists), IP-rate-limited + per-email rate-limited.
@@ -5968,9 +5968,9 @@ const AdminClearTwoFactorRequest = registry.register("AdminClearTwoFactorRequest
 const AdminClearTwoFactorResponse = registry.register("AdminClearTwoFactorResponse", AdminClearTwoFactorResponseSchema);
 const AdminClearTwoFactorEnvelope = envelopeOf("AdminClearTwoFactor", AdminClearTwoFactorResponse);
 
-registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/recovery/request", summary: "Request an emailed 2FA recovery code (lost authenticator)", description: "UNAUTHENTICATED. ALWAYS returns 200 with the same generic message — a nonexistent email, a wrong password, an account without 2FA, and a rate-limited caller are all indistinguishable. The current password is required so recovery is never reachable with inbox access alone.", tags: ["auth", "2fa"], request: { body: { content: { "application/json": { schema: TwoFactorRecoveryRequest } } } }, responses: { 200: { description: "Generic acknowledgement (never confirms the account exists).", content: { "application/json": { schema: TwoFactorRecoveryRequestEnvelope } } }, ...errorResponses } });
-registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/recovery/confirm", summary: "Confirm the emailed recovery code — disables 2FA and revokes all sessions", description: "UNAUTHENTICATED. Re-verifies the password alongside the single-use, attempt-capped code. No session is issued: the user signs in with their password and re-enrols. 422 RECOVERY_CODE_INVALID covers bad credentials, no enrolment, and a wrong/expired/replayed code alike.", tags: ["auth", "2fa"], request: { body: { content: { "application/json": { schema: TwoFactorRecoveryConfirm } } } }, responses: { 200: { description: "2FA disabled.", content: { "application/json": { schema: TwoFactorRecoveryConfirmEnvelope } } }, ...errorResponses } });
-registry.registerPath({ method: "post", path: "/api/v1/crm/admin/users/{id}/two-factor/clear", summary: "Admin rescue — clear another user's 2FA", description: "For a user who has lost BOTH their authenticator and inbox access. Requires `twofa.reset` (super_admin/admin only — NOT the own-scope `twofa.manage` every role holds). Self-clearing is forbidden. Audit-logged with the mandatory reason; idempotent (`cleared: false` when the target had no 2FA).", tags: ["admin", "2fa"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("twofa.reset (scope: all)"), request: { params: z.object({ id: z.string().uuid() }), body: { content: { "application/json": { schema: AdminClearTwoFactorRequest } } } }, responses: { 200: { description: "2FA cleared (or already absent).", content: { "application/json": { schema: AdminClearTwoFactorEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/recovery/request", summary: "Request an emailed 2FA recovery code (lost authenticator)", description: "UNAUTHENTICATED. ALWAYS returns 200 with the same generic message. A nonexistent email, a wrong password, an account without 2FA, and a rate-limited caller are all indistinguishable. The current password is required so recovery is never reachable with inbox access alone.", tags: ["auth", "2fa"], request: { body: { content: { "application/json": { schema: TwoFactorRecoveryRequest } } } }, responses: { 200: { description: "Generic acknowledgement (never confirms the account exists).", content: { "application/json": { schema: TwoFactorRecoveryRequestEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/auth/2fa/recovery/confirm", summary: "Confirm the emailed recovery code. Disables 2FA and revokes all sessions", description: "UNAUTHENTICATED. Re-verifies the password alongside the single-use, attempt-capped code. No session is issued: the user signs in with their password and re-enrols. 422 RECOVERY_CODE_INVALID covers bad credentials, no enrolment, and a wrong/expired/replayed code alike.", tags: ["auth", "2fa"], request: { body: { content: { "application/json": { schema: TwoFactorRecoveryConfirm } } } }, responses: { 200: { description: "2FA disabled.", content: { "application/json": { schema: TwoFactorRecoveryConfirmEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "post", path: "/api/v1/crm/admin/users/{id}/two-factor/clear", summary: "Admin rescue, clear another user's 2FA", description: "For a user who has lost BOTH their authenticator and inbox access. Requires `twofa.reset` (super_admin/admin only, NOT the own-scope `twofa.manage` every role holds). Self-clearing is forbidden. Audit-logged with the mandatory reason; idempotent (`cleared: false` when the target had no 2FA).", tags: ["admin", "2fa"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("twofa.reset (scope: all)"), request: { params: z.object({ id: z.string().uuid() }), body: { content: { "application/json": { schema: AdminClearTwoFactorRequest } } } }, responses: { 200: { description: "2FA cleared (or already absent).", content: { "application/json": { schema: AdminClearTwoFactorEnvelope } } }, ...errorResponses } });
 
 // ─────────────────────────────────────────────────────────────────────────
 // Wave-2 follow-up promotion (docs/plans/phase-9-completion.md T30 follow-up,
@@ -6023,7 +6023,7 @@ registry.registerPath({
   summary: "Bulk-assign an owner to up to 200 leads",
   description:
     "Every id runs through the SAME already-scope-checked, already-audited single-row " +
-    "LeadsService.assignOwner() an equivalent single-item call uses — never broader reach " +
+    "LeadsService.assignOwner() an equivalent single-item call uses, never broader reach " +
     "than one-at-a-time. Per-row success:false covers BOTH not-found and out-of-scope (IDOR-safe).",
   tags: ["crm", "bulk"],
   security: [{ cookieAuth: [], csrfHeader: [] }],
@@ -6075,7 +6075,7 @@ registry.registerPath({
   path: "/api/v1/crm/saved-views",
   summary: "Create an own-scope saved filter view",
   description:
-    "No dedicated permission key — authenticated only. `filters` is an opaque bag echoed " +
+    "No dedicated permission key, authenticated only. `filters` is an opaque bag echoed " +
     "back verbatim, never interpreted server-side; the caller must separately hold " +
     "leads.view/students.view to query the data it filters.",
   tags: ["crm", "saved-views"],
@@ -6091,7 +6091,7 @@ registry.registerPath({
   method: "get",
   path: "/api/v1/crm/saved-views",
   summary: "List the caller's own saved filter views",
-  description: "Returns the caller's FULL own-scope set unconditionally — page/pageSize are accepted but not applied server-side.",
+  description: "Returns the caller's FULL own-scope set unconditionally. Page/pageSize are accepted but not applied server-side.",
   tags: ["crm", "saved-views"],
   security: [{ cookieAuth: [] }],
   request: { query: ListSavedViewsQuerySchema },
@@ -6201,7 +6201,7 @@ registry.registerPath({
   path: "/api/v1/crm/videos",
   summary: "Ingest a video asset for a lesson (== attach; re-ingest replaces the existing video)",
   description:
-    "videos.lesson_id is NOT NULL + UNIQUE (1:1 with lesson) — ingest and attach-to-lesson " +
+    "videos.lesson_id is NOT NULL + UNIQUE (1:1 with lesson), ingest and attach-to-lesson " +
     "are the SAME operation. Returns the video row + a one-time VideoProvider upload URL " +
     "the caller PUTs the raw file to directly (never proxied through this API).",
   tags: ["crm", "video-library"],
@@ -6239,7 +6239,7 @@ export function generateOpenApiDocument(): OpenAPIObject {
       title: "stimuliiq API",
       version: "0.8.0",
       description:
-        "stimuliiq /api/v1 contract — Phase-0 auth/me, Phase-1 CRM core " +
+        "stimuliiq /api/v1 contract. Phase-0 auth/me, Phase-1 CRM core " +
         "(students, faculty, courses/curriculum, batches, enrollments, admin roles/" +
         "permission-matrix/branches, audit logs), Phase-2 Commerce + Leads " +
         "(orders, payments/Razorpay/verify/webhook/manual/reconciliation, invoices, " +
@@ -6249,10 +6249,10 @@ export function generateOpenApiDocument(): OpenAPIObject {
         "lesson detail, stream-url [short-TTL signed HLS, enrollment-gated, audited], " +
         "progress ping + completion + rollup, attendance), plus " +
         "Phase-4 Learning Depth (assignments/projects/submissions/milestones, " +
-        "assessments/attempts [answer-key NEVER in student response — AssessmentQuestionPublic], " +
+        "assessments/attempts [answer-key NEVER in student response, AssessmentQuestionPublic], " +
         "certificates [eligibility engine, issue/revoke/reissue, signed download URL], " +
         "public GET /verify/:certUid [unauthenticated, signature-recomputed, rate-limited, " +
-        "minimal payload — no PII beyond holderName], StorageProvider signed upload/download). " +
+        "minimal payload. No PII beyond holderName], StorageProvider signed upload/download). " +
         "Cookie + CSRF transport (docs/04-trd-architecture.md §2.3); standard " +
         "`{ data, meta, error }` envelope with RFC-7807 problem-details errors; " +
         "`Idempotency-Key` header REQUIRED on all unsafe mutations (docs/04 §2.14). " +
@@ -6263,17 +6263,17 @@ export function generateOpenApiDocument(): OpenAPIObject {
         "P4 security guarantees: answer key never serialized (type + integration assertion); " +
         "cert_uid verify RECOMPUTES HMAC (fabricated row fails); signed URLs only (no raw bucket URLs). " +
         "P5 security guarantees: public catalog projection enforced (no status/isPublic/ogImageKey/tenantId " +
-        "in responses — type assertions in @repo/types/public/programs.schemas.ts); checkout response " +
-        "carries PUBLIC keyId ONLY (RAZORPAY_KEY_SECRET never in any response — type assertion in " +
+        "in responses. Type assertions in @repo/types/public/programs.schemas.ts); checkout response " +
+        "carries PUBLIC keyId ONLY (RAZORPAY_KEY_SECRET never in any response, type assertion in " +
         "@repo/types/public/enroll.schemas.ts); captcha fail-closed in prod (AC-44); funnel IDOR→404 " +
-        "(student can only transact on own order — AC-22); DPDP consent recorded on every public write. " +
-        "Phase-8 Mentor (human, externally-hired batch lead — docs/specs/phase-8-mentor.md): mentor " +
+        "(student can only transact on own order. AC-22); DPDP consent recorded on every public write. " +
+        "Phase-8 Mentor (human, externally-hired batch lead, docs/specs/phase-8-mentor.md): mentor " +
         "hiring-record CRUD (crm/mentors), batch_mentors M:N assignment with single-lead-flag semantics, " +
         "read-only internship-completion rollup (batch-level + paginated per-student breakdown, reuses the " +
-        "P4 eligibility engine verbatim, LOCK-4 — never a parallel progress system), active→completed " +
+        "P4 eligibility engine verbatim, LOCK-4. Never a parallel progress system), active→completed " +
         "mark-complete transition (batches.markComplete, informational-only rollup, never a completion " +
         "gate), and a scoped mentor-facing dashboard (GET /me/mentor/dashboard, fail-closed cross-batch/" +
-        "cross-mentor/cross-tenant isolation — compile-time no-leak assertions in " +
+        "cross-mentor/cross-tenant isolation, compile-time no-leak assertions in " +
         "@repo/types/crm/mentors.schemas.ts).",
     },
     servers: [{ url: "/", description: "Relative to the API origin (global prefix api/v1 already in paths)." }],

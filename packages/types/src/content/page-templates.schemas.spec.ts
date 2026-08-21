@@ -1,15 +1,15 @@
-// Unit tests for the Phase-11 locked-template registry (page-templates.schemas.ts —
+// Unit tests for the Phase-11 locked-template registry (page-templates.schemas.ts,
 // docs/plans/phase-11-locked-templates.md). This is the SINGLE source of truth
 // `content-pages-builder.service.ts` (backend-builder P3), `page-template-sections.ts` /
 // `page-builder-editor.tsx` (frontend-builder P4), and `prisma/seed.ts` (db-architect P2)
-// all import from — a bug here breaks every core marketing page's save/edit/seed path at
+// all import from, a bug here breaks every core marketing page's save/edit/seed path at
 // once, so it gets its own dedicated unit-test file at the layer it actually lives in
-// (a pure, framework-free zod util — CLAUDE.md §4 testing pyramid: "unit: services,
+// (a pure, framework-free zod util, CLAUDE.md §4 testing pyramid: "unit: services,
 // utils, guards, components").
 //
 // GAP THIS FILE CLOSES: `page-builder-fixtures.test.ts` (this same directory) validates
 // the 6 real seed fixtures (prisma/fixtures/builder-pages/*.json) against the GENERIC
-// `PageBuilderBlockSchema` union only — it does NOT check that each fixture's section
+// `PageBuilderBlockSchema` union only, it does NOT check that each fixture's section
 // list actually matches its OWN locked template's fixed shape/order/type. Without this
 // file, a fixture could silently drift (an extra/reordered/wrong-type section) and seed
 // successfully (Prisma writes arbitrary JSON with no shape check), only to surface as a
@@ -109,7 +109,7 @@ describe("validatePageBodyAgainstTemplate()", () => {
     if (result.success) expect(result.data).toEqual(body);
   });
 
-  it.each(CORE_SLUGS)("%s: rejects a body with its LAST section removed — code=missing_section", (slug) => {
+  it.each(CORE_SLUGS)("%s: rejects a body with its LAST section removed, code=missing_section", (slug) => {
     const body = defaultBodyForSlug(slug);
     const truncated = body.slice(0, -1);
     const result = validatePageBodyAgainstTemplate(slug, truncated);
@@ -119,7 +119,7 @@ describe("validatePageBodyAgainstTemplate()", () => {
     }
   });
 
-  it.each(CORE_SLUGS)("%s: rejects a body with an extra section appended — code=extra_section", (slug) => {
+  it.each(CORE_SLUGS)("%s: rejects a body with an extra section appended, code=extra_section", (slug) => {
     const body = defaultBodyForSlug(slug);
     const withExtra = [...body, { type: "brain_showcase" as const, data: {} }];
     const result = validatePageBodyAgainstTemplate(slug, withExtra);
@@ -130,12 +130,12 @@ describe("validatePageBodyAgainstTemplate()", () => {
   });
 
   it.each(CORE_SLUGS.filter((slug) => PAGE_TEMPLATES[slug].length >= 2))(
-    "%s: rejects the first two sections swapped — code=wrong_block_type (when their types differ)",
+    "%s: rejects the first two sections swapped, code=wrong_block_type (when their types differ)",
     (slug) => {
       const body = defaultBodyForSlug(slug);
       const [first, second] = body;
       // Only a meaningful reorder-detection assertion when the two swapped positions
-      // actually have DIFFERENT block types — same-type swaps are the documented,
+      // actually have DIFFERENT block types, same-type swaps are the documented,
       // accepted limitation (see this file's header + page-templates.schemas.ts's own
       // file-header "IMPORTANT LIMITATION" note).
       if (first!.type === second!.type) return;
@@ -148,7 +148,7 @@ describe("validatePageBodyAgainstTemplate()", () => {
     },
   );
 
-  it("rejects a section whose data fails its own dataSchema — code=invalid_section_data", () => {
+  it("rejects a section whose data fails its own dataSchema, code=invalid_section_data", () => {
     const body = defaultBodyForSlug("gallery");
     const brokenHero = [{ ...body[0]!, data: {} }, body[1]!]; // hero.headline is required
     const result = validatePageBodyAgainstTemplate("gallery", brokenHero);

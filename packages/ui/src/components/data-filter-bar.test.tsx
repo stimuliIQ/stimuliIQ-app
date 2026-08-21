@@ -14,7 +14,7 @@ const VIEWS: SavedFilterView[] = [
   { id: "v2", name: "Hot leads" },
 ];
 
-describe("DataFilterBar — search", () => {
+describe("DataFilterBar, search", () => {
   it("renders a labelled search input and calls onSearchChange", async () => {
     const user = userEvent.setup();
     const onSearchChange = vi.fn();
@@ -30,7 +30,7 @@ describe("DataFilterBar — search", () => {
   });
 });
 
-describe("DataFilterBar — filter chips", () => {
+describe("DataFilterBar, filter chips", () => {
   it("renders active filter chips as visible text", () => {
     render(<DataFilterBar chips={CHIPS} />);
     expect(screen.getByText("Status: Active")).toBeInTheDocument();
@@ -59,7 +59,7 @@ describe("DataFilterBar — filter chips", () => {
   });
 });
 
-describe("DataFilterBar — saved views", () => {
+describe("DataFilterBar, saved views", () => {
   it("renders saved views plus an 'All' toggle", () => {
     render(<DataFilterBar savedViews={VIEWS} activeViewId={null} onSelectView={vi.fn()} />);
     expect(screen.getByTestId("data-filter-bar-view-all")).toHaveAttribute("aria-pressed", "true");
@@ -100,7 +100,7 @@ describe("DataFilterBar — saved views", () => {
   });
 });
 
-describe("DataFilterBar — extra controls", () => {
+describe("DataFilterBar, extra controls", () => {
   it("renders children between search and save view", () => {
     render(
       <DataFilterBar searchValue="" onSearchChange={vi.fn()}>

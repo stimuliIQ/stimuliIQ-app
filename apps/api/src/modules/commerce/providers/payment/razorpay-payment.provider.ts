@@ -111,7 +111,7 @@ export class RazorpayPaymentProvider implements PaymentProvider {
     if (!this.webhookSecret) {
       this.logger.warn(
         "[RazorpayPaymentProvider] RAZORPAY_WEBHOOK_SECRET is not configured. " +
-          "Webhook signature verification will FAIL CLOSED — all incoming webhooks " +
+          "Webhook signature verification will FAIL CLOSED, all incoming webhooks " +
           "will be rejected until this secret is set. Set it via the Razorpay dashboard " +
           "and add it to .env (see .env.example).",
       );
@@ -127,7 +127,7 @@ export class RazorpayPaymentProvider implements PaymentProvider {
   private requireKeys(): { keyId: string; keySecret: string } {
     if (!this.keyId || !this.keySecret) {
       throw new Error(
-        "[RazorpayPaymentProvider] RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET not configured — " +
+        "[RazorpayPaymentProvider] RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET not configured, " +
           "cannot perform this payment operation. Add them to .env (see .env.example).",
       );
     }
@@ -178,7 +178,7 @@ export class RazorpayPaymentProvider implements PaymentProvider {
     if (!this.keySecret) {
       this.logger.warn(
         "[RazorpayPaymentProvider] verifyPaymentSignature called but " +
-          "RAZORPAY_KEY_SECRET is not configured — rejecting (fail closed).",
+          "RAZORPAY_KEY_SECRET is not configured, rejecting (fail closed).",
       );
       return false;
     }
@@ -204,7 +204,7 @@ export class RazorpayPaymentProvider implements PaymentProvider {
     if (!this.webhookSecret) {
       this.logger.warn(
         "[RazorpayPaymentProvider] verifyWebhookSignature called but " +
-          "RAZORPAY_WEBHOOK_SECRET is not configured — rejecting webhook (fail closed).",
+          "RAZORPAY_WEBHOOK_SECRET is not configured, rejecting webhook (fail closed).",
       );
       return false;
     }
@@ -331,7 +331,7 @@ export class RazorpayPaymentProvider implements PaymentProvider {
 
       this.logger.error(
         `[RazorpayPaymentProvider] API error on ${method} ${path}: ` +
-          `HTTP ${response.status} — ${errText}`,
+          `HTTP ${response.status} · ${errText}`,
       );
 
       throw new Error(

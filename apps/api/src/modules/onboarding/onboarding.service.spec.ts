@@ -1,6 +1,6 @@
 // apps/api/src/modules/onboarding/onboarding.service.spec.ts
 //
-// Unit tests for OnboardingService — the anonymous submit path and the CRM read/triage
+// Unit tests for OnboardingService, the anonymous submit path and the CRM read/triage
 // path for the onboarding form (stimuliiq.com/onboarding).
 //
 // The cases below are chosen around the things that are structurally easy to get wrong in
@@ -147,7 +147,7 @@ describe("OnboardingService", () => {
   });
 
   describe("getPublicForm()", () => {
-    it("returns only the public projection — no ids, identityRole or timestamps reach the browser", async () => {
+    it("returns only the public projection, no ids, identityRole or timestamps reach the browser", async () => {
       const form = await service.getPublicForm();
       expect(form.fields[0]).toEqual({
         key: "full_name",
@@ -254,7 +254,7 @@ describe("OnboardingService", () => {
     });
 
     // SECURITY: the careers Wave-6 M3 lesson, applied here. A submitted storage key is only
-    // ever one this API minted into THIS tenant's namespace — otherwise the CRM detail view
+    // ever one this API minted into THIS tenant's namespace, otherwise the CRM detail view
     // would later mint a signed download URL for someone else's object.
     it("rejects a file answer whose storage key points outside this tenant's namespace", async () => {
       const error = await service
@@ -281,7 +281,7 @@ describe("OnboardingService", () => {
       expect(answers).toContainEqual(
         expect.objectContaining({ key: "full_name", label: "Name", type: "text", value: "Ananya Sharma" }),
       );
-      // A program answer is stored by TITLE — a staff member reading a submission should
+      // A program answer is stored by TITLE, a staff member reading a submission should
       // not have to resolve a uuid to know which program was chosen.
       expect(answers).toContainEqual(
         expect.objectContaining({ key: "program", value: "Clinical Neurology Fellowship" }),
@@ -318,7 +318,7 @@ describe("OnboardingService", () => {
       );
     });
 
-    it("never stores the raw IP — only a hash (DPDP)", async () => {
+    it("never stores the raw IP, only a hash (DPDP)", async () => {
       await service.submit({ answers: VALID_ANSWERS, captchaToken: "noop" }, "203.0.113.7");
       const stored = (repo.createSubmission as jest.Mock).mock.calls[0][1];
       expect(stored.ipHash).toMatch(/^[a-f0-9]{64}$/);
@@ -350,7 +350,7 @@ describe("OnboardingService", () => {
           storageKey: `onboarding/${TENANT}/uuid-receipt.png`,
         },
       ] as never,
-      status: "hold", // the arrival state — see migration `onboarding_default_hold`.
+      status: "hold", // the arrival state, see migration `onboarding_default_hold`.
       reviewNotes: null,
       reviewedAt: null,
       studentProfileId: null,
@@ -501,7 +501,7 @@ describe("OnboardingService", () => {
             recordPayment: true,
             actorId: "staff-1",
             submissionId: "sub-1",
-            // ROW's file answer — the uploaded receipt, i.e. the evidence the ledger points at.
+            // ROW's file answer, the uploaded receipt, i.e. the evidence the ledger points at.
             paymentReference: "receipt.png",
           }),
         );
@@ -548,7 +548,7 @@ describe("OnboardingService", () => {
         expect(notifications.sendRejectionEmail).toHaveBeenCalledTimes(1);
       });
 
-      // Fires on the TRANSITION only — editing notes days later must not re-notify.
+      // Fires on the TRANSITION only, editing notes days later must not re-notify.
       it("does not re-notify a submission that is already rejected", async () => {
         repo.findSubmissionById.mockResolvedValue({ ...ROW, status: "rejected" });
 
@@ -567,7 +567,7 @@ describe("OnboardingService", () => {
         expect(notifications.sendRejectionEmail).not.toHaveBeenCalled();
       });
 
-      // The internal notes are staff-only — the CRM promises the student never sees them.
+      // The internal notes are staff-only, the CRM promises the student never sees them.
       it("never passes the internal review notes to the student's email", async () => {
         repo.findSubmissionById.mockResolvedValue(ROW);
 
@@ -616,7 +616,7 @@ describe("OnboardingService", () => {
         });
       });
 
-      it("returns an empty list — not an error — when the form captured no program", async () => {
+      it("returns an empty list, not an error, when the form captured no program", async () => {
         repo.findSubmissionById.mockResolvedValue({ ...ROW, programId: null });
         await expect(runWithScope("all", () => service.listApprovableBatches(TENANT, "sub-1"))).resolves.toEqual([]);
         expect(repo.listApprovableBatches).not.toHaveBeenCalled();

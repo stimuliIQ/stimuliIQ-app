@@ -32,7 +32,7 @@ beforeEach(() => {
 // Rendering / visibility
 // ---------------------------------------------------------------------------
 
-describe("ConsentBanner — rendering", () => {
+describe("ConsentBanner, rendering", () => {
   it("renders the banner when no consent is stored", async () => {
     // localStorage returns null → banner should show
     render(<ConsentBanner />);
@@ -62,7 +62,7 @@ describe("ConsentBanner — rendering", () => {
 // Accept / Reject
 // ---------------------------------------------------------------------------
 
-describe("ConsentBanner — accept / reject", () => {
+describe("ConsentBanner, accept / reject", () => {
   it("calls onAccept and hides banner when Accept is clicked", async () => {
     const user = userEvent.setup();
     const onAccept = vi.fn();
@@ -108,7 +108,7 @@ describe("ConsentBanner — accept / reject", () => {
 // a11y
 // ---------------------------------------------------------------------------
 
-describe("ConsentBanner — a11y", () => {
+describe("ConsentBanner, a11y", () => {
   it("has role=dialog with aria-label", async () => {
     render(<ConsentBanner />);
     await act(async () => {});

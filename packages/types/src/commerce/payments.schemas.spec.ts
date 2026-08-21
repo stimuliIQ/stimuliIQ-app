@@ -1,4 +1,4 @@
-// Manual payment entry — the "money has already arrived" rule.
+// Manual payment entry, the "money has already arrived" rule.
 //
 // `POST /commerce/payments/manual` does not merely record a fact: it captures the payment,
 // marks the order paid, creates the enrollment and raises an invoice, immediately. So a
@@ -19,18 +19,18 @@ const BASE = {
   reference: "UTR123456789",
 };
 
-/** An ISO instant `ms` from now — positive is the future. */
+/** An ISO instant `ms` from now, positive is the future. */
 function iso(offsetMs: number): string {
   return new Date(Date.now() + offsetMs).toISOString();
 }
 
-describe("ManualPaymentRequestSchema — paidAt", () => {
+describe("ManualPaymentRequestSchema, paidAt", () => {
   it("accepts a payment received in the past", () => {
     const result = ManualPaymentRequestSchema.safeParse({ ...BASE, paidAt: iso(-24 * 60 * 60 * 1000) });
     expect(result.success).toBe(true);
   });
 
-  it("accepts an omitted paidAt — the server stamps now", () => {
+  it("accepts an omitted paidAt, the server stamps now", () => {
     const result = ManualPaymentRequestSchema.safeParse(BASE);
     expect(result.success).toBe(true);
   });
@@ -41,7 +41,7 @@ describe("ManualPaymentRequestSchema — paidAt", () => {
     expect(JSON.stringify(result.error?.issues)).toContain("can't be recorded as received in the future");
   });
 
-  it("rejects even a few hours ahead — this is not a rounding rule", () => {
+  it("rejects even a few hours ahead, this is not a rounding rule", () => {
     const result = ManualPaymentRequestSchema.safeParse({ ...BASE, paidAt: iso(3 * 60 * 60 * 1000) });
     expect(result.success).toBe(false);
   });

@@ -63,7 +63,7 @@ describe("EMI module controllers permission catalog (regression: P6 forum.read/n
 const hasDatabase = !!process.env.DATABASE_URL;
 const describeIfDb = hasDatabase ? describe : describe.skip;
 
-describeIfDb("EMI module permission catalog — live seeded DB", () => {
+describeIfDb("EMI module permission catalog, live seeded DB", () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {

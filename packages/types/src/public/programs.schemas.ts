@@ -135,7 +135,7 @@ export type PublicModuleOutline = z.infer<typeof PublicModuleOutlineSchema>;
 export const PublicLessonPreviewUrlResponseSchema = z.object({
   lessonId: UuidSchema,
   lessonTitle: z.string(),
-  url: z.string().url().describe("Short-TTL signed playback URL. Do NOT cache — re-request on expiry."),
+  url: z.string().url().describe("Short-TTL signed playback URL. Do NOT cache, re-request on expiry."),
   expiresAt: z.string().describe("ISO-8601 expiry of `url`."),
 });
 export type PublicLessonPreviewUrlResponse = z.infer<typeof PublicLessonPreviewUrlResponseSchema>;
@@ -186,7 +186,7 @@ export const PublicProgramBadgeColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$
  */
 export const PublicProgramSummarySchema = z.object({
   id: UuidSchema.describe("Opaque program id. Needed to construct the enroll URL."),
-  slug: z.string().min(1).describe("SEO URL key — /programs/:slug."),
+  slug: z.string().min(1).describe("SEO URL key, /programs/:slug."),
   title: z.string().min(1),
   domain: z.string().min(1).describe("Program domain (filter facet)."),
   level: z.string().nullable().describe("Program level (filter facet). Null if not set."),

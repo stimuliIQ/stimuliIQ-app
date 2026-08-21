@@ -17,7 +17,7 @@ describe("FunnelChart", () => {
 
   it("has an accessible name via role=img", () => {
     render(<FunnelChart title="Lead funnel" description="Last 30 days" stages={stages} />);
-    expect(screen.getByRole("img", { name: "Lead funnel — Last 30 days" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Lead funnel, Last 30 days" })).toBeInTheDocument();
   });
 
   it("renders a sr-only data table with stage, count, and both conversion percentages", () => {

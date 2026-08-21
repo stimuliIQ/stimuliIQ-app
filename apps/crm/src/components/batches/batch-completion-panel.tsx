@@ -180,16 +180,16 @@ export function BatchCompletionPanel({ batchId, me }: BatchCompletionPanelProps)
       ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <KpiCard label="Active students" value={summary?.totalActive ?? "—"} loading={summaryLoading} data-testid="completion-kpi-total" />
-        <KpiCard label="Certified" value={summary?.certified ?? "—"} loading={summaryLoading} data-testid="completion-kpi-certified" />
+        <KpiCard label="Active students" value={summary?.totalActive ?? "-"} loading={summaryLoading} data-testid="completion-kpi-total" />
+        <KpiCard label="Certified" value={summary?.certified ?? "-"} loading={summaryLoading} data-testid="completion-kpi-certified" />
         <KpiCard
           label="Eligible, not issued"
-          value={summary?.eligibleNotIssued ?? "—"}
+          value={summary?.eligibleNotIssued ?? "-"}
           loading={summaryLoading}
           data-testid="completion-kpi-eligible"
         />
-        <KpiCard label="In progress" value={summary?.inProgress ?? "—"} loading={summaryLoading} data-testid="completion-kpi-inprogress" />
-        <KpiCard label="Dropped" value={summary?.dropped ?? "—"} loading={summaryLoading} data-testid="completion-kpi-dropped" />
+        <KpiCard label="In progress" value={summary?.inProgress ?? "-"} loading={summaryLoading} data-testid="completion-kpi-inprogress" />
+        <KpiCard label="Dropped" value={summary?.dropped ?? "-"} loading={summaryLoading} data-testid="completion-kpi-dropped" />
       </div>
 
       <div className="rounded-md border border-border p-4" data-testid="completion-percent-block">
@@ -208,19 +208,19 @@ export function BatchCompletionPanel({ batchId, me }: BatchCompletionPanelProps)
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <KpiCard
           label="Assignments submitted"
-          value={summary?.assignmentsSubmittedPct != null ? `${summary.assignmentsSubmittedPct.toFixed(0)}%` : "—"}
+          value={summary?.assignmentsSubmittedPct != null ? `${summary.assignmentsSubmittedPct.toFixed(0)}%` : "-"}
           loading={summaryLoading}
           data-testid="completion-kpi-assignments"
         />
         <KpiCard
           label="Assessments passed"
-          value={summary?.assessmentsPassedPct != null ? `${summary.assessmentsPassedPct.toFixed(0)}%` : "—"}
+          value={summary?.assessmentsPassedPct != null ? `${summary.assessmentsPassedPct.toFixed(0)}%` : "-"}
           loading={summaryLoading}
           data-testid="completion-kpi-assessments"
         />
         <KpiCard
           label="Final project approved"
-          value={summary?.finalProjectApprovedPct != null ? `${summary.finalProjectApprovedPct.toFixed(0)}%` : "—"}
+          value={summary?.finalProjectApprovedPct != null ? `${summary.finalProjectApprovedPct.toFixed(0)}%` : "-"}
           loading={summaryLoading}
           data-testid="completion-kpi-project"
         />
@@ -282,7 +282,7 @@ export function BatchCompletionPanel({ batchId, me }: BatchCompletionPanelProps)
               title: "No students in this bucket",
               description: "Try a different bucket filter, or check back once students enroll.",
             }}
-            caption="Batch completion — per-student breakdown"
+            caption="Batch completion, per-student breakdown"
             data-testid="completion-students-table"
           />
         )}
@@ -294,7 +294,7 @@ export function BatchCompletionPanel({ batchId, me }: BatchCompletionPanelProps)
         title="Mark this batch complete?"
         description={
           summary
-            ? `${summary.totalActive} active student(s), ${summary.percentComplete ?? 0}% average completion. This does not require 100% completion — it's an operational "this program run has ended" milestone and cannot be undone from here.`
+            ? `${summary.totalActive} active student(s), ${summary.percentComplete ?? 0}% average completion. This does not require 100% completion, it's an operational "this program run has ended" milestone and cannot be undone from here.`
             : "This is an operational milestone and cannot be undone from here."
         }
         confirmLabel="Mark complete"

@@ -66,7 +66,7 @@ describe("SettingsService", () => {
     expect(result.key).toBe("branding.primary_color");
   });
 
-  it("set() rejects scope=branch — writes require scope=all even for system-scope-adjacent business rule", async () => {
+  it("set() rejects scope=branch, writes require scope=all even for system-scope-adjacent business rule", async () => {
     await expect(
       runWithScope("branch", "settings.edit", () =>
         service.set("tenant-1", "system", "site.maintenance_mode", { value: true }),

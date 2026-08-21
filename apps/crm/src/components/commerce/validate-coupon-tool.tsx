@@ -27,7 +27,7 @@ export function ValidateCouponTool(): React.JSX.Element {
         <CardTitle>Validate a coupon</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <p className="text-sm text-fg-muted">Preview the discount a code would apply for a program — does not redeem it.</p>
+        <p className="text-sm text-fg-muted">Preview the discount a code would apply for a program, does not redeem it.</p>
         <div className="flex flex-wrap items-end gap-3">
           <Input
             label="Code"

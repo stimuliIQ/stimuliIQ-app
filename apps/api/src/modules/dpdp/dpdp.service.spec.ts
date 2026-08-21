@@ -1,12 +1,12 @@
 // apps/api/src/modules/dpdp/dpdp.service.spec.ts
 //
-// Unit tests for DpdpService (Phase-7 Wave 2 security hardening batch B, item 2b —
+// Unit tests for DpdpService (Phase-7 Wave 2 security hardening batch B, item 2b,
 // docs/plans/phase-7.md task #13, AC-64/65/66).
 //
 // Coverage:
 //   - AC-64: erasure redacts a subject's PII inside audit_logs before/after snapshots,
 //     across the OWN User row (matched by entityId) AND correlated rows on OTHER models
-//     (matched by raw email/phone value, or an embedded userId field) — never a delete.
+//     (matched by raw email/phone value, or an embedded userId field), never a delete.
 //   - AC-64: the erasure action itself writes a new audit_logs row.
 //   - AC-66: unregistered models/rows are left untouched (no silent over-reach).
 //   - Idempotency: a second erasure run for the same subject finds nothing left to
@@ -89,7 +89,7 @@ describe("DpdpService.eraseSubjectPii", () => {
     const leadRow: CandidateAuditRow = {
       id: "audit-2",
       entity: "Lead",
-      entityId: "lead-1", // NOT the subject's userId — correlated via email value instead.
+      entityId: "lead-1", // NOT the subject's userId, correlated via email value instead.
       before: null,
       after: { id: "lead-1", tenantId: TENANT_ID, name: "Lead Name", email: "subject@example.com", stage: "new" },
     };
@@ -158,7 +158,7 @@ describe("DpdpService.eraseSubjectPii", () => {
     const result = await service.eraseSubjectPii(TENANT_ID, ACTOR_ID, SUBJECT_ID);
 
     // entity===User && entityId===subjectUserId still forces an attempt, but every field
-    // is already in its masked form, so maskPiiValue is a no-op for each — nothing changes.
+    // is already in its masked form, so maskPiiValue is a no-op for each, nothing changes.
     expect(repo.redactAuditRow).not.toHaveBeenCalled();
     expect(result.redactedRowCount).toBe(0);
     expect(result.alreadyRedacted).toBe(true);

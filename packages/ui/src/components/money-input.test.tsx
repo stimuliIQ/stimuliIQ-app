@@ -10,7 +10,7 @@ import { MoneyInput, formatPaise } from "./money-input";
 
 describe("formatPaise", () => {
   it("formats zero paise as ₹0.00", () => {
-    // Intl may format as "₹0.00" or "₹ 0.00" (narrow no-break space) — normalise
+    // Intl may format as "₹0.00" or "₹ 0.00" (narrow no-break space), normalise
     expect(formatPaise(0).replace(/\s/g, "")).toContain("0.00");
   });
 
@@ -71,7 +71,7 @@ describe("MoneyInput", () => {
     const input = screen.getByLabelText("Fee");
 
     await user.clear(input);
-    // Type 1.07 — the classic float precision edge case (1.07 * 100 = 106.99999…)
+    // Type 1.07, the classic float precision edge case (1.07 * 100 = 106.99999…)
     await user.type(input, "1.07");
 
     // Should call with exactly 107 (integer), not 106.999... or 107.00000001
@@ -90,7 +90,7 @@ describe("MoneyInput", () => {
     await user.clear(input);
     await user.type(input, "1.234");
 
-    // "1.23" is the max allowed — the "4" should be rejected
+    // "1.23" is the max allowed, the "4" should be rejected
     expect((input as HTMLInputElement).value).toBe("1.23");
   });
 

@@ -124,7 +124,7 @@ export function PricingTable({
                 <th
                   key={tier.id}
                   scope="col"
-                  aria-label={tier.recommended ? `${tier.name} — Recommended` : tier.name}
+                  aria-label={tier.recommended ? `${tier.name}, Recommended` : tier.name}
                   className={cn(
                     "border-b border-border pb-4 px-4 text-center",
                     tier.recommended && "border-x border-brand-500",

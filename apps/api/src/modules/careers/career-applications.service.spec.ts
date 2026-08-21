@@ -2,7 +2,7 @@
 //
 // Unit tests for CareerApplicationsService (docs/specs/careers-hiring.md, ADR-0066).
 //
-// These target the promises that are invisible when they break — a candidate who is never
+// These target the promises that are invisible when they break, a candidate who is never
 // emailed, an offer with no letter, an internal note that leaks, a second reviewer silently
 // re-sending a rejection. The happy path is the least interesting thing here.
 
@@ -144,14 +144,14 @@ describe("CareerApplicationsService", () => {
       expect(repo.markAcknowledged).not.toHaveBeenCalled();
     });
 
-    it("rejects a resume key outside this tenant's namespace (Wave 6 M3 — the key is later signed for download)", async () => {
+    it("rejects a resume key outside this tenant's namespace (Wave 6 M3, the key is later signed for download)", async () => {
       await expect(
         service.submit({ ...baseApply, resumeStorageKey: "careers/other-tenant/uuid-resume.pdf" }),
       ).rejects.toBeInstanceOf(UnprocessableEntityException);
       expect(repo.create).not.toHaveBeenCalled();
     });
 
-    it("links a LIVE opening and trusts the SERVER's title over the client's — a tampered role must not reach our outgoing mail", async () => {
+    it("links a LIVE opening and trusts the SERVER's title over the client's, a tampered role must not reach our outgoing mail", async () => {
       openings.findLiveOpeningForApply.mockResolvedValue({ id: "opening-1", title: "Senior Counsellor" } as never);
       await service.submit({ ...baseApply, jobOpeningId: "opening-1", role: "CEO <script>alert(1)</script>" });
       const written = repo.create.mock.calls[0][1];
@@ -252,7 +252,7 @@ describe("CareerApplicationsService", () => {
       expect(attachment.filename).not.toContain("/");
     });
 
-    it("FAILS THE WHOLE ACTION when the letter cannot be read — a candidate must never be marked offered with nothing sent", async () => {
+    it("FAILS THE WHOLE ACTION when the letter cannot be read, a candidate must never be marked offered with nothing sent", async () => {
       storage.getObject.mockRejectedValue(new Error("not found"));
       await expect(runWithScope("all", () => service.offer(TENANT, "app-1", "user-1", body))).rejects.toBeInstanceOf(
         UnprocessableEntityException,
@@ -288,7 +288,7 @@ describe("CareerApplicationsService", () => {
       expect(repo.applyDecision.mock.calls[0][2].status).toBe("rejected");
     });
 
-    it("NEVER passes internalNotes to the notification layer — the reason stays internal", async () => {
+    it("NEVER passes internalNotes to the notification layer, the reason stays internal", async () => {
       await runWithScope("all", () =>
         service.reject(TENANT, "app-1", "user-1", { internalNotes: "weak on the practical, duplicate of #88" }),
       );
@@ -296,7 +296,7 @@ describe("CareerApplicationsService", () => {
       expect(JSON.stringify(notifications.sendRejection.mock.calls[0])).not.toContain("weak on the practical");
     });
 
-    it("records the decision even when the email fails — a bounced mailbox must not roll back a reviewer's call", async () => {
+    it("records the decision even when the email fails, a bounced mailbox must not roll back a reviewer's call", async () => {
       notifications.sendRejection.mockResolvedValue(false);
       await expect(runWithScope("all", () => service.reject(TENANT, "app-1", "user-1", {}))).resolves.toBeDefined();
       expect(repo.applyDecision).toHaveBeenCalledTimes(1);
@@ -354,7 +354,7 @@ describe("CareerApplicationsService", () => {
       expect(detail.name).toBe("Priya Sharma");
     });
 
-    it("treats a SOFT-DELETED opening as absent — nested includes are not soft-delete filtered", async () => {
+    it("treats a SOFT-DELETED opening as absent, nested includes are not soft-delete filtered", async () => {
       repo.findById.mockResolvedValue(
         makeRow({
           jobOpening: { id: "opening-1", title: "Senior Counsellor", deletedAt: new Date() } as never,
@@ -369,7 +369,7 @@ describe("CareerApplicationsService", () => {
   });
 
   describe("resendAcknowledgement", () => {
-    it("refuses when one has already gone out — a second click must not re-mail the candidate", async () => {
+    it("refuses when one has already gone out, a second click must not re-mail the candidate", async () => {
       repo.findById.mockResolvedValue(makeRow({ acknowledgedAt: new Date("2026-01-01T00:00:00Z") }));
       const result = await runWithScope("all", () => service.resendAcknowledgement(TENANT, "app-1"));
       expect(result.sent).toBe(false);

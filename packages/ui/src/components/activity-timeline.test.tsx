@@ -15,7 +15,7 @@ const baseItems: ActivityItem[] = [
     type: "call",
     actorName: "Sneha R.",
     timestamp: new Date("2026-06-27T09:00:00Z"),
-    content: "Follow-up call — confirmed interest",
+    content: "Follow-up call, confirmed interest",
   },
   {
     id: "2",
@@ -59,7 +59,7 @@ describe("ActivityTimeline (items API)", () => {
 
   it("renders content text for each item", () => {
     render(<ActivityTimeline items={baseItems} />);
-    expect(screen.getByText("Follow-up call — confirmed interest")).toBeInTheDocument();
+    expect(screen.getByText("Follow-up call, confirmed interest")).toBeInTheDocument();
     expect(screen.getByText("Student asked about batch timing")).toBeInTheDocument();
   });
 

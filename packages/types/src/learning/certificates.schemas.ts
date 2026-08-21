@@ -167,7 +167,7 @@ export const EligibilityBatchSummarySchema = z.object({
   programId: UuidSchema,
   programTitle: z.string(),
   studentCount: z.number().int().min(0).describe(
-    "COUNT(enrollments) WHERE batch_id=B AND status IN ('active','completed') — the same " +
+    "COUNT(enrollments) WHERE batch_id=B AND status IN ('active','completed'), the same " +
       "non-dropped population the eligibility list itself pages over.",
   ),
   issuedCount: z.number().int().min(0).describe(
@@ -177,7 +177,7 @@ export const EligibilityBatchSummarySchema = z.object({
     "COUNT of those enrollments whose only live certificate row is status='revoked' (needs a reissue).",
   ),
   completionReadyCount: z.number().int().min(0).describe(
-    "COUNT of those enrollments with progress_pct >= 90 (the COMPLETION gate ALONE — assessments " +
+    "COUNT of those enrollments with progress_pct >= 90 (the COMPLETION gate ALONE, assessments " +
       "and final project are NOT checked here). A hint for which batch to open, never an eligibility verdict.",
   ),
 });
@@ -206,7 +206,7 @@ export const IssueCertificateRequestSchema = z
   .object({
     enrollmentId: UuidSchema.describe("The enrollment to issue the certificate for."),
     kind: CertificateKindSchema.default("training").describe(
-      "Which certificate to issue. `training` skips the eligibility gate entirely — batch " +
+      "Which certificate to issue. `training` skips the eligibility gate entirely, batch " +
         "completion is the bar. `internship` is normally issued by verifying a project " +
         "submission in CRM ▸ Projects rather than through this endpoint.",
     ),

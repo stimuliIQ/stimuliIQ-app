@@ -130,7 +130,7 @@ export class ReportScheduleDispatchScheduler implements OnModuleInit, OnApplicat
     const env = validateEnv();
     if (!isSchedulerEnabled(env)) {
       this.logger.log(
-        "[ReportScheduleDispatchScheduler] SCHEDULER_ENABLED is false (or NODE_ENV=test) — " +
+        "[ReportScheduleDispatchScheduler] SCHEDULER_ENABLED is false (or NODE_ENV=test), " +
           "dispatch interval NOT registered.",
       );
       return;
@@ -142,7 +142,7 @@ export class ReportScheduleDispatchScheduler implements OnModuleInit, OnApplicat
     }, intervalMs);
     timer.unref?.();
     this.schedulerRegistry.addInterval(INTERVAL_NAME, timer);
-    this.logger.log(`[ReportScheduleDispatchScheduler] registered — scanning every ${intervalMs}ms.`);
+    this.logger.log(`[ReportScheduleDispatchScheduler] registered, scanning every ${intervalMs}ms.`);
   }
 
   onApplicationShutdown(): void {
@@ -195,10 +195,10 @@ export class ReportScheduleDispatchScheduler implements OnModuleInit, OnApplicat
     if (!isReportScheduleType(schedule.type) || !isExportFormat(schedule.format)) {
       await this.repo.deactivate(
         schedule.id,
-        "Stored schedule type/format failed re-validation — schedule deactivated.",
+        "Stored schedule type/format failed re-validation, schedule deactivated.",
       );
       this.logger.error(
-        `[ReportScheduleDispatchScheduler] schedule=${schedule.id} deactivated — unrecognized type="${schedule.type}" format="${schedule.format}".`,
+        `[ReportScheduleDispatchScheduler] schedule=${schedule.id} deactivated, unrecognized type="${schedule.type}" format="${schedule.format}".`,
       );
       return;
     }
@@ -215,10 +215,10 @@ export class ReportScheduleDispatchScheduler implements OnModuleInit, OnApplicat
     if (!exportGrant) {
       await this.repo.deactivate(
         schedule.id,
-        'Creator no longer holds the "reports.export" permission — schedule deactivated.',
+        'Creator no longer holds the "reports.export" permission, schedule deactivated.',
       );
       this.logger.warn(
-        `[ReportScheduleDispatchScheduler] schedule=${schedule.id} deactivated — creator lost reports.export.`,
+        `[ReportScheduleDispatchScheduler] schedule=${schedule.id} deactivated, creator lost reports.export.`,
       );
       return;
     }
@@ -228,10 +228,10 @@ export class ReportScheduleDispatchScheduler implements OnModuleInit, OnApplicat
     if (!hasView) {
       await this.repo.deactivate(
         schedule.id,
-        `Creator no longer holds the "${viewPermissionKey}" permission required for this report — schedule deactivated.`,
+        `Creator no longer holds the "${viewPermissionKey}" permission required for this report, schedule deactivated.`,
       );
       this.logger.warn(
-        `[ReportScheduleDispatchScheduler] schedule=${schedule.id} deactivated — creator lost ${viewPermissionKey}.`,
+        `[ReportScheduleDispatchScheduler] schedule=${schedule.id} deactivated, creator lost ${viewPermissionKey}.`,
       );
       return;
     }
@@ -303,7 +303,7 @@ export class ReportScheduleDispatchScheduler implements OnModuleInit, OnApplicat
     // ─── Send (AC-39: zero-row result still sends, with a "no data" notice) ───────
     const noData = rowCount === 0;
     const label = TYPE_LABELS[schedule.type] ?? schedule.type;
-    const subject = noData ? `Your ${label} report — no data for this period` : `Your ${label} report is ready`;
+    const subject = noData ? `Your ${label} report. No data for this period` : `Your ${label} report is ready`;
     const html = this.buildEmailHtml(label, noData, downloadUrl);
 
     try {
@@ -341,7 +341,7 @@ export class ReportScheduleDispatchScheduler implements OnModuleInit, OnApplicat
         : {
             paragraphs: [
               `Your scheduled <strong>${label}</strong> report is ready.`,
-              "No download link is currently available — please check the CRM export history.",
+              "No download link is currently available. Please check the CRM export history.",
             ],
           }),
     });

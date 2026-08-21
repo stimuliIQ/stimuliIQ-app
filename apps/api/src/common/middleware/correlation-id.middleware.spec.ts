@@ -9,7 +9,7 @@ function buildReqRes(headers: Record<string, string> = {}) {
   return { req, res, setHeader };
 }
 
-describe("correlationIdMiddleware — AC-44", () => {
+describe("correlationIdMiddleware, AC-44", () => {
   it("reuses the client-supplied X-Request-Id header, stamping it onto req.id and the response header", () => {
     const { req, res, setHeader } = buildReqRes({ [REQUEST_ID_HEADER]: "client-id-123" });
     const next = jest.fn();

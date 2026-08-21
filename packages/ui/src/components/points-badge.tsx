@@ -107,7 +107,7 @@ export function StreakFlame({
       aria-label={
         isActive
           ? `${days}-day streak`
-          : "No active streak — start learning today to begin a streak"
+          : "No active streak. Start learning today to begin a streak"
       }
       className={cn(
         "inline-flex items-center rounded-full border",

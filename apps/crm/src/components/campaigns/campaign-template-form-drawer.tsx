@@ -309,7 +309,7 @@ export function CampaignTemplateFormDrawer({
                   id="tpl-name"
                   {...register("name", { required: "Name is required" })}
                   error={errors.name?.message}
-                  placeholder="e.g. Welcome message — batch B01"
+                  placeholder="e.g. Welcome message, batch B01"
                   data-testid="tpl-name"
                   required
                   aria-invalid={Boolean(errors.name)}
@@ -383,7 +383,7 @@ export function CampaignTemplateFormDrawer({
                     // it alone by design — so the student receives "Hi {{firstName}},".
                     <Alert tone="warning" className="mt-3" data-testid="tpl-unknown-variables">
                       {unknownVariables.map((key) => `{{${key}}}`).join(", ")}{" "}
-                      {unknownVariables.length === 1 ? "isn't" : "aren't"} replaced when sending — the message will go
+                      {unknownVariables.length === 1 ? "isn't" : "aren't"} replaced when sending, the message will go
                       out with the braces showing. Use one of the variables above, or write the value in directly.
                     </Alert>
                   ) : null}

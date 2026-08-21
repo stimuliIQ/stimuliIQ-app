@@ -1,7 +1,7 @@
 // apps/api/src/prisma/soft-delete-audit.integration.spec.ts
 //
 // Integration test proving the soft-delete + audit extensions (docs/05 §5/§6) against
-// a REAL Postgres instance — no mocking of Prisma. Requires `DATABASE_URL` to point at
+// a REAL Postgres instance, no mocking of Prisma. Requires `DATABASE_URL` to point at
 // a reachable Postgres with the Phase-0 core schema migrated (e.g. via
 // `docker compose -f infra/docker-compose.yml up -d` + `pnpm db:migrate`).
 //
@@ -10,7 +10,7 @@
 // the already-running dev/CI Postgres rather than spinning up its own container, so it
 // has no new infra dependency. It SKIPS (not fails) when `DATABASE_URL` is absent, so
 // `pnpm test` still passes in environments without a DB (e.g. a bare `turbo run test`
-// before infra is up) — `--passWithNoTests` already covers the "no DB" case via skip.
+// before infra is up), `--passWithNoTests` already covers the "no DB" case via skip.
 //
 // Phase-3 additions (docs/plans/phase-3.md task #1 DoD):
 //   - Soft-delete + audit on Video + LessonProgress + Attendance + Resource.
@@ -39,7 +39,7 @@ const describeIfDb = describeIfLocalDb;
 describeIfDb("soft-delete + audit Prisma extensions (integration)", () => {
   const base = new PrismaClient();
   // Composition order matters: audit must be applied first (inner), soft-delete second
-  // (outer) — see the COMPOSITION ORDER note in audit.extension.ts and the canonical
+  // (outer), see the COMPOSITION ORDER note in audit.extension.ts and the canonical
   // wiring in prisma.service.ts.
   const prisma = base.$extends(auditExtension).$extends(softDeleteExtension);
 
@@ -62,7 +62,7 @@ describeIfDb("soft-delete + audit Prisma extensions (integration)", () => {
     });
     tenantId = tenant.id;
 
-    // Fixtures for the Phase-1 CRM-core `Batch` soft-delete + audit test below — created
+    // Fixtures for the Phase-1 CRM-core `Batch` soft-delete + audit test below, created
     // via the BASE (non-extended) client so they don't themselves generate audit rows
     // that the assertions below would need to filter out.
     const branch = await base.branch.create({
@@ -179,8 +179,8 @@ describeIfDb("soft-delete + audit Prisma extensions (integration)", () => {
     const found = await prisma.branch.findUnique({ where: { id: branch.id } });
     expect(found).toBeNull();
 
-    // The row must still physically exist with deleted_at set — i.e. truly soft-deleted,
-    // not hard-deleted — verified via the base (unfiltered) client.
+    // The row must still physically exist with deleted_at set, i.e. truly soft-deleted,
+    // not hard-deleted, verified via the base (unfiltered) client.
     const raw = await base.branch.findUnique({ where: { id: branch.id } });
     expect(raw).not.toBeNull();
     expect(raw?.deletedAt).not.toBeNull();
@@ -201,7 +201,7 @@ describeIfDb("soft-delete + audit Prisma extensions (integration)", () => {
 
   it("writes an audit_logs row for a create on a sensitive model", async () => {
     // IMPORTANT: the Prisma call must be `await`-ed *inside* the `.run()` callback
-    // (not just returned) — `PrismaPromise`s are lazy and only actually execute
+    // (not just returned), `PrismaPromise`s are lazy and only actually execute
     // `_request` (which is where our extension hooks run) once something awaits
     // them. If you return an un-awaited PrismaPromise from the callback, the ALS
     // context will have already unwound by the time the engine call happens, and
@@ -236,7 +236,7 @@ describeIfDb("soft-delete + audit Prisma extensions (integration)", () => {
   });
 
   // Phase-1 (CRM core, docs/plans/phase-1.md task #1): proves the soft-delete + audit
-  // wiring for one of the four newly-added models (`Batch`) — same coverage pattern as
+  // wiring for one of the four newly-added models (`Batch`), same coverage pattern as
   // the `Branch` tests above, exercised against a model that did not exist in Phase 0.
   it("hides a soft-deleted Batch from find queries by default", async () => {
     const batch = await prisma.batch.create({
@@ -298,7 +298,7 @@ describeIfDb("soft-delete + audit Prisma extensions (integration)", () => {
   //
   // These tests prove, against a REAL Postgres running the P2 schema, that:
   //   1. Soft-delete + audit extensions cover the new P2 tables (Order + Lead).
-  //   2. Money fields are stored and read back as integer paise (Int) — no float drift.
+  //   2. Money fields are stored and read back as integer paise (Int), no float drift.
   //   3. The enrollment.order_id partial-unique index prevents double-enrollment from
   //      the same order (enrollments_active_order_id_key).
   //
@@ -313,7 +313,7 @@ describeIfDb("soft-delete + audit Prisma extensions (integration)", () => {
         tenantId,
         studentId: studentProfileId,
         programId,
-        amountPaise: 1499900, // ₹14999.00 — integer paise, no float
+        amountPaise: 1499900, // ₹14999.00, integer paise, no float
         currency: "INR",
         discountPaise: 0,
         status: "created",
@@ -344,7 +344,7 @@ describeIfDb("soft-delete + audit Prisma extensions (integration)", () => {
           tenantId,
           studentId: studentProfileId,
           programId,
-          // 10% coupon: price 1999900, discount 199990 — integer paise only.
+          // 10% coupon: price 1999900, discount 199990, integer paise only.
           amountPaise: 1799910,
           currency: "INR",
           discountPaise: 199990,
@@ -426,7 +426,7 @@ describeIfDb("soft-delete + audit Prisma extensions (integration)", () => {
     const after = createRows[0]?.after as { name?: string; stage?: string; phone?: string } | null;
     expect(after?.stage).toBe("follow_up");
     // PII fields (name/phone/email) are MASKED (not stripped) as of Phase-7 Wave 2
-    // security hardening batch B (DPDP write-time masking, P5 L-1 / P6 L-2 — see
+    // security hardening batch B (DPDP write-time masking, P5 L-1 / P6 L-2, see
     // apps/api/src/prisma/audit.extension.ts's PII_FIELD_REGISTRY). The audit row stays
     // useful (non-PII fields, and the FACT that a name/phone/email were set, survive) but
     // the raw identifier never lands in the durable audit_logs table.
@@ -509,7 +509,7 @@ describeIfDb("soft-delete + audit Prisma extensions (integration)", () => {
       status?: string;
       providerAssetId?: string;
     } | null;
-    // provider_asset_id is a non-secret external identifier — it must appear in the snapshot.
+    // provider_asset_id is a non-secret external identifier, it must appear in the snapshot.
     expect(after?.provider).toBe("noop");
     expect(after?.status).toBe("processing");
     expect(after?.providerAssetId).toBe("noop-test-asset-audit-001");
@@ -571,7 +571,7 @@ describeIfDb("soft-delete + audit Prisma extensions (integration)", () => {
     // Here we update (the real upsert path at the service layer uses updateMany or upsert).
     const updated = await base.lessonProgress.update({
       where: { id: lp1.id },
-      data: { lastPositionS: 600 }, // 10 minutes in — resuming from this point
+      data: { lastPositionS: 600 }, // 10 minutes in, resuming from this point
     });
     expect(updated.lastPositionS).toBe(600);
 
@@ -649,7 +649,7 @@ describeIfDb("soft-delete + audit Prisma extensions (integration)", () => {
   });
 
   it("recorded-attendance partial-unique dedup: blocks duplicate (enrollment, lesson) where source=recorded", async () => {
-    // First recorded attendance for (enrollment, lesson) — must succeed.
+    // First recorded attendance for (enrollment, lesson), must succeed.
     const att1 = await base.attendance.create({
       data: {
         tenantId,
@@ -662,7 +662,7 @@ describeIfDb("soft-delete + audit Prisma extensions (integration)", () => {
       },
     });
 
-    // Second recorded attendance for the same (enrollment, lesson) — partial-unique
+    // Second recorded attendance for the same (enrollment, lesson), partial-unique
     // "attendance_active_recorded_enrollment_lesson_key" must reject this.
     await expect(
       base.attendance.create({
@@ -720,7 +720,7 @@ describeIfDb("soft-delete + audit Prisma extensions (integration)", () => {
         tenantId,
         studentId: studentProfileId,
         programId,
-        amountPaise: 999900, // ₹9999 in paise — integer
+        amountPaise: 999900, // ₹9999 in paise, integer
         currency: "INR",
         discountPaise: 0,
         status: "paid",
@@ -740,7 +740,7 @@ describeIfDb("soft-delete + audit Prisma extensions (integration)", () => {
       },
     });
 
-    // First enrollment for this order — should succeed.
+    // First enrollment for this order, should succeed.
     const student2User = await base.user.create({
       data: {
         tenantId,
@@ -766,7 +766,7 @@ describeIfDb("soft-delete + audit Prisma extensions (integration)", () => {
       },
     });
 
-    // Second enrollment for the SAME order_id (different student) — partial-unique
+    // Second enrollment for the SAME order_id (different student), partial-unique
     // index "enrollments_active_order_id_key" must prevent this.
     const student3User = await base.user.create({
       data: {

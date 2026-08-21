@@ -47,7 +47,7 @@ export function StudentEnrollmentsTab({
       await cancelOrder.mutateAsync(cancelTarget.id);
       toast({
         title: "Program un-assigned",
-        description: "The unpaid order was cancelled — nothing was charged.",
+        description: "The unpaid order was cancelled, nothing was charged.",
         variant: "success",
       });
       setCancelTarget(null);
@@ -124,7 +124,7 @@ export function StudentEnrollmentsTab({
         <div className="flex flex-col gap-2" data-testid="student-pending-orders">
           <h4 className="text-sm font-medium text-fg">Awaiting payment</h4>
           <p className="text-xs text-fg-muted">
-            Program assigned via an open order — the enrollment activates when its payment is recorded (see the
+            Program assigned via an open order. The enrollment activates when its payment is recorded (see the
             Payments tab).
           </p>
           <DataTable

@@ -93,7 +93,7 @@ export const CreateOrderRequestSchema = z
       .min(0)
       .optional()
       .describe(
-        "Client's expected net amount in paise (after coupon). INFORMATIONAL ONLY — " +
+        "Client's expected net amount in paise (after coupon). INFORMATIONAL ONLY, " +
           "server is the authoritative source. No error is raised on mismatch; read " +
           "the returned order for the actual charge.",
       ),

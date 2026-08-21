@@ -10,7 +10,7 @@ function buildContext(ip = "203.0.113.5"): ExecutionContext {
   } as unknown as ExecutionContext;
 }
 
-describe("HealthRateLimitGuard — AC-49", () => {
+describe("HealthRateLimitGuard, AC-49", () => {
   it("allows requests under the configured threshold", async () => {
     const redis = {
       client: { incr: jest.fn().mockResolvedValue(1), expire: jest.fn().mockResolvedValue(1) },
@@ -30,7 +30,7 @@ describe("HealthRateLimitGuard — AC-49", () => {
     await expect(guard.canActivate(buildContext())).rejects.toThrow(HttpException);
   });
 
-  it("FAILS OPEN when Redis errors — a health-probe outage signal must not be hidden by the rate limiter itself", async () => {
+  it("FAILS OPEN when Redis errors, a health-probe outage signal must not be hidden by the rate limiter itself", async () => {
     const redis = {
       client: {
         incr: jest.fn().mockRejectedValue(new Error("Redis unreachable")),

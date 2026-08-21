@@ -5,10 +5,10 @@
 // PURPOSE: Verify that all Phase-4 tables exist in the live DB and that Prisma's
 // generated client can perform basic CRUD on every new P4 model. A broken migration
 // (wrong table name, missing column, FK pointing at a non-existent table, or a
-// schema-DB drift) surfaces here — not at phase closeout.
+// schema-DB drift) surfaces here, not at phase closeout.
 //
 // This test does NOT boot the full NestJS AppModule (the Jest unit config cannot
-// resolve @repo/types' ESM build — that is an integration-spec.ts concern). Instead
+// resolve @repo/types' ESM build, that is an integration-spec.ts concern). Instead
 // it exercises the critical Prisma → DB path directly:
 //   1. PrismaClient.$queryRaw to list P4 tables from information_schema.
 //   2. PrismaClient.findMany on each new model (proves the generated client matches the DB).
@@ -18,7 +18,7 @@
 //
 // References:
 //   - DEFECT-1 lesson: docs/plans/phase-4.md §1 DoD "Run a full AppModule boot smoke test
-//     early (DEFECT-1 lesson — a broken migration/relation must fail loud here)."
+//     early (DEFECT-1 lesson, a broken migration/relation must fail loud here)."
 //   - Migration applied: 20260702065749_learning_depth +
 //     20260702065800_learning_depth_partial_indexes +
 //     20260702065914_learning_depth_eligibility_columns
@@ -31,7 +31,7 @@ import { describeIfLocalDb } from "./local-db-guard";
 // DB, because importing @prisma/client auto-loads the repo-root .env. See local-db-guard.ts.
 const describeIfDb = describeIfLocalDb;
 
-describeIfDb("P4 schema boot smoke test — DB table existence + Prisma client sync", () => {
+describeIfDb("P4 schema boot smoke test, DB table existence + Prisma client sync", () => {
   const prisma = new PrismaClient();
 
   afterAll(async () => {
@@ -126,7 +126,7 @@ describeIfDb("P4 schema boot smoke test — DB table existence + Prisma client s
 
   it("Prisma client can findMany on each P4 model (schema-DB sync check)", async () => {
     // If the Prisma-generated client is out of sync with the DB (e.g. migration not
-    // applied, column renamed), these calls throw at runtime — caught here.
+    // applied, column renamed), these calls throw at runtime, caught here.
     const [
       assignments,
       milestones,
@@ -161,7 +161,7 @@ describeIfDb("P4 schema boot smoke test — DB table existence + Prisma client s
   it("certificates table has a PARTIAL unique index on enrollment_id, NOT a hard unique (P7 fix, pays down phase-4-followups.md M-2)", async () => {
     // P7 (docs/plans/phase-7.md Wave 1 task #3, migration
     // 20260704060000_certificates_reissue_partial_unique) drops the hard Prisma-managed
-    // unique index (`certificates_enrollment_id_key`) — it blocked certificate reissue,
+    // unique index (`certificates_enrollment_id_key`), it blocked certificate reissue,
     // since a soft-deleted (revoked) certificate row still held the unique slot. The real
     // constraint going forward is the pre-existing partial-unique index
     // `certificates_active_enrollment_id_key` (UNIQUE (enrollment_id) WHERE deleted_at IS
@@ -221,7 +221,7 @@ describeIfDb("P4 schema boot smoke test — DB table existence + Prisma client s
     expect(templates.length).toBeGreaterThanOrEqual(1);
 
     // The seeded certificate's uid is HMAC-SIGNED (`<payload>.<signature>`), not a
-    // readable slug — /verify recomputes the signature and 404s anything unsigned, so a
+    // readable slug, /verify recomputes the signature and 404s anything unsigned, so a
     // stub uid made the demo certificate unverifiable. Assert the SHAPE, not a literal.
     const certs = await prisma.certificate.findMany({ where: { status: "valid" } });
     expect(certs.length).toBeGreaterThanOrEqual(1);

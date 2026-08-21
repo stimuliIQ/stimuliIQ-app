@@ -4,7 +4,7 @@
 // things that would be silently wrong rather than loudly broken:
 //   - the public projection LEAKS NOTHING CRM-only (status, applicant counts);
 //   - `closesOn` is INCLUSIVE, and a lapsed opening drops off the site without its status
-//     changing — the whole point of having a closing date at all;
+//     changing, the whole point of having a closing date at all;
 //   - slug derivation + collision handling (a 422 naming the clash, never a silent suffix);
 //   - `publishedAt` is stamped once and never re-stamped;
 //   - scope=all-only, and 404s on unknown ids.
@@ -72,7 +72,7 @@ describe("JobOpeningsService", () => {
   });
 
   describe("public projection", () => {
-    it("exposes no CRM-only field — a marketing page must never receive status or applicant counts", async () => {
+    it("exposes no CRM-only field, a marketing page must never receive status or applicant counts", async () => {
       repo.listPublic.mockResolvedValue([makeRow()]);
       const [opening] = await service.listPublic({ limit: 30 });
 
@@ -173,7 +173,7 @@ describe("JobOpeningsService", () => {
       ).rejects.toBeInstanceOf(UnprocessableEntityException);
     });
 
-    it("does NOT re-derive the slug on an unrelated PATCH — bumping `order` must not renumber a live public URL", async () => {
+    it("does NOT re-derive the slug on an unrelated PATCH, bumping `order` must not renumber a live public URL", async () => {
       repo.findById.mockResolvedValue(makeRow());
       await runWithScope("all", () => service.update("tenant-1", "opening-1", { order: 5 }));
       expect(repo.findBySlug).not.toHaveBeenCalled();
@@ -236,7 +236,7 @@ describe("JobOpeningsService", () => {
       expect(repo.create.mock.calls[0][1].publishedAt).toBeNull();
     });
 
-    it("is NOT re-stamped when an already-published-once opening is re-published — that is the same advert, not a new one", async () => {
+    it("is NOT re-stamped when an already-published-once opening is re-published, that is the same advert, not a new one", async () => {
       repo.findById.mockResolvedValue(makeRow({ status: "closed", publishedAt: new Date("2026-01-01T00:00:00Z") }));
       await runWithScope("all", () => service.update("tenant-1", "opening-1", { status: "published" }));
       expect(repo.update.mock.calls[0][1]).not.toHaveProperty("publishedAt");
