@@ -138,6 +138,28 @@ export class JobOpeningsService {
   }
 
   /**
+   * GET /api/v1/public/careers/openings/:slug — one role's full advert.
+   *
+   * 404s for anything not currently live, which deliberately includes a draft and a lapsed
+   * role: the detail page must not become a side door onto an advert that is off the site.
+   * The 404 is indistinguishable from "no such slug", which is also the right answer for a
+   * candidate following a stale link.
+   */
+  async getPublicBySlug(slug: string): Promise<PublicJobOpening> {
+    const tenantId = await this.resolveTenantId();
+    const today = toDateOnlyString(new Date());
+    const row = await this.repository.findPublicBySlug(tenantId, slug, toUtcMidnight(today));
+    if (!row) {
+      throw new NotFoundException({
+        code: "careers.opening_not_found",
+        title: "This role is no longer open",
+        detail: "It may have been filled or closed since you last saw it. Our current openings are on the careers page.",
+      });
+    }
+    return toPublicJobOpeningDto(row);
+  }
+
+  /**
    * Resolves the opening an anonymous applicant claims to be applying to, and confirms it
    * is genuinely open right now. Returns null when it is not — the caller records the
    * application anyway against its role snapshot (see SubmitCareerApplicationRequestSchema

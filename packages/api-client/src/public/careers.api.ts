@@ -38,6 +38,17 @@ export class PublicCareersApi {
   }
 
   /**
+   * GET /api/v1/public/careers/openings/:slug — one role's full advert, for its detail page.
+   * 404s for a draft or lapsed role, same as it being absent from the list.
+   */
+  async getOpening(slug: string): Promise<PublicJobOpening> {
+    return this.client.request<PublicJobOpening>(
+      "GET",
+      `/api/v1/public/careers/openings/${encodeURIComponent(slug)}`,
+    );
+  }
+
+  /**
    * POST /api/v1/public/careers/resume-upload-url — captcha-gated, rate-limited.
    * Mints a signed PUT URL scoped to careers/{tenantId}/... for an ANONYMOUS applicant's
    * resume (no session/JWT required — unlike `client.learning.storage.getUploadUrl()`,

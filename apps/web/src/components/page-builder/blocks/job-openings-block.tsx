@@ -15,7 +15,10 @@ import { CareersRoleList } from "../../careers/careers-role-list";
 import { SUPPORT_EMAIL } from "../../../lib/contact";
 
 export function JobOpeningsBlock({ data }: { data: ResolvedJobOpeningsBlockData }): React.JSX.Element {
-  const roles = data.resolvedItems;
+  // `?? []` even though PageBlocks already normalises this, and even though the type says
+  // it cannot be undefined: this component is reachable from any caller, and the cost of
+  // being wrong here is the whole careers page 500ing rather than one empty section.
+  const roles = data.resolvedItems ?? [];
 
   return (
     <section
@@ -23,11 +26,13 @@ export function JobOpeningsBlock({ data }: { data: ResolvedJobOpeningsBlockData 
       data-testid="page-builder-job-openings"
       className="py-12 lg:py-16"
     >
-      <div className="mx-auto max-w-4xl px-4 md:px-6">
+      <div className="mx-auto max-w-5xl px-4 md:px-6">
         {data.heading ? (
-          <div className="mb-8">
+          <div className="mb-10 text-center">
             <h2 className="text-3xl font-bold text-fg md:text-4xl">{data.heading.title}</h2>
-            {data.heading.subtitle ? <p className="mt-3 text-lg text-fg-muted">{data.heading.subtitle}</p> : null}
+            {data.heading.subtitle ? (
+              <p className="mx-auto mt-3 max-w-2xl text-lg text-fg-muted">{data.heading.subtitle}</p>
+            ) : null}
           </div>
         ) : null}
 
@@ -39,7 +44,7 @@ export function JobOpeningsBlock({ data }: { data: ResolvedJobOpeningsBlockData 
           // page with nothing on it is exactly the person worth hearing from.
           <div className="rounded-xl border border-border bg-card p-12 text-center" data-testid="careers-empty">
             <p className="text-lg font-medium text-fg">{data.emptyStateMessage}</p>
-            <p className="mt-2 text-sm text-fg-muted">
+            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-fg-muted">
               Send your CV to{" "}
               <a
                 href={`mailto:${SUPPORT_EMAIL}`}

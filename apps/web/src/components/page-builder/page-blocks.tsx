@@ -32,10 +32,37 @@ import { LiveCollectionRefBlock } from "./blocks/live-collection-ref-block";
 import { BrainShowcaseBlock } from "./blocks/brain-showcase-block";
 import { BrandMarkBand, heroMotifForSlug, showsBrandMarkBand, type HeroMotifKind } from "./hero-motif";
 
+/**
+ * The two REFERENCE block types (`job_openings`, `live_collection_ref`) carry a
+ * server-resolved `resolvedItems` array that their renderers index into. Guarantee it
+ * exists before any of them runs.
+ *
+ * WHY THIS IS NEEDED even though the type says it is always there: the page components feed
+ * this renderer `page.body as ResolvedPageBuilderBlock[]` — a CAST of untyped API JSON, not
+ * a parse. So the compiler's guarantee is only as good as the payload, and the payload can
+ * legitimately lack the field:
+ *   - `web` deployed ahead of the API, so the resolver adding `resolvedItems` is not live yet;
+ *   - a stale Next.js fetch cache holding a response from before that resolver existed.
+ *
+ * Either case used to take the WHOLE page down with "Cannot read properties of undefined
+ * (reading 'length')" — and it did, breaking the production build of /careers.
+ * `BlockErrorBoundary` does not help here: it is a client error boundary, and this throws
+ * during server render / static prerender, which it cannot catch.
+ *
+ * An absent resolution is the same thing as an empty one, and that is what the server-side
+ * resolver already does with a failed lookup — degrade the section, never the page.
+ */
+function withResolvedItems(block: ResolvedPageBuilderBlock): ResolvedPageBuilderBlock {
+  if (block.type !== "job_openings" && block.type !== "live_collection_ref") return block;
+  if (Array.isArray((block.data as { resolvedItems?: unknown }).resolvedItems)) return block;
+  return { ...block, data: { ...block.data, resolvedItems: [] } } as ResolvedPageBuilderBlock;
+}
+
 function renderBlock(
-  block: ResolvedPageBuilderBlock,
+  rawBlock: ResolvedPageBuilderBlock,
   motif: HeroMotifKind | undefined,
 ): React.ReactNode {
+  const block = withResolvedItems(rawBlock);
   switch (block.type) {
     case "hero":
       return <HeroBlock data={block.data} motif={motif} />;

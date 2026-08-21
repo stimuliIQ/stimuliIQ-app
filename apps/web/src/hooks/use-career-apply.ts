@@ -11,6 +11,9 @@
  * TITLE, which the API snapshots — so renaming or closing the opening later can never
  * rewrite what this person applied for.
  *
+ * The captcha challenge must be SOLVED BEFORE the resume upload — the upload is itself a
+ * captcha-gated call. See requestResumeUploadUrl below and the form's file header.
+ *
  * Resume upload uses the PUBLIC, captcha-gated, rate-limited
  * `client.public.careers.getResumeUploadUrl()` (POST /public/careers/resume-upload-url)
  * — unlike `client.learning.storage.getUploadUrl()`, this does NOT require a session,
@@ -45,8 +48,16 @@ export interface UseCareerApplyReturn {
   fieldErrors: Record<string, string>;
   submit: (input: CareerApplyInput) => Promise<void>;
   reset: () => void;
-  /** Signed-URL request for FileUpload's `requestUploadUrl` prop. Requires a solved captcha token. */
-  requestResumeUploadUrl: (file: File, captchaToken: string) => Promise<{ url: string; storageKey: string }>;
+  /**
+   * Signed-URL request for FileUpload's `requestUploadUrl` prop.
+   *
+   * Takes the token as `string | undefined` on purpose: the caller should never have to
+   * invent a placeholder when the challenge is unsolved. See the implementation.
+   */
+  requestResumeUploadUrl: (
+    file: File,
+    captchaToken: string | undefined,
+  ) => Promise<{ url: string; storageKey: string }>;
 }
 
 export function useCareerApply(): UseCareerApplyReturn {
@@ -54,7 +65,22 @@ export function useCareerApply(): UseCareerApplyReturn {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const submittingRef = useRef(false);
 
-  const requestResumeUploadUrl = useCallback(async (file: File, captchaToken: string) => {
+  const requestResumeUploadUrl = useCallback(async (file: File, captchaToken: string | undefined) => {
+    // THE LIVE BUG. This used to be called as `captchaToken ?? "noop"`, and because the
+    // Turnstile widget was rendered BELOW the file field, the common path — fill the form
+    // top to bottom, attach the resume, then reach the challenge — sent the literal string
+    // "noop". That is a dev-only token the Noop provider accepts and production Turnstile
+    // rejects, so every real applicant hit "Please complete the captcha challenge and try
+    // again" while uploading, pointing at a control further down the page.
+    //
+    // The widget now renders first and the file field is disabled until it resolves, so this
+    // should be unreachable. It throws anyway rather than trusting that: a request that
+    // cannot succeed should not be sent, and the message a visitor sees should describe what
+    // to do rather than blame them for a step the form did not let them take yet.
+    if (!captchaToken) {
+      throw new Error("Please complete the verification check above before attaching your resume.");
+    }
+
     // Wave 6 M3: the resume upload endpoint only accepts an allow-listed set of document
     // MIME types (PDF/DOC/DOCX). Enforce that here so a non-document upload fails with a
     // friendly message before we hit the API (which would 422 on the same allow-list).
@@ -66,7 +92,7 @@ export function useCareerApply(): UseCareerApplyReturn {
       contentType: contentType.data,
       fileName: file.name,
       sizeBytes: file.size,
-      captchaToken: captchaToken || "noop",
+      captchaToken,
     });
     return { url: signed.uploadUrl, storageKey: signed.storageKey };
   }, []);
@@ -91,7 +117,10 @@ export function useCareerApply(): UseCareerApplyReturn {
       role: input.role,
       resumeStorageKey: input.resumeStorageKey,
       coverLetter: input.coverLetter.trim() || undefined,
-      captchaToken: input.captchaToken || "noop",
+      // Never a "noop" fallback here either — the submit button is gated on a solved
+      // challenge, and posting a placeholder would just fail server-side with a message the
+      // visitor cannot act on.
+      captchaToken: input.captchaToken,
     });
 
     if (!parsed.success) {

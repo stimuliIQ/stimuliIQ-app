@@ -122,6 +122,10 @@ export {
 } from "./components/form-field";
 
 export { ConfirmDialog, type ConfirmDialogProps } from "./components/confirm-dialog";
+// General-purpose centred dialog. The other three dialogs here are purpose-built
+// (Drawer = edge record editor, ConfirmDialog = one yes/no, ExitIntentModal = lead capture);
+// this is the plain "arbitrary content in a box" one. See its file header.
+export { Modal, type ModalProps } from "./components/modal";
 
 // P2 Commerce + Leads primitives -----------------------------------------------
 

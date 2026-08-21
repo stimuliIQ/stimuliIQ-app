@@ -1,32 +1,45 @@
 "use client";
 
 /**
- * CareerApplyForm — inline application form shown when a visitor clicks "Apply"
- * on an open role (T32, docs/plans/phase-9-completion.md). Replaces the previous
- * `mailto:`/contact-page-redirect placeholder with a real, zod-validated,
- * captcha-gated submission to `client.public.careers.apply`.
+ * CareerApplyForm — the application form, shown inside the apply modal on /careers/<slug>.
  *
- * The form is opened from one live opening in `CareersRoleList`, so it submits that
- * opening's id alongside the role title. Submitting triggers an automatic "thanks for
- * applying" email (ADR-0066) — the success panel says so, because a form that promises an
- * email and does not send one is worse than a form that promises nothing.
+ * ── THE CAPTCHA MUST BE SOLVED BEFORE THE RESUME UPLOADS ────────────────────────────
+ * This is the ordering bug that broke every live application, and the reason the widget is
+ * rendered FIRST rather than last.
  *
- * Resume upload uses the `FileUpload` primitive (@repo/ui) wired to
- * `useCareerApply().requestResumeUploadUrl`, which calls the PUBLIC
- * `client.public.careers.getResumeUploadUrl()` endpoint (captcha + rate-limited,
- * no session required) — see that hook for details.
+ * Applying spends ONE Turnstile token on TWO captcha-gated calls: minting the signed PUT
+ * for the resume, then submitting. The form previously put the challenge at the bottom,
+ * under the file field, so the natural top-to-bottom fill order picked the resume while
+ * `captchaToken` was still undefined — and the upload call went out with the literal string
+ * `"noop"`, which is a dev-only fallback that production Turnstile rejects outright. The
+ * visitor got "Please complete the captcha challenge and try again" ON THE RESUME STEP,
+ * pointing at a control below the error, and solving it afterwards did not help because the
+ * upload had already failed.
+ *
+ * So: the challenge sits at the top, the file field is DISABLED until it resolves and says
+ * why, and `requestResumeUploadUrl` refuses outright rather than sending `"noop"` — a
+ * request that cannot succeed should not be made, and its failure should not be phrased as
+ * the visitor's mistake.
+ *
+ * (The server side of the same problem — one token, two calls — is already handled by
+ * ReplayTolerantCaptchaProvider, which lets the second call reuse the first's verification.
+ * That fix is what makes solving the challenge once sufficient; this one makes sure it is
+ * solved before the first call rather than after it.)
  */
 
 import { useId, useState, type FormEvent } from "react";
+import { CheckCircleIcon, ShieldCheckIcon } from "./icons";
 import { FileUpload, PHONE_INPUT_PROPS, PHONE_PLACEHOLDER, toLocalPhoneDigits } from "@repo/ui";
 import { TurnstileWidget } from "../captcha/turnstile-widget";
 import { useCaptchaToken } from "../../hooks/use-captcha-token";
 import { useCareerApply } from "../../hooks/use-career-apply";
 
 const inputClass = [
-  "h-11 w-full rounded-md border border-border bg-bg px-3 text-sm text-fg placeholder:text-fg-subtle",
+  "h-11 w-full rounded-lg border border-border bg-bg px-3 text-sm text-fg placeholder:text-fg-subtle",
   "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
 ].join(" ");
+
+const labelClass = "mb-1.5 block text-sm font-medium text-fg";
 
 export interface CareerApplyFormProps {
   /** The CRM opening this form applies to (ADR-0066). */
@@ -34,9 +47,11 @@ export interface CareerApplyFormProps {
   /** The opening's title, shown to the candidate and snapshotted onto the application. */
   role: string;
   onClose?: () => void;
+  /** Rendered after a successful submit, so a modal can offer "Done" instead of "Cancel". */
+  onSubmitted?: () => void;
 }
 
-export function CareerApplyForm({ jobOpeningId, role, onClose }: CareerApplyFormProps) {
+export function CareerApplyForm({ jobOpeningId, role, onClose, onSubmitted }: CareerApplyFormProps) {
   const nameId = useId();
   const emailId = useId();
   const phoneId = useId();
@@ -56,7 +71,7 @@ export function CareerApplyForm({ jobOpeningId, role, onClose }: CareerApplyForm
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!resumeStorageKey) return;
+    if (!resumeStorageKey || !captchaToken) return;
     await submit({
       name,
       email,
@@ -65,32 +80,31 @@ export function CareerApplyForm({ jobOpeningId, role, onClose }: CareerApplyForm
       role,
       resumeStorageKey,
       coverLetter,
-      captchaToken: captchaToken ?? "noop",
+      captchaToken,
     });
+    onSubmitted?.();
   }
 
   if (isSuccess) {
     return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="rounded-lg border border-success/30 bg-success/10 p-6 text-center"
-        data-testid="career-apply-success"
-      >
-        <p className="font-semibold text-success">
-          {state.kind === "success" ? state.message : "Application received!"}
+      <div role="status" aria-live="polite" className="py-6 text-center" data-testid="career-apply-success">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-success/10">
+          <CheckCircleIcon className="size-6 text-success" />
+        </div>
+        <p className="mt-4 text-lg font-semibold text-fg">
+          {state.kind === "success" ? state.message : "Application received"}
         </p>
-        <p className="mt-2 text-sm text-fg-muted">
-          We have emailed you a confirmation. Someone from our team reads every application,
-          and you will hear from us either way.
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-fg-muted">
+          We have emailed you a confirmation. Someone from our team reads every application, and you will hear from us
+          either way.
         </p>
         {onClose ? (
           <button
             type="button"
             onClick={onClose}
-            className="mt-3 text-sm font-medium text-brand-500 underline hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-lg bg-brand-500 px-6 text-sm font-semibold text-white transition-colors hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            Close
+            Done
           </button>
         ) : null}
       </div>
@@ -100,14 +114,39 @@ export function CareerApplyForm({ jobOpeningId, role, onClose }: CareerApplyForm
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-5"
+      className="flex flex-col gap-5"
       data-testid={`career-apply-form-${role}`}
       aria-label={`Apply for ${role}`}
       noValidate
     >
+      {/*
+        FIRST, not last — see the file header. Everything below stays inert until this
+        resolves, because the resume upload cannot succeed without it.
+      */}
+      <div className="rounded-lg border border-border bg-surface p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <ShieldCheckIcon className="size-4 text-brand-500" />
+          <p className="text-sm font-medium text-fg">
+            {hasCaptcha ? "Verified — you can continue" : "Quick check first"}
+          </p>
+        </div>
+        {!hasCaptcha ? (
+          <p className="mb-3 text-xs leading-relaxed text-fg-muted">
+            Confirm you are human before uploading your resume. It takes a second and keeps spam out of our hiring
+            queue.
+          </p>
+        ) : null}
+        <TurnstileWidget
+          onToken={setToken}
+          onExpire={resetToken}
+          onError={resetToken}
+          data-testid="career-apply-captcha"
+        />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor={nameId} className="mb-1.5 block text-sm font-medium text-fg">
+          <label htmlFor={nameId} className={labelClass}>
             Full name <span aria-hidden="true" className="text-danger">*</span>
           </label>
           <input
@@ -125,7 +164,7 @@ export function CareerApplyForm({ jobOpeningId, role, onClose }: CareerApplyForm
           ) : null}
         </div>
         <div>
-          <label htmlFor={emailId} className="mb-1.5 block text-sm font-medium text-fg">
+          <label htmlFor={emailId} className={labelClass}>
             Email <span aria-hidden="true" className="text-danger">*</span>
           </label>
           <input
@@ -145,8 +184,8 @@ export function CareerApplyForm({ jobOpeningId, role, onClose }: CareerApplyForm
       </div>
 
       <div>
-        <label htmlFor={phoneId} className="mb-1.5 block text-sm font-medium text-fg">
-          Phone <span className="text-fg-subtle text-xs">(optional)</span>
+        <label htmlFor={phoneId} className={labelClass}>
+          Phone <span className="text-xs text-fg-subtle">(optional)</span>
         </label>
         <input
           {...PHONE_INPUT_PROPS}
@@ -165,26 +204,32 @@ export function CareerApplyForm({ jobOpeningId, role, onClose }: CareerApplyForm
       </div>
 
       <div>
-        <span className="mb-1.5 block text-sm font-medium text-fg">
+        <span className={labelClass}>
           Resume <span aria-hidden="true" className="text-danger">*</span>
         </span>
         <FileUpload
-          requestUploadUrl={(file) => requestResumeUploadUrl(file, captchaToken ?? "noop")}
+          // `captchaToken` is passed, never `?? "noop"`. The hook throws a readable error if
+          // it is somehow missing, rather than sending a token production always rejects.
+          requestUploadUrl={(file) => requestResumeUploadUrl(file, captchaToken)}
           onUploaded={(storageKey) => setResumeStorageKey(storageKey)}
           onRemoved={() => setResumeStorageKey(null)}
           acceptedTypes={["application/pdf"]}
           maxBytes={5 * 1024 * 1024}
+          disabled={!hasCaptcha}
           label="Upload your resume (PDF)"
           data-testid="career-resume-upload"
         />
+        {!hasCaptcha ? (
+          <p className="mt-1.5 text-xs text-fg-subtle">Complete the check above to attach your resume.</p>
+        ) : null}
         {fieldErrors.resumeStorageKey ? (
           <p role="alert" className="mt-1.5 text-xs text-danger">{fieldErrors.resumeStorageKey}</p>
         ) : null}
       </div>
 
       <div>
-        <label htmlFor={coverId} className="mb-1.5 block text-sm font-medium text-fg">
-          Cover letter <span className="text-fg-subtle text-xs">(optional)</span>
+        <label htmlFor={coverId} className={labelClass}>
+          Cover letter <span className="text-xs text-fg-subtle">(optional)</span>
         </label>
         <textarea
           id={coverId}
@@ -197,15 +242,8 @@ export function CareerApplyForm({ jobOpeningId, role, onClose }: CareerApplyForm
         />
       </div>
 
-      <TurnstileWidget
-        onToken={setToken}
-        onExpire={resetToken}
-        onError={resetToken}
-        data-testid="career-apply-captcha"
-      />
-
       {state.kind === "error" ? (
-        <p role="alert" className="text-sm text-danger" data-testid="career-apply-error">
+        <p role="alert" className="rounded-lg bg-danger/10 p-3 text-sm text-danger" data-testid="career-apply-error">
           {state.message}
         </p>
       ) : null}
@@ -213,14 +251,17 @@ export function CareerApplyForm({ jobOpeningId, role, onClose }: CareerApplyForm
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          // hasCaptcha gates the button for the same reason as the onboarding form: without it,
-          // submitting before the challenge resolves posts the literal "noop" fallback, which is
-          // just an invalid token in production.
-          disabled={isSubmitting || !hasCaptcha || !resumeStorageKey || name.trim().length === 0 || email.trim().length === 0}
-          className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-brand-500 px-6 text-sm font-semibold text-white transition-colors hover:bg-brand-600 active:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          disabled={
+            isSubmitting ||
+            !hasCaptcha ||
+            !resumeStorageKey ||
+            name.trim().length === 0 ||
+            email.trim().length === 0
+          }
+          className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-lg bg-brand-500 px-6 text-sm font-semibold text-white transition-colors hover:bg-brand-600 active:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           data-testid="career-apply-submit"
         >
-          {isSubmitting ? "Submitting…" : "Submit Application"}
+          {isSubmitting ? "Submitting…" : "Submit application"}
         </button>
         {onClose ? (
           <button
@@ -229,7 +270,7 @@ export function CareerApplyForm({ jobOpeningId, role, onClose }: CareerApplyForm
               reset();
               onClose();
             }}
-            className="text-sm font-medium text-fg-muted underline hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-border px-5 text-sm font-medium text-fg-muted transition-colors hover:bg-surface hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Cancel
           </button>

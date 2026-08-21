@@ -115,6 +115,15 @@ export class PublicCareersController {
     return this.openings.listPublic(query);
   }
 
+  /**
+   * GET /api/v1/public/careers/openings/:slug — the full advert behind /careers/<slug>.
+   * Declared AFTER the static "openings" route above so it cannot swallow it.
+   */
+  @Get("openings/:slug")
+  async getOpening(@Param("slug") slug: string): Promise<PublicJobOpening> {
+    return this.openings.getPublicBySlug(slug);
+  }
+
   @Post("resume-upload-url")
   @HttpCode(HttpStatus.OK)
   async getResumeUploadUrl(

@@ -133,6 +133,25 @@ export class JobOpeningsRepository {
     });
   }
 
+  /**
+   * One opening by its public slug, for the /careers/<slug> detail page.
+   *
+   * Applies the SAME published + not-lapsed filter as `listPublic` rather than trusting the
+   * caller to re-check: a detail page reachable for a draft or a closed role would be a way
+   * to read (and apply to) an advert that is deliberately not on the site.
+   */
+  async findPublicBySlug(tenantId: string, slug: string, today: Date): Promise<JobOpeningRow | null> {
+    return this.prisma.client.jobOpening.findFirst({
+      where: {
+        tenantId,
+        slug,
+        deletedAt: null,
+        status: "published",
+        OR: [{ closesOn: null }, { closesOn: { gte: today } }],
+      },
+    });
+  }
+
   async findById(tenantId: string, id: string): Promise<JobOpeningRow | null> {
     return this.prisma.client.jobOpening.findFirst({ where: { id, tenantId, deletedAt: null } });
   }
