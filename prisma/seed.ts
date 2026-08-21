@@ -991,6 +991,43 @@ async function main(): Promise<void> {
     ),
   );
 
+  // ── Monthly marketing targets — NEITHER key is in the catalog ───────────────────────
+  //
+  // docs/specs/marketing-targets.md, ADR-0067. Two keys, two very different audiences, and
+  // both deliberately upserted here rather than in `permissionCatalog` — the array the
+  // admin+super_admin catch-all loop near the top of main() iterates.
+  //
+  //   marketing_targets.view   "what am I being measured on this month?"
+  //       MARKETING role only, scope=own. Kept out of the catalog so the catch-all does not
+  //       hand it to admin and super_admin, who have no marketing target of their own and
+  //       would get a permanently-empty card on their dashboard for their trouble. The
+  //       endpoint behind it takes no user id at all — the subject is always the session
+  //       user — so scope=own is the whole of the gate.
+  //
+  //   marketing_targets.manage "what should Rahul's number be?", plus the team report.
+  //       super_admin ALONE, for the same reason as `leave.approve` directly above: setting
+  //       the number a person is judged against is the owner's call, and catalog membership
+  //       would hand it to every operational admin without anyone deciding to.
+  //
+  // Note the asymmetry is intentional and is NOT a missing grant: super_admin holds
+  // `manage` but not `view`, and marketing holds `view` but not `manage`. Neither role is
+  // missing anything — the team report IS the admin surface.
+  const MARKETING_TARGET_PERMISSIONS = {
+    view: { key: "marketing_targets.view", label: "View Own Marketing Target" },
+    manage: { key: "marketing_targets.manage", label: "Set & Report on Marketing Targets" },
+  } as const;
+  const [marketingTargetViewPermission, marketingTargetManagePermission] = await Promise.all(
+    [MARKETING_TARGET_PERMISSIONS.view, MARKETING_TARGET_PERMISSIONS.manage].map((perm) =>
+      prisma.permission.upsert({
+        where: { key: perm.key },
+        update: { label: perm.label },
+        create: perm,
+      }),
+    ),
+  );
+  await grant(marketingRole.id, marketingTargetViewPermission!.id, RolePermissionScope.own);
+  await grant(superAdminRole.id, marketingTargetManagePermission!.id, RolePermissionScope.all);
+
   // branch_manager: docs/03 §9 row "BranchMgr" — students/faculty/batches = branch;
   // courses = view; payments(not in P1)/reports(not in P1) skipped; admin = none;
   // audit = none. roles/branches not in BranchMgr's §9 row -> no grant.

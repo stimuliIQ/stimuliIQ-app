@@ -457,10 +457,18 @@ export class LeadsRepository {
     return counts;
   }
 
+  /**
+   * Close the lead: link the student, mark it won, and STAMP THE CLOSE DATE.
+   *
+   * `converted_at` is written here and nowhere else. It is what makes a monthly marketing
+   * target move on its own (docs/specs/marketing-targets.md) — without it the only clue to
+   * WHEN a deal closed is the student row, which may predate the conversion because
+   * converting can link a lead to a StudentProfile that already existed.
+   */
   async setConverted(id: string, studentId: string): Promise<void> {
     await this.prisma.client.lead.update({
       where: { id },
-      data: { convertedStudentId: studentId, stage: "won" },
+      data: { convertedStudentId: studentId, stage: "won", convertedAt: new Date() },
     });
   }
 

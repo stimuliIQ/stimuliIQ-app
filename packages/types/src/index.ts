@@ -194,3 +194,9 @@ export * from "./onboarding/onboarding.schemas.js";
 // half-days are one rule the apply form must preview live and the API must enforce, and two
 // implementations of it would disagree the day somebody adds a Saturday to the weekly offs.
 export * from "./crm/leave.schemas.js";
+
+// Monthly marketing targets. `summariseTargetMetric` ships alongside the schemas and is run
+// on BOTH sides for the same reason the two functions above are: completed/pending/percent
+// is one rule, and a dashboard card that computed it locally would eventually disagree with
+// the report the same person is reviewed against.
+export * from "./crm/marketing-targets.schemas.js";

@@ -132,6 +132,10 @@ const SOFT_DELETE_MODELS = new Set<string>([
   "Holiday",
   "LeaveSetting",
   "LeaveRequest",
+  // Monthly marketing targets — soft-deleted so the partial unique index on
+  // (tenant, user, month) stays re-usable: remove a target set for the wrong person and set
+  // the right one for the same month, without the tombstone blocking it forever.
+  "MarketingTarget",
 ]);
 
 function isSoftDeletable(model: string | undefined): boolean {

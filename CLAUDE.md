@@ -304,6 +304,41 @@ db foundation). Then execute it, delegating each task to the named specialist su
   Do NOT run the full `pnpm db:seed` against a live DB. **No sample openings are seeded on
   purpose** — a seeded opening is not placeholder data, it is a live advert on a live website
   for a job that does not exist.
+- **P15 Marketing Targets (DONE):** marketing had a scoreboard and no goal. The per-rep
+  lead-performance report already counted leads assigned/contacted/converted, but nothing said
+  what those numbers were SUPPOSED to be, and the marketing team could not see any of it — that
+  report is gated on `reports.lead_performance.view` and reads as a management tool, so a
+  marketing person opening the CRM got business-wide charts and nothing about themselves.
+  Now: **one target row per person per month carrying TWO numbers** (deals + rupees-in-paise),
+  because a marketing target is one sentence — "close N deals worth ₹X" — and splitting it
+  across rows lets somebody set one half and forget the other. Either number may be 0 meaning
+  "not measured on this" (hides that card); BOTH zero is rejected, since that is what deleting
+  the target is for.
+  **PROGRESS IS DERIVED, NEVER STORED** — no `completed`/`pending` column exists. Both are
+  recomputed on read from `leads.converted_at` and `payments.paid_at`, the same call P13 made
+  for leave balances and for the same reason: a stored counter drifts the first time a lead is
+  reassigned, a conversion is undone or a payment is refunded, and it drifts silently in the
+  direction that flatters the number. This is also what makes "when a deal closes the pending
+  count drops" free rather than a thing to maintain. `summariseTargetMetric` (`@repo/types`)
+  is the ONE definition of completed/pending/percent, run identically by API and dashboard card
+  like `computeLeaveDuration`. Revenue reuses `mv_revenue_daily`'s exact
+  `captured`+`paid_at` pair so per-person sums reconcile with the revenue dashboard (and is
+  therefore gross of refunds).
+  **New `leads.converted_at`**: `converted_student_id` recorded WHETHER a lead closed, never
+  WHEN, and the student's `created_at` is not a substitute because converting LINKS a lead to
+  a StudentProfile that may already have existed. Deliberately NOT backfilled — old conversions
+  count in no month, same call the lead-ownership pass made.
+  **Both permissions are kept OUT of the catalog**: `marketing_targets.view` is marketing-only
+  (scope `own`; the `/me` endpoint takes no user id at all, so scope=own is the whole gate) and
+  `marketing_targets.manage` is super_admin-only, same device as `leave.approve`. The asymmetry
+  is intentional — super_admin gets `manage` but NOT `view`, because they have no target of
+  their own and would otherwise carry a permanently-empty card; the team report IS their surface.
+  Spec: `docs/specs/marketing-targets.md`, ADR-0067.
+  **DB setup on an existing/live database:** `prisma migrate deploy` (additive — one table, one
+  nullable column, two indexes) then `pnpm db:seed:marketing-targets`. Do NOT run the full
+  `pnpm db:seed` against a live DB. **No targets are seeded on purpose** — a seeded target is a
+  number a real person is measured against, and a wrong one fails silently in the direction
+  nobody checks.
 
 Do **not** jump ahead. Each phase ends with tests green + a demo path.
 
@@ -339,5 +374,6 @@ Do **not** jump ahead. Each phase ends with tests green + a demo path.
 | Onboarding form spec (CRM-authored questions, subdomain) | `docs/specs/onboarding-form.md` |
 | Staff leave spec (allowances, approvals, holidays, calendar) | `docs/specs/leave-management.md` |
 | Careers/hiring spec (CRM openings, four-verb review, candidate emails) | `docs/specs/careers-hiring.md` |
+| Marketing targets spec (two numbers, derived progress, dashboard card) | `docs/specs/marketing-targets.md` |
 | Lead ownership + accountability (assignment notify, owner picker, per-rep report) | `docs/specs/lead-ownership-accountability.md` |
 | Agent roster & protocol | `.claude/agents/README.md` |

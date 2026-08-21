@@ -27,6 +27,7 @@ import { useTicketsList } from "../../hooks/use-tickets";
 import { hasPermission } from "../../lib/permissions";
 import { defaultDateRange } from "../../lib/report-dates";
 import { PaymentStatusChip } from "../commerce/payment-status-chip";
+import { MarketingTargetCards } from "./marketing-target-cards";
 import { STAGE_LABEL } from "../leads/lead-stage-chip";
 
 export interface OverviewDashboardProps {
@@ -39,6 +40,10 @@ export function OverviewDashboard({ me }: OverviewDashboardProps): React.JSX.Ele
   const canFunnel = hasPermission(me?.permissions, "reports.funnel.view");
   const canPayments = hasPermission(me?.permissions, "payments.view");
   const canTickets = hasPermission(me?.permissions, "tickets.view");
+  // Marketing only. `marketing_targets.view` is seeded to the marketing role alone and kept
+  // OUT of the permission catalog, so the admin catch-all never grants it — an admin has no
+  // target of their own and would get a permanently-empty card (ADR-0067).
+  const canOwnTarget = hasPermission(me?.permissions, "marketing_targets.view");
 
   const range = React.useMemo(() => defaultDateRange(30), []);
 
@@ -49,7 +54,8 @@ export function OverviewDashboard({ me }: OverviewDashboardProps): React.JSX.Ele
   const pendingPayments = usePaymentsList({ page: 1, pageSize: 5, status: "created" });
   const openTickets = useTicketsList({ page: 1, pageSize: 5, status: "open" });
 
-  const hasAnyAccess = canRevenue || canEnrollment || canFunnel || canPayments || canTickets;
+  const hasAnyAccess =
+    canRevenue || canEnrollment || canFunnel || canPayments || canTickets || canOwnTarget;
 
   return (
     <div className="space-y-4 md:space-y-5" data-testid="overview-dashboard">
@@ -57,6 +63,11 @@ export function OverviewDashboard({ me }: OverviewDashboardProps): React.JSX.Ele
         title="Dashboard"
         description="A role-aware snapshot of the last 30 days, plus what needs your attention right now."
       />
+
+      {/* Above the generic KPI row on purpose: for a marketing person this IS the dashboard,
+          and burying what they are measured on below three charts they cannot act on would
+          make them scroll past it every morning. */}
+      {canOwnTarget ? <MarketingTargetCards /> : null}
 
       {!hasAnyAccess ? (
         <EmptyState

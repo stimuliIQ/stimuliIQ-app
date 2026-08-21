@@ -70,6 +70,7 @@ import { BulkActionsModule } from "./modules/bulk-actions/bulk-actions.module";
 import { GrowthModule } from "./modules/growth/growth.module";
 import { OnboardingModule } from "./modules/onboarding/onboarding.module";
 import { LeaveModule } from "./modules/leave/leave.module";
+import { MarketingTargetsModule } from "./modules/marketing-targets/marketing-targets.module";
 
 @Module({
   imports: [
@@ -169,6 +170,7 @@ import { LeaveModule } from "./modules/leave/leave.module";
     // collects, surfaced in the CRM under Onboarding.
     OnboardingModule,
     LeaveModule,
+    MarketingTargetsModule,
   ],
   providers: [
     AuditContextMiddleware,

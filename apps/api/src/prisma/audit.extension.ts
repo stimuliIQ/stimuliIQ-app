@@ -347,6 +347,12 @@ const AUDITED_MODELS = new Set<string>([
   "Holiday",
   "LeaveSetting",
   "LeaveRequest",
+  // Monthly marketing targets. The number somebody is judged against is exactly the kind of
+  // value that must never change without a trail: "who raised Rahul from 30 to 45 halfway
+  // through March" is the question this table exists to answer. Progress is derived and
+  // never stored, so the only thing audited here is the goal itself. No PII (the person is
+  // a foreign key) and no secrets.
+  "MarketingTarget",
 ]);
 
 // --- Secret redaction (Wave 6 security audit H-1/H-2) ----------------------------------

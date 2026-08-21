@@ -33,6 +33,9 @@ import { ContentApi, ContentPagesApi, CollegesApi } from "./content.api.js";
 // Hiring (ADR-0066) — deliberately NOT under content.*: it is gated by careers.* rather
 // than content.*, because an application carries a stranger's resume.
 import { CareersApi } from "./careers.api.js";
+// Monthly marketing targets (ADR-0067). Own key set (marketing_targets.*), not reports.*:
+// the own-card endpoint is for the person measured, not for whoever reads reports.
+import { MarketingTargetsApi } from "./marketing-targets.api.js";
 import { SiteSettingsApi } from "./site-settings.api.js";
 import { SettingsApi } from "./settings.api.js";
 import { ReferralsApi } from "./referrals.api.js";
@@ -99,6 +102,9 @@ export class CrmApi {
   readonly colleges: CollegesApi;
   /** Job openings + the application review queue: .careers.openings / .careers.applications. */
   readonly careers: CareersApi;
+
+  /** Monthly marketing targets: .mine() for the person measured, the rest for super_admin. */
+  readonly marketingTargets: MarketingTargetsApi;
   // Phase-10 page builder (docs/specs/phase-10-page-builder.md) — SiteSetting
   // (nav/footer/SEO/contact/stats), super_admin-only (`site_settings.view`/`.edit`).
   // Page-builder block CRUD itself lives on `content.pages.*` (extends the existing
@@ -147,6 +153,7 @@ export class CrmApi {
     this.contentPages = this.content.pages;
     this.colleges = this.content.colleges;
     this.careers = new CareersApi(client);
+    this.marketingTargets = new MarketingTargetsApi(client);
     this.siteSettings = new SiteSettingsApi(client);
     this.settings = new SettingsApi(client);
     this.referrals = new ReferralsApi(client);
@@ -190,3 +197,4 @@ export * from "./video-library.api.js";
 export * from "./onboarding.api.js";
 export * from "./leave.api.js";
 export * from "./careers.api.js";
+export * from "./marketing-targets.api.js";

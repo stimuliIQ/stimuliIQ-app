@@ -626,11 +626,12 @@ model Tenant {
   onboardingSubmissions OnboardingSubmission[]
 
   // Staff leave management
-  leaveTypes    LeaveType[]
-  leaveQuotas   LeaveQuota[]
-  holidays      Holiday[]
-  leaveSettings LeaveSetting[]
-  leaveRequests LeaveRequest[]
+  leaveTypes       LeaveType[]
+  leaveQuotas      LeaveQuota[]
+  holidays         Holiday[]
+  leaveSettings    LeaveSetting[]
+  leaveRequests    LeaveRequest[]
+  marketingTargets MarketingTarget[]
 
   @@map("tenants")
 }
@@ -748,6 +749,11 @@ model User {
   // offer / reject). Nullable on the application side: rows that predate the review surface,
   // and rows still sitting at `new`, have no decider yet.
   decidedCareerApplications CareerApplication[] @relation("CareerApplicationDecider")
+
+  // Monthly marketing targets — the person measured, and (if super_admin) the person who
+  // set the number. Two sides, so two relation names.
+  marketingTargets    MarketingTarget[] @relation("MarketingTargetUser")
+  setMarketingTargets MarketingTarget[] @relation("MarketingTargetSetBy")
 
   @@unique([tenantId, email])
   @@index([phone])
@@ -1549,6 +1555,17 @@ model Lead {
   slaDueAt           DateTime? @map("sla_due_at")
   // Set when a won lead is converted to a student (atomic, audited).
   convertedStudentId String?   @unique @map("converted_student_id") @db.Uuid
+  // WHEN that conversion happened. Written in the same UPDATE as convertedStudentId.
+  //
+  // Not derivable from the student row: converting LINKS a lead to a StudentProfile, and
+  // that profile may already have existed, so student.created_at is the day the person
+  // became a student, not the day this lead closed. A monthly target has to count the
+  // month the deal actually closed, so the event gets its own column.
+  //
+  // Historic rows are NOT backfilled and read as null — same call as the lead-ownership
+  // pass: a best-effort backfill would silently mix real and inferred close dates in a
+  // report people are measured against. Targets are correct from this migration forward.
+  convertedAt        DateTime? @map("converted_at")
 
   // ── Lead accountability + response-time columns (lead-ownership pass) ──────────────
   // The audit log already records WHO changed WHAT, but it is a slow, admin-only,
@@ -1628,6 +1645,8 @@ model Lead {
   // "leads assigned to X in [from,to]" are both single index scans.
   @@index([tenantId, createdById, createdAt])
   @@index([tenantId, ownerId, assignedAt])
+  // Monthly marketing targets: "leads this owner closed inside this month".
+  @@index([tenantId, ownerId, convertedAt])
   @@map("leads")
 }
 
@@ -4181,4 +4200,64 @@ model LeaveRequest {
   @@index([tenantId, startDate, endDate])
   @@index([tenantId, deletedAt])
   @@map("leave_requests")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────
+// MarketingTarget — one marketing person's number for one calendar month.
+// docs/specs/marketing-targets.md
+//
+// TWO numbers in one row, not two rows: a marketing target is "close N deals worth ₹X",
+// and splitting them would let somebody set a conversions target for March and forget the
+// revenue one, leaving a dashboard card half-blank with no way to tell whether that was
+// deliberate. Either number may be 0, which means "not measured on this" and hides that
+// card — an explicit choice rather than a missing row.
+//
+// PROGRESS IS NOT STORED. There is no `completed` or `pending` column. Both are derived on
+// read from leads (converted_at inside the month) and payments (paid_at inside the month),
+// for the same reason leave balances are derived: a stored counter drifts the first time a
+// lead is reassigned, a conversion is undone or a payment is refunded, and it drifts
+// silently in the direction that flatters the number.
+//
+// period_month is a DATE pinned to the first of the month, not a (year, month) integer
+// pair: one column, one index, and "this month" is a plain equality check.
+model MarketingTarget {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  // The person measured. Any staff user can hold a target; in practice these are the
+  // `marketing` role, but the FK is to users so a counsellor can be given one without a
+  // schema change.
+  userId   String @map("user_id") @db.Uuid
+
+  /// First day of the target month, UTC midnight (e.g. 2026-03-01 for March 2026).
+  periodMonth DateTime @map("period_month") @db.Date
+
+  /// How many leads this person should close in the month. 0 = not measured on volume.
+  conversionsTarget  Int @map("conversions_target")
+  /// Rupee target in PAISE — integer minor units, never a float (CLAUDE.md §3.6).
+  /// 0 = not measured on revenue.
+  revenueTargetPaise Int @map("revenue_target_paise")
+
+  /// Optional context from whoever set it ("Q1 push", "pro-rated, joined on the 12th").
+  note String?
+
+  /// The super_admin who set it. Nullable only so a seeded/imported row is not a lie.
+  createdById String? @map("created_by_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  user      User   @relation("MarketingTargetUser", fields: [userId], references: [id])
+  createdBy User?  @relation("MarketingTargetSetBy", fields: [createdById], references: [id])
+
+  // One live target per person per month. Enforced as a PARTIAL unique index in the
+  // migration SQL (`WHERE deleted_at IS NULL`) so a soft-deleted target does not block
+  // setting a new one for the same month — Prisma cannot express that, so the @@unique
+  // below is deliberately absent and the constraint lives in migration SQL only.
+  // See docs/05-database-design.md and the partial-index note there.
+  @@index([tenantId, periodMonth])
+  @@index([tenantId, userId, periodMonth])
+  @@index([tenantId, deletedAt])
+  @@map("marketing_targets")
 }

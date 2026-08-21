@@ -55,6 +55,7 @@ import { marketingBlogCmsRoute } from "./routes/marketing-blog-cms-route";
 import { marketingPageBuilderRoute } from "./routes/marketing-page-builder-route";
 import { marketingSiteSettingsRoute } from "./routes/marketing-site-settings-route";
 import { marketingCollegesRoute } from "./routes/marketing-colleges-route";
+import { marketingTargetsRoute } from "./routes/marketing-targets-route";
 import { marketingTestimonialsRoute } from "./routes/marketing-testimonials-route";
 import { supportTicketsRoute } from "./routes/support-tickets-route";
 import { supportKbRoute } from "./routes/support-kb-route";
@@ -138,6 +139,7 @@ const routeTree = rootRoute.addChildren([
   marketingPageBuilderRoute,
   marketingSiteSettingsRoute,
   marketingCollegesRoute,
+  marketingTargetsRoute,
   marketingTestimonialsRoute,
   supportTicketsRoute,
   supportKbRoute,
