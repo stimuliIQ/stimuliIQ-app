@@ -2,8 +2,12 @@
 
 > Runs the StimuliiQ **API + BullMQ worker + Redis** on one Hostinger KVM VPS, behind Nginx
 > with TLS. Database is **Supabase** (already migrated + seeded). Frontends are on **Vercel**
-> (`web`, `lms`) and **Cloudflare Pages** (`crm`). Companion to
+> (`web`, `lms`, `crm`). Companion to
 > [`production-go-live.md`](production-go-live.md).
+>
+> **Current production box (since 2026-08-22): `srv1920739.hstgr.cloud` / `195.35.22.66`,
+> Hostinger KVM2, India/Mumbai.** Moved there from a Manchester KVM1, which was ~1000ms per
+> request purely because it sat a continent away from the database. See [§12](#12-migrating-to-a-new-vps-proven-2026-08-22-kvm1manchester-to-kvm2mumbai).
 >
 > Replace every `<...>` placeholder. Run as a non-root sudo user unless noted.
 
@@ -193,7 +197,7 @@ curl -s https://api.stimuliiq.com/api/v1/health/ready | jq
 
 - **Vercel** (`web`, `lms`): `NEXT_PUBLIC_API_URL=https://api.stimuliiq.com` +
   `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_WHATSAPP_NUMBER=919177748321`, Turnstile/GA public keys.
-- **Cloudflare Pages** (`crm`): `VITE_API_URL=https://api.stimuliiq.com`,
+- **Vercel** (`crm`): `VITE_API_URL=https://api.stimuliiq.com`,
   `VITE_WEB_APP_URL=https://www.stimuliiq.com`, `VITE_ASSET_BASE_URL`.
 - The API's CORS allow-list = `WEB_APP_URL`/`LMS_APP_URL`/`CRM_APP_URL` — set to the real origins.
 
@@ -202,6 +206,7 @@ curl -s https://api.stimuliiq.com/api/v1/health/ready | jq
 ```bash
 cd /srv/stimuliiq && git pull
 pnpm install --frozen-lockfile
+pnpm db:generate                              # NOT implied by install when deps are unchanged
 pnpm --filter @stimuliiq/api... run build
 pm2 restart stq-api          # + stq-worker only if you moved to QUEUE_DRIVER=bullmq
 ```
@@ -216,3 +221,104 @@ Your dev `.env` uses `STORAGE_PROVIDER=local` (files on disk, served by the API)
 that *works* for launch, but: files live on the VPS disk (back them up; lost if the box dies; won't
 scale past one instance). **Recommended: `STORAGE_PROVIDER=r2`** (Cloudflare R2 — see the runbook
 §3.6). Local is an acceptable temporary MVP choice if you accept those caveats.
+
+---
+
+## 12. Migrating to a new VPS (proven 2026-08-22, KVM1/Manchester to KVM2/Mumbai)
+
+Automated by [`infra/scripts/vps-migrate.sh`](../../infra/scripts/vps-migrate.sh), whose
+header is the short version of this section. Stages:
+`bootstrap` → `secrets` → `code` → `serve` → `verify` → *(flip DNS)* → `handover`, with
+`standdown` days later.
+
+```bash
+export OLD_HOST=srv-old.hstgr.cloud NEW_HOST=<new-ip>
+./infra/scripts/vps-migrate.sh bootstrap   # then secrets, code, serve, verify
+```
+
+### Pick the REGION, not the plan size
+
+The 2026-08-22 move was prompted by a bigger plan, but the plan size was not the problem.
+The old box was in Manchester and Supabase/Upstash are in `ap-south-1` (Mumbai):
+
+| Measured | Manchester | Mumbai |
+|---|---|---|
+| TCP RTT to the Supabase pooler | 183 ms | **8 ms** |
+| `/api/v1/health/ready` on-box | ~1010 ms | **26-31 ms** |
+| Same over HTTPS from a laptop in India | ~1400 ms | **120-155 ms** |
+
+A faster CPU in the wrong region would have changed none of this: the box sat at 0.2% CPU
+while every request waited on cross-continent round trips. **Before provisioning, confirm
+the data centre is India/Mumbai**, and check from inside the box, not just the panel:
+
+```bash
+curl -s https://ipinfo.io/json          # expect "city": "Mumbai", "country": "IN"
+```
+
+Check Redis too, not only Postgres. Moving the API can strand Redis in another region if
+the Upstash database was provisioned near the *old* box. Both measured ~10 ms from Mumbai.
+
+### Copy the certs BEFORE flipping DNS
+
+`secrets` tars `/etc/letsencrypt` from old to new. A Let's Encrypt certificate is not bound
+to an IP, so the new box then serves valid TLS for `api.stimuliiq.com` before any user is
+routed to it, and the cutover becomes pure DNS propagation rather than a race to issue a
+certificate while the API is dark. Prove it without touching DNS:
+
+```bash
+curl --resolve api.stimuliiq.com:443:<NEW_IP> https://api.stimuliiq.com/api/v1/health/ready
+```
+
+After the flip, confirm renewal still works on the new box (`certbot renew --dry-run`) and
+disable `certbot.timer` on the old one, whose HTTP-01 challenges now resolve elsewhere and
+can only fail. Note `certbot renew --dry-run` inserts a **random sleep of up to ~10 minutes**
+on non-interactive runs and looks hung; pass `--no-random-sleep-on-renew`.
+
+### Hand cron over in one direction
+
+This is the trap. Both boxes talk to the **same production database**, so two running copies
+means two sets of scheduled jobs. Not all of them tolerate that:
+
+- `ReportScheduleDispatchScheduler` is safe. `claimDueSchedule()` is an optimistic
+  `updateMany ... where nextRunAt = <observed>`, and its own comment anticipates "a second
+  app replica".
+- `DeadlineRemindersScheduler` is **not** safe. It dedups by time bucket with no persisted
+  flag, and its header names duplicate reminders as the failure mode.
+
+So `serve` parks the new box with `SCHEDULER_ENABLED=false`
+(`booleanFromString.optional()` in `apps/api/src/config/env.ts`), and `handover` moves
+ownership strictly **release-then-acquire**: cron off on the old box, then on on the new.
+Verify by log line, not by hope: `... Scheduler] registered` should appear 5 times on the
+new box and `NOT registered` 5 times on the old.
+
+One mercy: every scheduler is a plain `setInterval` with no immediate run, so a
+short-lived process never ticks the 1 h / 6 h jobs. A brief accidental overlap is survivable.
+
+### Confirm the cutover from the servers, not from response times
+
+```bash
+awk -v d="$(date -u -d '5 minutes ago' +%d/%b/%Y:%H:%M)" '$4 > "["d' \
+  /var/log/nginx/access.log | wc -l
+```
+
+Positive on the new box and `0` on the old is proof. Latency is a hint, not evidence.
+
+### Leave the old box running
+
+`handover` deliberately does **not** stop the old API. It keeps serving HTTP for any
+resolver ignoring the TTL, owns no cron, and is the rollback: point the A record back and
+it is already warm. Run `standdown` only after a few days of confidence, and remember its
+certificate stops renewing the moment DNS moves away.
+
+### Gotchas hit the first time
+
+- **`vps-bootstrap.sh` installed Node 18, not 22.** NodeSource's piped `setup_22.x` script
+  exited 0 without registering its apt repo, so `apt-get install nodejs` fell through to
+  Ubuntu's own package, which ships no `corepack`. Fixed in the script (explicit keyring +
+  `.list`, plus a hard assertion on the major version), but check `node -v` regardless.
+- **`git clone` refuses a non-empty directory**, and `secrets` runs before `code`, so the
+  app directory already holds `.env` and `keys/`. `code` therefore does
+  `git init` + `remote add` + `fetch` + `reset --hard origin/main`, which is safe precisely
+  because both are gitignored.
+- **Hostinger's current Ubuntu 24.04 image ships `docker` and `monarx`** preinstalled.
+  Harmless, but unexpected if you compare boxes.
