@@ -65,9 +65,26 @@ systemctl enable --now fail2ban
 dpkg-reconfigure -f noninteractive unattended-upgrades
 
 log "Node ${NODE_MAJOR} + pnpm ${PNPM_VERSION}"
+# Add NodeSource's apt repo EXPLICITLY (keyring + .list) rather than piping their
+# setup_${NODE_MAJOR}.x script to bash. On a Hostinger Ubuntu 24.04 image (2026-08-22) that
+# piped script exited 0 WITHOUT registering the repo, so the `apt-get install nodejs` below
+# silently fell through to Ubuntu's own nodejs 18, which ships no `corepack`, killing this
+# script two lines later. Doing it by hand is deterministic and fails loudly.
 if ! node -v 2>/dev/null | grep -q "^v${NODE_MAJOR}\."; then
-  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash -
+  install -d -m 0755 /etc/apt/keyrings
+  curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+    | gpg --dearmor --yes -o /etc/apt/keyrings/nodesource.gpg
+  chmod a+r /etc/apt/keyrings/nodesource.gpg
+  echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" \
+    > /etc/apt/sources.list.d/nodesource.list
+  apt-get update -qq
   apt-get -y -qq install nodejs
+fi
+# Assert, don't assume: a wrong-major node here produces a confusing failure much later.
+if ! node -v | grep -q "^v${NODE_MAJOR}\."; then
+  echo "FATAL: expected Node ${NODE_MAJOR}.x, got $(node -v). NodeSource repo not in effect:"
+  apt-cache policy nodejs | head -8
+  exit 1
 fi
 corepack enable
 # corepack's shims are per-user; activate for root AND the deploy user.
