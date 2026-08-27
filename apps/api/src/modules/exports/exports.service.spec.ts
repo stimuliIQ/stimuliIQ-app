@@ -251,11 +251,11 @@ describe("ExportsService", () => {
       ]);
       studentsService.list
         .mockResolvedValueOnce({
-          items: [{ id: "s1", userId: "u1", name: "Ravi", email: "ravi@example.com", phone: null, college: null, courseType: "btech", year: 2, city: null, status: "active", lifecycleStage: "active_student", createdAt: "2026-06-01T00:00:00.000Z" }],
+          items: [{ id: "s1", userId: "u1", name: "Ravi", email: "ravi@example.com", phone: null, college: null, courseType: "btech", courseTypeLabel: "B.Tech", year: 2, city: null, status: "active", lifecycleStage: "active_student", createdAt: "2026-06-01T00:00:00.000Z" }],
           meta: { page: 1, pageSize: 100, total: 101, hasMore: true },
         })
         .mockResolvedValueOnce({
-          items: [{ id: "s2", userId: "u2", name: "Priya", email: "priya@example.com", phone: null, college: null, courseType: "btech", year: 2, city: null, status: "active", lifecycleStage: "active_student", createdAt: "2026-06-01T00:00:00.000Z" }],
+          items: [{ id: "s2", userId: "u2", name: "Priya", email: "priya@example.com", phone: null, college: null, courseType: "btech", courseTypeLabel: "B.Tech", year: 2, city: null, status: "active", lifecycleStage: "active_student", createdAt: "2026-06-01T00:00:00.000Z" }],
           meta: { page: 2, pageSize: 100, total: 101, hasMore: false },
         });
 

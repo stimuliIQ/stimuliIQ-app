@@ -8,6 +8,7 @@
 
 import { BadRequestException, ForbiddenException, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
 import { LeadsService } from "./leads.service";
+import { CourseTypesService } from "../course-types/course-types.service";
 import { LeadsRepository, type LeadRow } from "./leads.repository";
 import { ActivitiesRepository } from "./activities.repository";
 import { StudentsRepository } from "../students/students.repository";
@@ -117,18 +118,27 @@ describe("LeadsService", () => {
   let activitiesRepo: Mocked<ActivitiesRepository>;
   let notifications: Mocked<NotificationsService>;
 
+  let courseTypes: Mocked<CourseTypesService>;
+
   beforeEach(() => {
     repo = mockLeadsRepository();
     studentsRepo = mockStudentsRepository();
     commerce = mockCommerceService();
     activitiesRepo = mockActivitiesRepository();
     notifications = mockNotificationsService();
+    courseTypes = {
+      // Conversion creates a student, so the submitted course-type key is validated the
+      // same way /crm/students does it.
+      assertKnownKey: jest.fn().mockResolvedValue(undefined),
+      labelMap: jest.fn().mockResolvedValue(new Map()),
+    } as unknown as Mocked<CourseTypesService>;
     service = new LeadsService(
       repo as unknown as LeadsRepository,
       studentsRepo as unknown as StudentsRepository,
       commerce as unknown as CommerceService,
       activitiesRepo as unknown as ActivitiesRepository,
       notifications as unknown as NotificationsService,
+      courseTypes as unknown as CourseTypesService,
     );
   });
 

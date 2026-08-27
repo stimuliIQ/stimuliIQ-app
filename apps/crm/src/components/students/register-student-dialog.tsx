@@ -20,15 +20,14 @@ import {
   DrawerBody,
   DrawerFooter,
   Input,
-  Select,
-  SelectItem,
   useToast,
 } from "@repo/ui";
 import { UpdateStudentRequestSchema, type CourseType, type StudentDetail } from "@repo/types";
 
 import { useUpdateStudent } from "../../hooks/use-students";
 import { surfaceError } from "../../lib/surface-error";
-import { COURSE_TYPES, optionalText, optionalNumber } from "./student-form-drawer";
+import { optionalText, optionalNumber } from "./student-form-drawer";
+import { CourseTypeSelect } from "./course-type-select";
 import {
   optionalE164Phone,
   phoneFieldProps,
@@ -127,21 +126,13 @@ export function RegisterStudentDialog({
             </div>
             <Input label="College / University" placeholder="e.g. JNTU Hyderabad" {...register("college", optionalText)} error={errors.college?.message} data-testid="register-form-college" />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Select
-                label="Course type"
+              <CourseTypeSelect
                 required
-                placeholder="Select course type"
                 value={watch("courseType")}
-                onValueChange={(value) => setValue("courseType", value as CourseType, { shouldValidate: true })}
+                onChange={(value) => setValue("courseType", value as CourseType, { shouldValidate: true })}
                 error={errors.courseType?.message}
                 data-testid="register-form-course-type"
-              >
-                {COURSE_TYPES.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </Select>
+              />
               <Input
                 label="Year of study"
                 type="number"

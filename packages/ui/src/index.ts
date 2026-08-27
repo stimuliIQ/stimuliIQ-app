@@ -31,6 +31,8 @@ export {
   toE164Phone,
 } from "./lib/phone";
 
+export { isValidEmail, EMAIL_FORMAT_MESSAGE } from "./lib/email";
+
 export { Button, buttonVariants, type ButtonProps } from "./components/button";
 
 export {

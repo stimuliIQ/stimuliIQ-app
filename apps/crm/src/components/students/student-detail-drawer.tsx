@@ -171,7 +171,7 @@ export function StudentDetailDrawer({ studentId, onOpenChange, me }: StudentDeta
                           <dl className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                               <dt className="text-fg-muted">Course type</dt>
-                              <dd className="mt-1 text-fg">{student.courseType}</dd>
+                              <dd className="mt-1 text-fg">{student.courseTypeLabel ?? "-"}</dd>
                             </div>
                             <div>
                               <dt className="text-fg-muted">Phone</dt>

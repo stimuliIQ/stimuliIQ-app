@@ -505,6 +505,30 @@ function buildOnboardingPermissionCatalog(): Array<{ key: string; label: string 
 }
 
 /**
+ * CRM-managed course types (docs/specs/course-types.md, ADR-0068).
+ *
+ * ONE key, and it is in the catalog on purpose — so admin AND super_admin both get it via
+ * the catch-all loop in main(). Maintaining the list of qualifications the company offers is
+ * operational configuration, not authority over a person: it is closer to `content.edit`
+ * than to `leave.approve` or `marketing_targets.manage`, both of which are narrowed to
+ * super_admin precisely because they decide something ABOUT a member of staff.
+ *
+ * There is deliberately NO `course_types.view` key. Reading the list is gated on
+ * `students.view` (course-types.controller.ts header): every role that can open the student
+ * directory or the add-student dialog needs the dropdown to render, and inventing a second
+ * key for it would mean every counsellor role has to be granted a permission just to see a
+ * picker — the kind of grant that gets forgotten and shows up as an empty dropdown nobody
+ * can explain.
+ */
+const COURSE_TYPE_PERMISSIONS: Array<{ key: string; label: string }> = [
+  { key: "course_types.manage", label: "Manage Course Types" },
+];
+
+function buildCourseTypePermissionCatalog(): Array<{ key: string; label: string }> {
+  return COURSE_TYPE_PERMISSIONS;
+}
+
+/**
  * Careers / hiring (docs/specs/careers-hiring.md, ADR-0066).
  *
  * THREE keys, and the split is the design — see careers.controller.ts's header for the
@@ -728,6 +752,7 @@ async function main(): Promise<void> {
     ...buildOnboardingPermissionCatalog(),
     ...buildCareersPermissionCatalog(),
     ...buildLeavePermissionCatalog(),
+    ...buildCourseTypePermissionCatalog(),
   ];
   const permissions = await Promise.all(
     permissionCatalog.map((perm) =>
@@ -1709,6 +1734,41 @@ async function main(): Promise<void> {
   if (!priyaFaculty || !arjunFaculty || !kavyaFaculty) {
     throw new Error("[seed] expected 3 faculty profiles to exist after upsert");
   }
+
+  // ── Course types (docs/specs/course-types.md) ────────────────────────────────
+  //
+  // These SIX exist because the demo students below are recorded with their keys — a
+  // student holding a key with no matching row renders as a raw slug and cannot be edited
+  // without changing their answer. They are the six values the old `StudentCourseType`
+  // enum hardcoded, carried over so a fresh dev database matches a migrated one.
+  //
+  // A REAL tenant should rename these to whatever it actually recruits for; that is the
+  // entire point of the feature, and `prisma/seed-course-types.ts` (`pnpm
+  // db:seed:course-types`) is the live-database script that seeds the permission WITHOUT
+  // inventing options for a business nobody here can speak for.
+  const courseTypeDefs = [
+    { key: "btech", label: "B.Tech" },
+    { key: "degree", label: "Degree" },
+    { key: "diploma", label: "Diploma" },
+    { key: "mca", label: "MCA" },
+    { key: "mba", label: "MBA" },
+    { key: "other", label: "Other" },
+  ] as const;
+  await Promise.all(
+    courseTypeDefs.map(async (def, index) => {
+      const existing = await prisma.courseType.findFirst({
+        where: { tenantId: tenant.id, key: def.key, deletedAt: null },
+        select: { id: true },
+      });
+      if (existing) {
+        // Label/order are staff-editable — never overwrite a rename on re-seed.
+        return existing;
+      }
+      return prisma.courseType.create({
+        data: { tenantId: tenant.id, key: def.key, label: def.label, sortOrder: index + 1, active: true },
+      });
+    }),
+  );
 
   // ── Sample data: students (users + student_profiles) across branches/statuses ──
   const studentDefs = [

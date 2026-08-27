@@ -35,6 +35,7 @@ import { requireScopeContext, type ScopeContext } from "../auth/lib/scope-contex
 import { StudentsRepository } from "../students/students.repository";
 import { CommerceService } from "../commerce/commerce.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import { CourseTypesService } from "../course-types/course-types.service";
 import type {
   CreateLeadRequest,
   UpdateLeadRequest,
@@ -77,6 +78,7 @@ export class LeadsService {
     private readonly commerceService: CommerceService,
     private readonly activitiesRepository: ActivitiesRepository,
     private readonly notifications: NotificationsService,
+    private readonly courseTypes: CourseTypesService,
   ) {}
 
   /**
@@ -498,6 +500,10 @@ export class LeadsService {
         detail: "A user with this email already exists in this tenant.",
       });
     }
+
+    // Course types are CRM-managed data — the key must name one of the tenant's active
+    // options (422), the same check StudentsService.create applies.
+    await this.courseTypes.assertKnownKey(tenantId, fields.courseType);
 
     const student = await this.studentsRepository.createStudentWithUser({
       tenantId,

@@ -7,10 +7,12 @@ import { X } from "lucide-react";
 import { cn } from "../lib/cn";
 import {
   PHONE_INPUT_PROPS,
+  PHONE_LENGTH_MESSAGE,
   PHONE_PLACEHOLDER,
   isCompleteLocalPhone,
   toLocalPhoneDigits,
 } from "../lib/phone";
+import { EMAIL_FORMAT_MESSAGE, isValidEmail } from "../lib/email";
 
 /**
  * LeadFormInline / ExitIntentModal / StickyLeadBar
@@ -241,31 +243,89 @@ function LeadFormCore({
   const uid = React.useId();
   const fieldId = (field: string) => `lf-${field}-${uid}`;
 
+  const [touched, setTouched] = React.useState<Partial<Record<LeadFormField, boolean>>>({});
+  const [submitAttempted, setSubmitAttempted] = React.useState(false);
+
   const set = (key: keyof typeof values) => (val: string) => {
     setValues((prev) => ({ ...prev, [key]: val }));
   };
 
+  const markTouched = (field: LeadFormField) => () => {
+    setTouched((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
+  };
+
+  // Validation for the REQUIRED rendered fields. Optional fields
+  // (program/message/course/college/language) have no rule. The caller still
+  // validates on submit and the server always does — this is the feedback the
+  // visitor gets, not the enforcement.
+  function fieldError(field: LeadFormField): string | undefined {
+    switch (field) {
+      case "name":
+        return (values.name ?? "").trim().length > 0 ? undefined : "Enter your name";
+      case "phone": {
+        const phone = values.phone ?? "";
+        if (phone.trim().length === 0) return "Enter your mobile number";
+        return isCompleteLocalPhone(phone) ? undefined : PHONE_LENGTH_MESSAGE;
+      }
+      case "email": {
+        const email = (values.email ?? "").trim();
+        if (email.length === 0) return "Enter your email address";
+        return isValidEmail(email) ? undefined : EMAIL_FORMAT_MESSAGE;
+      }
+      default:
+        return undefined;
+    }
+  }
+
+  // An error is shown once the visitor has left the field, or as soon as they
+  // try to submit, and stays on screen until the value is actually valid.
+  const errorFor = (field: LeadFormField): string | undefined =>
+    touched[field] || submitAttempted ? fieldError(field) : undefined;
+
+  const errorId = (field: string) => `lf-${field}-error-${uid}`;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setSubmitAttempted(true);
+
+    // The button stays clickable on an incomplete form on purpose: a disabled
+    // button is a dead end that never says what is wrong with the number or
+    // the address the visitor typed.
+    const firstInvalid = fields.find((field) => fieldError(field));
+    if (firstInvalid) {
+      const el = document.getElementById(fieldId(firstInvalid));
+      if (el instanceof HTMLElement) el.focus();
+      return;
+    }
+
     await onSubmit?.({ ...values, _hp_email: honeypot });
   }
 
-  // The submit button stays disabled until every REQUIRED rendered field has a
-  // usable value, so it never reads as actionable on an empty form. Optional
-  // fields (program/message/course/college/language) are ignored. The caller
-  // still validates on submit — this is presentation, not enforcement.
-  const requiredFieldsFilled = fields.every((field) => {
-    switch (field) {
-      case "name":
-        return (values.name ?? "").trim().length > 0;
-      case "phone":
-        return isCompleteLocalPhone(values.phone);
-      case "email":
-        return (values.email ?? "").trim().length > 0;
-      default:
-        return true;
-    }
-  });
+  /** Field wrapper: red border while invalid, plus the message under it. */
+  function fieldProps(field: LeadFormField) {
+    const message = errorFor(field);
+    return {
+      invalid: Boolean(message),
+      message,
+      inputProps: {
+        onBlur: markTouched(field),
+        "aria-invalid": message ? (true as const) : undefined,
+        "aria-describedby": message ? errorId(field) : undefined,
+      },
+    };
+  }
+
+  function FieldError({ field }: { field: LeadFormField }): React.JSX.Element | null {
+    const message = errorFor(field);
+    if (!message) return null;
+    return (
+      <p id={errorId(field)} className="mt-1 text-xs text-danger">
+        {message}
+      </p>
+    );
+  }
+
+  const invalidClass = "border-danger focus-visible:ring-danger";
 
   if (successSlot) {
     return <div>{successSlot}</div>;
@@ -305,8 +365,10 @@ function LeadFormCore({
                     value={values.name ?? ""}
                     onChange={(e) => set("name")(e.target.value)}
                     required
-                    className={inputClass}
+                    {...fieldProps("name").inputProps}
+                    className={cn(inputClass, fieldProps("name").invalid && invalidClass)}
                   />
+                  <FieldError field="name" />
                 </div>
               );
             case "phone":
@@ -329,7 +391,8 @@ function LeadFormCore({
                         value={values.phone ?? ""}
                         onChange={(e) => set("phone")(toLocalPhoneDigits(e.target.value))}
                         required
-                        className={cn(inputClass, "flex-1")}
+                        {...fieldProps("phone").inputProps}
+                        className={cn(inputClass, "flex-1", fieldProps("phone").invalid && invalidClass)}
                       />
                     </div>
                   ) : (
@@ -341,9 +404,11 @@ function LeadFormCore({
                       value={values.phone ?? ""}
                       onChange={(e) => set("phone")(toLocalPhoneDigits(e.target.value))}
                       required
-                      className={inputClass}
+                      {...fieldProps("phone").inputProps}
+                      className={cn(inputClass, fieldProps("phone").invalid && invalidClass)}
                     />
                   )}
+                  <FieldError field="phone" />
                 </div>
               );
             case "email":
@@ -359,8 +424,10 @@ function LeadFormCore({
                     value={values.email ?? ""}
                     onChange={(e) => set("email")(e.target.value)}
                     required
-                    className={inputClass}
+                    {...fieldProps("email").inputProps}
+                    className={cn(inputClass, fieldProps("email").invalid && invalidClass)}
                   />
+                  <FieldError field="email" />
                 </div>
               );
             case "program":
@@ -462,9 +529,9 @@ function LeadFormCore({
 
       <button
         type="submit"
-        disabled={isSubmitting || !requiredFieldsFilled}
+        disabled={isSubmitting}
         aria-busy={isSubmitting}
-        aria-disabled={isSubmitting || !requiredFieldsFilled}
+        aria-disabled={isSubmitting}
         className={cn(
           "flex min-h-[44px] w-full items-center justify-center rounded-md bg-brand-500 px-5 text-sm font-semibold text-white",
           "transition-colors hover:bg-brand-600 active:bg-brand-700",
@@ -655,9 +722,21 @@ export function StickyLeadBar({
 }: StickyLeadBarProps): React.JSX.Element {
   const [phone, setPhone] = React.useState("");
   const [honeypot, setHoneypot] = React.useState("");
+  const [touched, setTouched] = React.useState(false);
+
+  // "Call Me" is pointless without a complete number to call — but the button
+  // stays clickable so clicking it says WHY instead of doing nothing.
+  const phoneError = isCompleteLocalPhone(phone)
+    ? undefined
+    : phone.trim().length === 0
+      ? "Enter your mobile number"
+      : PHONE_LENGTH_MESSAGE;
+  const shownPhoneError = touched ? phoneError : undefined;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setTouched(true);
+    if (phoneError) return;
     await onSubmit?.({
       phone,
       _hp_email: honeypot,
@@ -714,9 +793,22 @@ export function StickyLeadBar({
           placeholder={placeholder}
           value={phone}
           onChange={(e) => setPhone(toLocalPhoneDigits(e.target.value))}
+          onBlur={() => setTouched(true)}
           required
-          className={cn(inputClass, "flex-1")}
+          aria-invalid={shownPhoneError ? true : undefined}
+          aria-describedby={shownPhoneError ? "sticky-lead-phone-error" : undefined}
+          className={cn(
+            inputClass,
+            "flex-1",
+            shownPhoneError && "border-danger focus-visible:ring-danger",
+          )}
         />
+
+        {shownPhoneError ? (
+          <p id="sticky-lead-phone-error" className="text-xs text-danger sm:order-last sm:w-full">
+            {shownPhoneError}
+          </p>
+        ) : null}
 
         {/* Captcha slot — rendered inline (may be hidden widget, e.g. invisible Turnstile) */}
         {captchaSlot ? <div className="shrink-0">{captchaSlot}</div> : null}
@@ -729,10 +821,9 @@ export function StickyLeadBar({
 
         <button
           type="submit"
-          // "Call Me" is pointless without a complete number to call.
-          disabled={isSubmitting || !isCompleteLocalPhone(phone)}
+          disabled={isSubmitting}
           aria-busy={isSubmitting}
-          aria-disabled={isSubmitting || !isCompleteLocalPhone(phone)}
+          aria-disabled={isSubmitting}
           className={cn(
             "shrink-0 flex min-h-[44px] items-center rounded-md bg-brand-500 px-5 text-sm font-semibold text-white",
             "transition-colors hover:bg-brand-600 active:bg-brand-700",

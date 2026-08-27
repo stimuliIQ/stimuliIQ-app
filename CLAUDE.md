@@ -340,6 +340,44 @@ db foundation). Then execute it, delegating each task to the named specialist su
   number a real person is measured against, and a wrong one fails silently in the direction
   nobody checks.
 
+- **P16 Course Types (DONE):** the "Course type" dropdown on every student form was a Postgres
+  enum — `btech/degree/diploma/mca/mba/other` — mirrored by a zod `z.enum` and by FOUR
+  hand-copied `{value,label}` arrays in the CRM, so changing it cost a migration, a contract
+  change, five UI edits and a deploy. It therefore never changed: it was written for the
+  original B.Tech/MCA/MBA audience, survived the healthcare repositioning intact, and staff
+  answered a REQUIRED field about nursing students with "Other".
+  It is now **CRM-authored DATA** (`course_types`, Admin ▸ Course types) — the P12 onboarding
+  call, for the same reason and deliberately the OPPOSITE of P11's locked templates: a
+  marketing page has a layout free composition ruins, **a list of options has no shape a
+  non-engineer can break**.
+  `student_profiles.course_type` stores the option's **immutable `key`**, not a foreign key:
+  the label is the only mutable half, so renaming "B.Tech" to "MBBS" renames the OPTION and is
+  never a silent rewrite of what existing students are recorded as. Labels resolve on READ
+  (`courseTypeLabel` on the student DTOs), so a rename shows up everywhere at once.
+  **Writes accept only ACTIVE options** (422 `course_types.unknown` — hiding means "stop
+  offering this"); **reads accept anything**, falling back to the raw key, because history is
+  shown as it was recorded. Delete is refused while students hold the key (409) and points at
+  hiding. The column also became **NULLABLE**, deleting the two paths that invented an answer
+  to satisfy NOT NULL — website self-registration wrote `"btech"` and onboarding activation
+  wrote `"other"` onto real people's records. The Excel importer no longer funnels
+  unrecognised text into "Other": an unmatched cell is a row error naming the tenant's actual
+  options. `slugifyCourseTypeKey` (`@repo/types`) is run identically by the API (which
+  generates the key) and the CRM form (which previews it), like `computeLeaveDuration`.
+  **Permissions are asymmetric on purpose:** reading is gated on `students.view` (every role
+  that opens the student directory needs the picker to render; a dedicated `course_types.view`
+  would have to be granted to every counsellor role and would be forgotten), and
+  `course_types.manage` stays INSIDE the permission catalog — unlike `leave.approve` and
+  `marketing_targets.manage` — so admin holds it too: maintaining a list of qualifications is
+  configuration, not authority over a member of staff.
+  Spec: `docs/specs/course-types.md`, ADR-0068.
+  **DB setup on an existing/live database:** `prisma migrate deploy` (one new table; the
+  `student_profiles.course_type` column converts enum → TEXT and becomes nullable, and the
+  migration first inserts a `course_types` row for every value already in use PER TENANT, so
+  no student changes meaning and no dropdown loses an option) then `pnpm db:seed:course-types`.
+  Do NOT run the full `pnpm db:seed` against a live DB. **No new options are invented on
+  purpose** — which qualifications a company recruits for is a live business fact, and a
+  plausible seeded list gets picked silently by whoever is in a hurry.
+
 Do **not** jump ahead. Each phase ends with tests green + a demo path.
 
 ---
@@ -375,5 +413,6 @@ Do **not** jump ahead. Each phase ends with tests green + a demo path.
 | Staff leave spec (allowances, approvals, holidays, calendar) | `docs/specs/leave-management.md` |
 | Careers/hiring spec (CRM openings, four-verb review, candidate emails) | `docs/specs/careers-hiring.md` |
 | Marketing targets spec (two numbers, derived progress, dashboard card) | `docs/specs/marketing-targets.md` |
+| Course types spec (CRM-managed option list, immutable keys, hide-not-delete) | `docs/specs/course-types.md` |
 | Lead ownership + accountability (assignment notify, owner picker, per-rep report) | `docs/specs/lead-ownership-accountability.md` |
 | Agent roster & protocol | `.claude/agents/README.md` |

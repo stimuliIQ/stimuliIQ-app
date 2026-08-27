@@ -12,6 +12,7 @@ import { Alert, Button, PageHeader, useToast } from "@repo/ui";
 import { CreateStudentRequestSchema, type CreateStudentRequest, type MeResponse } from "@repo/types";
 import { Upload, FileSpreadsheet } from "lucide-react";
 
+import { useCourseTypeOptions } from "../../hooks/use-course-types";
 import { useCreateStudent } from "../../hooks/use-students";
 import { hasPermission } from "../../lib/permissions";
 
@@ -44,18 +45,31 @@ function normalizePhone(raw: string): string {
   return cleaned;
 }
 
-/** Map free-typed course labels ("B.Tech", "b tech") onto the CourseType enum. */
-function normalizeCourseType(raw: string): string {
-  const compact = raw.toLowerCase().replace(/[^a-z]/g, "");
-  if (compact.startsWith("btech") || compact === "be" || compact.startsWith("beng")) return "btech";
-  if (compact.startsWith("degree") || compact === "bsc" || compact === "bcom" || compact === "ba") return "degree";
-  if (compact.startsWith("diploma")) return "diploma";
-  if (compact === "mca") return "mca";
-  if (compact === "mba") return "mba";
-  return compact === "" ? "other" : (["btech", "degree", "diploma", "mca", "mba", "other"].includes(compact) ? compact : "other");
+/**
+ * Match a free-typed sheet cell ("B.Tech", "b tech", "BTECH") against the tenant's OWN
+ * course types, by label or by key, ignoring case and punctuation.
+ *
+ * This used to be a hardcoded ladder that funnelled anything unrecognised into "other".
+ * That silently rewrote real answers: a sheet full of "MBBS" imported as six hundred
+ * students whose qualification was recorded as Other, and nobody could tell afterwards.
+ * An unmatched cell is now a ROW ERROR the importer can see and fix before anything is
+ * written — see `toParsedRow`.
+ */
+function buildCourseTypeMatcher(options: { value: string; label: string }[]): (raw: string) => string {
+  const compact = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const byCompact = new Map<string, string>();
+  for (const option of options) {
+    byCompact.set(compact(option.label), option.value);
+    byCompact.set(compact(option.value), option.value);
+  }
+  return (raw: string): string => byCompact.get(compact(raw)) ?? "";
 }
 
-function toParsedRow(record: Record<string, unknown>, index: number): ParsedRow {
+function toParsedRow(
+  record: Record<string, unknown>,
+  index: number,
+  matchCourseType: (raw: string) => string,
+): ParsedRow {
   const get = (...keys: string[]): string => {
     for (const key of keys) {
       const found = Object.keys(record).find((k) => k.trim().toLowerCase().replace(/[\s_]/g, "") === key);
@@ -70,7 +84,8 @@ function toParsedRow(record: Record<string, unknown>, index: number): ParsedRow 
   const name = get("name", "studentname", "fullname");
   const email = get("email", "emailid", "mail");
   const phone = normalizePhone(get("phone", "mobile", "phonenumber", "mobilenumber"));
-  const courseType = normalizeCourseType(get("coursetype", "course", "program"));
+  const courseTypeRaw = get("coursetype", "course", "program");
+  const courseType = matchCourseType(courseTypeRaw);
   const college = get("college", "university", "collegename");
   const year = get("year", "yearofstudy");
   const city = get("city", "location");
@@ -86,6 +101,19 @@ function toParsedRow(record: Record<string, unknown>, index: number): ParsedRow 
     ...(city ? { city } : {}),
     source,
   };
+  // Reported before the zod parse so the message names the actual problem ("we do not
+  // have a course type called MBBS") rather than "courseType: Invalid".
+  if (!courseType) {
+    const detail = courseTypeRaw
+      ? `no course type matches "${courseTypeRaw}"`
+      : "course type is missing";
+    return {
+      index, name, email, phone, courseType: courseTypeRaw, college, year, city,
+      error: `courseType: ${detail}. Add it under Admin → Course types, or correct the sheet.`,
+      body: null,
+    };
+  }
+
   const result = CreateStudentRequestSchema.safeParse(candidate);
   if (!result.success) {
     const issue = result.error.issues[0];
@@ -108,6 +136,10 @@ export function StudentImportPage({ me }: StudentImportPageProps): React.JSX.Ele
   const [parseError, setParseError] = React.useState<string | null>(null);
 
   const canCreate = hasPermission(me?.permissions, "students.create");
+  // The sheet is matched against the tenant's live options, so an import cannot invent a
+  // qualification the CRM does not offer.
+  const { options: courseTypeOptions } = useCourseTypeOptions();
+  const matchCourseType = React.useMemo(() => buildCourseTypeMatcher(courseTypeOptions), [courseTypeOptions]);
 
   async function handleFile(file: File) {
     setParseError(null);
@@ -123,7 +155,7 @@ export function StudentImportPage({ me }: StudentImportPageProps): React.JSX.Ele
         defval: "",
       });
       if (records.length === 0) throw new Error("No data rows found under the header row.");
-      const parsed = records.map((record, i) => toParsedRow(record, i));
+      const parsed = records.map((record, i) => toParsedRow(record, i, matchCourseType));
       setRows(parsed);
       setSelected(new Set(parsed.filter((r) => r.error === null).map((r) => r.index)));
     } catch (err) {
@@ -195,8 +227,9 @@ export function StudentImportPage({ me }: StudentImportPageProps): React.JSX.Ele
 
       <Alert tone="neutral" title="Sheet format" data-testid="student-import-format-note">
         First row = headers. Recognized columns (case-insensitive): <strong>name</strong> and{" "}
-        <strong>email</strong> (required), <strong>course type</strong> (B.Tech / Degree / Diploma / MCA / MBA,
-        anything else becomes &quot;other&quot;), <strong>phone</strong>, <strong>college</strong>,{" "}
+        <strong>email</strong> (required), <strong>course type</strong> (must match one of your course types:{" "}
+        {courseTypeOptions.length > 0 ? courseTypeOptions.map((o) => o.label).join(" / ") : "none set up yet"}),{" "}
+        <strong>phone</strong>, <strong>college</strong>,{" "}
         <strong>year</strong>, <strong>city</strong>, <strong>source</strong>. Extra columns are ignored. Bare
         10-digit numbers get +91 automatically. LMS credentials are still emailed only when payment completes.
       </Alert>

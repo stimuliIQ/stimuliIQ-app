@@ -31,15 +31,7 @@ import {
   toLocalPhoneDigits,
 } from "../../lib/phone-field";
 import { PHONE_LENGTH_MESSAGE } from "@repo/ui";
-
-const COURSE_TYPES: { value: CourseType; label: string }[] = [
-  { value: "btech", label: "B.Tech" },
-  { value: "degree", label: "Degree" },
-  { value: "diploma", label: "Diploma" },
-  { value: "mca", label: "MCA" },
-  { value: "mba", label: "MBA" },
-  { value: "other", label: "Other" },
-];
+import { CourseTypeSelect } from "../students/course-type-select";
 
 interface ConvertLeadDialogProps {
   lead: LeadDetail;
@@ -229,21 +221,13 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
                   error={errors.alternatePhone?.message}
                   data-testid="convert-lead-alternate-phone"
                 />
-                <Select
-                  label="Course type"
-                  placeholder="Select course type"
+                <CourseTypeSelect
                   required
                   value={watch("courseType")}
-                  onValueChange={(value) => setValue("courseType", value as CourseType)}
+                  onChange={(value) => setValue("courseType", value as CourseType)}
                   error={errors.courseType?.message}
                   data-testid="convert-lead-course-type"
-                >
-                  {COURSE_TYPES.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </Select>
+                />
                 <Input
                   label="Year of study"
                   type="number"

@@ -116,15 +116,6 @@ enum LessonType {
   quiz
 }
 
-enum StudentCourseType {
-  btech
-  degree
-  diploma
-  mca
-  mba
-  other
-}
-
 enum StudentProfileStatus {
   lead
   active
@@ -621,6 +612,9 @@ model Tenant {
   leadForms               LeadForm[]
   twoFactorCredentials    TwoFactorCredential[]
 
+  // CRM-managed course types (replaces the StudentCourseType enum)
+  courseTypes CourseType[]
+
   // Student onboarding form (onboarding.stimuliiq.com)
   onboardingFields      OnboardingField[]
   onboardingSubmissions OnboardingSubmission[]
@@ -1099,12 +1093,51 @@ model Lesson {
 // risk #1: user-first modeling — creating a student/faculty implies a `users` row).
 // ────────────────────────────────────────────────────────────────────────────
 
+// Course types (qualifications) a student record can carry. CRM-managed DATA rather than a
+// Postgres enum: the enum this replaced (`StudentCourseType`: btech/degree/diploma/mca/
+// mba/other) was written for the original engineering audience, and every change to it cost
+// a migration plus a deploy — so in practice it never changed and staff typed the truth into
+// "Other". Same call as onboarding_fields (P12): a list of options has no shape a
+// non-engineer can break.
+//
+// `key` is the immutable slug written onto student_profiles.course_type; `label` is the only
+// mutable half, so renaming "B.Tech" to "MBBS" is a rename and NOT a silent rewrite of what
+// every existing student is recorded as. Options are HIDDEN (`active = false`), never
+// deleted, once students hold them.
+model CourseType {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  key       String
+  label     String
+  sortOrder Int       @default(0) @map("sort_order")
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  // Partial-unique `(tenant_id, key) WHERE deleted_at IS NULL` lives in raw migration SQL
+  // (Prisma cannot express partial uniques) — same pattern as OnboardingField.key.
+  @@index([tenantId, active, sortOrder])
+  @@index([tenantId, deletedAt])
+  @@map("course_types")
+}
+
 model StudentProfile {
   id             String               @id @default(uuid()) @db.Uuid
   tenantId       String               @map("tenant_id") @db.Uuid
   userId         String               @unique @map("user_id") @db.Uuid
   college        String?
-  courseType     StudentCourseType    @map("course_type")
+  // Course type is CRM-managed DATA, not an enum: staff add/rename/hide qualifications
+  // from Admin ▸ Course types with no deploy (the enum this replaced was fixed to the
+  // original B.Tech/MCA/MBA audience and could not follow the business). Stores the
+  // course_types.key SLUG, not a FK: the key is immutable and a student keeps the value
+  // they were recorded with even if the option is later renamed or hidden — same
+  // self-describing-snapshot rule as onboarding answers. NULLABLE because website
+  // self-registration and onboarding activation never ask the question; recording a
+  // guess there was fabricated data.
+  courseType     String?              @map("course_type")
   year           Int?
   // lifecycle-redesign (registration step): secondary/guardian contact captured
   // when a lead-contact completes full registration. users.phone stays primary.

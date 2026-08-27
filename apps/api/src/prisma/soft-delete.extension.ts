@@ -118,6 +118,10 @@ const SOFT_DELETE_MODELS = new Set<string>([
   // index (user_id WHERE deleted_at IS NULL) allows re-enrolment. Deliberately NOT
   // in AUDITED_MODELS — a TOTP secret must never be snapshotted into audit_logs.
   "TwoFactorCredential",
+  // CRM-managed course types. Soft-deleted so the partial-unique index on
+  // (tenant_id, key) stays reusable — remove a mistyped option and add it back — and so a
+  // removal never destroys the option a student row still points at by key.
+  "CourseType",
   // Student onboarding form. A deleted question must stop being asked without
   // destroying the answers already given to it (those live in the submission's
   // `answers` snapshot); a deleted submission must stay recoverable.

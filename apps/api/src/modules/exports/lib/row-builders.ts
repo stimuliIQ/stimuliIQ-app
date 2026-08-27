@@ -96,7 +96,10 @@ export function forumHealthRows(dto: ForumHealthReportDto): RowSet {
 export const STUDENTS_EXPORT_HEADERS = ["id", "name", "email", "phone", "college", "courseType", "year", "city", "status", "createdAt"] as const;
 
 export function studentExportRow(s: StudentSummary): unknown[] {
-  return [s.id, s.name, s.email, s.phone, s.college, s.courseType, s.year, s.city, s.status, s.createdAt];
+  // The LABEL, not the stored key: a spreadsheet reader wants "B.Sc Nursing", not
+  // "b_sc_nursing". `courseTypeLabel` already falls back to the key for an option that has
+  // since been deleted, and is null when the student has no course type recorded.
+  return [s.id, s.name, s.email, s.phone, s.college, s.courseTypeLabel, s.year, s.city, s.status, s.createdAt];
 }
 
 export const LEADS_EXPORT_HEADERS = ["id", "name", "phone", "email", "stage", "source", "programInterestTitle", "courseInterest", "college", "language", "branchName", "ownerName", "createdAt"] as const;

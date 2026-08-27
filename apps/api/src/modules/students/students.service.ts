@@ -41,6 +41,7 @@ import { requireScopeContext } from "../auth/lib/scope-context";
 import { EnrollmentScopeRepository } from "../common-scope/enrollment-scope.repository";
 import { FacultyRepository } from "../faculty/faculty.repository";
 import { LmsAccountProvisioningService } from "./lms-account-provisioning.service";
+import { CourseTypesService } from "../course-types/course-types.service";
 import type { CreateStudentRequest, ListStudentsQuery, ResendCredentialsResponse, UpdateStudentRequest } from "./dto";
 
 @Injectable()
@@ -50,6 +51,7 @@ export class StudentsService {
     private readonly enrollmentScope: EnrollmentScopeRepository,
     private readonly facultyRepository: FacultyRepository,
     private readonly lmsProvisioning: LmsAccountProvisioningService,
+    private readonly courseTypes: CourseTypesService,
   ) {}
 
   /**
@@ -141,21 +143,27 @@ export class StudentsService {
     });
 
     // One batched signals lookup for this page, then derive each row's stage in-memory.
-    const signals = await this.repository.getLifecycleSignals(
-      tenantId,
-      rows.map((r) => r.id),
-    );
+    const [signals, courseTypeLabels] = await Promise.all([
+      this.repository.getLifecycleSignals(
+        tenantId,
+        rows.map((r) => r.id),
+      ),
+      this.courseTypes.labelMap(tenantId),
+    ]);
 
     return new PaginatedResult(
-      rows.map((r) => toSummary(r, deriveStage(r, signals.get(r.id)))),
+      rows.map((r) => toSummary(r, deriveStage(r, signals.get(r.id)), courseTypeLabels)),
       { page: query.page, pageSize: query.pageSize, total, hasMore: query.page * query.pageSize < total },
     );
   }
 
   /** Fetch the lifecycle signals for a single student and return its enriched detail DTO. */
   private async detailWithStage(tenantId: string, row: StudentRow): Promise<StudentDetail> {
-    const signals = await this.repository.getLifecycleSignals(tenantId, [row.id]);
-    return toDetail(row, deriveStage(row, signals.get(row.id)));
+    const [signals, courseTypeLabels] = await Promise.all([
+      this.repository.getLifecycleSignals(tenantId, [row.id]),
+      this.courseTypes.labelMap(tenantId),
+    ]);
+    return toDetail(row, deriveStage(row, signals.get(row.id)), courseTypeLabels);
   }
 
   async getById(tenantId: string, id: string): Promise<StudentDetail> {
@@ -178,6 +186,10 @@ export class StudentsService {
 
   async create(tenantId: string, body: CreateStudentRequest): Promise<StudentDetail> {
     this.assertMutableScope();
+    // The option set is CRM data, so membership is checked here rather than by the zod
+    // schema. Done BEFORE the email lookup so an unknown key never restores a deleted
+    // student as a side effect of a rejected request.
+    await this.courseTypes.assertKnownKey(tenantId, body.courseType);
 
     const existing = await this.repository.findUserByEmailWithOwner(tenantId, body.email);
 
@@ -236,6 +248,11 @@ export class StudentsService {
 
   async update(tenantId: string, id: string, body: UpdateStudentRequest): Promise<StudentDetail> {
     this.assertMutableScope();
+    // `null` clears the field and is always allowed; any other value must name an active
+    // option (same check as create).
+    if (body.courseType != null) {
+      await this.courseTypes.assertKnownKey(tenantId, body.courseType);
+    }
     const restrictToIds = await this.resolveStudentIdRestriction(tenantId);
     if (restrictToIds && !restrictToIds.includes(id)) {
       throw new NotFoundException({ code: "students.not_found", title: "Student not found" });
@@ -329,7 +346,7 @@ function deriveStage(row: StudentRow, signals: StudentLifecycleSignals | undefin
   });
 }
 
-function toSummary(row: StudentRow, stage: LifecycleStage): StudentSummary {
+function toSummary(row: StudentRow, stage: LifecycleStage, courseTypeLabels: Map<string, string>): StudentSummary {
   return {
     id: row.id,
     userId: row.userId,
@@ -338,6 +355,9 @@ function toSummary(row: StudentRow, stage: LifecycleStage): StudentSummary {
     phone: row.phone,
     college: row.college,
     courseType: row.courseType,
+    // The raw key is the fallback, never a blank: an option that has since been deleted
+    // still has to render as SOMETHING for the student who was recorded with it.
+    courseTypeLabel: row.courseType ? (courseTypeLabels.get(row.courseType) ?? row.courseType) : null,
     year: row.year,
     city: row.city,
     status: row.status,
@@ -346,9 +366,9 @@ function toSummary(row: StudentRow, stage: LifecycleStage): StudentSummary {
   };
 }
 
-function toDetail(row: StudentRow, stage: LifecycleStage): StudentDetail {
+function toDetail(row: StudentRow, stage: LifecycleStage, courseTypeLabels: Map<string, string>): StudentDetail {
   return {
-    ...toSummary(row, stage),
+    ...toSummary(row, stage, courseTypeLabels),
     alternatePhone: row.alternatePhone,
     source: row.source,
     deletedAt: row.deletedAt ? row.deletedAt.toISOString() : null,

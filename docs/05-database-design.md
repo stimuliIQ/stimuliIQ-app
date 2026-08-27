@@ -89,7 +89,8 @@ erDiagram
 | `sessions` | user_id, refresh_hash, device, ip, expires_at, revoked_at |
 
 ### Profiles
-| `student_profiles` | user_id, college, course_type(`btech\|degree\|...`), year, city, source, status(`lead\|active\|alumni`) |
+| `student_profiles` | user_id, college, course_type (nullable TEXT holding a `course_types.key` — ADR-0068), year, city, source, status(`lead\|active\|alumni`) |
+| `course_types` | key (immutable slug), label, sort_order, active — the CRM-managed option list `student_profiles.course_type` points at (ADR-0068) |
 | `faculty_profiles` | user_id, expertise(json), bio, rating, branch_id |
 
 ### Mentors (P8 — human, externally-hired batch lead; distinct from Faculty)
@@ -322,7 +323,10 @@ query in `LmsService` filters `where: { id, module: { program: { tenantId } } }`
 This ensures lessons returned on both the enrolled path and the `is_preview` preview
 path are scoped to the requesting tenant. See `docs/phase-3-followups.md` M-1 and ADR-0022.
 
-New enums added in P1: `StudentCourseType` (`btech|degree|diploma|mca|mba|other`),
+New enums added in P1: `StudentCourseType` (`btech|degree|diploma|mca|mba|other`) —
+**DROPPED 2026-08-27 by `20260827120000_course_types_crm_managed`** in favour of the
+CRM-managed `course_types` table (ADR-0068, `docs/specs/course-types.md`);
+`student_profiles.course_type` is now nullable TEXT holding a `course_types.key`,
 `StudentProfileStatus` (`lead|active|alumni`), `BatchStatus` (`planned|active|completed|archived`),
 `EnrollmentStatus` (`active|completed|dropped`).
 

@@ -17,6 +17,7 @@ import { StudentsRepository, type StudentRow } from "./students.repository";
 import { EnrollmentScopeRepository } from "../common-scope/enrollment-scope.repository";
 import { FacultyRepository } from "../faculty/faculty.repository";
 import { LmsAccountProvisioningService } from "./lms-account-provisioning.service";
+import { CourseTypesService } from "../course-types/course-types.service";
 import { scopeContextStorage, type ScopeContext } from "../auth/lib/scope-context";
 
 type Mocked<T> = { [K in keyof T]: T[K] extends (...args: never[]) => unknown ? jest.Mock : T[K] };
@@ -69,6 +70,14 @@ function mockLmsProvisioning(): Mocked<LmsAccountProvisioningService> {
   } as unknown as Mocked<LmsAccountProvisioningService>;
 }
 
+/** Course types are CRM data now: the key is validated on write, the label resolved on read. */
+function mockCourseTypes(): Mocked<CourseTypesService> {
+  return {
+    assertKnownKey: jest.fn().mockResolvedValue(undefined),
+    labelMap: jest.fn().mockResolvedValue(new Map([["btech", "B.Tech"]])),
+  } as unknown as Mocked<CourseTypesService>;
+}
+
 const ROW: StudentRow = {
   id: "student-1",
   userId: "user-1",
@@ -98,17 +107,20 @@ describe("StudentsService", () => {
   let enrollmentScope: Mocked<EnrollmentScopeRepository>;
   let facultyRepository: Mocked<FacultyRepository>;
   let lmsProvisioning: Mocked<LmsAccountProvisioningService>;
+  let courseTypes: Mocked<CourseTypesService>;
 
   beforeEach(() => {
     repo = mockRepository();
     enrollmentScope = mockEnrollmentScope();
     facultyRepository = mockFacultyRepository();
     lmsProvisioning = mockLmsProvisioning();
+    courseTypes = mockCourseTypes();
     service = new StudentsService(
       repo as unknown as StudentsRepository,
       enrollmentScope as unknown as EnrollmentScopeRepository,
       facultyRepository as unknown as FacultyRepository,
       lmsProvisioning as unknown as LmsAccountProvisioningService,
+      courseTypes as unknown as CourseTypesService,
     );
   });
 

@@ -731,7 +731,9 @@ export class PublicRepository {
           tenantId: data.tenantId,
           userId: user.id,
           status: "active",
-          courseType: "btech", // default; can be updated via profile completion
+          // No courseType: the registration form never asks, and this used to write a
+          // hardcoded "btech" — a fabricated qualification on a real person's record.
+          // The column is nullable; staff fill it in the CRM if it ever matters.
           source: "web-register",
         },
       });

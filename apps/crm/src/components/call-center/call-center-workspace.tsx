@@ -232,7 +232,7 @@ export function CallCenterWorkspace({ me }: CallCenterWorkspaceProps): React.JSX
                     chips={<LifecycleChip stage={student.lifecycleStage} />}
                     meta={[
                       { label: "College", value: student.college },
-                      { label: "Course type", value: student.courseType },
+                      { label: "Course type", value: student.courseTypeLabel },
                       { label: "City", value: student.city },
                       { label: "Year", value: student.year != null ? String(student.year) : null },
                       { label: "Since", value: new Date(student.createdAt).toLocaleDateString() },

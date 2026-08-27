@@ -31,6 +31,7 @@
 
 import { PrismaClient, RolePermissionScope } from "@prisma/client";
 import { purgeAuditLogs } from "../../src/prisma/purge-audit-logs";
+import { ensureFixtureCourseTypes } from "./course-type-fixtures";
 import * as argon2 from "argon2";
 
 export const CRM_TENANT_SLUG = "stimuliiq";
@@ -162,6 +163,10 @@ export async function seedCrmFixtures(prisma: PrismaClient): Promise<SeededCrmFi
     create: { slug: CRM_TENANT_SLUG, name: "QA Integration Tenant", status: "active", settings: {}, branding: {} },
   });
   const tenantId = tenant.id;
+
+  // Course types are CRM-managed rows (ADR-0068): the API rejects a student or a lead
+  // conversion whose course-type key is not one of the tenant's active options.
+  await ensureFixtureCourseTypes(prisma, tenantId);
 
   const permByKey = await ensurePermissionCatalog(prisma);
   function permId(key: string): string {

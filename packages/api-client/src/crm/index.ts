@@ -47,6 +47,8 @@ import { SavedViewsApi } from "./saved-views.api.js";
 import { VideoLibraryApi } from "./video-library.api.js";
 import { OnboardingApi } from "./onboarding.api.js";
 import { LeaveApi } from "./leave.api.js";
+// CRM-managed course types (ADR-0068) — the list that replaced the StudentCourseType enum.
+import { CourseTypesApi } from "./course-types.api.js";
 
 /** Admin sub-namespace → `client.crm.admin.roles` / `.branches` / `.users`. */
 export class AdminApi {
@@ -128,6 +130,9 @@ export class CrmApi {
   // Staff leave — `leave.requests.*` (apply, withdraw, look), `leave.approvals.*`
   // (super_admin only) and `leave.setup.*` (types, allowances, holidays, working week).
   readonly leave: LeaveApi;
+  // Course types — read by every course-type picker (students.view), written only under
+  // `course_types.manage`.
+  readonly courseTypes: CourseTypesApi;
 
   constructor(client: ApiClient) {
     this.students = new StudentsApi(client);
@@ -165,6 +170,7 @@ export class CrmApi {
     this.videoLibrary = new VideoLibraryApi(client);
     this.onboarding = new OnboardingApi(client);
     this.leave = new LeaveApi(client);
+    this.courseTypes = new CourseTypesApi(client);
   }
 }
 
@@ -198,3 +204,4 @@ export * from "./onboarding.api.js";
 export * from "./leave.api.js";
 export * from "./careers.api.js";
 export * from "./marketing-targets.api.js";
+export * from "./course-types.api.js";

@@ -386,6 +386,10 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Users", icon: Users, to: "/admin/users", permission: "users.view" },
       { label: "Roles & Permissions", icon: ShieldCheck, to: "/admin/roles", permission: "roles.view" },
       { label: "Branches", icon: Building2, to: "/admin/branches", permission: "branches.view" },
+      // The course-type list the student form's dropdown reads (ADR-0068). Gated on the
+      // MANAGE key, not on students.view: everyone can read the list (that is what makes
+      // the picker work) but only admins have anything to do on this screen.
+      { label: "Course Types", icon: GraduationCap, to: "/admin/course-types", permission: "course_types.manage" },
       { label: "Audit Logs", icon: ScrollText, to: "/admin/audit-logs", permission: "audit_logs.view" },
       { label: "Message Templates", icon: Mail, to: "/admin/notifications", permission: "campaigns.view" },
       { label: "Settings", icon: Settings, to: "/admin/settings", permission: "settings.view" },

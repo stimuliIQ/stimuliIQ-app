@@ -42,6 +42,7 @@ type UpdateStudentFormValues = z.input<typeof UpdateStudentRequestSchema>;
 
 import { useCreateStudent, useUpdateStudent } from "../../hooks/use-students";
 import { errorCode, queryErrorMessage, surfaceError } from "../../lib/surface-error";
+import { CourseTypeSelect } from "./course-type-select";
 import {
   optionalE164Phone,
   phoneFieldProps,
@@ -50,15 +51,6 @@ import {
 } from "../../lib/phone-field";
 
 const PHONE_FIELDS = ["phone", "alternatePhone"] as const;
-
-export const COURSE_TYPES: { value: CourseType; label: string }[] = [
-  { value: "btech", label: "B.Tech" },
-  { value: "degree", label: "Degree" },
-  { value: "diploma", label: "Diploma" },
-  { value: "mca", label: "MCA" },
-  { value: "mba", label: "MBA" },
-  { value: "other", label: "Other" },
-];
 
 const STUDENT_STATUSES: { value: StudentStatus; label: string }[] = [
   { value: "lead", label: "Lead" },
@@ -195,21 +187,13 @@ export function StudentFormDrawer({ open, onOpenChange, student, onCreated }: St
                 data-testid="student-form-alternate-phone"
               />
               <Input label="College" placeholder="e.g. IIT Delhi" {...register("college", optionalText)} error={errors.college?.message} data-testid="student-form-college" />
-              <Select
-                label="Course type"
+              <CourseTypeSelect
                 required
-                placeholder="Select course type"
                 value={watch("courseType")}
-                onValueChange={(value) => setValue("courseType", value as CourseType, { shouldValidate: true })}
+                onChange={(value) => setValue("courseType", value as CourseType, { shouldValidate: true })}
                 error={errors.courseType?.message}
                 data-testid="student-form-course-type"
-              >
-                {COURSE_TYPES.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </Select>
+              />
               <Input
                 label="Year"
                 type="number"
@@ -267,21 +251,13 @@ export function StudentFormDrawer({ open, onOpenChange, student, onCreated }: St
             <Input label="Full name" required placeholder="e.g. Priya Sharma" {...register("name")} error={errors.name?.message} data-testid="student-form-name" />
             <Input label="Email" type="email" required placeholder="name@example.com" {...register("email")} error={errors.email?.message} data-testid="student-form-email" />
             <Input label="Phone" {...phoneFieldProps(register("phone", optionalText))} error={errors.phone?.message} data-testid="student-form-phone" />
-            <Select
-              label="Course type"
+            <CourseTypeSelect
               required
-              placeholder="Select course type"
               value={watch("courseType")}
-              onValueChange={(value) => setValue("courseType", value as CourseType, { shouldValidate: true })}
+              onChange={(value) => setValue("courseType", value as CourseType, { shouldValidate: true })}
               error={errors.courseType?.message}
               data-testid="student-form-course-type"
-            >
-              {COURSE_TYPES.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </Select>
+            />
             <Input label="Source" placeholder="e.g. Instagram, referral" {...register("source", optionalText)} error={errors.source?.message} data-testid="student-form-source" />
             <p className="text-xs text-fg-muted">
               New contacts start as <span className="font-medium">New Lead</span>. College, city and the remaining

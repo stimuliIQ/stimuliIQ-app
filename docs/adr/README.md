@@ -139,6 +139,27 @@ codebase. Careers also gets its own permission domain (`careers.view/review/open
 rather than reusing `content.*` like the colleges screen next door: an application carries a
 stranger's resume, and whoever may rewrite the homepage should not thereby read CVs.
 
+ADR 0068 was decided/implemented for course types (`docs/specs/course-types.md`): the
+`StudentCourseType` enum (btech/degree/diploma/mca/mba/other) becomes a CRM-managed table
+staff maintain from Admin ▸ Course types with no deploy. The enum was written for the
+original engineering audience and cost a migration plus a deploy to change, so it never
+changed and the real answer went into "Other" — while the healthcare repositioning left a
+required field asking nursing students whether they were doing B.Tech. This is ADR-0064's
+call (CRM-authored onboarding questions) applied for the same reason and the deliberate
+opposite of ADR-0063's locked page templates: a marketing page has a layout free composition
+ruins, a list of options has no shape a non-engineer can break. `student_profiles.
+course_type` stores the option's immutable `key` rather than a foreign key, so renaming
+"B.Tech" to "MBBS" renames the OPTION and never silently rewrites what existing students are
+recorded as; labels resolve on read so a rename shows everywhere at once. Writes reject
+anything but an ACTIVE option (422), reads tolerate hidden and deleted ones (history renders
+as recorded), and delete is refused while students hold the key (409) in favour of hiding.
+The column also becomes NULLABLE, deleting the two paths that invented a qualification
+("btech" on website self-registration, "other" on onboarding activation) to satisfy NOT NULL.
+Read is gated on `students.view` (every picker needs it) and write on
+`course_types.manage`, which — unlike `leave.approve` and `marketing_targets.manage` —
+stays INSIDE the permission catalog so admin holds it too: maintaining a list of
+qualifications is configuration, not authority over a person.
+
 Security follow-ups and deferred work from each phase's security review and build are
 tracked separately in the relevant followups file (`docs/phase-0-followups.md`,
 `docs/phase-1-followups.md`, `docs/phase-2-followups.md`, `docs/phase-3-followups.md`,

@@ -324,6 +324,11 @@ const AUDITED_MODELS = new Set<string>([
   // marketing config — every create/update is a meaningful accountability event
   // (super_admin-only, site_settings.edit). No secrets; denylist-only sufficient.
   "SiteSetting",
+  // CourseType: audited. Renaming an option changes what every student screen, export and
+  // report says about existing students without touching a single student row, so "who
+  // renamed Degree to B.Sc Nursing, and when" is precisely the trail this table exists for.
+  // No secrets, no PII — an option is a label.
+  "CourseType",
   // Student onboarding form (stimuliiq.com/onboarding):
   //
   // OnboardingField: audited. The question set is what every future submission is

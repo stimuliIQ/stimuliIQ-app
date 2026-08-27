@@ -29,8 +29,12 @@ import { LifecycleStageSchema } from "./lifecycle.schemas.js";
 // Enums
 // ─────────────────────────────────────────────────────────────────────────
 
-export const CourseTypeSchema = z.enum(["btech", "degree", "diploma", "mca", "mba", "other"]);
-export type CourseType = z.infer<typeof CourseTypeSchema>;
+// `CourseTypeSchema` used to be `z.enum(["btech","degree","diploma","mca","mba","other"])`.
+// Course types are now CRM-managed rows, so the valid set lives in the database and the API
+// checks membership — see crm/course-types.schemas.ts for the full reasoning. Re-exported
+// from here so existing importers of `CourseTypeSchema`/`CourseType` are unaffected.
+export { CourseTypeSchema, type CourseType } from "./course-types.schemas.js";
+import { CourseTypeSchema } from "./course-types.schemas.js";
 
 export const StudentStatusSchema = z.enum(["lead", "active", "alumni"]);
 export type StudentStatus = z.infer<typeof StudentStatusSchema>;
@@ -51,6 +55,8 @@ export const CreateStudentRequestSchema = z
     phone: PhoneSchema.optional(),
     alternatePhone: PhoneSchema.optional().describe("Secondary/guardian contact number (registration step)."),
     college: z.string().min(1).max(200).optional(),
+    // The `course_types` key. Membership is checked by the API against the tenant's ACTIVE
+    // options (422 `course_types.unknown`), not by this schema — the valid set is data now.
     courseType: CourseTypeSchema,
     year: z.number().int().min(1).max(8).optional(),
     city: z.string().min(1).max(120).optional(),
@@ -72,7 +78,7 @@ export const UpdateStudentRequestSchema = z
     phone: PhoneSchema,
     alternatePhone: PhoneSchema.nullable().describe("Secondary/guardian contact number; null clears it."),
     college: z.string().min(1).max(200),
-    courseType: CourseTypeSchema,
+    courseType: CourseTypeSchema.nullable().describe("null clears it."),
     year: z.number().int().min(1).max(8),
     city: z.string().min(1).max(120),
     source: z.string().min(1).max(120),
@@ -109,7 +115,13 @@ export const StudentSummarySchema = z.object({
   email: z.string().email(),
   phone: z.string().nullable(),
   college: z.string().nullable(),
-  courseType: CourseTypeSchema,
+  // Nullable: a website self-registration or an onboarding activation never asks for a
+  // course type, and the values those paths used to write ("btech"/"other") were invented.
+  courseType: CourseTypeSchema.nullable(),
+  // Display label resolved server-side from `course_types` at read time, so a rename shows
+  // everywhere at once. Falls back to the raw key for an option that has since been deleted,
+  // and is null when `courseType` is.
+  courseTypeLabel: z.string().nullable(),
   year: z.number().int().nullable(),
   city: z.string().nullable(),
   status: StudentStatusSchema,

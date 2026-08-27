@@ -21,6 +21,9 @@ export * from "./auth/two-factor.schemas.js";
 export * from "./auth/two-factor-recovery.schemas.js";
 
 // CRM core (Phase 1, Wave 2 — docs/plans/phase-1.md task #2).
+// course-types must precede students.schemas.js: it owns `CourseTypeSchema`, which
+// students.schemas.js re-exports (the enum it replaced used to live there).
+export * from "./crm/course-types.schemas.js";
 export * from "./crm/students.schemas.js";
 export * from "./crm/faculty.schemas.js";
 export * from "./crm/courses.schemas.js";

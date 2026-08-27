@@ -31,7 +31,6 @@ import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 import type {
   Prisma,
   StudentProfileStatus,
-  StudentCourseType,
   EnrollmentStatus,
   LeadStage,
 } from "@prisma/client";
@@ -61,7 +60,8 @@ export interface ListStudentsFilters {
   tenantId: string;
   search?: string;
   status?: StudentProfileStatus;
-  courseType?: StudentCourseType;
+  /** A `course_types.key`. Free-form since the option set is CRM-managed data, not an enum. */
+  courseType?: string;
   includeDeleted: boolean;
   page: number;
   pageSize: number;
@@ -82,7 +82,7 @@ export interface StudentRow {
   phone: string | null;
   college: string | null;
   alternatePhone: string | null;
-  courseType: StudentCourseType;
+  courseType: string | null;
   year: number | null;
   city: string | null;
   source: string | null;
@@ -299,7 +299,8 @@ export class StudentsRepository {
     phone?: string;
     alternatePhone?: string;
     college?: string;
-    courseType: StudentCourseType;
+    /** Omitted by the paths that never ask the question (website register, onboarding). */
+    courseType?: string;
     year?: number;
     city?: string;
     source?: string;
@@ -373,7 +374,7 @@ export class StudentsRepository {
       phone?: string;
       alternatePhone?: string | null;
       college?: string;
-      courseType?: StudentCourseType;
+      courseType?: string | null;
       year?: number;
       city?: string;
       source?: string;
@@ -432,7 +433,7 @@ function toStudentRow(row: {
   userId: string;
   college: string | null;
   alternatePhone: string | null;
-  courseType: StudentCourseType;
+  courseType: string | null;
   year: number | null;
   city: string | null;
   source: string | null;

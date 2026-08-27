@@ -9,6 +9,7 @@ import { AuthModule } from "../auth/auth.module";
 import { CommonScopeModule } from "../common-scope/common-scope.module";
 import { FacultyModule } from "../faculty/faculty.module";
 import { MailProviderModule } from "../notifications/providers/mail/mail-provider.module";
+import { CourseTypesModule } from "../course-types/course-types.module";
 import { StudentsController } from "./students.controller";
 import { StudentsService } from "./students.service";
 import { StudentsRepository } from "./students.repository";
@@ -17,7 +18,9 @@ import { LmsAccountProvisioningService } from "./lms-account-provisioning.servic
 @Module({
   // MailProviderModule: for the LMS welcome email sent when an account is auto-provisioned
   // on enrollment (lifecycle-redesign P3).
-  imports: [AuthModule, CommonScopeModule, FacultyModule, MailProviderModule],
+  // CourseTypesModule: course types are CRM-managed rows now, so this module validates the
+  // submitted key against the tenant's active options and resolves labels for reads.
+  imports: [AuthModule, CommonScopeModule, FacultyModule, MailProviderModule, CourseTypesModule],
   controllers: [StudentsController],
   providers: [StudentsService, StudentsRepository, LmsAccountProvisioningService],
   // StudentsService exported (in addition to StudentsRepository) so the Phase-7

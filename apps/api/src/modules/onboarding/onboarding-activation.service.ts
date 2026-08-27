@@ -338,9 +338,8 @@ export class OnboardingActivationService {
       email: person.email,
       ...(person.phone ? { phone: person.phone } : {}),
       ...(person.college ? { college: person.college } : {}),
-      // The form does not ask for a course type and guessing one would be fabricated data;
-      // `other` is the honest default, editable in the CRM.
-      courseType: "other",
+      // The form does not ask for a course type, so the field is left UNSET rather than
+      // recorded as "other" — an answer nobody gave. Staff fill it in the CRM if needed.
       source: "onboarding_form",
       // `lead`, not `active` — enrollOrRestore performs the promotion, so activation has
       // exactly one owner rather than two places that could disagree.

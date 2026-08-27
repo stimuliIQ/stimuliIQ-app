@@ -71,6 +71,7 @@ import { GrowthModule } from "./modules/growth/growth.module";
 import { OnboardingModule } from "./modules/onboarding/onboarding.module";
 import { LeaveModule } from "./modules/leave/leave.module";
 import { MarketingTargetsModule } from "./modules/marketing-targets/marketing-targets.module";
+import { CourseTypesModule } from "./modules/course-types/course-types.module";
 
 @Module({
   imports: [
@@ -171,6 +172,7 @@ import { MarketingTargetsModule } from "./modules/marketing-targets/marketing-ta
     OnboardingModule,
     LeaveModule,
     MarketingTargetsModule,
+    CourseTypesModule,
   ],
   providers: [
     AuditContextMiddleware,

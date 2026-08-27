@@ -8,7 +8,8 @@ import {
   StickyLeadBar,
   type LeadFormValues,
 } from "./lead-forms";
-import { PHONE_PLACEHOLDER } from "../lib/phone";
+import { PHONE_LENGTH_MESSAGE, PHONE_PLACEHOLDER } from "../lib/phone";
+import { EMAIL_FORMAT_MESSAGE } from "../lib/email";
 
 // ---------------------------------------------------------------------------
 // LeadFormInline
@@ -325,5 +326,123 @@ describe("Lead forms, a11y", () => {
     // Radix renders role=dialog
     const dialog = screen.getByRole("dialog");
     expect(dialog).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Field validation — the visitor must be told WHY the form will not go through
+// ---------------------------------------------------------------------------
+
+describe("LeadFormInline, field validation", () => {
+  it("shows a message on a short phone number as soon as the field is left", async () => {
+    const user = userEvent.setup();
+    render(<LeadFormInline fields={["phone"]} submitLabel="Submit" />);
+
+    await user.type(screen.getByPlaceholderText(PHONE_PLACEHOLDER), "917774832");
+    await user.tab();
+
+    expect(screen.getByText(PHONE_LENGTH_MESSAGE)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(PHONE_PLACEHOLDER)).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("keeps the phone message on screen until the number is 10 digits", async () => {
+    const user = userEvent.setup();
+    render(<LeadFormInline fields={["phone"]} submitLabel="Submit" />);
+    const field = screen.getByPlaceholderText(PHONE_PLACEHOLDER);
+
+    await user.type(field, "917774832");
+    await user.tab();
+    expect(screen.getByText(PHONE_LENGTH_MESSAGE)).toBeInTheDocument();
+
+    await user.type(field, "1");
+    expect(screen.queryByText(PHONE_LENGTH_MESSAGE)).not.toBeInTheDocument();
+  });
+
+  it("shows a message on a malformed email address", async () => {
+    const user = userEvent.setup();
+    render(<LeadFormInline fields={["email"]} submitLabel="Submit" />);
+
+    await user.type(screen.getByPlaceholderText("Email address"), "writetokrish037");
+    await user.tab();
+
+    expect(screen.getByText(EMAIL_FORMAT_MESSAGE)).toBeInTheDocument();
+  });
+
+  it("does not call onSubmit while a field is invalid, and says what is wrong", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn<(values: LeadFormValues) => void>();
+    render(
+      <LeadFormInline
+        fields={["name", "phone", "email"]}
+        onSubmit={onSubmit}
+        submitLabel="Submit"
+      />,
+    );
+
+    await user.type(screen.getByPlaceholderText("Your name"), "Sumanth");
+    await user.type(screen.getByPlaceholderText(PHONE_PLACEHOLDER), "917774832");
+    await user.type(screen.getByPlaceholderText("Email address"), "writetokrish037");
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText(PHONE_LENGTH_MESSAGE)).toBeInTheDocument();
+    expect(screen.getByText(EMAIL_FORMAT_MESSAGE)).toBeInTheDocument();
+  });
+
+  it("shows every missing required field when an empty form is submitted", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn<(values: LeadFormValues) => void>();
+    render(
+      <LeadFormInline
+        fields={["name", "phone", "email"]}
+        onSubmit={onSubmit}
+        submitLabel="Submit"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText("Enter your name")).toBeInTheDocument();
+    expect(screen.getByText("Enter your mobile number")).toBeInTheDocument();
+    expect(screen.getByText("Enter your email address")).toBeInTheDocument();
+  });
+
+  it("submits once every field is valid", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn<(values: LeadFormValues) => void>();
+    render(
+      <LeadFormInline
+        fields={["name", "phone", "email"]}
+        onSubmit={onSubmit}
+        submitLabel="Submit"
+      />,
+    );
+
+    await user.type(screen.getByPlaceholderText("Your name"), "Sumanth");
+    await user.type(screen.getByPlaceholderText(PHONE_PLACEHOLDER), "9177748321");
+    await user.type(screen.getByPlaceholderText("Email address"), "writetokrish037@gmail.com");
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0]![0]).toMatchObject({
+      name: "Sumanth",
+      phone: "9177748321",
+      email: "writetokrish037@gmail.com",
+    });
+  });
+});
+
+describe("StickyLeadBar, field validation", () => {
+  it("explains an incomplete number instead of silently doing nothing", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn<(values: LeadFormValues) => void>();
+    render(<StickyLeadBar onSubmit={onSubmit} submitLabel="Call Me" />);
+
+    await user.type(screen.getByPlaceholderText(PHONE_PLACEHOLDER), "917774832");
+    await user.click(screen.getByRole("button", { name: "Call Me" }));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText(PHONE_LENGTH_MESSAGE)).toBeInTheDocument();
   });
 });

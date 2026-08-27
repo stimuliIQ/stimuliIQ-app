@@ -14,6 +14,7 @@
 // unauthenticated. It is excluded from CsrfMiddleware in app.module.ts.
 
 import { Module } from "@nestjs/common";
+import { CourseTypesModule } from "../course-types/course-types.module";
 import { AuthModule } from "../auth/auth.module";
 import { CommerceModule } from "../commerce/commerce.module";
 import { StudentsModule } from "../students/students.module";
@@ -34,7 +35,9 @@ import { PublicBookingRateLimiter } from "./lib/public-booking-rate-limiter";
   // NotificationsModule: LeadsService rings the new owner's bell on assignment
   // (NotificationsService.notifyLeadAssigned). Notifications has no dependency back on
   // leads, so this stays a one-way edge — no circular-module forwardRef needed.
-  imports: [AuthModule, CommerceModule, StudentsModule, CaptchaProviderModule, NotificationsModule],
+  // CourseTypesModule: converting a lead creates a student, so the submitted course-type
+  // key gets the same validation the /crm/students create path applies.
+  imports: [AuthModule, CommerceModule, StudentsModule, CaptchaProviderModule, NotificationsModule, CourseTypesModule],
   controllers: [LeadsController, ActivitiesController, BookingsController, PublicBookingsController],
   providers: [
     LeadsService,

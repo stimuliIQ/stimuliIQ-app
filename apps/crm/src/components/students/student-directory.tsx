@@ -33,18 +33,10 @@ import { getModulePermissions, hasPermission } from "../../lib/permissions";
 import { surfaceError } from "../../lib/surface-error";
 import { LifecycleChip } from "../shared/lifecycle-chip";
 import { StudentFormDrawer } from "./student-form-drawer";
+import { CourseTypeSelect, COURSE_TYPE_ALL } from "./course-type-select";
 import { RegisterStudentDialog } from "./register-student-dialog";
 import { AddProgramDialog } from "./add-program-dialog";
 import { StudentDetailDrawer } from "./student-detail-drawer";
-
-const COURSE_TYPE_OPTIONS: { value: CourseType; label: string }[] = [
-  { value: "btech", label: "B.Tech" },
-  { value: "degree", label: "Degree" },
-  { value: "diploma", label: "Diploma" },
-  { value: "mca", label: "MCA" },
-  { value: "mba", label: "MBA" },
-  { value: "other", label: "Other" },
-];
 
 const STATUS_OPTIONS: { value: StudentStatus; label: string }[] = [
   { value: "lead", label: "Lead" },
@@ -117,7 +109,9 @@ export function StudentDirectory({ me, initialStatus }: StudentDirectoryProps): 
   const columns: Array<DataTableColumn<StudentSummary>> = [
     { id: "name", header: "Name", cell: (row) => row.name, sortable: true },
     { id: "email", header: "Email", cell: (row) => row.email },
-    { id: "courseType", header: "Course", cell: (row) => row.courseType },
+    // The label resolved server-side, so a rename in Admin ▸ Course types shows here
+    // immediately; `-` for the students who were never asked (website self-registration).
+    { id: "courseType", header: "Course", cell: (row) => row.courseTypeLabel ?? "-" },
     { id: "college", header: "College", cell: (row) => row.college ?? "-" },
     {
       // The DERIVED lifecycle stage (lifecycle-redesign P1) — the single answer to
@@ -270,21 +264,15 @@ export function StudentDirectory({ me, initialStatus }: StudentDirectoryProps): 
         onDeleteView={(id) => deleteSavedView.mutate(id)}
         data-testid="students-filter-bar"
       >
-        <Select
-          label="Course type"
-          placeholder="All courses"
-          value={courseType}
-          onValueChange={(value) => setCourseType(value === "__all__" ? undefined : (value as CourseType))}
-          wrapperClassName="w-44"
-          data-testid="students-course-type-filter"
-        >
-          <SelectItem value="__all__">All courses</SelectItem>
-          {COURSE_TYPE_OPTIONS.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value}>
-              {opt.label}
-            </SelectItem>
-          ))}
-        </Select>
+        <div className="w-44">
+          <CourseTypeSelect
+            value={courseType ?? COURSE_TYPE_ALL}
+            onChange={(value) => setCourseType(value === COURSE_TYPE_ALL ? undefined : (value as CourseType))}
+            includeAllOption
+            placeholder="All courses"
+            data-testid="students-course-type-filter"
+          />
+        </div>
       </DataFilterBar>
 
       <DataTable

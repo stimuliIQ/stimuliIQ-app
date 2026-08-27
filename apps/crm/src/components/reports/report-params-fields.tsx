@@ -10,6 +10,7 @@
 // validated against the real zod query schema (@repo/types) at submit time,
 // not here.
 import * as React from "react";
+import { CourseTypeSelect, COURSE_TYPE_ALL } from "../students/course-type-select";
 import { Input, Select, SelectItem } from "@repo/ui";
 import type { ExportEntityType } from "@repo/types";
 
@@ -52,15 +53,6 @@ const STUDENT_STATUS_OPTIONS = [
   { value: "lead", label: "Lead" },
   { value: "active", label: "Active" },
   { value: "alumni", label: "Completed" },
-];
-
-const COURSE_TYPE_OPTIONS = [
-  { value: "btech", label: "B.Tech" },
-  { value: "degree", label: "Degree" },
-  { value: "diploma", label: "Diploma" },
-  { value: "mca", label: "MCA" },
-  { value: "mba", label: "MBA" },
-  { value: "other", label: "Other" },
 ];
 
 const LEAD_STAGE_OPTIONS = [
@@ -238,20 +230,13 @@ export function ReportParamsFields({ type, params, onChange, idPrefix }: ReportP
             </SelectItem>
           ))}
         </Select>
-        <Select
-          label="Course type"
+        <CourseTypeSelect
+          value={params.courseType ?? COURSE_TYPE_ALL}
+          onChange={(value) => onChange({ courseType: value === COURSE_TYPE_ALL ? undefined : value })}
+          includeAllOption
           placeholder="All course types"
-          value={params.courseType}
-          onValueChange={(value) => onChange({ courseType: value === "__all__" ? undefined : value })}
           data-testid={`${idPrefix}-course-type`}
-        >
-          <SelectItem value="__all__">All course types</SelectItem>
-          {COURSE_TYPE_OPTIONS.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value}>
-              {opt.label}
-            </SelectItem>
-          ))}
-        </Select>
+        />
       </>
     );
   }
