@@ -500,6 +500,7 @@ describe("PublicFunnelService", () => {
         id: PROGRAM_ID,
         pricePaise: 100000,
         enrollmentEnabled: false,
+        enrollmentPaymentUrl: null,
       } as unknown as Awaited<ReturnType<PublicRepository["findPublicProgramById"]>>);
 
       await expect(

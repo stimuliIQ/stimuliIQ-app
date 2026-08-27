@@ -14,6 +14,7 @@
 
 import { Injectable } from "@nestjs/common";
 import type { Prisma, VideoStatus } from "@prisma/client";
+import { summariseCourseProgress } from "@repo/types";
 import { PrismaService } from "../../prisma/prisma.service";
 
 // ─── Row types for service layer consumption ─────────────────────────────────
@@ -780,11 +781,29 @@ export class LmsRepository {
   }
 
   /**
-   * Recalculate and persist enrollment.progress_pct after a lesson completion.
-   * Formula: completed_lessons / total_lessons_in_program × 100 (rounded, 0-100).
+   * Recalculate and persist enrollment.progress_pct + status.
+   *
+   * The formula is `summariseCourseProgress` (@repo/types) and nothing else — the stored
+   * column is a CACHE of that function, never an independent number.
+   *
+   * IT MOVES IN BOTH DIRECTIONS. It used to flip active→completed at 100% and refuse to do
+   * anything below that, on the reasoning that "lessons are never un-completed" so progress
+   * could only ever rise. That is true of the numerator and says nothing about the
+   * denominator: staff added a module to a programme a student had already finished, and the
+   * enrollment sat at "Completed, 100%" while every screen that recomputed the fraction said
+   * 98%. So completed→active is now a real transition, taken whenever the work is genuinely
+   * unfinished again.
+   *
+   * TWO THINGS IT DELIBERATELY DOES NOT DO:
+   *   - It never touches a `dropped` enrollment. Dropping is somebody's decision, not a
+   *     consequence of arithmetic, and re-opening one because the curriculum grew would
+   *     quietly re-enroll a student who left.
+   *   - It never revokes a certificate. An issued certificate is its own row recording what
+   *     was true when it was earned; the student completed the programme as it stood that
+   *     day. Re-opening the enrollment asks them to do the new module, it does not withdraw
+   *     what they already hold.
    *
    * Called inside the completion $transaction (same tx as markLessonCompleted).
-   * Returns the new progress_pct value.
    */
   async recalcEnrollmentProgressPct(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma extended client $transaction typing limitation
@@ -804,25 +823,28 @@ export class LmsRepository {
       where: { enrollmentId: args.enrollmentId, status: "completed" },
     });
 
-    const progressPct = totalLessons > 0 ? Math.min(100, Math.round((completedLessons / totalLessons) * 100)) : 0;
+    const { progressPct, isComplete } = summariseCourseProgress(completedLessons, totalLessons);
 
-    // At 100%, flip the enrollment to `completed` + stamp completedAt — this is what
-    // makes an enrollment certificate-worthy (CertificatesService.autoIssueOnCompletion
-    // is triggered by the caller right after this transaction commits). Below 100%, leave
-    // status/completedAt untouched: recompute here is monotonic (lessons are never
-    // un-completed), so there is no "un-complete" case to guard against.
     const current = await tx.enrollment.findUnique({
       where: { id: args.enrollmentId },
       select: { status: true },
     });
-    const shouldFlipToCompleted = progressPct === 100 && current?.status !== "completed";
 
-    // Persist to enrollment.
+    // At 100%, flip to `completed` + stamp completedAt — this is what makes an enrollment
+    // certificate-worthy (CertificatesService.autoIssueOnCompletion is triggered by the
+    // caller right after this transaction commits). Below 100%, flip back: an enrollment
+    // reading "Completed" next to unfinished lessons is a lie on every screen at once.
+    const shouldFlipToCompleted = isComplete && current?.status === "active";
+    const shouldReopen = !isComplete && current?.status === "completed";
+
     await tx.enrollment.update({
       where: { id: args.enrollmentId },
       data: {
         progressPct,
         ...(shouldFlipToCompleted ? { status: "completed", completedAt: new Date() } : {}),
+        // completedAt is cleared with the status: a completion date on an unfinished
+        // enrollment is what would let a stale "finished on 3 Aug" survive the reopen.
+        ...(shouldReopen ? { status: "active", completedAt: null } : {}),
       },
     });
 
@@ -831,6 +853,73 @@ export class LmsRepository {
     // transition, so re-completing a lesson on an already-100% enrollment doesn't re-run
     // the (multi-query) eligibility check every time (security review Low-2).
     return { progressPct, justCompleted: shouldFlipToCompleted };
+  }
+
+  /**
+   * Resync every enrollment in a programme against the current curriculum.
+   *
+   * Called whenever the DENOMINATOR moves — today that is adding a lesson (CoursesService),
+   * the only path in the codebase that changes a programme's lesson count. One `status`
+   * write per row that actually changed, so a curriculum edit on a programme nobody has
+   * finished is a couple of reads and no writes at all.
+   *
+   * Same rules as the single-enrollment recompute above: `dropped` rows are left alone, and
+   * certificates are never touched.
+   */
+  async resyncProgramEnrollments(
+    programId: string,
+  ): Promise<{ scanned: number; updated: number; reopened: number }> {
+    const totalLessons = await this.prisma.client.lesson.count({
+      where: { module: { programId }, deletedAt: null },
+    });
+
+    const enrollments = await this.prisma.client.enrollment.findMany({
+      where: { programId, deletedAt: null, status: { not: "dropped" } },
+      select: { id: true, status: true, progressPct: true, completedAt: true },
+    });
+    if (enrollments.length === 0) return { scanned: 0, updated: 0, reopened: 0 };
+
+    // One grouped count for the whole programme rather than a query per student — a batch
+    // of 200 would otherwise be 200 round trips on every lesson somebody adds.
+    const completedCounts = await this.prisma.client.lessonProgress.groupBy({
+      by: ["enrollmentId"],
+      where: { enrollmentId: { in: enrollments.map((e) => e.id) }, status: "completed" },
+      _count: { _all: true },
+    });
+    const completedByEnrollment = new Map<string, number>(
+      completedCounts.map((c) => [c.enrollmentId, c._count._all]),
+    );
+
+    let updated = 0;
+    let reopened = 0;
+
+    for (const enrollment of enrollments) {
+      const { progressPct, isComplete } = summariseCourseProgress(
+        completedByEnrollment.get(enrollment.id) ?? 0,
+        totalLessons,
+      );
+      const nextStatus = isComplete ? "completed" : "active";
+      const pctChanged = enrollment.progressPct !== progressPct;
+      const statusChanged = enrollment.status !== nextStatus;
+      if (!pctChanged && !statusChanged) continue;
+
+      await this.prisma.client.enrollment.update({
+        where: { id: enrollment.id },
+        data: {
+          progressPct,
+          ...(statusChanged
+            ? {
+                status: nextStatus,
+                completedAt: isComplete ? (enrollment.completedAt ?? new Date()) : null,
+              }
+            : {}),
+        },
+      });
+      updated += 1;
+      if (statusChanged && !isComplete) reopened += 1;
+    }
+
+    return { scanned: enrollments.length, updated, reopened };
   }
 
   // ─── PROGRESS READ QUERIES (Wave 4b) ─────────────────────────────────────
@@ -902,7 +991,7 @@ export class LmsRepository {
           order: mod.order,
           lessonsTotal: modTotal,
           lessonsCompleted: modCompleted,
-          progressPct: modTotal > 0 ? Math.round((modCompleted / modTotal) * 100) : 0,
+          progressPct: summariseCourseProgress(modCompleted, modTotal).progressPct,
         });
       }
 
@@ -913,7 +1002,7 @@ export class LmsRepository {
         programSlug: enrollment.program.slug,
         lessonsTotal: totalLessons,
         lessonsCompleted: completedLessons,
-        progressPct: totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0,
+        progressPct: summariseCourseProgress(completedLessons, totalLessons).progressPct,
         status: enrollment.status as "active" | "completed" | "dropped",
         modules,
       });

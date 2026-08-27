@@ -232,6 +232,17 @@ export const PublicProgramSummarySchema = z.object({
    */
   enrollmentEnabled: z.boolean().describe("Whether the 'Enroll Now' CTA / checkout is open."),
   /**
+   * External (Razorpay) payment-page link, already RESOLVED server-side like the badge:
+   * null unless staff have set a link AND enrollment is open. When present, every
+   * "Enroll Now" CTA opens it instead of /enroll/:slug. Public by nature (it is the
+   * destination of a public button), so it is NOT in `ForbiddenProgramField`.
+   */
+  enrollmentPaymentUrl: z
+    .string()
+    .url()
+    .nullable()
+    .describe("Razorpay payment link the 'Enroll Now' CTA opens, or null for the in-app checkout."),
+  /**
    * Marketing badge, already RESOLVED server-side: both fields are null unless staff have
    * a badge configured AND switched on. The `badgeEnabled` toggle itself is deliberately
    * never exposed — the public contract carries the display outcome, not the control, so a

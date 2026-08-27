@@ -229,7 +229,7 @@ export default async function VerifyCertificatePage({ params }: PageProps) {
 
       <main
         id="main-content"
-        className="mx-auto max-w-xl px-4 py-12 sm:py-16"
+        className="mx-auto max-w-3xl px-4 py-12 sm:py-16"
         data-testid="verify-page"
       >
         {/* Page header */}

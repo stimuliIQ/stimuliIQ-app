@@ -1,40 +1,65 @@
-// Permission matrix editor — the headline Admin feature (docs/03 §7.16/§9).
-// Loads the full permission catalog (grouped by module) once, plus the
-// selected role's current grants, and renders an accessible <table> grid:
-// one row per `module.action` permission with a single on/off Switch. ON grants
-// the permission at "all" (org-wide) scope, OFF revokes it (product decision —
-// the scope picker was removed in favour of a plain toggle). Grants a role
-// already holds at a NARROWER scope are preserved until explicitly toggled off;
-// flipping a row ON always (re)grants at "all". Saves via the full-replace
-// `updatePermissions` mutation (see hooks/use-roles.ts).
+// Permission editor — the headline Admin feature (docs/03 §7.16/§9).
 //
-// RBAC-aware disabling: because ON means "all", a row is only enable-able when
-// the EDITOR holds that permission at "all" scope themselves; otherwise it is
-// rendered disabled with a hint. This is a UX guide only. The SERVER is the
-// actual privilege-escalation enforcement point (CLAUDE.md §3.5; @repo/types
-// crm/admin.schemas.ts file header) and will reject (403) any attempt to grant
-// something broader than the editor's own resolved permission — that 403 is
-// surfaced via the toast + inline banner below, it is not prevented client-side
-// as the source of truth.
+// SHAPED LIKE THE SIDEBAR, NOT LIKE THE DATABASE. The catalog is ~200 `module.action`
+// keys; listing them grouped by module, which is what this screen used to do, asks the
+// administrator to already know the schema. So the tree here mirrors the CRM's own
+// navigation (see lib/permission-screens.ts): a sidebar SECTION opens to the SCREENS in
+// it, each screen has one toggle meaning "this role can open it", and switching that on
+// reveals what they may DO there — add, edit, delete, export and the rest.
+//
+// TWO RULES MAKE THE TREE HONEST:
+//  1. Turning a screen off also drops its action grants. "Can edit a screen they cannot
+//     open" is not a state worth being able to save by accident.
+//  2. A role that ALREADY holds actions without the screen's view permission (possible
+//     from an older seed) keeps them: that row renders expanded with a warning instead of
+//     silently discarding grants the editor did not put there.
+//
+// ON/OFF, NOT SCOPE. ON grants at "all" (org-wide), OFF revokes (product decision — the
+// scope picker was removed). Grants a role already holds at a NARROWER scope are preserved
+// until explicitly toggled off; flipping a row ON always (re)grants at "all". Saves via the
+// full-replace `updatePermissions` mutation (hooks/use-roles.ts) — which is exactly why
+// permission-screens.ts computes its leftovers from the live catalog rather than from a
+// hand-written list: anything this component fails to render would be REVOKED on the next
+// save, not merely hidden.
+//
+// RBAC-aware disabling: because ON means "all", a row is only enable-able when the EDITOR
+// holds that permission at "all" scope themselves; otherwise it renders disabled with a
+// hint. This is a UX guide only. The SERVER is the actual privilege-escalation enforcement
+// point (CLAUDE.md §3.5; @repo/types crm/admin.schemas.ts file header) and will reject
+// (403) any attempt to grant something broader than the editor's own resolved permission —
+// that 403 is surfaced via the toast + inline banner below, it is not prevented
+// client-side as the source of truth.
 import * as React from "react";
-import { Alert, Button, EmptyState, Skeleton, Switch, useToast } from "@repo/ui";
-import type { MeResponse, PermissionScope, RolePermissionCell, Role } from "@repo/types";
+import {
+  Alert,
+  Button,
+  CollapsibleSection,
+  EmptyState,
+  InfoHint,
+  Input,
+  Skeleton,
+  StatusChip,
+  Switch,
+  useToast,
+} from "@repo/ui";
+import type { MeResponse, PermissionCatalogEntry, PermissionScope, RolePermissionCell, Role } from "@repo/types";
 
 import { usePermissionCatalog, useRolePermissions, useUpdateRolePermissions } from "../../hooks/use-roles";
+import { describePermission } from "../../lib/permission-help";
+import { buildPermissionModel, type PermissionActionRow, type PermissionScreenRow } from "../../lib/permission-screens";
 
-// The permission editor is a simple on/off toggle per permission: ON grants the
-// permission at "all" (org-wide) scope, OFF revokes it (product decision — see the
-// role directory). The underlying model still stores a scope per grant, so grants
-// a role ALREADY holds at a narrower scope (e.g. a seeded branch-scoped role) are
-// preserved as-is until explicitly toggled off — flipping a row ON always (re)grants
-// it at "all". Because ON means "all", a row is only enable-able when the editor
-// themselves holds that permission at "all" scope (the server rejects any broader
-// grant than the editor's own — CLAUDE.md §3.5).
+// ON grants the permission at "all" (org-wide) scope; OFF revokes it.
 const GRANT_SCOPE: PermissionScope = "all";
 
 interface RolePermissionMatrixProps {
   role: Role;
   me: MeResponse | undefined;
+}
+
+function matches(query: string, ...haystack: string[]): boolean {
+  if (!query) return true;
+  const needle = query.toLowerCase();
+  return haystack.some((value) => value.toLowerCase().includes(needle));
 }
 
 export function RolePermissionMatrix({ role, me }: RolePermissionMatrixProps): React.JSX.Element {
@@ -49,11 +74,11 @@ export function RolePermissionMatrix({ role, me }: RolePermissionMatrixProps): R
   } = useRolePermissions(role.id);
   const updatePermissions = useUpdateRolePermissions();
 
-  // Local editable draft of grants, keyed by permissionKey -> scope (or
-  // undefined when not granted). Reset whenever the role or its loaded
-  // grants change.
+  // Local editable draft of grants, keyed by permissionKey -> scope (or undefined when not
+  // granted). Reset whenever the role or its loaded grants change.
   const [draft, setDraft] = React.useState<Map<string, PermissionScope>>(new Map());
   const [serverError, setServerError] = React.useState<string | null>(null);
+  const [query, setQuery] = React.useState("");
 
   React.useEffect(() => {
     if (!rolePermissions) return;
@@ -65,10 +90,10 @@ export function RolePermissionMatrix({ role, me }: RolePermissionMatrixProps): R
     setServerError(null);
   }, [rolePermissions]);
 
-  // Must be computed BEFORE the loading/error early returns below — a hook that
-  // only runs on some renders violates the Rules of Hooks ("rendered more hooks
-  // than during the previous render") and crashes when a role switch flips this
-  // component through its loading state. Depends only on values available above.
+  // Every hook must run BEFORE the loading/error early returns below — a hook that only
+  // runs on some renders violates the Rules of Hooks ("rendered more hooks than during the
+  // previous render") and crashes when a role switch flips this component through its
+  // loading state.
   const hasChanges = React.useMemo(() => {
     const original = new Map<string, PermissionScope>();
     for (const grant of rolePermissions?.grants ?? []) {
@@ -80,6 +105,12 @@ export function RolePermissionMatrix({ role, me }: RolePermissionMatrixProps): R
     }
     return false;
   }, [draft, rolePermissions]);
+
+  const entries: PermissionCatalogEntry[] = React.useMemo(
+    () => (catalog?.modules ?? []).flatMap((group) => group.permissions),
+    [catalog],
+  );
+  const model = React.useMemo(() => buildPermissionModel(entries), [entries]);
 
   const isLoading = catalogLoading || grantsLoading;
   const isError = catalogError || grantsError;
@@ -115,24 +146,23 @@ export function RolePermissionMatrix({ role, me }: RolePermissionMatrixProps): R
     );
   }
 
-  const modules = catalog?.modules ?? [];
-
   /**
-   * The editor's own scope for a permission (or undefined if they don't hold it).
-   * Since ON grants at "all", a row is only enable-able when the editor holds the
-   * permission at "all" too — UX-guide only (see file header); the server is the
-   * actual escalation guard and rejects anything broader than the editor's grant.
+   * The editor's own scope for a permission (or undefined if they don't hold it). Since ON
+   * grants at "all", a row is only enable-able when the editor holds the permission at
+   * "all" too — UX-guide only (see file header); the server is the actual escalation guard.
    */
   const editorScopeFor = (permissionKey: string): PermissionScope | undefined =>
     (me?.permissions ?? []).find((g) => g.key === permissionKey)?.scope;
 
-  const handleToggle = (permissionKey: string, checked: boolean) => {
+  const setGrant = (permissionKey: string, checked: boolean, alsoRevoke: string[] = []) => {
     setDraft((current) => {
       const next = new Map(current);
       if (checked) {
         next.set(permissionKey, GRANT_SCOPE);
       } else {
         next.delete(permissionKey);
+        // Rule 1 (file header): what you cannot open, you cannot act on.
+        for (const key of alsoRevoke) next.delete(key);
       }
       return next;
     });
@@ -151,9 +181,8 @@ export function RolePermissionMatrix({ role, me }: RolePermissionMatrixProps): R
       });
       toast({ title: "Permissions saved", variant: "success" });
     } catch (error) {
-      // Surface the server's privilege-escalation 403/validation error
-      // clearly — both as a toast and an inline banner, since this is the
-      // real enforcement point (CLAUDE.md §3.5).
+      // Surface the server's privilege-escalation 403/validation error clearly — both as a
+      // toast and an inline banner, since this is the real enforcement point (CLAUDE.md §3.5).
       const problem =
         error && typeof error === "object" && "problem" in error
           ? (error as { problem: { detail?: string; title?: string; status?: number } }).problem
@@ -168,8 +197,101 @@ export function RolePermissionMatrix({ role, me }: RolePermissionMatrixProps): R
     }
   };
 
+  /** One permission: a switch, its plain-English label, its help, and its raw key. */
+  const renderToggle = (
+    permission: PermissionActionRow,
+    options: { onChange?: (checked: boolean) => void } = {},
+  ): React.JSX.Element => {
+    const granted = draft.has(permission.key);
+    const editorScope = editorScopeFor(permission.key);
+    const canGrant = editorScope === "all";
+    const toggleId = `perm-${permission.key}`;
+    return (
+      <div key={permission.key} className="flex flex-wrap items-center gap-2 py-1" data-testid="permission-matrix-row">
+        <Switch
+          id={toggleId}
+          aria-label={`Grant ${permission.label}`}
+          checked={granted}
+          disabled={!canGrant || updatePermissions.isPending}
+          onCheckedChange={(checked) =>
+            options.onChange ? options.onChange(checked) : setGrant(permission.key, checked)
+          }
+          data-testid={`permission-toggle-${permission.key}`}
+        />
+        <label htmlFor={toggleId} className="text-sm text-fg">
+          {permission.label}
+        </label>
+        <InfoHint label={permission.label}>{describePermission(permission.key, permission.label)}</InfoHint>
+        <span className="text-xs text-fg-subtle">{permission.key}</span>
+        {!canGrant ? (
+          <span className="text-xs text-warning" data-testid={`permission-row-locked-${permission.key}`}>
+            {editorScope ? "(you only hold this at a limited scope)" : "(you don't hold this permission)"}
+          </span>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderScreen = (screen: PermissionScreenRow): React.JSX.Element => {
+    const label = screen.screens.join(", ");
+    const granted = draft.has(screen.gate);
+    // Rule 2 (file header): actions granted without the screen's view permission are shown,
+    // never quietly dropped — the role really does hold them until somebody says otherwise.
+    const orphanActions = !granted && screen.actions.some((action) => draft.has(action.key));
+    const visibleActions = screen.actions.filter((action) => matches(query, action.label, action.key, label));
+    const showActions = (granted || orphanActions) && visibleActions.length > 0;
+
+    return (
+      <div key={screen.gate} className="border-b border-border px-4 py-2 last:border-0" data-testid="permission-screen">
+        {renderToggle(
+          { key: screen.gate, label },
+          { onChange: (checked) => setGrant(screen.gate, checked, screen.actions.map((action) => action.key)) },
+        )}
+        <div className="ml-11 flex flex-wrap items-center gap-x-3 text-xs text-fg-subtle">
+          {screen.path ? <span>{screen.path}</span> : null}
+          {screen.offMenu ? <span className="text-warning">reachable by link, not on the menu</span> : null}
+          {screen.alsoIn.length > 0 ? <span>also opens {screen.alsoIn.join(", ")}</span> : null}
+        </div>
+        {orphanActions ? (
+          <p className="ml-11 mt-1 text-xs text-warning" data-testid={`permission-orphan-${screen.gate}`}>
+            This role can act here but cannot open the screen. Switch it on, or turn the actions below off.
+          </p>
+        ) : null}
+        {showActions ? (
+          <div className="ml-11 mt-1 border-l border-border pl-3">
+            {visibleActions.map((action) => renderToggle(action))}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
+  // Filtering happens here rather than inside the model, so a search never changes which
+  // permissions exist — only which are on screen. The draft is untouched by it.
+  const visibleSections = model.sections
+    .map((section) => ({
+      ...section,
+      screens: section.screens.filter(
+        (screen) =>
+          matches(query, section.label, screen.gate, ...screen.screens) ||
+          screen.actions.some((action) => matches(query, action.label, action.key)),
+      ),
+    }))
+    .filter((section) => section.screens.length > 0);
+
+  const visibleExtras = model.extras
+    .map((extra) => ({
+      ...extra,
+      permissions: extra.permissions.filter(
+        (permission) => matches(query, extra.label) || matches(query, permission.label, permission.key),
+      ),
+    }))
+    .filter((extra) => extra.permissions.length > 0);
+
+  const nothingMatches = visibleSections.length === 0 && visibleExtras.length === 0;
+
   return (
-    <div className="flex flex-col gap-4" data-testid="permission-matrix">
+    <div className="flex flex-col gap-3" data-testid="permission-matrix">
       {serverError ? (
         <Alert tone="danger" role="alert" data-testid="permission-matrix-server-error">
           {serverError}
@@ -177,68 +299,86 @@ export function RolePermissionMatrix({ role, me }: RolePermissionMatrixProps): R
       ) : null}
 
       <p className="text-sm text-fg-muted">
-        Toggle a permission on to grant this role full (org-wide) access to it, off to revoke it. Rows you can't grant
-        yourself (because you don't hold that permission at full access) are disabled here as a guide, the server is the
-        actual enforcement point and will reject any attempt to escalate beyond your own access.
+        These are the sections of the CRM menu. Switch a screen on to let this role open it, then choose what they can
+        do there. Switching a screen off also removes its actions. Press any info icon for a plain-English explanation.
+        Rows you can't grant yourself are disabled as a guide; the server is the real enforcement point and rejects any
+        attempt to go beyond your own access.
       </p>
 
-      {modules.length === 0 ? (
-        <EmptyState title="No permissions in the catalog" description="Nothing to configure yet." />
-      ) : (
-        modules.map((moduleGroup) => (
-          <div key={moduleGroup.module} className="rounded-md border border-border" data-testid="permission-matrix-module">
-            <h2 className="border-b border-border bg-surface px-3 py-2 text-sm font-medium capitalize text-fg">
-              {moduleGroup.module}
-            </h2>
-            <table className="w-full text-sm">
-              <caption className="sr-only">Permissions for {moduleGroup.module}</caption>
-              <thead>
-                <tr className="border-b border-border text-left text-fg-muted">
-                  <th scope="col" className="px-3 py-2 font-medium">
-                    Permission
-                  </th>
-                  <th scope="col" className="w-24 px-3 py-2 text-right font-medium">
-                    Access
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {moduleGroup.permissions.map((permission) => {
-                  const granted = draft.has(permission.key);
-                  const editorScope = editorScopeFor(permission.key);
-                  const canGrant = editorScope === "all";
-                  const toggleId = `perm-${permission.key}`;
-                  return (
-                    <tr key={permission.key} className="border-b border-border last:border-0" data-testid="permission-matrix-row">
-                      <td className="px-3 py-2 align-middle">
-                        <label htmlFor={toggleId} className="text-fg">
-                          {permission.label}
-                        </label>
-                        <span className="ml-2 text-xs text-fg-subtle">{permission.key}</span>
-                        {!canGrant ? (
-                          <span className="ml-2 text-xs text-warning" data-testid={`permission-row-locked-${permission.key}`}>
-                            {editorScope ? "(you only hold this at a limited scope)" : "(you don't hold this permission)"}
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="px-3 py-2 text-right align-middle">
-                        <Switch
-                          id={toggleId}
-                          aria-label={`Grant ${permission.label}`}
-                          checked={granted}
-                          disabled={!canGrant || updatePermissions.isPending}
-                          onCheckedChange={(checked) => handleToggle(permission.key, checked)}
-                          data-testid={`permission-toggle-${permission.key}`}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ))
-      )}
+      <Input
+        type="search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Find a screen or a permission"
+        aria-label="Find a screen or a permission"
+        data-testid="permission-matrix-search"
+      />
+
+      {nothingMatches ? (
+        <EmptyState
+          title={query ? "Nothing matches that search" : "No permissions in the catalog"}
+          description={
+            query ? "Try a screen name, an action, or part of a permission key." : "Nothing to configure yet."
+          }
+        />
+      ) : null}
+
+      {visibleSections.map((section, index) => {
+        const grantedCount = section.screens.filter((screen) => draft.has(screen.gate)).length;
+        const previousCaption = index > 0 ? visibleSections[index - 1]?.caption : undefined;
+        return (
+          <React.Fragment key={section.label}>
+            {section.caption && section.caption !== previousCaption ? (
+              <p className="pt-2 text-xs font-medium uppercase tracking-wide text-fg-subtle">{section.caption}</p>
+            ) : null}
+            <CollapsibleSection
+              data-testid="permission-matrix-module"
+              // Open where there is something to see: a section this role already reaches,
+              // or one the current search matched.
+              defaultOpen={grantedCount > 0 || query.length > 0}
+              header={
+                <>
+                  <span className="truncate font-medium">{section.label}</span>
+                  <StatusChip
+                    tone={grantedCount > 0 ? "success" : "neutral"}
+                    label={`${grantedCount} of ${section.screens.length}`}
+                  />
+                </>
+              }
+              bodyClassName="p-0"
+            >
+              {section.screens.map(renderScreen)}
+            </CollapsibleSection>
+          </React.Fragment>
+        );
+      })}
+
+      {visibleExtras.length > 0 ? (
+        <p className="pt-2 text-xs font-medium uppercase tracking-wide text-fg-subtle">Not part of the CRM menu</p>
+      ) : null}
+
+      {visibleExtras.map((extra) => {
+        const grantedCount = extra.permissions.filter((permission) => draft.has(permission.key)).length;
+        return (
+          <CollapsibleSection
+            key={extra.id}
+            data-testid="permission-matrix-extra"
+            defaultOpen={grantedCount > 0 || query.length > 0}
+            header={
+              <>
+                <span className="truncate font-medium">{extra.label}</span>
+                <StatusChip
+                  tone={grantedCount > 0 ? "success" : "neutral"}
+                  label={`${grantedCount} of ${extra.permissions.length}`}
+                />
+              </>
+            }
+          >
+            <p className="mb-2 text-xs text-fg-muted">{extra.description}</p>
+            {extra.permissions.map((permission) => renderToggle(permission))}
+          </CollapsibleSection>
+        );
+      })}
 
       <div className="flex items-center justify-end gap-2 border-t border-border pt-4">
         <Button

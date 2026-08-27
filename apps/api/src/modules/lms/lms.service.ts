@@ -36,6 +36,7 @@ import type {
   LearningPathResponse,
   LearningPathStep,
 } from "@repo/types";
+import { summariseCourseProgress } from "@repo/types";
 import { VIDEO_PROVIDER, DEFAULT_HLS_TTL_SECONDS } from "./providers/video/video-provider.interface";
 import type { VideoProvider } from "./providers/video/video-provider.interface";
 import {
@@ -114,7 +115,7 @@ export class LmsService {
           enrollmentId: e.id,
           programId: e.programId,
           programTitle: e.program.title,
-          progressPct: total > 0 ? Math.round((completed / total) * 100) : 0,
+          progressPct: summariseCourseProgress(completed, total).progressPct,
           lessonsCompleted: completed,
           lessonsTotal: total,
           status: e.status,
@@ -369,7 +370,7 @@ export class LmsService {
         };
       });
 
-      const moduleProgressPct = modTotal > 0 ? Math.round((modCompleted / modTotal) * 100) : 0;
+      const moduleProgressPct = summariseCourseProgress(modCompleted, modTotal).progressPct;
 
       return {
         id: mod.id,
@@ -384,7 +385,7 @@ export class LmsService {
       };
     });
 
-    const progressPct = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+    const progressPct = summariseCourseProgress(completedLessons, totalLessons).progressPct;
 
     return {
       enrollmentId,

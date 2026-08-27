@@ -171,3 +171,54 @@ export const MyProgressResponseSchema = z.object({
   ),
 });
 export type MyProgressResponse = z.infer<typeof MyProgressResponseSchema>;
+
+// ── The one definition of course completion ───────────────────────────────────────────
+
+/**
+ * Course progress, computed from lesson counts. THE single definition — API and both
+ * frontends call this rather than each rounding their own percentage, the same way
+ * `computeLeaveDuration` (P13) and `summariseTargetMetric` (P15) are single definitions.
+ *
+ * Progress is DERIVED, never a number somebody remembered. `enrollment.progress_pct` is a
+ * cache of this function's output, resynced whenever either side of the fraction moves —
+ * including when the DENOMINATOR moves. That last case is what went wrong in production:
+ * the rollup was written only on lesson completion, on the stated assumption that "lessons
+ * are never un-completed". True of the numerator, and irrelevant to the denominator. A
+ * student finished a programme at 100%, staff added a module, and the enrollment kept
+ * saying "Completed" at 100% on every screen that read the stored column while every screen
+ * that recomputed it said 98%.
+ */
+export interface CourseProgressSummary {
+  lessonsTotal: number;
+  lessonsCompleted: number;
+  /** What is left to do. Zero when there are no lessons at all, not when nothing is done. */
+  lessonsPending: number;
+  /** 0-100, integer. A programme with no lessons yet is 0%, never 100%. */
+  progressPct: number;
+  /**
+   * Whether the student has actually finished. Note this is `pct === 100`, NOT `pct >= 100`
+   * of a rounded number: 199 of 200 lessons rounds to 100% and is not complete, so the
+   * rounding is done on a value that is already known to be short.
+   */
+  isComplete: boolean;
+}
+
+export function summariseCourseProgress(
+  lessonsCompleted: number,
+  lessonsTotal: number,
+): CourseProgressSummary {
+  const total = Math.max(0, Math.trunc(lessonsTotal));
+  // Completed can exceed total for a moment if a lesson is removed after being finished;
+  // clamping keeps the fraction honest instead of reporting 104%.
+  const completed = Math.min(Math.max(0, Math.trunc(lessonsCompleted)), total);
+  const isComplete = total > 0 && completed >= total;
+  return {
+    lessonsTotal: total,
+    lessonsCompleted: completed,
+    lessonsPending: total - completed,
+    // Short of the finish line never rounds up to 100 — a card reading "100%" beside a
+    // "Continue learning" button is the contradiction this whole helper exists to prevent.
+    progressPct: total === 0 ? 0 : isComplete ? 100 : Math.min(99, Math.round((completed / total) * 100)),
+    isComplete,
+  };
+}

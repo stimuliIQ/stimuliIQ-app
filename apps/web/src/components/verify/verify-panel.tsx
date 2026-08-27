@@ -18,75 +18,67 @@
 // We use inline SVG shapes (copied from lucide) so apps/web has no direct
 // lucide-react dependency (CLAUDE.md: "Do NOT install any dependency").
 //
-// No "use client" needed — this component is purely presentational with no hooks.
+// No "use client" needed — this component is purely presentational with no hooks. The
+// scan-then-reveal intro (verify-reveal.tsx) IS a client island; this file hands it the
+// server-rendered result to unveil, so the verdict is in the DOM whether or not it runs.
 
 import * as React from "react";
 import type { VerifyResult } from "@repo/types";
 import { isCertificateSerial, normalizeCertificateSerial } from "@repo/types";
 import { StatusChip, Card, CardContent, cn } from "@repo/ui";
 
-import { CertificateDownloadButton } from "./certificate-download-button";
+import { SITE_NAME } from "../../lib/seo/metadata";
+import { VerifyReveal } from "./verify-reveal";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline SVG icons (lucide-compatible paths) — avoids adding lucide-react
 // as a direct dependency of apps/web.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ShieldCheckIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-      <path d="m9 12 2 2 4-4" />
-    </svg>
-  );
-}
+/**
+ * The verification seal's mark.
+ *
+ * A lucide shield reads as a security warning, which is the wrong register for a document
+ * somebody earned. What a verified credential is stamped with is a SEAL: a milled rosette
+ * edge, a double keyline, and one glyph in the middle. That is what this draws.
+ *
+ * The rosette is 24 shallow lobes on a radius-26 circle (arc radius = chord/2 x 1.45, so the
+ * teeth are milled rather than scalloped like a flower). It is inlined as a literal rather
+ * than computed at render time on purpose: this exact markup is produced BOTH by the server
+ * and by the reveal's client overlay, and a trig round-trip that disagrees in the last ulp
+ * between Node and the browser would be a hydration mismatch bought for nothing.
+ */
+const SEAL_ROSETTE_PATH =
+  "M32.00 6.00 A4.92 4.92 0 0 1 38.73 6.89 A4.92 4.92 0 0 1 45.00 9.48 A4.92 4.92 0 0 1 50.38 13.62 A4.92 4.92 0 0 1 54.52 19.00 A4.92 4.92 0 0 1 57.11 25.27 A4.92 4.92 0 0 1 58.00 32.00 A4.92 4.92 0 0 1 57.11 38.73 A4.92 4.92 0 0 1 54.52 45.00 A4.92 4.92 0 0 1 50.38 50.38 A4.92 4.92 0 0 1 45.00 54.52 A4.92 4.92 0 0 1 38.73 57.11 A4.92 4.92 0 0 1 32.00 58.00 A4.92 4.92 0 0 1 25.27 57.11 A4.92 4.92 0 0 1 19.00 54.52 A4.92 4.92 0 0 1 13.62 50.38 A4.92 4.92 0 0 1 9.48 45.00 A4.92 4.92 0 0 1 6.89 38.73 A4.92 4.92 0 0 1 6.00 32.00 A4.92 4.92 0 0 1 6.89 25.27 A4.92 4.92 0 0 1 9.48 19.00 A4.92 4.92 0 0 1 13.62 13.62 A4.92 4.92 0 0 1 19.00 9.48 A4.92 4.92 0 0 1 25.27 6.89 A4.92 4.92 0 0 1 32.00 6.00Z";
 
-function ShieldXIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-      <path d="m14.5 9.5-5 5" />
-      <path d="m9.5 9.5 5 5" />
-    </svg>
-  );
-}
+/**
+ * The three glyphs. They differ in SHAPE, not only in the tone they are painted with, which
+ * is what keeps the three results distinguishable without colour (docs/07 §2, WCAG 1.4.1).
+ */
+const SEAL_GLYPHS = {
+  check: <path d="M25 32.5 30.5 38 41 26.5" />,
+  cross: <path d="m26.5 26.5 11 11M37.5 26.5l-11 11" />,
+  alert: <path d="M32 23.5v10.5M32 40.5h.01" />,
+} as const;
 
-function ShieldAlertIcon({ className }: { className?: string }) {
+function SealMark({ glyph, className }: { glyph: keyof typeof SEAL_GLYPHS; className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
+      viewBox="0 0 64 64"
       fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
       className={className}
       aria-hidden="true"
     >
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-      <path d="M12 8v4" />
-      <path d="M12 16h.01" />
+      {/* Milled edge, filled faintly then outlined, so the teeth read at small sizes */}
+      <path d={SEAL_ROSETTE_PATH} fill="currentColor" fillOpacity="0.08" />
+      <path d={SEAL_ROSETTE_PATH} stroke="currentColor" strokeOpacity="0.45" strokeWidth="1.25" />
+      {/* The double keyline every struck seal carries */}
+      <circle cx="32" cy="32" r="20.5" stroke="currentColor" strokeOpacity="0.3" strokeWidth="1" />
+      <circle cx="32" cy="32" r="17.25" stroke="currentColor" strokeOpacity="0.9" strokeWidth="1.5" />
+      <g stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        {SEAL_GLYPHS[glyph]}
+      </g>
     </svg>
   );
 }
@@ -208,21 +200,201 @@ function DetailRow({
   label,
   value,
   testId,
+  index,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   testId: string;
+  /** Position in the list — the settled reveal staggers the rows off this. */
+  index: number;
 }) {
   return (
-    <div className="flex items-start gap-3 px-4 py-3">
-      <span className="mt-0.5 shrink-0">{icon}</span>
+    <div
+      className="verify-row-in flex items-start gap-3 px-5 py-3.5"
+      style={{ "--verify-row-delay": `${430 + index * 70}ms` } as React.CSSProperties}
+    >
+      <span className="mt-0.5 shrink-0 text-fg-subtle">{icon}</span>
       <div className="min-w-0 flex-1">
-        <dt className="text-xs font-medium text-fg-muted">{label}</dt>
-        <dd className="truncate text-sm font-medium text-fg" data-testid={testId}>
+        <dt className="text-[11px] font-medium uppercase tracking-wider text-fg-subtle">{label}</dt>
+        <dd className="mt-0.5 break-words text-sm font-semibold text-fg" data-testid={testId}>
           {value}
         </dd>
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared pieces for the two "we found this certificate" states
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The certificate details card — identical structure for valid and revoked, only the
+ * "Issued to" label and the card's emphasis differ. Sits beside the status seal on
+ * desktop (md+) and stacks under it on mobile.
+ */
+function CertificateDetailsCard({
+  result,
+  serial,
+  holderLabel,
+  muted = false,
+  className,
+}: {
+  result: Extract<VerifyResult, { valid: true } | { valid: "revoked" }>;
+  serial: string | null;
+  holderLabel: string;
+  muted?: boolean;
+  className?: string;
+}) {
+  return (
+    <Card className={cn("h-full w-full", muted && "opacity-80", className)}>
+      <CardContent className="flex h-full flex-col p-0">
+        <p className="border-b border-border px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">
+          Certificate details
+        </p>
+        {/* Only the fields the public endpoint returns (AC-H7) */}
+        <dl aria-label="Certificate details" className="divide-y divide-border">
+          <DetailRow
+            icon={<GraduationCapIcon className="size-4" />}
+            label="Program"
+            value={result.program}
+            testId="verify-program"
+            index={0}
+          />
+          <DetailRow
+            icon={<UserIcon className="size-4" />}
+            label={holderLabel}
+            value={result.holderName}
+            testId="verify-holder"
+            index={1}
+          />
+          <DetailRow
+            icon={<CalendarIcon className="size-4" />}
+            label="Issue date"
+            value={formatDate(result.issuedAt)}
+            testId="verify-issued-at"
+            index={2}
+          />
+          {serial ? (
+            <DetailRow
+              icon={<HashIcon className="size-4" />}
+              label="Certificate ID"
+              value={serial}
+              testId="verify-serial"
+              index={3}
+            />
+          ) : null}
+        </dl>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * The status seal — the redesigned replacement for the old flat tinted box.
+ *
+ * A layered medallion (soft outer halo → tinted ring → solid disc → icon) reads as a stamp
+ * rather than an alert banner, which is what a verification result actually is. Status is
+ * still carried by icon SHAPE + text + chip, never by colour alone (docs/07 §2, WCAG 2.2 AA).
+ */
+const SEAL_TONES = {
+  success: {
+    panel: "border-success/25 bg-success/[0.07]",
+    halo: "bg-success/15",
+    ring: "ring-success/20",
+    disc: "bg-success/10",
+    mark: "text-success",
+    eyebrow: "text-success/70",
+    title: "text-success",
+  },
+  danger: {
+    panel: "border-danger/25 bg-danger/[0.07]",
+    halo: "bg-danger/15",
+    ring: "ring-danger/20",
+    disc: "bg-danger/10",
+    mark: "text-danger",
+    eyebrow: "text-danger/70",
+    title: "text-danger",
+  },
+  warning: {
+    panel: "border-warning/25 bg-warning/[0.07]",
+    halo: "bg-warning/15",
+    ring: "ring-warning/20",
+    disc: "bg-warning/10",
+    mark: "text-warning",
+    eyebrow: "text-warning/80",
+    title: "text-warning",
+  },
+} as const;
+
+function StatusSeal({
+  tone,
+  glyph,
+  eyebrow,
+  title,
+  chip,
+  description,
+  className,
+}: {
+  tone: keyof typeof SEAL_TONES;
+  glyph: "check" | "cross" | "alert";
+  /** The small tracked line above the title. Says what happened; the title says what it is. */
+  eyebrow: string;
+  title: string;
+  chip: React.ReactNode;
+  description: string;
+  className?: string;
+}) {
+  const toneClasses = SEAL_TONES[tone];
+
+  return (
+    <div
+      className={cn(
+        "flex h-full w-full flex-col items-center justify-center gap-5 rounded-2xl border",
+        "px-6 py-10 text-center",
+        toneClasses.panel,
+        className,
+      )}
+      aria-live="polite"
+      role="status"
+    >
+      {/* Medallion: halo, tinted disc, struck seal. All of it decorative. */}
+      <span className="relative flex size-24 items-center justify-center" aria-hidden="true">
+        <span className={cn("absolute inset-1 rounded-full blur-lg", toneClasses.halo)} />
+        <span
+          className={cn("absolute inset-2 rounded-full ring-1", toneClasses.ring, toneClasses.disc)}
+        />
+        <SealMark glyph={glyph} className={cn("relative size-[4.25rem]", toneClasses.mark)} />
+      </span>
+
+      <div className="flex flex-col items-center gap-2">
+        <p
+          className={cn(
+            "text-[10px] font-semibold uppercase tracking-[0.28em]",
+            toneClasses.eyebrow,
+          )}
+        >
+          {eyebrow}
+        </p>
+        {/* Text label — status is NOT colour-only */}
+        <p
+          className={cn(
+            "font-display text-2xl font-bold tracking-tight",
+            toneClasses.title,
+          )}
+          data-testid="verify-status-label"
+        >
+          {title}
+        </p>
+        {chip}
+      </div>
+
+      {/* text-balance: at this measure the sentence otherwise leaves two words alone on
+          the last line, which is the one thing that makes a careful card look careless. */}
+      <p className="max-w-[19rem] text-balance text-sm leading-relaxed text-fg-muted">
+        {description}
+      </p>
     </div>
   );
 }
@@ -233,186 +405,137 @@ function DetailRow({
 
 function ValidPanel({
   result,
-  certId,
   serial,
+  scanId,
 }: {
   result: Extract<VerifyResult, { valid: true }>;
-  certId: string;
   serial: string | null;
+  scanId: string;
 }) {
+  // Rendered twice on purpose: once inside the reveal's overlay as the seal that lands at
+  // the end of the scan, and once here as the settled result it hands over to. Identical
+  // markup in the identical box is what makes the handover invisible.
+  const seal = (
+    <StatusSeal
+      tone="success"
+      glyph="check"
+      eyebrow="Authenticity confirmed"
+      title="Verified Authentic"
+      chip={<StatusChip tone="success" label="Valid" size="sm" data-testid="verify-status-chip" />}
+      description={`Issued by ${SITE_NAME} and confirmed against our records.`}
+    />
+  );
+
   return (
-    <div
-      data-testid="verify-panel-valid"
-      role="region"
-      aria-label="Certificate verification result: Valid"
-      className="flex flex-col items-center gap-8"
-    >
-      {/* Status badge — icon + text + tone; never color-only (docs/07 §2 rule) */}
+    <VerifyReveal tone="success" idText={scanId} seal={seal} layout="split">
       <div
-        className={cn(
-          "flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl",
-          "border border-success/30 bg-success/10 px-8 py-6 text-center",
-        )}
-        aria-live="polite"
-        role="status"
+        data-testid="verify-panel-valid"
+        role="region"
+        aria-label="Certificate verification result: Valid"
+        // Seal and details sit side by side from md up, stacked below it.
+        className="grid w-full items-stretch gap-5 md:grid-cols-2"
       >
-        {/* ShieldCheck — distinct icon from ShieldX (revoked) and ShieldAlert (invalid) */}
-        <ShieldCheckIcon className="size-12 text-success" />
-        {/* Text label — status is NOT color-only (a11y: icon shape + text convey meaning) */}
-        <p className="text-lg font-semibold text-success" data-testid="verify-status-label">
-          Certificate Verified
-        </p>
-        <StatusChip tone="success" label="Valid" size="sm" data-testid="verify-status-chip" />
-        <p className="text-sm text-fg-muted">
-          This is an authentic stimuliiq certificate.
-        </p>
+        <StatusSeal
+          tone="success"
+          glyph="check"
+          eyebrow="Authenticity confirmed"
+          title="Verified Authentic"
+          chip={<StatusChip tone="success" label="Valid" size="sm" data-testid="verify-status-chip" />}
+          description={`Issued by ${SITE_NAME} and confirmed against our records.`}
+          className="verify-settle-seal relative z-10"
+        />
+        <CertificateDetailsCard
+          result={result}
+          serial={serial}
+          holderLabel="Issued to"
+          className="verify-settle-details"
+        />
       </div>
-
-      {/* Certificate details — only the 5 allowed fields (AC-H7) */}
-      <Card className="w-full max-w-sm">
-        <CardContent className="p-0">
-          <dl aria-label="Certificate details" className="divide-y divide-border">
-            <DetailRow
-              icon={<GraduationCapIcon className="size-4 text-fg-muted" />}
-              label="Program"
-              value={result.program}
-              testId="verify-program"
-            />
-            <DetailRow
-              icon={<UserIcon className="size-4 text-fg-muted" />}
-              label="Issued to"
-              value={result.holderName}
-              testId="verify-holder"
-            />
-            <DetailRow
-              icon={<CalendarIcon className="size-4 text-fg-muted" />}
-              label="Issue date"
-              value={formatDate(result.issuedAt)}
-              testId="verify-issued-at"
-            />
-            {serial ? (
-              <DetailRow
-                icon={<HashIcon className="size-4 text-fg-muted" />}
-                label="Certificate ID"
-                value={serial}
-                testId="verify-serial"
-              />
-            ) : null}
-          </dl>
-        </CardContent>
-      </Card>
-
-      {/* Only a VALID certificate is downloadable — the endpoint 410s a revoked one. */}
-      <CertificateDownloadButton certUid={certId} />
-    </div>
+    </VerifyReveal>
   );
 }
 
 function RevokedPanel({
   result,
   serial,
+  scanId,
 }: {
   result: Extract<VerifyResult, { valid: "revoked" }>;
   serial: string | null;
+  scanId: string;
 }) {
-  return (
-    <div
-      data-testid="verify-panel-revoked"
-      role="region"
-      aria-label="Certificate verification result: Revoked"
-      className="flex flex-col items-center gap-8"
-    >
-      {/* Distinct revoked visual — ShieldX icon (different path from ShieldCheck) + text */}
-      <div
-        className={cn(
-          "flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl",
-          "border border-danger/30 bg-danger/10 px-8 py-6 text-center",
-        )}
-        aria-live="polite"
-        role="status"
-      >
-        {/* ShieldX — distinct shape AND different color from ShieldCheck — not color-only */}
-        <ShieldXIcon className="size-12 text-danger" />
-        <p className="text-lg font-semibold text-danger" data-testid="verify-status-label">
-          Certificate Revoked
-        </p>
-        <StatusChip tone="danger" label="Revoked" size="sm" data-testid="verify-status-chip" />
-        <p className="text-sm text-fg-muted">
-          This certificate has been revoked and is no longer valid.
-        </p>
-      </div>
+  const seal = (
+    <StatusSeal
+      tone="danger"
+      glyph="cross"
+      eyebrow="Authenticity withdrawn"
+      title="Certificate Revoked"
+      chip={<StatusChip tone="danger" label="Revoked" size="sm" data-testid="verify-status-chip" />}
+      description={`${SITE_NAME} has revoked this certificate. It is no longer valid.`}
+    />
+  );
 
-      {/* Show certificate details for context — still useful to confirm which cert */}
-      <Card className="w-full max-w-sm opacity-70">
-        <CardContent className="p-0">
-          <dl aria-label="Certificate details" className="divide-y divide-border">
-            <DetailRow
-              icon={<GraduationCapIcon className="size-4 text-fg-muted" />}
-              label="Program"
-              value={result.program}
-              testId="verify-program"
-            />
-            <DetailRow
-              icon={<UserIcon className="size-4 text-fg-muted" />}
-              label="Originally issued to"
-              value={result.holderName}
-              testId="verify-holder"
-            />
-            <DetailRow
-              icon={<CalendarIcon className="size-4 text-fg-muted" />}
-              label="Issue date"
-              value={formatDate(result.issuedAt)}
-              testId="verify-issued-at"
-            />
-            {serial ? (
-              <DetailRow
-                icon={<HashIcon className="size-4 text-fg-muted" />}
-                label="Certificate ID"
-                value={serial}
-                testId="verify-serial"
-              />
-            ) : null}
-          </dl>
-        </CardContent>
-      </Card>
-    </div>
+  return (
+    <VerifyReveal tone="danger" idText={scanId} seal={seal} layout="split">
+      <div
+        data-testid="verify-panel-revoked"
+        role="region"
+        aria-label="Certificate verification result: Revoked"
+        className="grid w-full items-stretch gap-5 md:grid-cols-2"
+      >
+        <StatusSeal
+          tone="danger"
+          glyph="cross"
+          eyebrow="Authenticity withdrawn"
+          title="Certificate Revoked"
+          chip={<StatusChip tone="danger" label="Revoked" size="sm" data-testid="verify-status-chip" />}
+          description={`${SITE_NAME} has revoked this certificate. It is no longer valid.`}
+          className="verify-settle-seal relative z-10"
+        />
+        {/* Details still shown, muted — useful to confirm which certificate this was */}
+        <CertificateDetailsCard
+          result={result}
+          serial={serial}
+          holderLabel="Originally issued to"
+          muted
+          className="verify-settle-details"
+        />
+      </div>
+    </VerifyReveal>
   );
 }
 
-function InvalidPanel({ certId }: { certId: string }) {
+function InvalidPanel({ certId, scanId }: { certId: string; scanId: string }) {
+  const seal = (
+    <StatusSeal
+      tone="warning"
+      glyph="alert"
+      eyebrow="No matching record"
+      title="Certificate Not Found"
+      chip={<StatusChip tone="warning" label="Not found" size="sm" data-testid="verify-status-chip" />}
+      description={`No ${SITE_NAME} certificate carries this ID. Check the ID and try again.`}
+    />
+  );
+
+  // "solo" — nothing to reveal beside the seal, so the scan cross-fades into it in place
+  // rather than walking left out of centre.
   return (
-    <div
-      data-testid="verify-panel-invalid"
-      role="region"
-      aria-label="Certificate verification result: Not found"
-      className="flex flex-col items-center gap-6"
-    >
-      {/* ShieldAlert — distinct shape (exclamation mark) and tone (warning) — not color-only */}
+    <VerifyReveal tone="warning" idText={scanId} seal={seal} layout="solo">
       <div
-        className={cn(
-          "flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl",
-          "border border-warning/30 bg-warning/10 px-8 py-6 text-center",
-        )}
-        aria-live="polite"
-        role="status"
+        data-testid="verify-panel-invalid"
+        role="region"
+        aria-label="Certificate verification result: Not found"
+        className="flex flex-col items-center gap-6"
       >
-        <ShieldAlertIcon className="size-12 text-warning" />
-        <p className="text-lg font-semibold text-warning" data-testid="verify-status-label">
-          Certificate Not Found
-        </p>
-        <StatusChip tone="warning" label="Not found" size="sm" data-testid="verify-status-chip" />
-        <p className="text-sm text-fg-muted">
-          This certificate could not be verified. The ID may be incorrect or the
-          certificate may not exist.
+        <div className="verify-settle-seal relative z-10 w-full max-w-sm">{seal}</div>
+
+        {/* Show the attempted ID for the visitor to double-check — no internal details (AC-H3) */}
+        <p className="text-center text-xs text-fg-subtle" data-testid="verify-attempted-id">
+          <span className="sr-only">Attempted certificate ID: </span>
+          <span className="font-mono">{certId}</span>
         </p>
       </div>
-
-      {/* Show the attempted ID for user to double-check — no internal details (AC-H3) */}
-      <p className="text-center text-xs text-fg-subtle" data-testid="verify-attempted-id">
-        <span className="sr-only">Attempted certificate ID: </span>
-        <span className="font-mono">{certId}</span>
-      </p>
-    </div>
+    </VerifyReveal>
   );
 }
 
@@ -432,11 +555,20 @@ export function VerifyPanel({
   const normalized = normalizeCertificateSerial(certId);
   const serial = isCertificateSerial(normalized) ? normalized : null;
 
+  // What the reveal's scanner reads off the foot of the card. A typed serial is short and
+  // is shown whole; a signed cert_uid from a QR/link is arbitrarily long, so it is clipped
+  // to a strip's worth rather than being allowed to run out of the card.
+  const scanId = serial ?? (certId.length > 24 ? `${certId.slice(0, 24)}…` : certId);
+
   return (
     <div data-testid={testId} className="w-full">
-      {state.kind === "valid" && <ValidPanel result={state.result} certId={certId} serial={serial} />}
-      {state.kind === "revoked" && <RevokedPanel result={state.result} serial={serial} />}
-      {state.kind === "invalid" && <InvalidPanel certId={certId} />}
+      {state.kind === "valid" && (
+        <ValidPanel result={state.result} serial={serial} scanId={scanId} />
+      )}
+      {state.kind === "revoked" && (
+        <RevokedPanel result={state.result} serial={serial} scanId={scanId} />
+      )}
+      {state.kind === "invalid" && <InvalidPanel certId={certId} scanId={scanId} />}
     </div>
   );
 }

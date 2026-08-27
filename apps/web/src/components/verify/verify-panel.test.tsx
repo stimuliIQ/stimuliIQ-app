@@ -59,9 +59,18 @@ describe("VerifyPanel, valid state", () => {
     expect(screen.getByTestId("verify-panel-valid")).toBeInTheDocument();
   });
 
-  it("shows 'Certificate Verified' status label (text, not color-only, a11y)", () => {
+  it("shows the 'Verified Authentic' status label (text, not color-only, a11y)", () => {
     render(<VerifyPanel state={VALID_STATE} certId={CERT_ID} />);
-    expect(screen.getByTestId("verify-status-label")).toHaveTextContent("Certificate Verified");
+    expect(screen.getByTestId("verify-status-label")).toHaveTextContent("Verified Authentic");
+  });
+
+  it("names the issuer in its own words rather than leaving the visitor to infer it", () => {
+    render(<VerifyPanel state={VALID_STATE} certId={CERT_ID} />);
+    expect(screen.getByTestId("verify-panel-valid")).toHaveTextContent(
+      "Issued by Stimuli IQ and confirmed against our records.",
+    );
+    // Brand spelling: the display name is two words, never the lower-case slug.
+    expect(screen.getByTestId("verify-panel-valid").textContent).not.toMatch(/stimuliiq/i);
   });
 
   it("renders the program name", () => {
@@ -99,6 +108,22 @@ describe("VerifyPanel, valid state", () => {
     expect(screen.queryByTestId("verify-panel-invalid")).not.toBeInTheDocument();
   });
 
+  it("offers no download action: the public page verifies a certificate, it does not hand it out", () => {
+    render(<VerifyPanel state={VALID_STATE} certId={CERT_ID} />);
+    expect(screen.queryByTestId("verify-download-button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /download/i })).not.toBeInTheDocument();
+  });
+
+  it("renders the status seal and the details card as siblings so they can sit side by side", () => {
+    render(<VerifyPanel state={VALID_STATE} certId="STMQ-2026-7F3K-9QX2" />);
+    const panel = screen.getByTestId("verify-panel-valid");
+    // The seal (role=status) and the details list are direct children of the same grid.
+    expect(panel.querySelector('[role="status"]')).not.toBeNull();
+    expect(screen.getByTestId("verify-program").closest('[data-testid="verify-panel-valid"]')).toBe(panel);
+    expect(panel.className).toMatch(/grid/);
+    expect(panel.className).toMatch(/md:grid-cols-2/);
+  });
+
   it("does NOT contain enrollmentId, studentId, email, or phone (AC-H7 compile + runtime)", () => {
     const { container } = render(<VerifyPanel state={VALID_STATE} certId={CERT_ID} />);
     const html = container.innerHTML;
@@ -131,7 +156,7 @@ describe("VerifyPanel, revoked state", () => {
     expect(screen.getByTestId("verify-panel-revoked")).toBeInTheDocument();
   });
 
-  it("shows 'Certificate Revoked' status label (text, not color-only, a11y)", () => {
+  it("shows the 'Certificate Revoked' status label (text, not color-only, a11y)", () => {
     render(<VerifyPanel state={REVOKED_STATE} certId={CERT_ID} />);
     expect(screen.getByTestId("verify-status-label")).toHaveTextContent("Certificate Revoked");
   });
@@ -182,7 +207,7 @@ describe("VerifyPanel, invalid state", () => {
     expect(screen.getByTestId("verify-panel-invalid")).toBeInTheDocument();
   });
 
-  it("shows 'Certificate Not Found' status label", () => {
+  it("shows the 'Certificate Not Found' status label", () => {
     render(<VerifyPanel state={INVALID_STATE} certId={CERT_ID} />);
     expect(screen.getByTestId("verify-status-label")).toHaveTextContent("Certificate Not Found");
   });

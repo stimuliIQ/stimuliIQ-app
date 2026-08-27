@@ -42,6 +42,7 @@ export interface PublicProgramListRow {
   ogImageKey: string | null; // raw key — converted to CDN URL in the service
   scholarshipAvailable: boolean;
   enrollmentEnabled: boolean;
+  enrollmentPaymentUrl: string | null;
   // badgeEnabled is selected but NEVER returned — the service uses it to decide whether to
   // surface badgeColor/badgeLabel at all (see PublicCatalogService.toSummary).
   badgeColor: string | null;
@@ -135,6 +136,9 @@ const PUBLIC_PROGRAM_LIST_SELECT = {
   // Unlike `isPublic` it reveals nothing about unpublished inventory — every row reaching
   // this select already passed the isPublic + status=published gate.
   enrollmentEnabled: true,
+  // The Razorpay link is the destination of a public button; the service nulls it out
+  // whenever enrollment is closed (see PublicCatalogService), same shape as the badge.
+  enrollmentPaymentUrl: true,
   // FORBIDDEN (never selected): status, isPublic, tenantId, deletedAt, updatedAt, createdAt,
   // seoTitle, seoDescription, cost, margin, notes, summary, seo, outcomes
 } satisfies Prisma.ProgramSelect;

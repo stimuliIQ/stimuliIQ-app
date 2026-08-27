@@ -167,6 +167,21 @@ const ALLOWED_KEY_PREFIXES = [
   // amount, a bank/UPI reference and often a name — it is delivered ONLY through a
   // short-lived signed URL minted for a permissioned CRM user, exactly like careers/.
   "onboarding/",
+  // Source video uploaded through the CRM video-library ingest drawer. Key shape:
+  // video/source/{assetId} — built by hand in noop-video.provider.ts, NOT via buildKey(),
+  // because mintSignedHlsUrl() is handed only the asset id and must re-derive the exact
+  // same key at playback time. That is also why there is no {tenantId} segment: the asset
+  // id is random and server-minted, the key never reaches a client, and the enrollment /
+  // preview gate runs in LmsService BEFORE any URL is signed.
+  //
+  // Its absence here is what made video upload work locally and fail in production:
+  // local-storage.provider.ts never calls validateStorageKey, the S3/R2 adapter does, so
+  // every ingest against R2 threw "does not start with a known namespace prefix" and
+  // surfaced in the CRM as "Internal server error / Couldn't start the upload".
+  //
+  // Deliberately absent from PUBLIC_ASSET_PREFIXES below: course video is paid content and
+  // is delivered ONLY through a short-lived signed URL, like careers/ and onboarding/.
+  "video/source/",
 ] as const;
 
 /**

@@ -266,6 +266,24 @@ describe("validateStorageKey", () => {
     expect(isPublicAssetKey("onboarding/t1/uuid-receipt.png")).toBe(false);
     expect(isPublicAssetKey("certificates/t1/cert123.pdf")).toBe(false);
     expect(isPublicAssetKey("resources/t1/l1/abc.pdf")).toBe(false);
+    // Course video is paid content, signed-URL only. A public bucket here would put every
+    // lesson recording behind a guessable-namespace CDN URL with no enrollment check.
+    expect(isPublicAssetKey("video/source/noop-asset-1700000000000-ab12cd")).toBe(false);
+  });
+
+  // REGRESSION (production-only bug): the CRM video-ingest drawer 500'd on every upload in
+  // production while working locally. NoopVideoProvider.createUploadTarget() mints
+  // `video/source/{assetId}` against the storage seam; local-storage.provider.ts never calls
+  // validateStorageKey, but the S3/R2 adapter does, and `video/source/` was missing from
+  // ALLOWED_KEY_PREFIXES — so POST /crm/videos threw "does not start with a known namespace
+  // prefix" and surfaced as "Internal server error / Couldn't start the upload". The same
+  // key is re-derived at playback time by mintSignedHlsUrl(), so download was broken too.
+  //
+  // This key is built by hand, NOT via buildStorageKey(), so the namespace-lockstep test
+  // above cannot cover it — it needs its own assertion.
+  it("SECURITY REGRESSION: the key NoopVideoProvider mints passes validateStorageKey()", () => {
+    const assetId = "noop-asset-1700000000000-ab12cd";
+    expect(() => validateStorageKey(`video/source/${assetId}`)).not.toThrow();
   });
 
   it("rejects keys without an allowed prefix", () => {

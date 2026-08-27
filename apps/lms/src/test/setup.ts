@@ -17,9 +17,10 @@ afterEach(() => {
   cleanup();
 });
 
-// jsdom has no matchMedia. `useFlyoutNav` probes `(hover: hover) and (pointer: fine)` on
-// mount; answering `false` makes the default test render a TOUCH device, which is the harder
-// case — hover-open is unavailable there, so the click path is what gets exercised.
+// jsdom has no matchMedia. Components that adapt to pointer capability probe
+// `(hover: hover) and (pointer: fine)`; answering `false` makes the default test render a
+// TOUCH device, which is the harder case — hover affordances are unavailable there, so the
+// tap path is what gets exercised.
 if (typeof window !== "undefined" && typeof window.matchMedia === "undefined") {
   Object.defineProperty(window, "matchMedia", {
     writable: true,

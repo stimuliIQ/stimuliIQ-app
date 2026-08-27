@@ -965,6 +965,12 @@ model Program {
   // them on deploy. This is the opposite choice to `isPublic`, which fails CLOSED because
   // there the risk runs the other way (accidental publication).
   enrollmentEnabled    Boolean @default(true) @map("enrollment_enabled")
+  // enrollmentPaymentUrl: external (Razorpay) payment-page link. When set AND
+  // enrollmentEnabled is true, every public "Enroll Now" CTA opens this link instead of the
+  // in-app /enroll/:slug checkout. NULL = use the in-app checkout (the default, so nothing
+  // changes for existing programs). The public projection nulls it whenever enrollment is
+  // closed, so the single enrollmentEnabled toggle still governs whether anything is sold.
+  enrollmentPaymentUrl String? @map("enrollment_payment_url")
 
   // order: staff-curated display order (ascending) used by every public program listing
   // (nav mega-menu, homepage grid, /programs default, related-programs) AND the CRM's own

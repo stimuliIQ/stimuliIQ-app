@@ -52,6 +52,7 @@ export interface ProgramRow {
   brochureKey: string | null;
   scholarshipAvailable: boolean;
   enrollmentEnabled: boolean;
+  enrollmentPaymentUrl: string | null;
   order: number;
   badgeColor: string | null;
   badgeLabel: string | null;
@@ -75,6 +76,8 @@ export interface LessonRow {
   type: string;
   order: number;
   isPreview: boolean;
+  /** Rich body (HTML) for reading/quiz/assignment lessons; null for video. */
+  content: string | null;
 }
 
 @Injectable()
@@ -150,6 +153,7 @@ export class CoursesRepository {
       brochureKey?: string;
       scholarshipAvailable?: boolean;
       enrollmentEnabled?: boolean;
+      enrollmentPaymentUrl?: string | null;
       // Computed by the service (max(order)+1), never accepted from the client.
       order: number;
       badgeColor?: string | null;
@@ -181,6 +185,7 @@ export class CoursesRepository {
         scholarshipAvailable: data.scholarshipAvailable ?? false,
         // Defaults TRUE — a new program is sellable unless enrollment is explicitly closed.
         enrollmentEnabled: data.enrollmentEnabled ?? true,
+        enrollmentPaymentUrl: data.enrollmentPaymentUrl ?? null,
         order: data.order,
         badgeColor: data.badgeColor ?? null,
         badgeLabel: data.badgeLabel ?? null,
@@ -211,6 +216,8 @@ export class CoursesRepository {
       brochureKey: string | null;
       scholarshipAvailable: boolean;
       enrollmentEnabled: boolean;
+      // null clears the payment link (back to the in-app checkout)
+      enrollmentPaymentUrl: string | null;
       // null clears the badge colour (UpdateProgramRequest's badgeColor: hex | null)
       badgeColor: string | null;
       badgeLabel: string | null;
@@ -296,6 +303,7 @@ export class CoursesRepository {
           type: lesson.type,
           order: lesson.order,
           isPreview: lesson.isPreview,
+          content: lesson.content,
         })),
       })),
     };
@@ -351,6 +359,7 @@ export class CoursesRepository {
           type: lesson.type,
           order: lesson.order,
           isPreview: lesson.isPreview,
+          content: lesson.content,
         }
       : null;
   }
@@ -415,6 +424,28 @@ export class CoursesRepository {
   }
 
   /** Soft delete (CLAUDE.md §3.4) — the stored object is left in place. */
+  /**
+   * Soft-deletes one lesson. Its video / resources / progress rows are left in place: every
+   * reader already filters on the lesson's own deleted_at through the module→lesson joins,
+   * and keeping them means a mistaken delete is repairable from the database.
+   */
+  async softDeleteLesson(lessonId: string): Promise<void> {
+    await this.prisma.client.lesson.update({ where: { id: lessonId }, data: { deletedAt: new Date() } });
+  }
+
+  /**
+   * Soft-deletes a module AND every live lesson in it, atomically — a module with no
+   * lessons is what the tree shows, so deleting only the parent would strand lessons that
+   * still count in every student's progress denominator.
+   */
+  async softDeleteModule(moduleId: string): Promise<void> {
+    const now = new Date();
+    await this.prisma.client.$transaction([
+      this.prisma.client.lesson.updateMany({ where: { moduleId, deletedAt: null }, data: { deletedAt: now } }),
+      this.prisma.client.module.update({ where: { id: moduleId }, data: { deletedAt: now } }),
+    ]);
+  }
+
   async softDeleteResource(resourceId: string): Promise<void> {
     await this.prisma.client.resource.update({
       where: { id: resourceId },
@@ -443,6 +474,7 @@ export class CoursesRepository {
       type: lesson.type,
       order: lesson.order,
       isPreview: lesson.isPreview,
+      content: lesson.content,
     };
   }
 
@@ -465,6 +497,7 @@ export class CoursesRepository {
       type: lesson.type,
       order: lesson.order,
       isPreview: lesson.isPreview,
+      content: lesson.content,
     };
   }
 

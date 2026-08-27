@@ -28,6 +28,7 @@ function makeProgram(overrides: Partial<PublicProgramSummary> = {}): PublicProgr
     ogImageUrl: null,
     scholarshipAvailable: false,
     enrollmentEnabled: true,
+    enrollmentPaymentUrl: null,
     badgeColor: null,
     badgeLabel: null,
     ...overrides,

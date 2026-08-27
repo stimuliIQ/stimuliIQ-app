@@ -10,6 +10,7 @@ import { BadRequestException, ForbiddenException, NotFoundException } from "@nes
 import { CoursesService } from "./courses.service";
 import { CoursesRepository, type ProgramRow } from "./courses.repository";
 import { scopeContextStorage, type ScopeContext } from "../auth/lib/scope-context";
+import { LmsProgressService } from "../lms/lms-progress.service";
 
 type Mocked<T> = { [K in keyof T]: T[K] extends (...args: never[]) => unknown ? jest.Mock : T[K] };
 
@@ -33,6 +34,8 @@ function mockRepository(): Mocked<CoursesRepository> {
     findLessonInModule: jest.fn(),
     createLesson: jest.fn(),
     updateLesson: jest.fn(),
+    softDeleteModule: jest.fn(),
+    softDeleteLesson: jest.fn(),
     reorderLessons: jest.fn(),
   } as unknown as Mocked<CoursesRepository>;
 }
@@ -58,6 +61,7 @@ const ROW: ProgramRow = {
   brochureKey: null,
   scholarshipAvailable: false,
   enrollmentEnabled: true,
+  enrollmentPaymentUrl: null,
   order: 0,
   badgeColor: null,
   badgeLabel: null,
@@ -79,6 +83,12 @@ function mockStorage() {
   };
 }
 
+function mockProgress(): LmsProgressService {
+  return {
+    resyncProgramProgress: jest.fn().mockResolvedValue({ scanned: 0, updated: 0, reopened: 0 }),
+  } as unknown as LmsProgressService;
+}
+
 function runWithScope<T>(scope: ScopeContext["scope"], fn: () => T): T {
   const ctx: ScopeContext = { permissionKey: "courses.view", scope, actorId: "actor-1", tenantId: "tenant-1" };
   return scopeContextStorage.run(ctx, fn);
@@ -87,6 +97,7 @@ function runWithScope<T>(scope: ScopeContext["scope"], fn: () => T): T {
 describe("CoursesService", () => {
   let service: CoursesService;
   let repo: Mocked<CoursesRepository>;
+  let progress: LmsProgressService;
 
   beforeEach(() => {
     repo = mockRepository();
@@ -94,6 +105,9 @@ describe("CoursesService", () => {
       repo as unknown as CoursesRepository,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- minimal stub, only getSignedUploadUrl used
       mockStorage() as any,
+      // Curriculum edits resync enrolled students' progress; these tests assert routing and
+      // scope, not the sweep, so it is a no-op that records nothing.
+      (progress = mockProgress()),
     );
   });
 
@@ -158,6 +172,7 @@ describe("CoursesService", () => {
         repo as unknown as CoursesRepository,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- minimal stub, only getSignedUploadUrl used
         storage as any,
+        mockProgress(),
       );
       return { svc, storage };
     }
@@ -236,6 +251,7 @@ describe("CoursesService", () => {
             status: "draft",
             scholarshipAvailable: false,
             enrollmentEnabled: true,
+            enrollmentPaymentUrl: null,
             badgeEnabled: false,
           }),
         ),
@@ -273,6 +289,105 @@ describe("CoursesService", () => {
         runWithScope("all", () => service.setVisibility("tenant-1", "missing", true)),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(repo.setVisibility).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("curriculum delete + lesson detail", () => {
+    const MODULE = { id: "module-1", programId: ROW.id, title: "Week 1", order: 0 };
+    const LESSON = {
+      id: "lesson-1",
+      moduleId: MODULE.id,
+      title: "Semantic HTML",
+      type: "reading",
+      order: 0,
+      isPreview: false,
+      content: "<p>Hello</p>",
+    };
+
+    it("getLesson returns the body the tree deliberately omits", async () => {
+      repo.findLessonInModule.mockResolvedValue(LESSON);
+
+      const detail = await runWithScope("all", () => service.getLesson("tenant-1", ROW.id, MODULE.id, LESSON.id));
+
+      expect(detail.content).toBe("<p>Hello</p>");
+      expect(detail.type).toBe("reading");
+    });
+
+    it("deleteLesson soft-deletes and resyncs enrolled progress", async () => {
+      repo.findLessonInModule.mockResolvedValue(LESSON);
+      repo.softDeleteLesson.mockResolvedValue(undefined);
+
+      await runWithScope("all", () => service.deleteLesson("tenant-1", ROW.id, MODULE.id, LESSON.id));
+
+      expect(repo.softDeleteLesson).toHaveBeenCalledWith(LESSON.id);
+      expect(progress.resyncProgramProgress).toHaveBeenCalledWith(ROW.id);
+    });
+
+    // IDOR: the tenant/program/module join is the authorisation; a miss is a 404, not a delete.
+    it("deleteLesson 404s (and deletes nothing) when the lesson is not in this module", async () => {
+      repo.findLessonInModule.mockResolvedValue(null);
+
+      await expect(
+        runWithScope("all", () => service.deleteLesson("tenant-1", ROW.id, MODULE.id, "other-lesson")),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(repo.softDeleteLesson).not.toHaveBeenCalled();
+    });
+
+    it("deleteModule soft-deletes the module (with its lessons) and resyncs progress", async () => {
+      repo.findModuleInProgram.mockResolvedValue(MODULE);
+      repo.softDeleteModule.mockResolvedValue(undefined);
+
+      await runWithScope("all", () => service.deleteModule("tenant-1", ROW.id, MODULE.id));
+
+      expect(repo.softDeleteModule).toHaveBeenCalledWith(MODULE.id);
+      expect(progress.resyncProgramProgress).toHaveBeenCalledWith(ROW.id);
+    });
+
+    it("deleteModule 404s when the module is not in this program", async () => {
+      repo.findModuleInProgram.mockResolvedValue(null);
+
+      await expect(
+        runWithScope("all", () => service.deleteModule("tenant-1", ROW.id, "other-module")),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(repo.softDeleteModule).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("enrollmentPaymentUrl", () => {
+    const LINK = "https://rzp.io/l/neurology-workshop";
+
+    it("surfaces the stored link on the detail DTO", async () => {
+      repo.findById.mockResolvedValue({ ...ROW, enrollmentPaymentUrl: LINK });
+
+      const detail = await runWithScope("all", () => service.getById("tenant-1", ROW.id));
+
+      expect(detail.enrollmentPaymentUrl).toBe(LINK);
+    });
+
+    it("stores the link through the normal partial update", async () => {
+      repo.findById.mockResolvedValue(ROW);
+      repo.update.mockResolvedValue({ ...ROW, enrollmentPaymentUrl: LINK });
+
+      const detail = await runWithScope("all", () =>
+        service.update("tenant-1", ROW.id, { enrollmentPaymentUrl: LINK }),
+      );
+
+      expect(repo.update).toHaveBeenCalledWith(ROW.id, { enrollmentPaymentUrl: LINK });
+      expect(detail.enrollmentPaymentUrl).toBe(LINK);
+    });
+
+    // null is the "back to the in-app checkout" instruction, so it has to reach the
+    // repository as null rather than being dropped as a missing field.
+    it("clears the link when null is sent", async () => {
+      repo.findById.mockResolvedValue({ ...ROW, enrollmentPaymentUrl: LINK });
+      repo.update.mockResolvedValue({ ...ROW, enrollmentPaymentUrl: null });
+
+      const detail = await runWithScope("all", () =>
+        service.update("tenant-1", ROW.id, { enrollmentPaymentUrl: null }),
+      );
+
+      expect(repo.update).toHaveBeenCalledWith(ROW.id, { enrollmentPaymentUrl: null });
+      expect(detail.enrollmentPaymentUrl).toBeNull();
     });
   });
 
@@ -314,6 +429,7 @@ describe("CoursesService", () => {
           status: "draft",
           scholarshipAvailable: false,
           enrollmentEnabled: true,
+          enrollmentPaymentUrl: null,
           badgeEnabled: false,
         }),
       );
@@ -342,6 +458,7 @@ describe("CoursesService", () => {
       status: "draft" as const,
       scholarshipAvailable: false,
       enrollmentEnabled: true,
+      enrollmentPaymentUrl: null,
       badgeEnabled: false,
     };
 
@@ -433,6 +550,7 @@ describe("CoursesService", () => {
       status: "draft" as const,
       scholarshipAvailable: false,
       enrollmentEnabled: true,
+      enrollmentPaymentUrl: null,
       badgeEnabled: false,
     };
 

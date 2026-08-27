@@ -53,6 +53,11 @@ export {
 } from "./components/password-requirements";
 
 export { Tooltip, type TooltipProps, type TooltipSide } from "./components/tooltip";
+
+// Help text behind an info icon. Distinct from Tooltip: that is a hover-only visual
+// label for an icon-only control, this is a click-to-open, screen-reader-readable
+// explanation that wraps (see the component header for why they are not one thing).
+export { InfoHint, type InfoHintProps, type InfoHintAlign } from "./components/info-hint";
 export { ActionMenu, type ActionMenuProps, type ActionMenuItem } from "./components/action-menu";
 
 export { Alert, Callout, type AlertProps } from "./components/alert";

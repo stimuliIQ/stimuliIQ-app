@@ -165,6 +165,32 @@ export function useUpdateLesson(programId: string) {
   });
 }
 
+/** One lesson with its body, for the lesson editor. Off the tree on purpose (see LessonDetailSchema). */
+export function useLesson(programId: string, moduleId: string | null, lessonId: string | null) {
+  return useQuery({
+    queryKey: ["crm", "courses", programId, "lessons", lessonId],
+    queryFn: () => apiClient.crm.courses.getLesson(programId, moduleId!, lessonId!),
+    enabled: Boolean(moduleId && lessonId),
+  });
+}
+
+export function useDeleteLesson(programId: string) {
+  const invalidate = useInvalidatePrograms();
+  return useMutation({
+    mutationFn: ({ moduleId, lessonId }: { moduleId: string; lessonId: string }) =>
+      apiClient.crm.courses.deleteLesson(programId, moduleId, lessonId),
+    onSuccess: () => invalidate(programId),
+  });
+}
+
+export function useDeleteModule(programId: string) {
+  const invalidate = useInvalidatePrograms();
+  return useMutation({
+    mutationFn: (moduleId: string) => apiClient.crm.courses.deleteModule(programId, moduleId),
+    onSuccess: () => invalidate(programId),
+  });
+}
+
 export function useReorderLessons(programId: string) {
   const invalidate = useInvalidatePrograms();
   return useMutation({

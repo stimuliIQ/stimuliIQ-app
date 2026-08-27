@@ -292,6 +292,9 @@ export class PublicCatalogService {
       ogImageUrl: mintCdnUrl(row.ogImageKey),
       scholarshipAvailable: row.scholarshipAvailable,
       enrollmentEnabled: row.enrollmentEnabled,
+      // Resolved HERE like the badge: a link set while enrollment is closed never reaches
+      // the wire, so the one enrollmentEnabled toggle stays the only thing that opens sales.
+      enrollmentPaymentUrl: row.enrollmentEnabled ? (row.enrollmentPaymentUrl ?? null) : null,
       // The toggle is resolved HERE, not at render time: when staff switch a badge off, its
       // colour and label leave the response entirely rather than travelling to the client with
       // a "don't draw this" flag. That way a renderer cannot show a hidden badge by accident,

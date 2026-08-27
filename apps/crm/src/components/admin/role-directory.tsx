@@ -165,7 +165,7 @@ export function RoleDirectory({ me }: RoleDirectoryProps): React.JSX.Element {
             position="center"
             size="xl"
             title={`Permissions · ${selectedRole.name}`}
-            description="Module-by-module grant editor. Saves replace this role's entire grant set."
+            description="Choose the screens this role can open, and what it can do on each. Saving replaces this role's entire grant set."
             data-testid="role-permission-matrix-panel"
           >
             <DrawerBody>

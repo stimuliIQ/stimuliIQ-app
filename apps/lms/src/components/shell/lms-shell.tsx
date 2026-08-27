@@ -1,12 +1,13 @@
-// LMS authenticated app shell — top bar + grouped side nav (desktop) + bottom
-// tab bar with an overflow "More" drawer (mobile-first PWA).
+// LMS authenticated app shell — top bar + flat side nav (desktop) + bottom tab bar
+// with an overflow "More" drawer (mobile-first PWA).
 //
 // Per docs/02 §13 ("Persistent left nav desktop / bottom tab bar mobile") and
-// docs/02 §14 (mobile-first PWA). The desktop side nav groups destinations into
-// labelled sections (Coursework / Achievements / Resources) for scannability;
-// the mobile bottom bar shows the three primary destinations plus a "More" drawer
-// that surfaces every remaining destination (closing the earlier IA gap where
-// several destinations had no mobile entry point).
+// docs/02 §14 (mobile-first PWA). The desktop side nav lists EVERY destination as a
+// top-level row, captioned into three areas (Coursework / Achievements / Resources)
+// for scannability — captions, not menus: nothing in this nav opens a submenu. The
+// mobile bottom bar shows the three primary destinations plus a "More" drawer that
+// surfaces every remaining destination (closing the earlier IA gap where several
+// destinations had no mobile entry point).
 //
 // Account actions (profile, support, sign out) live in a top-bar avatar menu so
 // they are reachable from every breakpoint, not buried at the foot of the nav.
@@ -22,13 +23,11 @@ import {
   Award,
   BookOpen,
   CalendarDays,
-  ChevronRight,
   ClipboardList,
   Download,
   FileQuestion,
   FolderGit2,
   Home,
-  Library,
   LifeBuoy,
   LogOut,
   MessageSquare,
@@ -46,10 +45,7 @@ import {
   DrawerContent,
   DrawerTrigger,
   NotificationBell,
-  useFlyoutNav,
-  useFlyoutPosition,
   type NotificationBellItem,
-  type UseFlyoutNavResult,
 } from "@repo/ui";
 
 import {
@@ -67,9 +63,9 @@ import { SignedOutGate } from "./signed-out-gate";
 // ---------------------------------------------------------------------------
 // Nav model
 //
-// A single flat catalogue of destinations, arranged into labelled sections for
-// the desktop side nav. The four PRIMARY hrefs also drive the mobile bottom tab
-// bar; everything else lives behind the mobile "More" drawer.
+// A single flat catalogue of destinations, arranged into captioned groups for the
+// desktop side nav. The three PRIMARY hrefs also drive the mobile bottom tab bar;
+// everything else lives behind the mobile "More" drawer.
 // ---------------------------------------------------------------------------
 
 interface NavItem {
@@ -80,25 +76,18 @@ interface NavItem {
 }
 
 /**
- * A top-level entry in the desktop side nav.
+ * A labelled group of destinations in the desktop side nav.
  *
- * Either a DIRECT LINK (`item`) or a SECTION that opens a flyout (`items`), never both —
- * exactly the shape the CRM sidebar uses, so the two apps read as one product.
- *
- * `Icon` is required on a section because the collapsed rail shows nothing else.
+ * EVERY DESTINATION IS A TOP-LEVEL ROW — the nav has no sub-items. A group's label is a
+ * caption printed above its rows, not a control that opens anything. There are eleven
+ * destinations in total and they fit the column without scrolling, so hiding two thirds of
+ * them behind three flyouts bought nothing and cost a hover (and a guess about which
+ * heading owns Certificates) on every visit.
  */
-interface NavSection {
-  /** Section heading, and the flyout's caption. `null` only for the unlabelled primary group. */
+interface NavGroup {
+  /** Caption above the group. `null` for the first, which needs no heading. */
   label: string | null;
-  Icon?: React.ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
-  /** Children shown in the flyout. Mutually exclusive with `directItems`. */
   items: NavItem[];
-  /**
-   * Rendered as top-level rows rather than behind a flyout. Home and My Courses are the two
-   * places a student goes constantly, and putting them one hover deeper to satisfy a pattern
-   * would cost a click on every visit.
-   */
-  direct?: boolean;
 }
 
 const NAV = {
@@ -120,20 +109,18 @@ const NAV = {
   profile: { href: "/profile", label: "Profile", Icon: User, testId: "nav-profile" },
 } satisfies Record<string, NavItem>;
 
-// Desktop side-nav layout: a primary group (unlabelled) plus three themed
-// sections. `buildSections` drops the conditional Projects item when the student
-// has none.
-function buildSections(hasProjects: boolean): NavSection[] {
+// Desktop side-nav layout: an unlabelled primary pair plus three captioned groups. Drives
+// the mobile "More" drawer too. `buildGroups` drops the conditional Projects row when the
+// student has no project work.
+function buildGroups(hasProjects: boolean): NavGroup[] {
   const coursework = hasProjects
     ? [NAV.assignments, NAV.projects, NAV.assessments]
     : [NAV.assignments, NAV.assessments];
   return [
-    // Direct rows: the two destinations a student opens on nearly every visit. Putting them
-    // behind a flyout to satisfy the pattern would cost a click every single time.
-    { label: null, items: [NAV.home, NAV.courses], direct: true },
-    { label: "Coursework", Icon: ClipboardList, items: coursework },
-    { label: "Achievements", Icon: Award, items: [NAV.progress, NAV.certificates] },
-    { label: "Resources", Icon: Library, items: [NAV.calendar, NAV.downloads, NAV.forum, NAV.support] },
+    { label: null, items: [NAV.home, NAV.courses] },
+    { label: "Coursework", items: coursework },
+    { label: "Achievements", items: [NAV.progress, NAV.certificates] },
+    { label: "Resources", items: [NAV.calendar, NAV.downloads, NAV.forum, NAV.support] },
   ];
 }
 
@@ -413,20 +400,40 @@ function TopBar({ effectiveCollapsed, onToggleSidenav }: TopBarProps): React.JSX
 // Shared nav-link geometry + active treatment
 // ---------------------------------------------------------------------------
 
+// Taken from the CRM sidebar (apps/crm/src/components/layout/sidebar.tsx) so the two
+// apps read as one product: same row height, same gap, same 16px icons, same active
+// treatment. The LMS nav had drifted into its own dialect — taller rows, 20px icons,
+// and an active row that put brand-500 text on a brand-50 fill, which is the
+// green-on-green nothing else in the product does.
+
+/** One focus-visible recipe for every interactive in the nav — ring + offset. */
+const FOCUS_RING =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg";
+
+/** Shared row geometry, so a section button, a link and a drawer row are one object. */
+const ROW =
+  "relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors duration-fast";
+const ROW_IDLE = "text-fg-muted hover:bg-surface hover:text-fg";
 /**
- * Active links get a brand-tinted pill, semibold brand text, and a rounded left
- * accent bar (the strongest hierarchy cue in the nav). The accent bar hides in
- * rail mode where the pill is centred.
+ * A brand-tinted fill plus a left marker. The marker is a real element (see ActiveMarker)
+ * rather than a text decoration, so it survives the collapsed rail — where there is no
+ * label left to decorate.
  */
-function navLinkClass(isActive: boolean, geometry: string): string {
-  return cn(
-    "group relative flex items-center rounded-md py-2.5 text-sm font-medium transition-colors duration-fast",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-    geometry,
-    isActive
-      ? "bg-brand-50 text-brand-500 font-semibold dark:bg-brand-500/10"
-      : "text-fg-muted hover:bg-surface hover:text-fg",
+const ROW_ACTIVE = "bg-brand-50 text-brand-700 dark:bg-surface dark:text-fg";
+
+/** The brand bar on the active row — visible in the rail, where labels are not. */
+function ActiveMarker(): React.JSX.Element {
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute inset-y-1.5 -left-2.5 w-[3px] rounded-r-full bg-brand-500"
+    />
   );
+}
+
+/** `geometry` carries the rail overrides only; ROW already states the expanded padding. */
+function navLinkClass(isActive: boolean, geometry?: string): string {
+  return cn(ROW, isActive ? ROW_ACTIVE : ROW_IDLE, geometry, FOCUS_RING);
 }
 
 // ---------------------------------------------------------------------------
@@ -451,13 +458,7 @@ interface SideNavProps {
  */
 export function SideNav({ pathname, preference, effectiveCollapsed }: SideNavProps): React.JSX.Element {
   const { hasProjects, pendingCount: pendingProjects } = useMyProjects();
-  const sections = React.useMemo(() => buildSections(hasProjects), [hasProjects]);
-
-  // The interaction is shared with the CRM sidebar (@repo/ui useFlyoutNav): hover intent on
-  // a mouse, click on touch, escape and outside-pointer to dismiss. Passing `pathname` as
-  // `closeOn` means navigating closes the panel, so a student never lands on a page with the
-  // menu they used still hanging over it.
-  const flyout = useFlyoutNav({ closeOn: pathname });
+  const groups = React.useMemo(() => buildGroups(hasProjects), [hasProjects]);
 
   // Each variant resolves to a literal class string so Tailwind's scanner keeps
   // it. `null` (auto) carries both the rail classes and their `lg:` overrides,
@@ -465,23 +466,28 @@ export function SideNav({ pathname, preference, effectiveCollapsed }: SideNavPro
   const railed = preference === true;
   const auto = preference === null;
 
-  const widthClass = railed ? "w-16" : auto ? "w-16 lg:w-60" : "w-60";
-  const navPadClass = railed ? "px-2" : auto ? "px-2 lg:px-3" : "px-3";
+  // 16rem expanded / 4rem rail — the CRM column's exact widths.
+  const widthClass = railed ? "w-16" : auto ? "w-16 lg:w-64" : "w-64";
   const labelClass = railed ? "hidden" : auto ? "hidden truncate lg:inline" : "truncate";
-  const chevronClass = railed ? "hidden" : auto ? "hidden lg:block" : "block";
 
+  // Rail overrides only — ROW already states the expanded padding and gap.
   const rowGeometry = railed
     ? "justify-center px-0"
     : auto
-      ? "justify-center px-0 lg:justify-start lg:gap-3 lg:px-3"
-      : "gap-3 px-3";
+      ? "justify-center px-0 lg:justify-start lg:px-2.5"
+      : undefined;
+
+  // A caption and a hairline are the same statement at two widths: the words where there is
+  // room to print them, a rule where there is not. The CRM column separates its groups the
+  // same way in its rail.
+  const captionClass = railed ? "hidden" : auto ? "hidden lg:block" : "block";
+  const dividerClass = railed ? "block" : auto ? "block lg:hidden" : "hidden";
 
   return (
     <aside
-      ref={flyout.containerRef as React.RefObject<HTMLElement>}
       className={cn(
         "hidden md:flex md:flex-col shrink-0 sticky top-14 self-start h-[calc(100vh-3.5rem)]",
-        "border-r border-border transition-[width] duration-200 motion-reduce:transition-none",
+        "border-r border-border bg-card transition-[width] duration-200 motion-reduce:transition-none",
         widthClass,
       )}
       data-testid="lms-sidenav-container"
@@ -491,18 +497,30 @@ export function SideNav({ pathname, preference, effectiveCollapsed }: SideNavPro
         id="lms-sidenav"
         role="navigation"
         aria-label="Primary"
-        className={cn(
-          "lms-nav-scroll flex flex-1 flex-col gap-1 overflow-y-auto py-4",
-          navPadClass,
-        )}
+        className="lms-nav-scroll flex-1 overflow-y-auto p-2"
         data-testid="lms-sidenav"
       >
-        <ul className="flex flex-col gap-1">
-          {sections.map((section, sectionIndex) => {
-            // The unlabelled primary group renders its items as top-level rows.
-            if (section.direct || !section.label || !section.Icon) {
-              return section.items.map((item) => (
-                <DirectNavRow
+        <ul className="flex flex-col gap-0.5">
+          {groups.map((group) => (
+            <React.Fragment key={group.label ?? "primary"}>
+              {group.label ? (
+                <>
+                  <li
+                    aria-hidden="true"
+                    className={cn("mx-2 mb-1 mt-3 h-px bg-border", dividerClass)}
+                  />
+                  <li
+                    className={cn(
+                      "px-2.5 pb-1 pt-4 text-[0.6875rem] font-semibold uppercase tracking-wider text-fg-subtle",
+                      captionClass,
+                    )}
+                  >
+                    {group.label}
+                  </li>
+                </>
+              ) : null}
+              {group.items.map((item) => (
+                <NavRow
                   key={item.href}
                   item={item}
                   pathname={pathname}
@@ -510,30 +528,23 @@ export function SideNav({ pathname, preference, effectiveCollapsed }: SideNavPro
                   labelClass={labelClass}
                   rowGeometry={rowGeometry}
                 />
-              ));
-            }
-            return (
-              <FlyoutNavSection
-                key={section.label}
-                section={section}
-                pathname={pathname}
-                pendingProjects={pendingProjects}
-                flyout={flyout}
-                labelClass={labelClass}
-                chevronClass={chevronClass}
-                rowGeometry={rowGeometry}
-                className={sectionIndex > 0 ? "mt-2" : undefined}
-              />
-            );
-          })}
+              ))}
+            </React.Fragment>
+          ))}
         </ul>
       </nav>
     </aside>
   );
 }
 
-/** A top-level row that navigates directly (Home, My Courses). */
-function DirectNavRow({
+/**
+ * The only kind of row this nav has.
+ *
+ * THE OUTSTANDING-PROJECT BADGE lives here and nowhere else now. It is the one nav badge
+ * that maps to something blocking — a required final project gates the certificate — and
+ * with Projects back on the surface there is no parent left to bubble it up to.
+ */
+function NavRow({
   item,
   pathname,
   pendingProjects,
@@ -544,7 +555,7 @@ function DirectNavRow({
   pathname: string;
   pendingProjects: number;
   labelClass: string;
-  rowGeometry: string;
+  rowGeometry: string | undefined;
 }): React.JSX.Element {
   const isActive = isItemActive(pathname, item.href);
   const badge = item.href === "/projects" && pendingProjects > 0 ? pendingProjects : null;
@@ -558,132 +569,10 @@ function DirectNavRow({
         title={item.label}
         className={navLinkClass(isActive, rowGeometry)}
       >
+        {isActive ? <ActiveMarker /> : null}
         <NavRowIcon Icon={item.Icon} badge={badge} />
         <span className={labelClass}>{item.label}</span>
       </Link>
-    </li>
-  );
-}
-
-/**
- * A top-level section whose children live in a flyout card.
- *
- * THE BADGE BUBBLES UP. The outstanding-project count is the one nav badge that maps to
- * something blocking (a required final project gates the certificate). Moving Projects into
- * a flyout would have hidden that count behind a hover, so the section row carries the sum
- * of its children's badges and the child keeps its own.
- */
-function FlyoutNavSection({
-  section,
-  pathname,
-  pendingProjects,
-  flyout,
-  labelClass,
-  chevronClass,
-  rowGeometry,
-  className,
-}: {
-  section: NavSection;
-  pathname: string;
-  pendingProjects: number;
-  flyout: UseFlyoutNavResult;
-  labelClass: string;
-  chevronClass: string;
-  rowGeometry: string;
-  className?: string;
-}): React.JSX.Element {
-  const key = section.label ?? "";
-  const Icon = section.Icon!;
-  const rowRef = React.useRef<HTMLLIElement | null>(null);
-  const buttonRef = React.useRef<HTMLButtonElement | null>(null);
-  const panelId = `lms-nav-panel-${key.toLowerCase()}`;
-  const isOpen = flyout.isOpen(key);
-
-  const childActive = section.items.some((item) => isItemActive(pathname, item.href));
-  const sectionBadge = section.items.reduce(
-    (sum, item) => sum + (item.href === "/projects" ? pendingProjects : 0),
-    0,
-  );
-
-  // Where the floating card sits. The shared hook SLIDES THE CARD UP when it would overhang
-  // the bottom rather than squeezing its height, so a section low in the column still shows
-  // its whole submenu instead of growing an internal scrollbar.
-  const panelRef = React.useRef<HTMLDivElement | null>(null);
-  const { top: floatTop, maxHeight: floatMaxHeight } = useFlyoutPosition({
-    enabled: isOpen,
-    rowRef,
-    panelRef,
-  });
-
-  return (
-    <li ref={rowRef} className={cn("relative", className)} {...flyout.hoverProps(key)}>
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => (isOpen ? flyout.close() : flyout.open(key))}
-        onKeyDown={(event) => {
-          if (event.key !== "ArrowRight") return;
-          event.preventDefault();
-          flyout.open(key);
-        }}
-        aria-expanded={isOpen}
-        aria-haspopup="true"
-        aria-controls={isOpen ? panelId : undefined}
-        aria-label={sectionBadge > 0 ? `${section.label}, ${sectionBadge} pending` : undefined}
-        title={section.label ?? undefined}
-        data-testid={`lms-nav-section-${key.toLowerCase()}`}
-        className={navLinkClass(childActive || isOpen, cn(rowGeometry, "w-full"))}
-      >
-        <NavRowIcon Icon={Icon} badge={sectionBadge > 0 ? sectionBadge : null} />
-        <span className={labelClass}>{section.label}</span>
-        <ChevronRight
-          aria-hidden="true"
-          className={cn("ml-auto size-4 shrink-0 text-fg-subtle", chevronClass)}
-        />
-      </button>
-
-      {isOpen ? (
-        <div
-          id={panelId}
-          {...flyout.panelHoverProps}
-          onKeyDown={(event) => {
-            if (event.key !== "ArrowLeft") return;
-            event.preventDefault();
-            flyout.close();
-            buttonRef.current?.focus();
-          }}
-          data-testid={`lms-nav-panel-${key.toLowerCase()}`}
-          // A floating card offset from the column, only as tall as its contents, anchored
-          // to the row that opened it. Same shape as the CRM sidebar's flyout.
-          ref={panelRef}
-          style={{ top: floatTop ?? 0, maxHeight: floatMaxHeight }}
-          className="fixed left-[calc(100%+0.5rem)] z-40 flex w-56 flex-col rounded-lg border border-border bg-card shadow-md"
-        >
-          <h2 className="shrink-0 truncate px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">
-            {section.label}
-          </h2>
-          <ul className="min-h-0 flex-1 overflow-y-auto p-2" aria-label={section.label ?? undefined}>
-            {section.items.map((item) => {
-              const isActive = isItemActive(pathname, item.href);
-              const badge = item.href === "/projects" && pendingProjects > 0 ? pendingProjects : null;
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    data-testid={item.testId}
-                    aria-current={isActive ? "page" : undefined}
-                    aria-label={badge ? `${item.label}, ${badge} pending` : item.label}
-                    className={navLinkClass(isActive, "gap-3 px-3")}
-                  >
-                    <NavRowIcon Icon={item.Icon} badge={badge} />
-                    <span className="truncate">{item.label}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
     </li>
   );
 }
@@ -692,17 +581,19 @@ function FlyoutNavSection({
 function NavRowIcon({
   Icon,
   badge,
+  className,
 }: {
   Icon: NavItem["Icon"];
   badge: number | null;
+  className?: string;
 }): React.JSX.Element {
   return (
     <span className="relative shrink-0">
-      <Icon aria-hidden="true" className="size-5" />
+      <Icon aria-hidden="true" className={cn("size-4", className)} />
       {badge ? (
         <span
           aria-hidden="true"
-          className="absolute -right-1.5 -top-1.5 flex min-w-4 items-center justify-center rounded-full bg-brand-500 px-1 text-[10px] font-semibold leading-4 text-white"
+          className="absolute -right-1.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-brand-500 px-1 text-[9px] font-semibold leading-none text-white"
         >
           {badge}
         </span>
@@ -721,7 +612,7 @@ function MobileMoreMenu({ pathname }: { pathname: string }): React.JSX.Element {
   const logout = useLogout();
   const { hasProjects, pendingCount: pendingProjects } = useMyProjects();
   const [open, setOpen] = React.useState(false);
-  const sections = React.useMemo(() => buildSections(hasProjects), [hasProjects]);
+  const groups = React.useMemo(() => buildGroups(hasProjects), [hasProjects]);
 
   // The "More" tab reads as active whenever the current route isn't owned by one
   // of the four primary tabs (i.e. it lives inside this drawer).
@@ -763,15 +654,15 @@ function MobileMoreMenu({ pathname }: { pathname: string }): React.JSX.Element {
           ) : null}
 
           <nav aria-label="All destinations" className="flex flex-col gap-4">
-            {sections.map((section) => (
-              <div key={section.label ?? "primary"} role="group" aria-label={section.label ?? "Primary"}>
-                {section.label ? (
-                  <p className="px-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">
-                    {section.label}
+            {groups.map((group) => (
+              <div key={group.label ?? "primary"} role="group" aria-label={group.label ?? "Primary"}>
+                {group.label ? (
+                  <p className="px-1 pb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-fg-subtle">
+                    {group.label}
                   </p>
                 ) : null}
                 <div className="flex flex-col gap-0.5">
-                  {section.items.map(({ href, label, Icon, testId }) => {
+                  {group.items.map(({ href, label, Icon, testId }) => {
                     const isActive = isItemActive(pathname, href);
                     const badge = href === "/projects" && pendingProjects > 0 ? pendingProjects : null;
                     return (
@@ -781,7 +672,7 @@ function MobileMoreMenu({ pathname }: { pathname: string }): React.JSX.Element {
                         data-testid={`more-${testId}`}
                         aria-current={isActive ? "page" : undefined}
                         onClick={() => setOpen(false)}
-                        className={navLinkClass(isActive, "gap-3 px-3")}
+                        className={navLinkClass(isActive)}
                       >
                         <Icon aria-hidden="true" className="size-5 shrink-0" />
                         <span className="flex-1 truncate">{label}</span>
@@ -808,10 +699,7 @@ function MobileMoreMenu({ pathname }: { pathname: string }): React.JSX.Element {
               disabled={logout.isPending}
               aria-busy={logout.isPending || undefined}
               data-testid="sidenav-logout"
-              className={cn(
-                navLinkClass(false, "gap-3 px-3"),
-                "w-full disabled:cursor-not-allowed disabled:opacity-60",
-              )}
+              className={cn(navLinkClass(false), "disabled:cursor-not-allowed disabled:opacity-60")}
             >
               <LogOut aria-hidden="true" className="size-5 shrink-0" />
               <span>{logout.isPending ? "Signing out…" : "Sign out"}</span>

@@ -17,11 +17,25 @@
 // verify against a DIFFERENT already-running API process (observed in this environment).
 // Minting the cert against the SAME server this spec then queries removes that
 // dependency entirely and is a MORE faithful "does /verify work end to end" proof.
-import { test, expect, type APIRequestContext } from "@playwright/test";
+import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:4000";
 const ADMIN_EMAIL = process.env.QA_ADMIN_EMAIL ?? "admin@stimuliiq.test";
 const ADMIN_PASSWORD = process.env.QA_ADMIN_PASSWORD;
+
+/**
+ * The result page opens with a scan-then-reveal sequence (components/verify/verify-reveal.tsx)
+ * and only shows the settled layout once it finishes, so every assertion about the RESULT has
+ * to wait it out. The verdict itself is in the DOM the whole time — this waits for the point
+ * at which it is on screen and in its final position.
+ */
+async function waitForRevealSettled(page: Page) {
+  await page
+    .locator('.verify-reveal[data-verify-stage="settled"]')
+    .waitFor({ state: "attached", timeout: 15_000 });
+  // Plus the settle animation itself (seal walk 0.62s, details 0.38s + 0.5s).
+  await page.waitForTimeout(1_000);
+}
 
 interface Provisioned {
   certUid: string;
@@ -103,6 +117,7 @@ async function findExistingValidCertificate(request: APIRequestContext): Promise
 test.describe("Certificate verify — public /verify page (B10)", () => {
   test("an obviously-fabricated certificate ID shows the 'Not found' state, not an error page", async ({ page }) => {
     await page.goto("/verify/this-cert-id-does-not-exist-12345");
+    await waitForRevealSettled(page);
     await expect(page.getByTestId("verify-panel-invalid")).toBeVisible();
     await expect(page.getByTestId("verify-status-label")).toHaveText(/not found/i);
     // No internal details leaked (AC-H3/H4/H5 — matches the API-level guarantee already
@@ -123,6 +138,7 @@ test.describe("Certificate verify — public /verify page (B10)", () => {
     if (!provisioned) return;
 
     await page.goto(`/verify/${provisioned.certUid}`);
+    await waitForRevealSettled(page);
     await expect(page.getByTestId("verify-panel-valid")).toBeVisible();
     await expect(page.getByTestId("verify-status-chip")).toHaveText(/valid/i);
     // Scoped to the <main> content (not `getByText`, which also matches the <title>
@@ -131,29 +147,74 @@ test.describe("Certificate verify — public /verify page (B10)", () => {
     await expect(page.getByTestId("verify-program")).toHaveText(provisioned.programTitle);
   });
 
-  test("the Download button on a valid certificate yields a real PDF", async ({ page, request }) => {
+  test("a valid certificate offers no download button: the page verifies, it does not hand out the PDF", async ({ page, request }) => {
+    const cert = (await provisionCertificate(request)) ?? (await findExistingValidCertificate(request));
+    test.skip(!cert, "Requires QA_ADMIN_PASSWORD + a reachable API with at least one valid certificate.");
+    if (!cert) return;
+
+    await page.goto(`/verify/${cert.certUid}`);
+    await waitForRevealSettled(page);
+    await expect(page.getByTestId("verify-panel-valid")).toBeVisible();
+    await expect(page.getByTestId("verify-download-button")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /download/i })).toHaveCount(0);
+  });
+
+  test("the status seal and the certificate details sit side by side on a desktop viewport", async ({ page, request }) => {
+    const cert = (await provisionCertificate(request)) ?? (await findExistingValidCertificate(request));
+    test.skip(!cert, "Requires QA_ADMIN_PASSWORD + a reachable API with at least one valid certificate.");
+    if (!cert) return;
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`/verify/${cert.certUid}`);
+    await waitForRevealSettled(page);
+
+    const seal = page.getByTestId("verify-status-label");
+    const program = page.getByTestId("verify-program");
+    const sealBox = await seal.boundingBox();
+    const programBox = await program.boundingBox();
+    expect(sealBox).not.toBeNull();
+    expect(programBox).not.toBeNull();
+    // Side by side, not stacked: the details start to the RIGHT of the seal's column.
+    expect(programBox!.x).toBeGreaterThan(sealBox!.x + sealBox!.width);
+  });
+
+  test("the result opens with the scan sequence, which always ends on the settled result", async ({ page, request }) => {
     const cert = (await provisionCertificate(request)) ?? (await findExistingValidCertificate(request));
     test.skip(!cert, "Requires QA_ADMIN_PASSWORD + a reachable API with at least one valid certificate.");
     if (!cert) return;
 
     await page.goto(`/verify/${cert.certUid}`);
 
-    const button = page.getByTestId("verify-download-button");
-    await expect(button).toBeVisible();
+    // The scan runs first, and it must not be showing the verdict while it does.
+    const overlay = page.locator(".verify-reveal__overlay");
+    await expect(overlay).toBeAttached();
+    await expect(overlay).toHaveAttribute("aria-hidden", "true");
 
-    const [download] = await Promise.all([page.waitForEvent("download"), button.click()]);
+    // ...and it always terminates: the overlay is dropped, not left sitting on top.
+    await waitForRevealSettled(page);
+    await expect(overlay).toHaveCount(0);
+    await expect(page.getByTestId("verify-status-label")).toBeVisible();
+  });
 
-    // Named after the programme, and the bytes are a genuine PDF (magic number) — not an
-    // HTML error page or an empty file, which is what a broken storage key would yield.
-    expect(download.suggestedFilename()).toMatch(/^Certificate-.*\.pdf$/);
-    const stream = await download.createReadStream();
-    const chunks: Buffer[] = [];
-    for await (const chunk of stream) chunks.push(chunk as Buffer);
-    const bytes = Buffer.concat(chunks);
-    expect(bytes.byteLength).toBeGreaterThan(1000);
-    expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
+  test("prefers-reduced-motion gets the verdict immediately, with no scan to sit through", async ({ page, request }) => {
+    const cert = (await provisionCertificate(request)) ?? (await findExistingValidCertificate(request));
+    test.skip(!cert, "Requires QA_ADMIN_PASSWORD + a reachable API with at least one valid certificate.");
+    if (!cert) return;
 
-    await expect(page.getByTestId("verify-download-error")).toHaveCount(0);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(`/verify/${cert.certUid}`);
+
+    // No wait: the result is on screen straight away and the overlay never shows.
+    await expect(page.getByTestId("verify-program")).toHaveText(cert.programTitle);
+    const resultOpacity = await page
+      .locator(".verify-reveal__result")
+      .evaluate((node) => getComputedStyle(node).opacity);
+    expect(Number(resultOpacity)).toBe(1);
+    const overlay = page.locator(".verify-reveal__overlay");
+    if (await overlay.count()) {
+      // Dropped by CSS before the effect that unmounts it has even run.
+      await expect(overlay).toBeHidden();
+    }
   });
 
   test("a REVOKED certificate offers no download (the endpoint refuses it: 410 Gone)", async ({ request }) => {

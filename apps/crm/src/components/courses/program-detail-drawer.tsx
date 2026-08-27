@@ -3,8 +3,8 @@
 // `courses.edit`/`courses.create` (Faculty = "author" per the §9 matrix —
 // the API enforces who can actually mutate; this only hides affordances).
 import * as React from "react";
-import { Button, ConfirmDialog, Drawer, DrawerContent, DrawerBody, DrawerFooter, EmptyState, Skeleton, Switch, useToast } from "@repo/ui";
-import type { MeResponse } from "@repo/types";
+import { Button, ConfirmDialog, Drawer, DrawerContent, DrawerBody, DrawerFooter, EmptyState, Input, Label, Skeleton, Switch, useToast } from "@repo/ui";
+import { EnrollmentPaymentUrlSchema, type MeResponse } from "@repo/types";
 
 import { useProgram, usePublishProgram, useUnpublishProgram, useSetProgramVisibility, useUpdateProgram } from "../../hooks/use-courses";
 import { getModulePermissions, hasPermission } from "../../lib/permissions";
@@ -68,6 +68,48 @@ export function ProgramDetailDrawer({ programId, onOpenChange, me }: ProgramDeta
       toast({ title: next ? "Now visible on the website" : "Hidden from the website", variant: "success" });
     } catch (error) {
       toast({ title: "Couldn't update visibility", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    }
+  };
+
+  // Razorpay payment link — a text field with an explicit Save (not save-on-blur): a
+  // half-typed URL must never go live on the website. Seeded from the loaded program and
+  // re-seeded whenever a different program is opened or a save lands.
+  const savedPaymentUrl = program?.enrollmentPaymentUrl ?? "";
+  const [paymentUrl, setPaymentUrl] = React.useState(savedPaymentUrl);
+  const [paymentUrlError, setPaymentUrlError] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    setPaymentUrl(savedPaymentUrl);
+    setPaymentUrlError(null);
+  }, [program?.id, savedPaymentUrl]);
+  const paymentUrlDirty = paymentUrl.trim() !== savedPaymentUrl;
+
+  const handleSavePaymentUrl = async () => {
+    if (!program) return;
+    const trimmed = paymentUrl.trim();
+    let next: string | null = null;
+    if (trimmed) {
+      // Same schema the API validates against — the form cannot accept what the server rejects.
+      const parsed = EnrollmentPaymentUrlSchema.safeParse(trimmed);
+      if (!parsed.success) {
+        setPaymentUrlError(parsed.error.issues[0]?.message ?? "Enter a valid https:// link");
+        return;
+      }
+      next = parsed.data;
+    }
+    setPaymentUrlError(null);
+    try {
+      await updateProgram.mutateAsync({ id: program.id, body: { enrollmentPaymentUrl: next } });
+      toast({
+        title: next ? "Payment link saved" : "Payment link removed",
+        description: next
+          ? program.enrollmentEnabled
+            ? "Enroll Now on the website now opens this link."
+            : "It will be used once you switch enrollment on."
+          : "Enroll Now on the website uses the built-in checkout again.",
+        variant: "success",
+      });
+    } catch (error) {
+      toast({ title: "Couldn't save payment link", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     }
   };
 
@@ -197,6 +239,61 @@ export function ProgramDetailDrawer({ programId, onOpenChange, me }: ProgramDeta
                       Online checkout is closed. Staff can still enrol students manually from the CRM.
                     </p>
                   ) : null}
+
+                  {/* Razorpay payment link (enrollmentPaymentUrl). Rides on the toggle above:
+                      shown on the website only while enrollment is open, otherwise the in-app
+                      checkout is used. Explicit Save so nothing half-typed goes live. */}
+                  <div className="mt-4 border-t border-border pt-4" data-testid="program-payment-link">
+                    <Label htmlFor="program-payment-url">Razorpay payment link</Label>
+                    <p className="mt-0.5 text-xs text-fg-muted">
+                      Paste the payment link from your Razorpay dashboard. When enrollment is on,
+                      the website&apos;s <span className="font-medium">Enroll Now</span> button opens
+                      this link. Leave empty to use the built-in checkout.
+                    </p>
+                    <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-start">
+                      <div className="flex-1">
+                        <Input
+                          id="program-payment-url"
+                          type="url"
+                          inputMode="url"
+                          placeholder="https://rzp.io/l/..."
+                          value={paymentUrl}
+                          onChange={(e) => {
+                            setPaymentUrl(e.target.value);
+                            setPaymentUrlError(null);
+                          }}
+                          disabled={!permissions.canEdit || updateProgram.isPending}
+                          aria-invalid={paymentUrlError ? true : undefined}
+                          aria-describedby={paymentUrlError ? "program-payment-url-error" : undefined}
+                          data-testid="program-payment-url-input"
+                        />
+                        {paymentUrlError ? (
+                          <p id="program-payment-url-error" role="alert" className="mt-1 text-xs text-danger">
+                            {paymentUrlError}
+                          </p>
+                        ) : null}
+                      </div>
+                      {permissions.canEdit ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={handleSavePaymentUrl}
+                          disabled={!paymentUrlDirty || updateProgram.isPending}
+                          aria-busy={updateProgram.isPending || undefined}
+                          data-testid="program-payment-url-save"
+                        >
+                          Save link
+                        </Button>
+                      ) : null}
+                    </div>
+                    {savedPaymentUrl ? (
+                      <p className="mt-2 text-xs text-fg-muted" data-testid="program-payment-link-hint">
+                        {program.enrollmentEnabled
+                          ? "Enroll Now on the website opens this link."
+                          : "Saved, but not shown on the website until enrollment is switched on."}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
 
                 <div>

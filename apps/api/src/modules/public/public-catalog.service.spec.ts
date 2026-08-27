@@ -159,6 +159,37 @@ describe("PublicCatalogService", () => {
     });
   });
 
+  // The payment link is resolved against the enrollment toggle the same way the badge is
+  // resolved against badgeEnabled: a link set while enrollment is closed never reaches the
+  // wire, so the website has exactly one switch that opens or closes sales.
+  describe("enrollmentPaymentUrl exposure", () => {
+    const LINK = "https://rzp.io/l/neurology-workshop";
+
+    async function listWith(row: { enrollmentEnabled: boolean; enrollmentPaymentUrl: string | null }) {
+      (repo.listPublicPrograms as jest.Mock).mockResolvedValue({
+        rows: [{ ...MOCK_PROGRAM_LIST_ROW, ...row }],
+        nextCursor: null,
+      });
+      const result = await service.listPrograms({ sort: "order", limit: 12 });
+      return result.items[0]!;
+    }
+
+    it("surfaces the link while enrollment is open", async () => {
+      const item = await listWith({ enrollmentEnabled: true, enrollmentPaymentUrl: LINK });
+      expect(item.enrollmentPaymentUrl).toBe(LINK);
+    });
+
+    it("nulls out a configured link while enrollment is closed", async () => {
+      const item = await listWith({ enrollmentEnabled: false, enrollmentPaymentUrl: LINK });
+      expect(item.enrollmentPaymentUrl).toBeNull();
+    });
+
+    it("is null when no link is set, so the site falls back to the in-app checkout", async () => {
+      const item = await listWith({ enrollmentEnabled: true, enrollmentPaymentUrl: null });
+      expect(item.enrollmentPaymentUrl).toBeNull();
+    });
+  });
+
   // The badge toggle is resolved server-side: the public DTO carries the rendered outcome,
   // never the switch, so a hidden badge leaves nothing on the wire for a client to misread.
   describe("badge exposure", () => {

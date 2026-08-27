@@ -31,10 +31,14 @@
 //     layer at the HTTP boundary — the real idempotency lives in the DB.
 //
 // ─── PROGRESS_PCT ROLLUP FORMULA ─────────────────────────────────────────────
-//   progress_pct = Math.round(completed_lessons / total_lessons_in_program × 100)
-//   Clamped to [0, 100]. "total" counts non-soft-deleted lessons across all modules
-//   of the program. Computed inside the completion $transaction and written to
-//   enrollment.progress_pct atomically.
+//   summariseCourseProgress(completed_lessons, total_lessons_in_program) — @repo/types,
+//   the ONE definition, shared with both frontends. "total" counts non-soft-deleted
+//   lessons across all modules of the program. Computed inside the completion
+//   $transaction and written to enrollment.progress_pct atomically.
+//
+//   The stored column is a CACHE of that function and moves in BOTH directions: see
+//   LmsRepository.recalcEnrollmentProgressPct, and resyncProgramProgress below for the
+//   case where the denominator changes rather than the numerator.
 
 import {
   ForbiddenException,
@@ -42,6 +46,7 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { summariseCourseProgress } from "@repo/types";
 import type {
   ProgressResponse,
   MyProgressResponse,
@@ -301,7 +306,7 @@ export class LmsProgressService {
       };
     });
 
-    const overallProgressPct = overallTotal > 0 ? Math.round((overallCompleted / overallTotal) * 100) : 0;
+    const overallProgressPct = summariseCourseProgress(overallCompleted, overallTotal).progressPct;
 
     return {
       programs,
@@ -311,4 +316,22 @@ export class LmsProgressService {
     };
   }
 
+  /**
+   * Resync every enrollment in a programme after its curriculum changed.
+   *
+   * Called by CoursesService when a lesson is added, i.e. when the DENOMINATOR of everyone's
+   * progress moves under them. Without it, a student who had finished the programme keeps a
+   * stored 100% and a "Completed" badge while every screen that recomputes the fraction
+   * shows the real, lower number — which is exactly what happened in production.
+   *
+   * Best-effort by contract: the caller must not fail a curriculum edit because the resync
+   * did. A staff member adding a lesson has done nothing wrong, and the numbers are
+   * recoverable (the same sweep runs again on the next edit, and `pnpm resync:progress`
+   * fixes a whole tenant). Losing the lesson they just wrote is not recoverable.
+   */
+  async resyncProgramProgress(
+    programId: string,
+  ): Promise<{ scanned: number; updated: number; reopened: number }> {
+    return this.repo.resyncProgramEnrollments(programId);
+  }
 }

@@ -391,3 +391,340 @@
     display: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Certificate-verification reveal (components/verify/verify-reveal.tsx).
+ *
+ * A four-beat sequence that plays once on arrival at /verify/<id>, i.e. right
+ * after the visitor presses "Verify certificate":
+ *
+ *   1. scan      — an ID card sits centred while two beams sweep it, one down
+ *                  and back up, one across and back, so both axes get covered.
+ *   2. id        — the beams stop and a single pass runs along the ID strip at
+ *                  the foot of the card; the blurred serial resolves as it goes.
+ *   3. verified  — the scan frame snaps to the result tone and the seal (the
+ *                  same markup the settled page uses) pops in over the card.
+ *   4. settled   — the overlay is dropped and the real result takes its place:
+ *                  the seal slides from centre into the left column while the
+ *                  details card and its rows come in from the right.
+ *
+ * Every element the sequence animates is decorative and aria-hidden. The real
+ * result is in the DOM and in the accessibility tree from first paint, so a
+ * screen reader is never waiting on the animation. Under
+ * prefers-reduced-motion the component skips straight to beat 4 (the JS timers
+ * are what hold the sequence, so the global neutraliser in @repo/ui/styles.css
+ * cannot do it alone).
+ *
+ * Tone is carried by --verify-tone (an "R G B" triplet the component sets), so
+ * one set of keyframes serves the valid / revoked / not-found results.
+ * ------------------------------------------------------------------------- */
+
+.verify-scan-frame {
+  --verify-tone: var(--brand-500);
+}
+
+/* Faint graph paper under the card face — reads as "being read by a machine". */
+.verify-scan-grid {
+  background-image:
+    linear-gradient(to right, rgb(var(--verify-tone) / 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--verify-tone) / 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* The two sweeps. Each beam is a full-size gradient whose only bright band sits
+   at its own midpoint, so translating it by ±50% of itself walks that band from
+   one edge of the card to the other — cheap, and it stays on the compositor. */
+@keyframes verify-sweep-y {
+  0% {
+    transform: translateY(-50%);
+    opacity: 0;
+  }
+  8%,
+  92% {
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(50%);
+  }
+  100% {
+    transform: translateY(-50%);
+    opacity: 0;
+  }
+}
+
+@keyframes verify-sweep-x {
+  0% {
+    transform: translateX(-50%);
+    opacity: 0;
+  }
+  10%,
+  90% {
+    opacity: 0.75;
+  }
+  50% {
+    transform: translateX(50%);
+  }
+  100% {
+    transform: translateX(-50%);
+    opacity: 0;
+  }
+}
+
+.verify-beam-y,
+.verify-beam-x {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.verify-beam-y {
+  background: linear-gradient(
+    to bottom,
+    transparent 40%,
+    rgb(var(--verify-tone) / 0.1) 47%,
+    rgb(var(--verify-tone) / 0.55) 49.4%,
+    rgb(var(--verify-tone) / 0.95) 50%,
+    rgb(var(--verify-tone) / 0.55) 50.6%,
+    rgb(var(--verify-tone) / 0.1) 53%,
+    transparent 60%
+  );
+  animation: verify-sweep-y 1.1s cubic-bezier(0.45, 0, 0.55, 1) both;
+}
+
+.verify-beam-x {
+  background: linear-gradient(
+    to right,
+    transparent 42%,
+    rgb(var(--verify-tone) / 0.08) 48%,
+    rgb(var(--verify-tone) / 0.7) 50%,
+    rgb(var(--verify-tone) / 0.08) 52%,
+    transparent 58%
+  );
+  animation: verify-sweep-x 1.1s cubic-bezier(0.45, 0, 0.55, 1) 0.12s both;
+}
+
+/* Viewfinder corners. They tick in one after another during the scan and then
+   hold; at the verified beat they take the result tone (set on the frame). */
+@keyframes verify-bracket-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.verify-bracket {
+  border-color: rgb(var(--verify-tone) / 0.7);
+  animation: verify-bracket-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition:
+    border-color 0.35s ease-out,
+    opacity 0.35s ease-out;
+}
+
+/* Beat 2 — the ID strip. The serial starts blurred and unreadable and sharpens
+   as the pass crosses it, which is the whole point of the beat: the machine is
+   reading THIS number. */
+@keyframes verify-id-pass {
+  from {
+    transform: translateX(-115%);
+  }
+  to {
+    transform: translateX(115%);
+  }
+}
+
+.verify-id-pass {
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgb(var(--verify-tone) / 0.28) 45%,
+    rgb(var(--verify-tone) / 0.28) 55%,
+    transparent
+  );
+  animation: verify-id-pass 0.8s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes verify-id-resolve {
+  from {
+    filter: blur(4px);
+    opacity: 0.45;
+    letter-spacing: 0.28em;
+  }
+  to {
+    filter: blur(0);
+    opacity: 1;
+    letter-spacing: 0.12em;
+  }
+}
+
+.verify-id-resolve {
+  animation: verify-id-resolve 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Beat 3 — the seal lands on top of the card face. */
+@keyframes verify-seal-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.verify-seal-in {
+  animation: verify-seal-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes verify-card-dim {
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.verify-card-dim {
+  animation: verify-card-dim 0.35s ease-out both;
+}
+
+/* A single ring pushed out from under the seal at the moment it lands. */
+@keyframes verify-shockwave {
+  from {
+    opacity: 0.5;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.9);
+  }
+}
+
+.verify-shockwave {
+  border: 2px solid rgb(var(--verify-tone) / 0.55);
+  animation: verify-shockwave 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Beat 4 — handover. The overlay unmounts and the real seal picks up exactly
+   where it stood, then walks into the left column. The offset is half the grid
+   minus half the gap (gap-5 = 1.25rem), which is the same arithmetic the two
+   columns are built from, so the handover lands on the pixel. Below md the
+   result stacks, so there is no column to walk to and it simply rises in. */
+@keyframes verify-settle-seal {
+  from {
+    opacity: 0.85;
+    transform: translateY(6px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.verify-reveal[data-verify-stage="settled"] .verify-settle-seal {
+  animation: verify-settle-seal 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (min-width: 768px) {
+  @keyframes verify-settle-seal-md {
+    from {
+      transform: translateX(calc(50% + 0.625rem));
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  .verify-reveal[data-verify-stage="settled"] .verify-settle-seal {
+    animation: verify-settle-seal-md 0.62s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@keyframes verify-settle-details {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.verify-reveal[data-verify-stage="settled"] .verify-settle-details {
+  /* Held back until the seal has all but finished its walk: starting sooner puts an
+     arriving card on top of a moving one and the two read as a smear. */
+  animation: verify-settle-details 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.38s both;
+}
+
+/* Rows arrive one after another so the details read as being filled in rather
+   than pasted in. Delay is set inline per row (--verify-row-delay). */
+@keyframes verify-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.verify-reveal[data-verify-stage="settled"] .verify-row-in {
+  animation: verify-row-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) var(--verify-row-delay, 0s) both;
+}
+
+/* The result is present and readable from first paint; it is only hidden from SIGHT
+   while the scan runs. A <noscript> style in the component unhides it for anyone whose
+   JS never arrives, and the media query below means a visitor who has asked for reduced
+   motion never sees the overlay at all — not even for the frame before the effect runs. */
+.verify-reveal__result {
+  opacity: 0;
+  /* Failsafe. The sequence is held open by JS timers, so on a slow connection a stalled
+     hydration would otherwise keep the verdict hidden indefinitely — the one thing this
+     page must never do. This reveals it at 6s regardless; the rule below cancels the
+     animation the moment the real sequence settles, which is always sooner. */
+  animation: verify-failsafe 0.4s ease-out 6s both;
+}
+
+@keyframes verify-failsafe {
+  to {
+    opacity: 1;
+  }
+}
+
+.verify-reveal[data-verify-stage="settled"] .verify-reveal__result {
+  animation: none;
+  opacity: 1;
+}
+
+/* The scan card occupies exactly one column of the settled grid, centred — which is what
+   makes the handover at beat 4 land on the pixel rather than jump. */
+.verify-scan-column {
+  height: 100%;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .verify-scan-column {
+    width: calc(50% - 0.625rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .verify-reveal__result {
+    opacity: 1 !important;
+  }
+
+  .verify-reveal__overlay {
+    display: none !important;
+  }
+}

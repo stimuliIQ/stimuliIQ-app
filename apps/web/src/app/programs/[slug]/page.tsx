@@ -248,7 +248,7 @@ function ProgramHero({ program }: { program: PublicProgramDetail }) {
         <div className="flex flex-col gap-3 sm:flex-row lg:hidden">
           {program.enrollmentEnabled ? (
             <a
-              href={`/enroll/${program.slug}`}
+              href={program.enrollmentPaymentUrl ?? `/enroll/${program.slug}`}
               className="flex min-h-[44px] items-center justify-center rounded-md bg-brand-500 px-6 text-base font-semibold text-white transition-colors hover:bg-brand-600 active:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               Enroll Now
@@ -545,7 +545,11 @@ export default async function ProgramDetailPage({ params }: PageProps) {
   const price = formatPaiseDisplay(program.pricePaise);
   const wasPrice = formatCompareAtDisplay(program.compareAtPricePaise, program.pricePaise);
   const discount = formatDiscountPercent(program.compareAtPricePaise, program.pricePaise);
-  const enrollHref = `/enroll/${program.slug}`;
+  // Where "Enroll Now" goes. The API only sends enrollmentPaymentUrl while enrollment is
+  // open, so a set link means "sell through this Razorpay page" and every Enroll CTA on the
+  // page (hero, sticky buy card, mobile buy bar, curriculum lock) opens it; otherwise the
+  // in-app checkout. One value so the four CTAs can never disagree.
+  const enrollHref = program.enrollmentPaymentUrl ?? `/enroll/${program.slug}`;
   const faqItems = buildProgramFaqItems(program);
 
   // Build JSON-LD (AC-28, AC-29, AC-33)

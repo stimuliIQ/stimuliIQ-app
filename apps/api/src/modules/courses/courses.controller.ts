@@ -22,7 +22,7 @@ import {
   UseInterceptors,
   UsePipes,
 } from "@nestjs/common";
-import type { CurriculumTree, LessonNode, ModuleNode, ProgramDetail } from "@repo/types";
+import type { CurriculumTree, LessonDetail, LessonNode, ModuleNode, ProgramDetail } from "@repo/types";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
 import { ScopeInterceptor } from "../auth/interceptors/scope.interceptor";
@@ -247,6 +247,43 @@ export class CoursesController {
     @Body() body: CreateLessonRequest,
   ): Promise<LessonNode> {
     return this.coursesService.createLesson(user.tenantId, programId, moduleId, body);
+  }
+
+  /** One lesson with its body, for the lesson editor. Permission: courses.view. */
+  @Get(":id/modules/:moduleId/lessons/:lessonId")
+  @RequirePermission("courses.view")
+  async getLesson(
+    @CurrentUser() user: RequestUser,
+    @Param("id", new ParseUUIDPipe()) programId: string,
+    @Param("moduleId", new ParseUUIDPipe()) moduleId: string,
+    @Param("lessonId", new ParseUUIDPipe()) lessonId: string,
+  ): Promise<LessonDetail> {
+    return this.coursesService.getLesson(user.tenantId, programId, moduleId, lessonId);
+  }
+
+  /** Soft-deletes a lesson. Same key as editing: removing a lesson IS curriculum authoring. */
+  @Delete(":id/modules/:moduleId/lessons/:lessonId")
+  @HttpCode(204)
+  @RequirePermission("courses.edit")
+  async deleteLesson(
+    @CurrentUser() user: RequestUser,
+    @Param("id", new ParseUUIDPipe()) programId: string,
+    @Param("moduleId", new ParseUUIDPipe()) moduleId: string,
+    @Param("lessonId", new ParseUUIDPipe()) lessonId: string,
+  ): Promise<void> {
+    return this.coursesService.deleteLesson(user.tenantId, programId, moduleId, lessonId);
+  }
+
+  /** Soft-deletes a module and every lesson in it. Permission: courses.edit. */
+  @Delete(":id/modules/:moduleId")
+  @HttpCode(204)
+  @RequirePermission("courses.edit")
+  async deleteModule(
+    @CurrentUser() user: RequestUser,
+    @Param("id", new ParseUUIDPipe()) programId: string,
+    @Param("moduleId", new ParseUUIDPipe()) moduleId: string,
+  ): Promise<void> {
+    return this.coursesService.deleteModule(user.tenantId, programId, moduleId);
   }
 
   @Patch(":id/modules/:moduleId/lessons/:lessonId")

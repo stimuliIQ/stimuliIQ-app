@@ -5,14 +5,16 @@
 // adding a DnD dependency, and up/down buttons are simpler and more
 // accessible (keyboard-operable out of the box, no pointer-only interaction).
 import * as React from "react";
-import { ChevronDown, ChevronUp, Eye, Lock, Paperclip, Pencil, Plus, Video } from "lucide-react";
-import { Button, EmptyState, Input, Select, SelectItem, Skeleton, StatusChip, useToast } from "@repo/ui";
-import type { LessonType, ModuleNode, VideoAsset } from "@repo/types";
+import { ChevronDown, ChevronUp, Eye, Lock, Paperclip, Pencil, Plus, Trash2, Video } from "lucide-react";
+import { Button, ConfirmDialog, EmptyState, Input, Select, SelectItem, Skeleton, StatusChip, useToast } from "@repo/ui";
+import type { LessonNode, LessonType, ModuleNode, VideoAsset } from "@repo/types";
 
 import {
   useCreateLesson,
   useCreateModule,
   useCurriculum,
+  useDeleteLesson,
+  useDeleteModule,
   useReorderLessons,
   useReorderModules,
   useUpdateLesson,
@@ -21,6 +23,7 @@ import {
 import { useVideoLibraryList } from "../../hooks/use-video-library";
 import { VideoIngestDrawer } from "../video-library/video-ingest-drawer";
 import { LessonResourcesDrawer } from "./lesson-resources-drawer";
+import { LessonFormDrawer } from "./lesson-form-drawer";
 
 // Video status → StatusChip tone + author-facing label. `errored` is surfaced
 // (not hidden) so a stuck transcode is visible right where the author works.
@@ -89,6 +92,37 @@ export function CurriculumBuilder({
   const createLesson = useCreateLesson(programId);
   const updateLesson = useUpdateLesson(programId);
   const reorderLessons = useReorderLessons(programId);
+  const deleteLesson = useDeleteLesson(programId);
+  const deleteModule = useDeleteModule(programId);
+
+  // Lesson editor (title / type / body) — replaces the old inline rename.
+  const [editingLessonNode, setEditingLessonNode] = React.useState<{ moduleId: string; lesson: LessonNode } | null>(null);
+  // One confirm for both kinds of delete; the copy names what is about to go.
+  const [deleteTarget, setDeleteTarget] = React.useState<
+    | { kind: "lesson"; moduleId: string; lessonId: string; title: string }
+    | { kind: "module"; moduleId: string; title: string; lessonCount: number }
+    | null
+  >(null);
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      if (deleteTarget.kind === "lesson") {
+        await deleteLesson.mutateAsync({ moduleId: deleteTarget.moduleId, lessonId: deleteTarget.lessonId });
+        toast({ title: "Lesson deleted", description: "Enrolled students' progress has been recalculated.", variant: "success" });
+      } else {
+        await deleteModule.mutateAsync(deleteTarget.moduleId);
+        toast({ title: "Module deleted", description: "Its lessons were removed and students' progress recalculated.", variant: "success" });
+      }
+      setDeleteTarget(null);
+    } catch (error) {
+      toast({
+        title: deleteTarget.kind === "lesson" ? "Couldn't delete lesson" : "Couldn't delete module",
+        description: error instanceof Error ? error.message : undefined,
+        variant: "destructive",
+      });
+    }
+  };
 
   const [newModuleTitle, setNewModuleTitle] = React.useState("");
   const [editingModuleId, setEditingModuleId] = React.useState<string | null>(null);
@@ -96,10 +130,8 @@ export function CurriculumBuilder({
   const [addingLessonForModule, setAddingLessonForModule] = React.useState<string | null>(null);
   const [newLessonTitle, setNewLessonTitle] = React.useState("");
   const [newLessonType, setNewLessonType] = React.useState<LessonType>("video");
-  const [editingLesson, setEditingLesson] = React.useState<{ moduleId: string; lessonId: string } | null>(null);
   // Lesson whose attachments drawer is open (PDF/slides/datasets).
   const [resourcesFor, setResourcesFor] = React.useState<{ id: string; title: string } | null>(null);
-  const [editingLessonTitle, setEditingLessonTitle] = React.useState("");
 
   if (isLoading) {
     return (
@@ -171,17 +203,6 @@ export function CurriculumBuilder({
       toast({ title: "Lesson added", variant: "success" });
     } catch (error) {
       toast({ title: "Couldn't add lesson", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
-    }
-  };
-
-  const handleSaveLessonTitle = async (moduleId: string, lessonId: string) => {
-    if (!editingLessonTitle.trim()) return;
-    try {
-      await updateLesson.mutateAsync({ moduleId, lessonId, body: { title: editingLessonTitle.trim() } });
-      setEditingLesson(null);
-      toast({ title: "Lesson updated", variant: "success" });
-    } catch (error) {
-      toast({ title: "Couldn't update lesson", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     }
   };
 
@@ -287,6 +308,23 @@ export function CurriculumBuilder({
                     >
                       <Pencil className="size-4" aria-hidden="true" />
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Delete module ${moduleNode.title}`}
+                      title="Delete module"
+                      onClick={() =>
+                        setDeleteTarget({
+                          kind: "module",
+                          moduleId: moduleNode.id,
+                          title: moduleNode.title,
+                          lessonCount: moduleNode.lessons.length,
+                        })
+                      }
+                      data-testid="module-delete-button"
+                    >
+                      <Trash2 className="size-4 text-danger" aria-hidden="true" />
+                    </Button>
                   </div>
                 ) : null}
               </div>
@@ -306,23 +344,6 @@ export function CurriculumBuilder({
                         className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-1.5"
                         data-testid="curriculum-lesson"
                       >
-                        {editingLesson?.lessonId === lesson.id ? (
-                          <div className="flex flex-1 items-center gap-2">
-                            <Input
-                              aria-label="Lesson title"
-                              value={editingLessonTitle}
-                              onChange={(event) => setEditingLessonTitle(event.target.value)}
-                              placeholder="e.g. Setting up your dev environment"
-                              data-testid="lesson-edit-input"
-                            />
-                            <Button size="sm" onClick={() => handleSaveLessonTitle(moduleNode.id, lesson.id)} data-testid="lesson-save-button">
-                              Save
-                            </Button>
-                            <Button size="sm" variant="secondary" onClick={() => setEditingLesson(null)}>
-                              Cancel
-                            </Button>
-                          </div>
-                        ) : (
                           <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-sm" data-testid="lesson-title">
                             <span className="text-fg">
                               {lessonIndex + 1}. {lesson.title}{" "}
@@ -359,7 +380,7 @@ export function CurriculumBuilder({
                               />
                             ) : null}
                           </span>
-                        )}
+
                         {canEdit ? (
                           <div className="flex items-center gap-1">
                             {/*
@@ -448,13 +469,23 @@ export function CurriculumBuilder({
                               variant="ghost"
                               size="icon"
                               aria-label={`Edit lesson ${lesson.title}`}
-                              onClick={() => {
-                                setEditingLesson({ moduleId: moduleNode.id, lessonId: lesson.id });
-                                setEditingLessonTitle(lesson.title);
-                              }}
+                              title="Edit title, type and content"
+                              onClick={() => setEditingLessonNode({ moduleId: moduleNode.id, lesson })}
                               data-testid="lesson-edit-button"
                             >
                               <Pencil className="size-4" aria-hidden="true" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Delete lesson ${lesson.title}`}
+                              title="Delete lesson"
+                              onClick={() =>
+                                setDeleteTarget({ kind: "lesson", moduleId: moduleNode.id, lessonId: lesson.id, title: lesson.title })
+                              }
+                              data-testid="lesson-delete-button"
+                            >
+                              <Trash2 className="size-4 text-danger" aria-hidden="true" />
                             </Button>
                           </div>
                         ) : null}
@@ -542,6 +573,37 @@ export function CurriculumBuilder({
         open={Boolean(resourcesFor)}
         onOpenChange={(open) => !open && setResourcesFor(null)}
         canEdit={canEdit}
+      />
+
+      {/* Title / type / body editor for the selected lesson. */}
+      <LessonFormDrawer
+        programId={programId}
+        moduleId={editingLessonNode?.moduleId ?? null}
+        lesson={editingLessonNode?.lesson ?? null}
+        open={Boolean(editingLessonNode)}
+        onOpenChange={(open) => !open && setEditingLessonNode(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title={
+          deleteTarget?.kind === "module"
+            ? `Delete module "${deleteTarget.title}"?`
+            : `Delete lesson "${deleteTarget?.title ?? ""}"?`
+        }
+        description={
+          deleteTarget?.kind === "module"
+            ? deleteTarget.lessonCount > 0
+              ? `This removes the module and its ${deleteTarget.lessonCount} lesson${deleteTarget.lessonCount === 1 ? "" : "s"} from the course. Enrolled students will no longer see them, and their progress will be recalculated.`
+              : "This removes the empty module from the course."
+            : "Enrolled students will no longer see this lesson, and their progress will be recalculated. Its video and attachments are kept."
+        }
+        confirmLabel="Delete"
+        tone="danger"
+        onConfirm={handleConfirmDelete}
+        loading={deleteLesson.isPending || deleteModule.isPending}
+        data-testid="confirm-delete-curriculum"
       />
 
       {/* Attach/replace a lesson's video without leaving the curriculum. */}

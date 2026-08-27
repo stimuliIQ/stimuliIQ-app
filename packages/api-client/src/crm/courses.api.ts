@@ -14,6 +14,7 @@ import type {
   UpdateModuleRequest,
   ReorderModulesRequest,
   ReorderProgramsRequest,
+  LessonDetail,
   LessonNode,
   CreateLessonRequest,
   UpdateLessonRequest,
@@ -223,6 +224,41 @@ export class CoursesApi {
       "POST",
       `/api/v1/crm/courses/${programId}/modules/${moduleId}/lessons`,
       { body, idempotencyKey },
+    );
+  }
+
+  /** GET /api/v1/crm/courses/:id/modules/:moduleId/lessons/:lessonId — one lesson with its body. Permission: courses.view */
+  async getLesson(programId: string, moduleId: string, lessonId: string): Promise<LessonDetail> {
+    return this.client.request<LessonDetail>(
+      "GET",
+      `/api/v1/crm/courses/${programId}/modules/${moduleId}/lessons/${lessonId}`,
+    );
+  }
+
+  /** DELETE /api/v1/crm/courses/:id/modules/:moduleId/lessons/:lessonId — soft delete. Permission: courses.edit */
+  async deleteLesson(
+    programId: string,
+    moduleId: string,
+    lessonId: string,
+    idempotencyKey: string = crypto.randomUUID(),
+  ): Promise<void> {
+    return this.client.request<void>(
+      "DELETE",
+      `/api/v1/crm/courses/${programId}/modules/${moduleId}/lessons/${lessonId}`,
+      { idempotencyKey },
+    );
+  }
+
+  /** DELETE /api/v1/crm/courses/:id/modules/:moduleId — soft-deletes the module AND its lessons. Permission: courses.edit */
+  async deleteModule(
+    programId: string,
+    moduleId: string,
+    idempotencyKey: string = crypto.randomUUID(),
+  ): Promise<void> {
+    return this.client.request<void>(
+      "DELETE",
+      `/api/v1/crm/courses/${programId}/modules/${moduleId}`,
+      { idempotencyKey },
     );
   }
 

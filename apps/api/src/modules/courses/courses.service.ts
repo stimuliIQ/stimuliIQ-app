@@ -17,13 +17,14 @@
 // PATCH .../modules/:moduleId 404s if moduleId doesn't belong to :programId, even if the
 // module exists under a different (or no) program the caller can't see.
 
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type {
   CreateLessonRequest,
   CreateLessonResourceRequest,
   CreateModuleRequest,
   CreateProgramRequest,
   CurriculumTree,
+  LessonDetail,
   LessonNode,
   LessonResource,
   LessonResourceUploadUrlRequest,
@@ -47,12 +48,17 @@ import { requireScopeContext } from "../auth/lib/scope-context";
 import { STORAGE_PROVIDER, type StorageProvider } from "../storage/providers/storage/storage-provider.interface";
 import { S3StorageProvider } from "../storage/providers/storage/s3-storage.provider";
 import { validateEnv } from "../../config/env";
+import { LmsProgressService } from "../lms/lms-progress.service";
 
 @Injectable()
 export class CoursesService {
+  private readonly logger = new Logger(CoursesService.name);
+
   constructor(
     private readonly repository: CoursesRepository,
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
+    // Curriculum edits move every enrolled student's progress. See resyncEnrolledProgress.
+    private readonly progress: LmsProgressService,
   ) {}
 
   /**
@@ -305,6 +311,7 @@ export class CoursesService {
       brochureKey: body.brochureKey,
       scholarshipAvailable: body.scholarshipAvailable,
       enrollmentEnabled: body.enrollmentEnabled,
+      enrollmentPaymentUrl: body.enrollmentPaymentUrl ?? null,
       order,
       badgeColor: body.badgeColor ?? null,
       badgeLabel: body.badgeLabel ?? null,
@@ -483,7 +490,77 @@ export class CoursesService {
       throw new NotFoundException({ code: "courses.module_not_found", title: "Module not found" });
     }
     const lesson = await this.repository.createLesson(moduleId, body);
+    await this.resyncEnrolledProgress(programId);
     return toLessonNode(lesson);
+  }
+
+  /**
+   * Bring every enrolled student's progress back in line with the curriculum that now
+   * exists.
+   *
+   * Adding a lesson moves the DENOMINATOR of everybody's progress. Nothing used to rewrite
+   * it: the rollup ran only when a student completed a lesson, so a student who had already
+   * finished this programme kept a stored 100% and a "Completed" badge on every screen that
+   * reads the column, while every screen that recomputes the fraction showed the real,
+   * lower number.
+   *
+   * FAILING HERE MUST NOT FAIL THE EDIT. The lesson is already written and the staff
+   * member did nothing wrong. A missed resync is recoverable — the next lesson added runs
+   * it again, and the repair script sweeps the whole tenant — whereas a 500 thrown from
+   * here would throw away the lesson they just wrote.
+   */
+  private async resyncEnrolledProgress(programId: string): Promise<void> {
+    try {
+      const result = await this.progress.resyncProgramProgress(programId);
+      if (result.updated > 0) {
+        this.logger.log(
+          "[courses] curriculum change on program=" + programId + " resynced " +
+            result.updated + "/" + result.scanned + " enrollment(s), " + result.reopened + " reopened.",
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        "[courses] progress resync failed for program=" + programId +
+          " after a curriculum change. Run 'pnpm resync:progress' to repair.",
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
+
+  /** One lesson with its body, for the editor (the tree omits `content` on purpose). */
+  async getLesson(tenantId: string, programId: string, moduleId: string, lessonId: string): Promise<LessonDetail> {
+    this.assertResolvableScope();
+    const lesson = await this.repository.findLessonInModule(tenantId, programId, moduleId, lessonId);
+    if (!lesson) {
+      throw new NotFoundException({ code: "courses.lesson_not_found", title: "Lesson not found" });
+    }
+    return toLessonDetail(lesson);
+  }
+
+  /**
+   * Soft-deletes a lesson. Removing a lesson moves every enrolled student's progress
+   * DENOMINATOR exactly as adding one does, so the same resync runs (and, as there, a
+   * failed resync must not fail the delete — see resyncEnrolledProgress).
+   */
+  async deleteLesson(tenantId: string, programId: string, moduleId: string, lessonId: string): Promise<void> {
+    this.assertResolvableScope();
+    const existing = await this.repository.findLessonInModule(tenantId, programId, moduleId, lessonId);
+    if (!existing) {
+      throw new NotFoundException({ code: "courses.lesson_not_found", title: "Lesson not found" });
+    }
+    await this.repository.softDeleteLesson(lessonId);
+    await this.resyncEnrolledProgress(programId);
+  }
+
+  /** Soft-deletes a module and all of its lessons, then resyncs progress (see deleteLesson). */
+  async deleteModule(tenantId: string, programId: string, moduleId: string): Promise<void> {
+    this.assertResolvableScope();
+    const mod = await this.repository.findModuleInProgram(tenantId, programId, moduleId);
+    if (!mod) {
+      throw new NotFoundException({ code: "courses.module_not_found", title: "Module not found" });
+    }
+    await this.repository.softDeleteModule(moduleId);
+    await this.resyncEnrolledProgress(programId);
   }
 
   async updateLesson(
@@ -632,6 +709,7 @@ function toDetail(row: ProgramRow): ProgramDetail {
     brochureUrl: mintCdnUrl(row.brochureKey),
     scholarshipAvailable: row.scholarshipAvailable,
     enrollmentEnabled: row.enrollmentEnabled,
+    enrollmentPaymentUrl: row.enrollmentPaymentUrl,
     deletedAt: row.deletedAt ? row.deletedAt.toISOString() : null,
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -655,6 +733,10 @@ function toModuleNode(mod: ModuleRow & { lessons: LessonRow[] }): ModuleNode {
     order: mod.order,
     lessons: mod.lessons.map(toLessonNode),
   };
+}
+
+function toLessonDetail(lesson: LessonRow): LessonDetail {
+  return { ...toLessonNode(lesson), content: lesson.content };
 }
 
 function toLessonNode(lesson: LessonRow): LessonNode {

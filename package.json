@@ -41,6 +41,7 @@
     "db:seed:attempts-grade": "ts-node --project prisma/tsconfig.seed.json prisma/seed-attempts-grade.ts",
     "db:seed:lead-performance": "ts-node --project prisma/tsconfig.seed.json prisma/seed-lead-performance.ts",
     "db:seed:marketing-targets": "ts-node --project prisma/tsconfig.seed.json prisma/seed-marketing-targets.ts",
+    "resync:progress": "ts-node --project prisma/tsconfig.seed.json prisma/resync-enrollment-progress.ts",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "prepare": "node ./infra/scripts/check-env-example.mjs || true"

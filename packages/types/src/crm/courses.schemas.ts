@@ -27,6 +27,20 @@ export const ProgramStatusSchema = z.enum(["draft", "published", "archived"]);
 export type ProgramStatus = z.infer<typeof ProgramStatusSchema>;
 
 export const LessonTypeSchema = z.enum(["video", "reading", "assignment", "quiz"]);
+
+/**
+ * External (Razorpay) payment-page link a program's "Enroll Now" button opens.
+ * https only: this URL is rendered as the destination of a public button, so a plain
+ * `.url()` would also accept `javascript:` or `http://`. Trimmed, because a link copied
+ * from the Razorpay dashboard routinely arrives with a trailing space. Run identically by
+ * the CRM form and the API (same discipline as `computeLeaveDuration`).
+ */
+export const EnrollmentPaymentUrlSchema = z
+  .string()
+  .trim()
+  .max(2048)
+  .url()
+  .refine((value) => value.startsWith("https://"), { message: "Must be an https:// link" });
 export type LessonType = z.infer<typeof LessonTypeSchema>;
 
 /**
@@ -152,6 +166,11 @@ export const CreateProgramRequestSchema = z
           "When false only 'Book Free Slot' is offered and the API rejects new orders for " +
           "this program. Defaults true so an existing sellable program stays sellable.",
       ),
+    enrollmentPaymentUrl: EnrollmentPaymentUrlSchema.nullish().describe(
+      "External (Razorpay) payment-page link. When set and enrollment is open, every " +
+        "'Enroll Now' button on the website opens this link instead of the in-app checkout. " +
+        "Null (the default) keeps the in-app /enroll/:slug checkout.",
+    ),
   })
   .strict();
 export type CreateProgramRequest = z.infer<typeof CreateProgramRequestSchema>;
@@ -426,6 +445,8 @@ export const ProgramDetailSchema = ProgramSummarySchema.extend({
   brochureUrl: z.string().url().nullable(),
   scholarshipAvailable: z.boolean(),
   enrollmentEnabled: z.boolean(),
+  /** External (Razorpay) payment link, or null when the in-app checkout is used. */
+  enrollmentPaymentUrl: z.string().nullable(),
   deletedAt: IsoDateTimeSchema.nullable(),
   updatedAt: IsoDateTimeSchema,
 });
@@ -439,6 +460,18 @@ export const LessonNodeSchema = z.object({
   isPreview: z.boolean(),
 });
 export type LessonNode = z.infer<typeof LessonNodeSchema>;
+
+/**
+ * GET /api/v1/crm/courses/:id/modules/:moduleId/lessons/:lessonId — one lesson WITH its
+ * body, for the lesson editor. Kept off the curriculum tree on purpose (see
+ * CurriculumTreeSchema): a reading lesson's HTML can be 20k characters and the tree is
+ * fetched on every reorder.
+ */
+export const LessonDetailSchema = LessonNodeSchema.extend({
+  /** Rich body: HTML for reading/quiz/assignment lessons; null (unused) for video lessons. */
+  content: z.string().nullable(),
+});
+export type LessonDetail = z.infer<typeof LessonDetailSchema>;
 
 export const ModuleNodeSchema = z.object({
   id: UuidSchema,
