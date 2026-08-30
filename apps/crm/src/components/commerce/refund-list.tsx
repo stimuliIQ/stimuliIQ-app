@@ -15,6 +15,7 @@ import { RefundStatusChip } from "./refund-status-chip";
 import { RefundDetailDrawer } from "./refund-detail-drawer";
 import { RequestRefundFormDrawer } from "./request-refund-form-drawer";
 import type { MeResponse } from "@repo/types";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const STATUS_OPTIONS: { value: RefundStatus; label: string }[] = [
   { value: "requested", label: "Requested" },
@@ -52,7 +53,7 @@ export function RefundList({ me }: RefundListProps): React.JSX.Element {
     paymentId: debouncedPaymentId || undefined,
   };
 
-  const { data, isLoading, isError, refetch, isFetching } = useRefundsList(query);
+  const { data, isLoading, isError, error, refetch, isFetching } = useRefundsList(query);
 
   const columns: Array<DataTableColumn<RefundSummary>> = [
     { id: "paymentId", header: "Payment", cell: (row) => row.paymentId, sortable: true },
@@ -74,7 +75,7 @@ export function RefundList({ me }: RefundListProps): React.JSX.Element {
       <EmptyState
         data-testid="refunds-error"
         title="Couldn't load refunds"
-        description="Something went wrong fetching the refund list."
+        description={queryErrorMessage(error, "Something went wrong fetching the refund list.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="refunds-retry">
             Try again

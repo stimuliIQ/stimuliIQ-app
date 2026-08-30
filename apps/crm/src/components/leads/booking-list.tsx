@@ -10,7 +10,7 @@ import type { BookingStatus, BookingSummary, MeResponse } from "@repo/types";
 
 import { useBookingsList, useMoveBookingStatus } from "../../hooks/use-bookings";
 import { hasPermission } from "../../lib/permissions";
-import { surfaceError } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 import { BookingStatusChip } from "./booking-status-chip";
 import { BookingFormDrawer } from "./booking-form-drawer";
 
@@ -54,7 +54,7 @@ export function BookingList({ me }: BookingListProps): React.JSX.Element {
     setPage(1);
   }, [status]);
 
-  const { data, isLoading, isError, refetch, isFetching } = useBookingsList({ page, pageSize, status });
+  const { data, isLoading, isError, error, refetch, isFetching } = useBookingsList({ page, pageSize, status });
 
   async function handleMove(bookingId: string, nextStatus: BookingStatus) {
     try {
@@ -103,7 +103,7 @@ export function BookingList({ me }: BookingListProps): React.JSX.Element {
       <EmptyState
         data-testid="bookings-error"
         title="Couldn't load bookings"
-        description="Something went wrong fetching bookings."
+        description={queryErrorMessage(error, "Something went wrong fetching bookings.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="bookings-retry">
             Try again

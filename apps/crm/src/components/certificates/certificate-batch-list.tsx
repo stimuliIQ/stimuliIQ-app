@@ -23,6 +23,7 @@ import type { EligibilityBatchSummary } from "@repo/types";
 
 import { useEligibilityBatches } from "../../hooks/use-certificates";
 import { useDebouncedValue } from "../../hooks/use-debounced-value";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface CertificateBatchListProps {
   /** Drill into one cohort's per-student eligibility table. */
@@ -41,7 +42,7 @@ export function CertificateBatchList({
     setPage(1);
   }, [debouncedSearch]);
 
-  const { data, isLoading, isFetching, isError, refetch } = useEligibilityBatches({
+  const { data, isLoading, isFetching, isError, error, refetch } = useEligibilityBatches({
     page,
     pageSize,
     search: debouncedSearch || undefined,
@@ -155,7 +156,7 @@ export function CertificateBatchList({
       <EmptyState
         data-testid="certificates-batches-error"
         title="Couldn't load batches"
-        description="Something went wrong fetching the certificate batch summary."
+        description={queryErrorMessage(error, "Something went wrong fetching the certificate batch summary.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="certificates-batches-retry">
             Try again

@@ -22,6 +22,7 @@ import { RequestPasswordResetRequestSchema, type RequestPasswordResetRequest } f
 
 import { useRequestPasswordReset } from "../../hooks/use-request-password-reset";
 import { AuthLayout } from "./auth-layout";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const GENERIC_CONFIRMATION = "If that email exists, we've sent a reset link. Check your inbox (and spam folder).";
 
@@ -81,7 +82,10 @@ export function ForgotPasswordForm(): React.JSX.Element {
 
               {failed ? (
                 <p role="alert" data-testid="forgot-password-error" className="text-sm text-danger">
-                  We couldn&apos;t send the reset link just now. Please try again in a moment.
+                  {queryErrorMessage(
+                    resetRequest.error,
+                    "We couldn't send the reset link just now. Please try again in a moment.",
+                  )}
                 </p>
               ) : null}
 

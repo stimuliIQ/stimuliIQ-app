@@ -16,6 +16,7 @@ import { AuthLayout } from "../auth/auth-layout";
 import { LoginForm } from "../auth/login-form";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 // Password-reset (QA defect #5) must be reachable while signed out — that's
 // the entire point of the flow. Every other route in this SPA is gated on
@@ -61,7 +62,7 @@ export function AppShell({ children }: { children: React.ReactNode }): React.JSX
           <CardHeader className="items-center text-center">
             <CardTitle>Something went wrong</CardTitle>
             <CardDescription>
-              {error?.problem?.detail ?? error?.problem?.title ?? "We couldn't load your session right now."}
+              {queryErrorMessage(error, "We couldn't load your session right now.")}
             </CardDescription>
           </CardHeader>
           <CardContent>

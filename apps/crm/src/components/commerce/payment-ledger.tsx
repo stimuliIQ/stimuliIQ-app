@@ -15,6 +15,7 @@ import { PaymentStatusChip } from "./payment-status-chip";
 import { PaymentDetailDrawer } from "./payment-detail-drawer";
 import { ManualPaymentFormDrawer } from "./manual-payment-form-drawer";
 import { ReconciliationWidget } from "./reconciliation-widget";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const STATUS_OPTIONS: { value: PaymentStatus; label: string }[] = [
   { value: "created", label: "Created" },
@@ -55,7 +56,7 @@ export function PaymentLedger({ me }: PaymentLedgerProps): React.JSX.Element {
     to: to ? new Date(to).toISOString() : undefined,
   };
 
-  const { data, isLoading, isError, refetch, isFetching } = usePaymentsList(query);
+  const { data, isLoading, isError, error, refetch, isFetching } = usePaymentsList(query);
 
   const columns: Array<DataTableColumn<PaymentSummary>> = [
     { id: "provider", header: "Provider", cell: (row) => row.provider, sortable: true },
@@ -90,7 +91,7 @@ export function PaymentLedger({ me }: PaymentLedgerProps): React.JSX.Element {
       <EmptyState
         data-testid="payments-error"
         title="Couldn't load the payments ledger"
-        description="Something went wrong fetching payments."
+        description={queryErrorMessage(error, "Something went wrong fetching payments.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="payments-retry">
             Try again

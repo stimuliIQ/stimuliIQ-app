@@ -21,6 +21,7 @@ import type { CampaignChannel, CampaignTemplateDto } from "@repo/types";
 
 import { useCampaignTemplatesList, useDeleteCampaignTemplate } from "../../hooks/use-campaigns";
 import { CampaignTemplateFormDrawer } from "./campaign-template-form-drawer";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface CampaignTemplatesManagerDrawerProps {
   open: boolean;
@@ -48,7 +49,7 @@ export function CampaignTemplatesManagerDrawer({
   onOpenChange,
 }: CampaignTemplatesManagerDrawerProps): React.JSX.Element {
   const { toast } = useToast();
-  const { data, isLoading } = useCampaignTemplatesList({ pageSize: 100 });
+  const { data, isLoading, isError, error, refetch } = useCampaignTemplatesList({ pageSize: 100 });
   const deleteMutation = useDeleteCampaignTemplate();
 
   const [formOpen, setFormOpen] = React.useState(false);
@@ -107,6 +108,18 @@ export function CampaignTemplatesManagerDrawer({
                 <Skeleton shape="line" className="h-16" />
                 <Skeleton shape="line" className="h-16" />
               </div>
+            ) : isError ? (
+              // "No templates yet" on a failed load reads as a fact and invites a duplicate.
+              <EmptyState
+                title="Couldn't load the templates"
+                description={queryErrorMessage(error, "Something went wrong fetching the template list.")}
+                action={
+                  <Button size="sm" variant="secondary" onClick={() => refetch()} data-testid="templates-retry">
+                    Try again
+                  </Button>
+                }
+                data-testid="templates-error"
+              />
             ) : templates.length === 0 ? (
               <EmptyState
                 title="No templates yet"

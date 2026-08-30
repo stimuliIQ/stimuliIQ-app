@@ -30,7 +30,7 @@ import { useBranchScope } from "../../app/branch-scope";
 import { useBulkUpdateStudentsStatus, useCreateSavedView, useDeleteSavedView, useSavedViewsList } from "../../hooks/use-bulk-saved-views";
 import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { getModulePermissions, hasPermission } from "../../lib/permissions";
-import { surfaceError } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 import { LifecycleChip } from "../shared/lifecycle-chip";
 import { StudentFormDrawer } from "./student-form-drawer";
 import { CourseTypeSelect, COURSE_TYPE_ALL } from "./course-type-select";
@@ -104,7 +104,7 @@ export function StudentDirectory({ me, initialStatus }: StudentDirectoryProps): 
     includeDeleted: false,
   };
 
-  const { data, isLoading, isError, refetch, isFetching } = useStudentsList(query);
+  const { data, isLoading, isError, error, refetch, isFetching } = useStudentsList(query);
 
   const columns: Array<DataTableColumn<StudentSummary>> = [
     { id: "name", header: "Name", cell: (row) => row.name, sortable: true },
@@ -190,7 +190,7 @@ export function StudentDirectory({ me, initialStatus }: StudentDirectoryProps): 
       <EmptyState
         data-testid="students-error"
         title="Couldn't load students"
-        description="Something went wrong fetching the directory."
+        description={queryErrorMessage(error, "Something went wrong fetching the directory.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="students-retry">
             Try again
@@ -261,7 +261,13 @@ export function StudentDirectory({ me, initialStatus }: StudentDirectoryProps): 
         activeViewId={activeViewId}
         onSelectView={applyView}
         onSaveView={handleSaveView}
-        onDeleteView={(id) => deleteSavedView.mutate(id)}
+        onDeleteView={(id) =>
+          deleteSavedView.mutate(id, {
+            // Without this the delete failed in silence and the view reappeared on the next
+            // refetch with nothing said about why.
+            onError: (error) => surfaceError(toast, error, "Couldn't delete this saved view"),
+          })
+        }
         data-testid="students-filter-bar"
       >
         <div className="w-44">

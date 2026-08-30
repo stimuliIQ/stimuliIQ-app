@@ -41,6 +41,7 @@ import type { z } from "zod";
 
 import { useCreateAssessment, useUpdateAssessment } from "../../hooks/use-assessments";
 import { useCurriculum, useProgramsList } from "../../hooks/use-courses";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const ASSESSMENT_TYPES: { value: AssessmentType; label: string }[] = [
   { value: "quiz", label: "Quiz" },
@@ -226,13 +227,7 @@ export function AssessmentFormDrawer({
       toast({ title: "Assessment created", variant: "success" });
       onOpenChange(false);
     } catch (error) {
-      const description =
-        error && typeof error === "object" && "problem" in error
-          ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
-            (error as { problem: { detail?: string; title?: string } }).problem.title)
-          : error instanceof Error
-            ? error.message
-            : undefined;
+      const description = queryErrorMessage(error);
       toast({ title: "Couldn't create assessment", description, variant: "destructive" });
     }
   });

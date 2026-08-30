@@ -20,6 +20,7 @@ import {
 import { GradeAttemptRequestSchema, type AttemptResult, type GradeAttemptRequest } from "@repo/types";
 
 import { useGradeAttempt } from "../../hooks/use-assessments";
+import { queryErrorMessage } from "../../lib/surface-error";
 // Note: sanitizeHtml is not used here because AttemptResult.questionResults doesn't
 // include the raw student answer text — that lives server-side. If the API is extended
 // to return answer text, wrap it with sanitizeHtml before dangerouslySetInnerHTML.
@@ -81,13 +82,7 @@ export function DescriptiveGradeDrawer({
       toast({ title: "Attempt graded", variant: "success" });
       onOpenChange(false);
     } catch (error) {
-      const description =
-        error && typeof error === "object" && "problem" in error
-          ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
-            (error as { problem: { detail?: string; title?: string } }).problem.title)
-          : error instanceof Error
-            ? error.message
-            : undefined;
+      const description = queryErrorMessage(error);
       toast({ title: "Couldn't grade attempt", description, variant: "destructive" });
     }
   });

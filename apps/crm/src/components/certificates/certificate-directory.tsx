@@ -45,6 +45,7 @@ import { BulkIssueDialog } from "./bulk-issue-dialog";
 import { CertificateBatchList } from "./certificate-batch-list";
 import { CertTemplateDesignerDrawer } from "./cert-template-designer-drawer";
 import { certificateVerifyUrl } from "../../lib/public-urls";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface CertificateDirectoryProps {
   me: MeResponse | undefined;
@@ -102,7 +103,7 @@ export function CertificateDirectory({
     setSelectedEnrollmentId(null);
   }, [batchId]);
 
-  const { data, isLoading, isError, refetch, isFetching } = useEligibilityList(
+  const { data, isLoading, isError, error, refetch, isFetching } = useEligibilityList(
     {
       page,
       pageSize,
@@ -151,13 +152,7 @@ export function CertificateDirectory({
         variant: "success",
       });
     } catch (error) {
-      const description =
-        error && typeof error === "object" && "problem" in error
-          ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
-            (error as { problem: { detail?: string; title?: string } }).problem.title)
-          : error instanceof Error
-            ? error.message
-            : undefined;
+      const description = queryErrorMessage(error);
       toast({ title: "Couldn't record recommendation", description, variant: "destructive" });
     }
   };
@@ -171,13 +166,7 @@ export function CertificateDirectory({
         variant: "success",
       });
     } catch (error) {
-      const description =
-        error && typeof error === "object" && "problem" in error
-          ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
-            (error as { problem: { detail?: string; title?: string } }).problem.title)
-          : error instanceof Error
-            ? error.message
-            : undefined;
+      const description = queryErrorMessage(error);
       toast({ title: "Couldn't reissue certificate", description, variant: "destructive" });
     }
   };
@@ -356,7 +345,7 @@ export function CertificateDirectory({
     <EmptyState
       data-testid="certificates-error"
       title="Couldn't load eligibility list"
-      description="Something went wrong fetching certificate eligibility data."
+      description={queryErrorMessage(error, "Something went wrong fetching certificate eligibility data.")}
       action={
         <Button variant="secondary" onClick={() => refetch()} data-testid="certificates-retry">
           Try again

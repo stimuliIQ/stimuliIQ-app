@@ -24,6 +24,7 @@ import { useVideoLibraryList } from "../../hooks/use-video-library";
 import { VideoIngestDrawer } from "../video-library/video-ingest-drawer";
 import { LessonResourcesDrawer } from "./lesson-resources-drawer";
 import { LessonFormDrawer } from "./lesson-form-drawer";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 // Video status → StatusChip tone + author-facing label. `errored` is surfaced
 // (not hidden) so a stuck transcode is visible right where the author works.
@@ -64,7 +65,7 @@ export function CurriculumBuilder({
   canViewVideos,
   canManageVideos,
 }: CurriculumBuilderProps): React.JSX.Element {
-  const { data: curriculum, isLoading, isError, refetch } = useCurriculum(programId);
+  const { data: curriculum, isLoading, isError, error, refetch } = useCurriculum(programId);
   const { toast } = useToast();
 
   // Video assets are keyed by lesson (videos.lesson_id is 1:1), so one page of
@@ -147,7 +148,7 @@ export function CurriculumBuilder({
       <EmptyState
         data-testid="curriculum-error"
         title="Couldn't load curriculum"
-        description="Something went wrong fetching the modules and lessons."
+        description={queryErrorMessage(error, "Something went wrong fetching the modules and lessons.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="curriculum-retry">
             Try again

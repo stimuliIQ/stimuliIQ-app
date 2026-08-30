@@ -19,6 +19,7 @@ import {
 import { RevokeCertificateRequestSchema, type RevokeCertificateRequest } from "@repo/types";
 
 import { useRevokeCertificate } from "../../hooks/use-certificates";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface RevokeCertificateDialogProps {
   open: boolean;
@@ -65,13 +66,7 @@ export function RevokeCertificateDialog({
       });
       onOpenChange(false);
     } catch (error) {
-      const description =
-        error && typeof error === "object" && "problem" in error
-          ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
-            (error as { problem: { detail?: string; title?: string } }).problem.title)
-          : error instanceof Error
-            ? error.message
-            : undefined;
+      const description = queryErrorMessage(error);
       toast({ title: "Couldn't revoke certificate", description, variant: "destructive" });
     }
   });

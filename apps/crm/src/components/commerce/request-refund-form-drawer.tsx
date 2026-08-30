@@ -19,6 +19,7 @@ import {
 import { RequestRefundRequestSchema, type RequestRefundRequest } from "@repo/types";
 
 import { useRequestRefund } from "../../hooks/use-refunds";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface RequestRefundFormDrawerProps {
   open: boolean;
@@ -58,13 +59,7 @@ export function RequestRefundFormDrawer({
       toast({ title: "Refund requested", description: "Pending approval by Finance/Owner/Admin.", variant: "success" });
       onOpenChange(false);
     } catch (error) {
-      const description =
-        error && typeof error === "object" && "problem" in error
-          ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
-            (error as { problem: { detail?: string; title?: string } }).problem.title)
-          : error instanceof Error
-            ? error.message
-            : undefined;
+      const description = queryErrorMessage(error);
       toast({ title: "Couldn't request refund", description, variant: "destructive" });
     }
   });

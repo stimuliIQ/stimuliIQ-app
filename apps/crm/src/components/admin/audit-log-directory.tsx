@@ -11,6 +11,7 @@ import { useAuditLogsList } from "../../hooks/use-audit-logs";
 import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { AuditActionChip } from "./audit-action-chip";
 import { AuditLogDetailDrawer } from "./audit-log-detail-drawer";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const ACTION_OPTIONS: { value: AuditAction; label: string }[] = [
   { value: "create", label: "Created" },
@@ -46,7 +47,7 @@ export function AuditLogDirectory(): React.JSX.Element {
     to: to ? new Date(to).toISOString() : undefined,
   };
 
-  const { data, isLoading, isError, refetch, isFetching } = useAuditLogsList(query);
+  const { data, isLoading, isError, error, refetch, isFetching } = useAuditLogsList(query);
 
   const columns: Array<DataTableColumn<AuditLogEntry>> = [
     {
@@ -70,7 +71,7 @@ export function AuditLogDirectory(): React.JSX.Element {
       <EmptyState
         data-testid="audit-logs-error"
         title="Couldn't load audit logs"
-        description="Something went wrong fetching the audit trail."
+        description={queryErrorMessage(error, "Something went wrong fetching the audit trail.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="audit-logs-retry">
             Try again

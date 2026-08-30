@@ -32,7 +32,7 @@ import { useDeleteLead, useLead, useMoveLeadStage, useAssignLeadOwner } from "..
 import { useActivitiesList } from "../../hooks/use-activities";
 import { useBookingsList } from "../../hooks/use-bookings";
 import { hasPermission } from "../../lib/permissions";
-import { surfaceError } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 import { LeadStageChip, LEAD_STAGE_COLUMNS } from "./lead-stage-chip";
 import { LifecycleChip } from "../shared/lifecycle-chip";
 import { LifecycleStepper } from "../shared/lifecycle-stepper";
@@ -57,7 +57,7 @@ function toDatetimeLocalValue(d: Date): string {
 
 export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerProps): React.JSX.Element {
   const open = Boolean(leadId);
-  const { data: lead, isLoading, isError, refetch } = useLead(leadId ?? undefined);
+  const { data: lead, isLoading, isError, error, refetch } = useLead(leadId ?? undefined);
   const { toast } = useToast();
 
   const moveStage = useMoveLeadStage();
@@ -202,7 +202,7 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
               <EmptyState
                 data-testid="lead-detail-error"
                 title="Couldn't load this lead"
-                description="Something went wrong fetching the lead details."
+                description={queryErrorMessage(error, "Something went wrong fetching the lead details.")}
                 action={
                   <Button variant="secondary" onClick={() => refetch()} data-testid="lead-detail-retry">
                     Try again
@@ -453,6 +453,7 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
                     tasks={tasksQuery.data?.items ?? []}
                     isLoading={tasksQuery.isLoading}
                     isError={tasksQuery.isError}
+                    error={tasksQuery.error}
                     onRetry={() => tasksQuery.refetch()}
                     emptyTitle="No follow-up tasks for this lead"
                     data-testid="lead-task-list"
@@ -464,7 +465,7 @@ export function LeadDetailDrawer({ leadId, me, onOpenChange }: LeadDetailDrawerP
                     <EmptyState
                       data-testid="lead-bookings-error"
                       title="Couldn't load bookings"
-                      description="Something went wrong fetching bookings for this lead."
+                      description={queryErrorMessage(bookingsQuery.error, "Something went wrong fetching bookings for this lead.")}
                       action={
                         <Button variant="secondary" onClick={() => bookingsQuery.refetch()} data-testid="lead-bookings-retry">
                           Try again

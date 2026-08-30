@@ -73,6 +73,7 @@ import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { getModulePermissions, hasPermission } from "../../lib/permissions";
 import { AssignmentFormDrawer } from "./assignment-form-drawer";
 import { GradeSubmissionDrawer } from "./grade-submission-drawer";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 /** One submission's state, in the shared CRM vocabulary. */
 const SUBMISSION_TONE: Record<SubmissionStatus, "info" | "success" | "warning"> = {
@@ -144,7 +145,7 @@ export function ProjectDirectory({ me }: ProjectDirectoryProps): React.JSX.Eleme
     setPage(1);
   }, [debouncedSearch]);
 
-  const { data, isLoading, isError, refetch, isFetching } = useAssignmentsList({
+  const { data, isLoading, isError, error, refetch, isFetching } = useAssignmentsList({
     page,
     pageSize,
     search: debouncedSearch || undefined,
@@ -156,6 +157,7 @@ export function ProjectDirectory({ me }: ProjectDirectoryProps): React.JSX.Eleme
     data: project,
     isLoading: projectLoading,
     isError: projectError,
+    error: projectFetchError,
   } = useAssignment(expandedProjectId ?? undefined);
 
   // Cohorts of THIS project's course — the batch picker's options. Scoped by programId so
@@ -176,6 +178,7 @@ export function ProjectDirectory({ me }: ProjectDirectoryProps): React.JSX.Eleme
     data: submissions,
     isLoading: submissionsLoading,
     isError: submissionsError,
+    error: submissionsFetchError,
   } = useSubmissionsList(canViewSubmissions ? (expandedProjectId ?? undefined) : undefined, {
     page: submissionsPage,
     pageSize: SUBMISSIONS_PAGE_SIZE,
@@ -256,7 +259,7 @@ export function ProjectDirectory({ me }: ProjectDirectoryProps): React.JSX.Eleme
       <EmptyState
         data-testid="projects-error"
         title="Couldn't load projects"
-        description="Something went wrong fetching the project list."
+        description={queryErrorMessage(error, "Something went wrong fetching the project list.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="projects-retry">
             Try again
@@ -329,7 +332,7 @@ export function ProjectDirectory({ me }: ProjectDirectoryProps): React.JSX.Eleme
               <EmptyState
                 data-testid="project-detail-error"
                 title="Couldn't load project detail"
-                description="Something went wrong loading the milestone states."
+                description={queryErrorMessage(projectFetchError, "Something went wrong loading the milestone states.")}
               />
             ) : !project ? null : (
               <>
@@ -424,7 +427,10 @@ export function ProjectDirectory({ me }: ProjectDirectoryProps): React.JSX.Eleme
                     <EmptyState
                       data-testid="project-submissions-error"
                       title="Couldn't load submissions"
-                      description="Something went wrong fetching what students have sent in."
+                      description={queryErrorMessage(
+                        submissionsFetchError,
+                        "Something went wrong fetching what students have sent in.",
+                      )}
                     />
                   ) : (
                     <SubmissionsTable

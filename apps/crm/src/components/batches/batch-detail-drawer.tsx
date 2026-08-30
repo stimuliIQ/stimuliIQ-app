@@ -44,6 +44,7 @@ import { BatchFormDrawer } from "./batch-form-drawer";
 import { MoveEnrollmentDialog } from "./move-enrollment-dialog";
 import { BatchMentorsPanel } from "./batch-mentors-panel";
 import { BatchCompletionPanel } from "./batch-completion-panel";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const ROSTER_STATUS_TONE: Record<BatchRosterEntry["status"], "info" | "success" | "neutral" | "warning" | "danger"> = {
   active: "success",
@@ -65,8 +66,14 @@ interface BatchDetailDrawerProps {
 
 export function BatchDetailDrawer({ batchId, onOpenChange, me }: BatchDetailDrawerProps): React.JSX.Element {
   const open = Boolean(batchId);
-  const { data: batch, isLoading, isError, refetch } = useBatch(batchId ?? undefined);
-  const { data: roster, isLoading: rosterLoading, isError: rosterError, refetch: refetchRoster } = useBatchRoster(
+  const { data: batch, isLoading, isError, error, refetch } = useBatch(batchId ?? undefined);
+  const {
+    data: roster,
+    isLoading: rosterLoading,
+    isError: rosterError,
+    error: rosterFetchError,
+    refetch: refetchRoster,
+  } = useBatchRoster(
     batchId ?? undefined,
   );
   const { data: facultyData } = useFacultyList({ page: 1, pageSize: 200, includeDeleted: false });
@@ -187,7 +194,7 @@ export function BatchDetailDrawer({ batchId, onOpenChange, me }: BatchDetailDraw
               <EmptyState
                 data-testid="batch-detail-error"
                 title="Couldn't load this batch"
-                description="Something went wrong fetching the batch details."
+                description={queryErrorMessage(error, "Something went wrong fetching the batch details.")}
                 action={
                   <Button variant="secondary" onClick={() => refetch()} data-testid="batch-detail-retry">
                     Try again
@@ -284,7 +291,7 @@ export function BatchDetailDrawer({ batchId, onOpenChange, me }: BatchDetailDraw
                       <EmptyState
                         data-testid="roster-error"
                         title="Couldn't load the roster"
-                        description="Something went wrong fetching enrolled students."
+                        description={queryErrorMessage(rosterFetchError, "Something went wrong fetching enrolled students.")}
                         action={
                           <Button variant="secondary" onClick={() => refetchRoster()} data-testid="roster-retry">
                             Try again

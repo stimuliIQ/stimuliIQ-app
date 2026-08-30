@@ -9,6 +9,7 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import { Alert, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, formatPaise, Input, Skeleton } from "@repo/ui";
 
 import { useLedgerReconciliation } from "../../hooks/use-payments";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 function startOfMonthIso(): string {
   const now = new Date();
@@ -24,7 +25,7 @@ export function ReconciliationWidget(): React.JSX.Element {
   const [to, setTo] = React.useState(todayIso());
 
   const params = from && to ? { from: new Date(from).toISOString(), to: new Date(to).toISOString() } : undefined;
-  const { data, isLoading, isError, refetch, isFetching } = useLedgerReconciliation(params);
+  const { data, isLoading, isError, error, refetch, isFetching } = useLedgerReconciliation(params);
 
   return (
     <Card data-testid="reconciliation-widget">
@@ -67,7 +68,7 @@ export function ReconciliationWidget(): React.JSX.Element {
           <EmptyState
             data-testid="reconciliation-error"
             title="Couldn't load reconciliation"
-            description="Something went wrong computing the ledger reconciliation for this range."
+            description={queryErrorMessage(error, "Something went wrong computing the ledger reconciliation for this range.")}
             action={
               <Button variant="secondary" onClick={() => refetch()} data-testid="reconciliation-retry">
                 Try again

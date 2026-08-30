@@ -31,6 +31,7 @@ import { StudentPaymentsTab } from "./student-payments-tab";
 import { StudentCertificatesTab } from "./student-certificates-tab";
 import { StudentTicketsTab } from "./student-tickets-tab";
 import { StudentTimelineTab } from "./student-timeline-tab";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface StudentDetailDrawerProps {
   studentId: string | null;
@@ -52,7 +53,7 @@ const LMS_PROVISIONED_STAGES: ReadonlySet<LifecycleStage> = new Set<LifecycleSta
 
 export function StudentDetailDrawer({ studentId, onOpenChange, me }: StudentDetailDrawerProps): React.JSX.Element {
   const open = Boolean(studentId);
-  const { data: student, isLoading, isError, refetch } = useStudent(studentId ?? undefined);
+  const { data: student, isLoading, isError, error, refetch } = useStudent(studentId ?? undefined);
   const deleteStudent = useDeleteStudent();
   const restoreStudent = useRestoreStudent();
   const resendCredentials = useResendCredentials();
@@ -132,7 +133,7 @@ export function StudentDetailDrawer({ studentId, onOpenChange, me }: StudentDeta
               <EmptyState
                 data-testid="student-detail-error"
                 title="Couldn't load this student"
-                description="Something went wrong fetching their profile."
+                description={queryErrorMessage(error, "Something went wrong fetching their profile.")}
                 action={
                   <Button variant="secondary" onClick={() => refetch()} data-testid="student-detail-retry">
                     Try again

@@ -14,6 +14,7 @@ import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { getModulePermissions } from "../../lib/permissions";
 import { FacultyFormDrawer } from "./faculty-form-drawer";
 import { FacultyDetailDrawer } from "./faculty-detail-drawer";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface FacultyDirectoryProps {
   me: MeResponse | undefined;
@@ -45,7 +46,7 @@ export function FacultyDirectory({ me }: FacultyDirectoryProps): React.JSX.Eleme
     includeDeleted: false,
   };
 
-  const { data, isLoading, isError, refetch, isFetching } = useFacultyList(query);
+  const { data, isLoading, isError, error, refetch, isFetching } = useFacultyList(query);
 
   const columns: Array<DataTableColumn<FacultySummary>> = [
     { id: "name", header: "Name", cell: (row) => row.name, sortable: true },
@@ -69,7 +70,7 @@ export function FacultyDirectory({ me }: FacultyDirectoryProps): React.JSX.Eleme
       <EmptyState
         data-testid="faculty-error"
         title="Couldn't load faculty"
-        description="Something went wrong fetching the directory."
+        description={queryErrorMessage(error, "Something went wrong fetching the directory.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="faculty-retry">
             Try again

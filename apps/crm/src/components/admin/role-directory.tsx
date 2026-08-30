@@ -12,6 +12,7 @@ import { useDeleteRole, useRolesList } from "../../hooks/use-roles";
 import { getModulePermissions } from "../../lib/permissions";
 import { RoleFormDrawer } from "./role-form-drawer";
 import { RolePermissionMatrix } from "./role-permission-matrix";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface RoleDirectoryProps {
   me: MeResponse | undefined;
@@ -28,7 +29,7 @@ export function RoleDirectory({ me }: RoleDirectoryProps): React.JSX.Element {
   const [deletingRole, setDeletingRole] = React.useState<Role | null>(null);
   const pageSize = 20;
 
-  const { data, isLoading, isError, refetch, isFetching } = useRolesList({ page, pageSize });
+  const { data, isLoading, isError, error, refetch, isFetching } = useRolesList({ page, pageSize });
   const deleteRole = useDeleteRole();
 
   // Custom (non-system) roles can be managed; system roles (super_admin, admin) are
@@ -45,13 +46,9 @@ export function RoleDirectory({ me }: RoleDirectoryProps): React.JSX.Element {
         if (selectedRole?.id === id) setSelectedRole(null);
       },
       onError: (err) => {
-        const problem =
-          err && typeof err === "object" && "problem" in err
-            ? (err as { problem: { detail?: string; title?: string } }).problem
-            : undefined;
         toast({
           title: "Couldn't delete role",
-          description: problem?.detail ?? problem?.title ?? (err as Error).message,
+          description: queryErrorMessage(err),
           variant: "destructive",
         });
         setDeletingRole(null);
@@ -82,7 +79,7 @@ export function RoleDirectory({ me }: RoleDirectoryProps): React.JSX.Element {
       <EmptyState
         data-testid="roles-error"
         title="Couldn't load roles"
-        description="Something went wrong fetching the role list."
+        description={queryErrorMessage(error, "Something went wrong fetching the role list.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="roles-retry">
             Try again

@@ -16,6 +16,7 @@ import { useBookingsList } from "../../hooks/use-bookings";
 import { useLeadsList } from "../../hooks/use-leads";
 import { TaskList } from "./task-list";
 import { LeadStageChip } from "./lead-stage-chip";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface CounsellingWorkspaceProps {
   me: MeResponse | undefined;
@@ -63,6 +64,7 @@ export function CounsellingWorkspace({ me: _me }: CounsellingWorkspaceProps): Re
           tasks={sortedTasks}
           isLoading={tasksQuery.isLoading}
           isError={tasksQuery.isError}
+          error={tasksQuery.error}
           onRetry={() => tasksQuery.refetch()}
           showLeadId
           emptyTitle="Nothing due"
@@ -77,7 +79,7 @@ export function CounsellingWorkspace({ me: _me }: CounsellingWorkspaceProps): Re
           <EmptyState
             data-testid="counselling-bookings-error"
             title="Couldn't load bookings"
-            description="Something went wrong fetching pending bookings."
+            description={queryErrorMessage(bookingsQuery.error, "Something went wrong fetching pending bookings.")}
             action={
               <Button variant="secondary" onClick={() => bookingsQuery.refetch()} data-testid="counselling-bookings-retry">
                 Try again
@@ -103,7 +105,7 @@ export function CounsellingWorkspace({ me: _me }: CounsellingWorkspaceProps): Re
           <EmptyState
             data-testid="counselling-leads-error"
             title="Couldn't load leads"
-            description="Something went wrong fetching SLA-overdue leads."
+            description={queryErrorMessage(leadsQuery.error, "Something went wrong fetching SLA-overdue leads.")}
             action={
               <Button variant="secondary" onClick={() => leadsQuery.refetch()} data-testid="counselling-leads-retry">
                 Try again

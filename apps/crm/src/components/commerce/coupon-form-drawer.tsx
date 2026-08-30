@@ -29,6 +29,7 @@ import {
 } from "@repo/types";
 
 import { useCoupon, useCreateCoupon, useUpdateCoupon } from "../../hooks/use-coupons";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const TYPE_OPTIONS: { value: CouponType; label: string }[] = [
   { value: "pct", label: "Percentage" },
@@ -64,7 +65,7 @@ export function CouponFormDrawer({ open, onOpenChange, couponId }: CouponFormDra
   const { toast } = useToast();
   const createCoupon = useCreateCoupon();
   const updateCoupon = useUpdateCoupon();
-  const { data: coupon, isLoading, isError, refetch } = useCoupon(couponId);
+  const { data: coupon, isLoading, isError, error, refetch } = useCoupon(couponId);
 
   const { register, handleSubmit, reset, watch, setValue, formState } = useForm<CouponFormValues>({
     defaultValues: { type: "pct", flatValuePaise: 0, status: "active" },
@@ -119,13 +120,7 @@ export function CouponFormDrawer({ open, onOpenChange, couponId }: CouponFormDra
       }
       onOpenChange(false);
     } catch (error) {
-      const description =
-        error && typeof error === "object" && "problem" in error
-          ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
-            (error as { problem: { detail?: string; title?: string } }).problem.title)
-          : error instanceof Error
-            ? error.message
-            : undefined;
+      const description = queryErrorMessage(error);
       toast({ title: isEdit ? "Couldn't update coupon" : "Couldn't create coupon", description, variant: "destructive" });
     }
   });
@@ -149,7 +144,7 @@ export function CouponFormDrawer({ open, onOpenChange, couponId }: CouponFormDra
             <EmptyState
               data-testid="coupon-form-error"
               title="Couldn't load this coupon"
-              description="Something went wrong fetching the coupon details."
+              description={queryErrorMessage(error, "Something went wrong fetching the coupon details.")}
               action={
                 <Button variant="secondary" onClick={() => refetch()} data-testid="coupon-form-retry">
                   Try again

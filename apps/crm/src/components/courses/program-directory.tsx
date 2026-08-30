@@ -14,6 +14,7 @@ import { formatPaiseAsInr } from "../../lib/money";
 import { ProgramStatusChip } from "./program-status-chip";
 import { ProgramFormDrawer } from "./program-form-drawer";
 import { ProgramDetailDrawer } from "./program-detail-drawer";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const STATUS_OPTIONS: { value: ProgramStatus; label: string }[] = [
   { value: "draft", label: "Draft" },
@@ -69,7 +70,7 @@ export function ProgramDirectory({ me }: ProgramDirectoryProps): React.JSX.Eleme
     includeDeleted: false,
   };
 
-  const { data, isLoading, isError, refetch, isFetching } = useProgramsList(query, {
+  const { data, isLoading, isError, error, refetch, isFetching } = useProgramsList(query, {
     enabled: canUseCourses,
   });
 
@@ -213,7 +214,7 @@ export function ProgramDirectory({ me }: ProgramDirectoryProps): React.JSX.Eleme
       <EmptyState
         data-testid="programs-error"
         title="Couldn't load programs"
-        description="Something went wrong fetching the catalog."
+        description={queryErrorMessage(error, "Something went wrong fetching the catalog.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="programs-retry">
             Try again

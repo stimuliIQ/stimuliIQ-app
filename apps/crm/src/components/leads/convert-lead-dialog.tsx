@@ -32,6 +32,7 @@ import {
 } from "../../lib/phone-field";
 import { PHONE_LENGTH_MESSAGE } from "@repo/ui";
 import { CourseTypeSelect } from "../students/course-type-select";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface ConvertLeadDialogProps {
   lead: LeadDetail;
@@ -148,16 +149,14 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
         }
         return;
       }
-      const problem = error && typeof error === "object" && "problem" in error
-        ? (error as { problem: { detail?: string; title?: string; status?: number } }).problem
-        : undefined;
       // Surface backend rule violations inline (stage / already-converted /
       // programId+batchId both-or-neither) rather than only a toast, per the
       // task brief.
-      setError("programId", { message: problem?.detail ?? problem?.title ?? "Conversion failed." });
+      const message = queryErrorMessage(error, "Conversion failed.");
+      setError("programId", { message });
       toast({
         title: "Couldn't convert this lead",
-        description: problem?.detail ?? problem?.title,
+        description: message,
         variant: "destructive",
       });
     }

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, Button, formatPaise, Input, S
 
 import { useProgramsList } from "../../hooks/use-courses";
 import { useValidateCoupon } from "../../hooks/use-coupons";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 export function ValidateCouponTool(): React.JSX.Element {
   const [code, setCode] = React.useState("");
@@ -76,7 +77,7 @@ export function ValidateCouponTool(): React.JSX.Element {
           </div>
         ) : validateCoupon.isError ? (
           <p role="alert" className="text-sm text-danger" data-testid="validate-coupon-error">
-            Something went wrong validating this coupon. Try again.
+            {queryErrorMessage(validateCoupon.error, "Something went wrong validating this coupon. Try again.")}
           </p>
         ) : null}
       </CardContent>

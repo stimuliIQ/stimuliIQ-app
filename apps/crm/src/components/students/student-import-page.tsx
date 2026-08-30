@@ -15,6 +15,7 @@ import { Upload, FileSpreadsheet } from "lucide-react";
 import { useCourseTypeOptions } from "../../hooks/use-course-types";
 import { useCreateStudent } from "../../hooks/use-students";
 import { hasPermission } from "../../lib/permissions";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface StudentImportPageProps {
   me: MeResponse | undefined;
@@ -190,11 +191,10 @@ export function StudentImportPage({ me }: StudentImportPageProps): React.JSX.Ele
         await createStudent.mutateAsync(row.body!);
         created += 1;
       } catch (err) {
-        const problem =
-          err && typeof err === "object" && "problem" in err
-            ? (err as { problem: { detail?: string; title?: string } }).problem
-            : undefined;
-        failed.push({ name: row.name || `row ${row.index + 2}`, reason: problem?.detail ?? problem?.title ?? "failed" });
+        failed.push({
+          name: row.name || `row ${row.index + 2}`,
+          reason: queryErrorMessage(err, "The server rejected this row."),
+        });
       }
       setProgress(i + 1);
     }

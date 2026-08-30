@@ -71,7 +71,7 @@ export function LeaveRequestDrawer({
       toast({ title: "Leave approved", description: `${request.userName} has been told.`, variant: "success" });
       onOpenChange(false);
     } catch (err) {
-      surfaceError(toast, err, "Something went wrong");
+      surfaceError(toast, err, "Couldn't approve this leave");
     }
   }
 
@@ -88,7 +88,7 @@ export function LeaveRequestDrawer({
       toast({ title: "Leave turned down", description: `${request.userName} has been told.`, variant: "success" });
       onOpenChange(false);
     } catch (err) {
-      surfaceError(toast, err, "Something went wrong");
+      surfaceError(toast, err, "Couldn't turn down this leave");
     }
   }
 

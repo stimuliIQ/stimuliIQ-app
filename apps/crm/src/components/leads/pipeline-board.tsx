@@ -50,7 +50,7 @@ import {
 import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { hasPermission } from "../../lib/permissions";
 import { useToast } from "@repo/ui";
-import { surfaceError } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 import { LEAD_STAGE_COLUMNS, LeadStageChip, canMoveLeadStage } from "./lead-stage-chip";
 import { LeadFormDrawer } from "./lead-form-drawer";
 import { LeadDetailDrawer } from "./lead-detail-drawer";
@@ -344,7 +344,7 @@ export function PipelineBoard({ me, initialOwnerFilter }: PipelineBoardProps): R
       <EmptyState
         data-testid="pipeline-error"
         title="Couldn't load the pipeline"
-        description="Something went wrong fetching leads."
+        description={queryErrorMessage(activeQueryResult.error, "Something went wrong fetching leads.")}
         action={
           <Button variant="secondary" onClick={() => activeQueryResult.refetch()} data-testid="pipeline-retry">
             Try again
@@ -403,7 +403,13 @@ export function PipelineBoard({ me, initialOwnerFilter }: PipelineBoardProps): R
         activeViewId={activeViewId}
         onSelectView={applyView}
         onSaveView={handleSaveView}
-        onDeleteView={(id) => deleteSavedView.mutate(id)}
+        onDeleteView={(id) =>
+          deleteSavedView.mutate(id, {
+            // Without this the delete failed in silence and the view reappeared on the next
+            // refetch with nothing said about why.
+            onError: (error) => surfaceError(toast, error, "Couldn't delete this saved view"),
+          })
+        }
         data-testid="pipeline-filter-bar"
       >
         <Select

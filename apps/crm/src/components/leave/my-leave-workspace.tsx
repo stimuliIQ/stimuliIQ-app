@@ -233,7 +233,7 @@ export function MyLeaveWorkspace({ me }: { me: MeResponse | undefined }): React.
             toast({ title: "Request withdrawn", variant: "success" });
             setCancelTarget(null);
           } catch (err) {
-            surfaceError(toast, err, "Something went wrong");
+            surfaceError(toast, err, "Couldn't withdraw this request");
           }
         }}
       />

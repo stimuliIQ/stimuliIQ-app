@@ -102,7 +102,7 @@ export function LeaveApplyDrawer({ open, onOpenChange, context }: LeaveApplyDraw
       toast({ title: "Leave requested", description: "Your admin has been notified.", variant: "success" });
       onOpenChange(false);
     } catch (err) {
-      surfaceError(toast, err, "Something went wrong");
+      surfaceError(toast, err, "Couldn't request this leave");
     }
   });
 

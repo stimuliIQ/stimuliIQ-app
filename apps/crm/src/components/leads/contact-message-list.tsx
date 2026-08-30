@@ -30,7 +30,7 @@ import type { ContactSubmission, ContactSubmissionStatus, MeResponse } from "@re
 import { useContactSubmissionsList, useUpdateContactSubmissionStatus } from "../../hooks/use-content";
 import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { hasPermission } from "../../lib/permissions";
-import { surfaceError } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 
 const STATUS_OPTIONS: { value: ContactSubmissionStatus; label: string }[] = [
   { value: "new", label: "New" },
@@ -71,7 +71,7 @@ export function ContactMessageList({ me }: ContactMessageListProps): React.JSX.E
     setPage(1);
   }, [status, debouncedSearch]);
 
-  const { data, isLoading, isError, refetch, isFetching } = useContactSubmissionsList({
+  const { data, isLoading, isError, error, refetch, isFetching } = useContactSubmissionsList({
     page,
     pageSize,
     status,
@@ -107,7 +107,7 @@ export function ContactMessageList({ me }: ContactMessageListProps): React.JSX.E
       <EmptyState
         data-testid="contact-messages-error"
         title="Couldn't load contact messages"
-        description="Something went wrong fetching messages from the contact form."
+        description={queryErrorMessage(error, "Something went wrong fetching messages from the contact form.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="contact-messages-retry">
             Try again

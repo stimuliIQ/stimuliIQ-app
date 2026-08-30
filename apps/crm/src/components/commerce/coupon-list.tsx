@@ -23,6 +23,7 @@ import { getModulePermissions } from "../../lib/permissions";
 import { CouponStatusChip } from "./coupon-status-chip";
 import { CouponFormDrawer } from "./coupon-form-drawer";
 import { ValidateCouponTool } from "./validate-coupon-tool";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const STATUS_OPTIONS: { value: CouponStatus; label: string }[] = [
   { value: "active", label: "Active" },
@@ -61,7 +62,7 @@ export function CouponList({ me }: CouponListProps): React.JSX.Element {
   }, [status, type]);
 
   const query: ListCouponsQuery = { page, pageSize, status, type };
-  const { data, isLoading, isError, refetch, isFetching } = useCouponsList(query);
+  const { data, isLoading, isError, error, refetch, isFetching } = useCouponsList(query);
   const deleteCoupon = useDeleteCoupon();
 
   function handleDelete() {
@@ -130,7 +131,7 @@ export function CouponList({ me }: CouponListProps): React.JSX.Element {
       <EmptyState
         data-testid="coupons-error"
         title="Couldn't load coupons"
-        description="Something went wrong fetching the coupon list."
+        description={queryErrorMessage(error, "Something went wrong fetching the coupon list.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="coupons-retry">
             Try again

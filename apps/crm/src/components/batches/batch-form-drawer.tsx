@@ -31,6 +31,7 @@ import { useCreateBatch, useUpdateBatch } from "../../hooks/use-batches";
 import { useProgramsList } from "../../hooks/use-courses";
 import { useAllBranches } from "../../hooks/use-branches";
 import { useFacultyList } from "../../hooks/use-faculty";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const MODES: { value: BatchMode; label: string }[] = [
   { value: "live", label: "Live" },
@@ -179,13 +180,7 @@ export function BatchFormDrawer({ open, onOpenChange, batch }: BatchFormDrawerPr
       // Surface the API error envelope clearly (e.g. capacity/duplicate
       // validation) — ApiError carries `.problem.detail`/`.title` (RFC
       // 7807-style Problem Details, see @repo/api-client http/client.ts).
-      const description =
-        error && typeof error === "object" && "problem" in error
-          ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
-            (error as { problem: { detail?: string; title?: string } }).problem.title)
-          : error instanceof Error
-            ? error.message
-            : undefined;
+      const description = queryErrorMessage(error);
       toast({
         title: isEdit ? "Couldn't update batch" : "Couldn't create batch",
         description,

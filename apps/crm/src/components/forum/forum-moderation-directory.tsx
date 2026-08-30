@@ -45,6 +45,7 @@ import {
 } from "../../hooks/use-forum-moderation";
 import { hasPermission } from "../../lib/permissions";
 import { sanitizeHtml } from "../../lib/sanitize";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 // ── Status filter options ─────────────────────────────────────────────────────
 
@@ -89,7 +90,7 @@ export function ForumModerationDirectory({
     setPage(1);
   }, [statusFilter]);
 
-  const { data, isLoading, isError, refetch, isFetching } = useModerationQueue({
+  const { data, isLoading, isError, error, refetch, isFetching } = useModerationQueue({
     status: statusFilter || undefined,
     page,
     pageSize: PAGE_SIZE,
@@ -191,7 +192,7 @@ export function ForumModerationDirectory({
     return (
       <EmptyState
         title="Couldn't load moderation queue"
-        description="Something went wrong fetching the moderation queue."
+        description={queryErrorMessage(error, "Something went wrong fetching the moderation queue.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="moderation-retry">
             Try again

@@ -12,6 +12,7 @@ import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { getModulePermissions } from "../../lib/permissions";
 import { BranchStatusChip } from "./branch-status-chip";
 import { BranchFormDrawer } from "./branch-form-drawer";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const STATUS_OPTIONS: { value: BranchStatus; label: string }[] = [
   { value: "active", label: "Active" },
@@ -45,7 +46,7 @@ export function BranchDirectory({ me }: BranchDirectoryProps): React.JSX.Element
     status,
   };
 
-  const { data, isLoading, isError, refetch, isFetching } = useBranchesList(query);
+  const { data, isLoading, isError, error, refetch, isFetching } = useBranchesList(query);
 
   const columns: Array<DataTableColumn<BranchDetail>> = [
     { id: "name", header: "Name", cell: (row) => row.name, sortable: true },
@@ -63,7 +64,7 @@ export function BranchDirectory({ me }: BranchDirectoryProps): React.JSX.Element
       <EmptyState
         data-testid="branches-error"
         title="Couldn't load branches"
-        description="Something went wrong fetching the branch list."
+        description={queryErrorMessage(error, "Something went wrong fetching the branch list.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="branches-retry">
             Try again

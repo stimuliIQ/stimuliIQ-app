@@ -10,6 +10,7 @@ import { useInvoicesList } from "../../hooks/use-invoices";
 import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { InvoiceStatusChip } from "./invoice-status-chip";
 import { InvoiceDetailDrawer } from "./invoice-detail-drawer";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const STATUS_OPTIONS: { value: InvoiceStatus; label: string }[] = [
   { value: "draft", label: "Draft" },
@@ -37,7 +38,7 @@ export function InvoiceList(): React.JSX.Element {
     status,
   };
 
-  const { data, isLoading, isError, refetch, isFetching } = useInvoicesList(query);
+  const { data, isLoading, isError, error, refetch, isFetching } = useInvoicesList(query);
 
   const columns: Array<DataTableColumn<InvoiceSummary>> = [
     { id: "number", header: "Invoice #", cell: (row) => row.number, sortable: true },
@@ -58,7 +59,7 @@ export function InvoiceList(): React.JSX.Element {
       <EmptyState
         data-testid="invoices-error"
         title="Couldn't load invoices"
-        description="Something went wrong fetching the invoice list."
+        description={queryErrorMessage(error, "Something went wrong fetching the invoice list.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="invoices-retry">
             Try again

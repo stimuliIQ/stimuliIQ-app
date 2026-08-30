@@ -33,7 +33,7 @@ import {
 import { useRolesList } from "../../hooks/use-roles";
 import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { getModulePermissions, hasPermission } from "../../lib/permissions";
-import { surfaceError } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 import { UserFormDrawer } from "./user-form-drawer";
 import { ClearTwoFactorDrawer } from "./clear-two-factor-drawer";
 import { SetPasswordDrawer } from "./set-password-drawer";
@@ -99,7 +99,7 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
     status,
   };
 
-  const { data, isLoading, isError, refetch, isFetching } = useStaffUsersList(query);
+  const { data, isLoading, isError, error, refetch, isFetching } = useStaffUsersList(query);
   const { data: rolesData } = useRolesList({ page: 1, pageSize: 100 });
   const deactivate = useDeactivateStaffUser();
   const remove = useRemoveStaffUser();
@@ -289,7 +289,7 @@ export function UserDirectory({ me }: UserDirectoryProps): React.JSX.Element {
       <EmptyState
         data-testid="users-error"
         title="Couldn't load users"
-        description="Something went wrong fetching the user list."
+        description={queryErrorMessage(error, "Something went wrong fetching the user list.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="users-retry">
             Try again

@@ -19,6 +19,7 @@ import { IssueCertificateRequestSchema, type IssueCertificateRequest } from "@re
 import type { z } from "zod";
 
 import { useIssueCertificate, useCertificateTemplates } from "../../hooks/use-certificates";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface IssueCertificateDialogProps {
   open: boolean;
@@ -72,13 +73,7 @@ export function IssueCertificateDialog({
       toast({ title: "Certificate issued", variant: "success" });
       onOpenChange(false);
     } catch (error) {
-      const description =
-        error && typeof error === "object" && "problem" in error
-          ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
-            (error as { problem: { detail?: string; title?: string } }).problem.title)
-          : error instanceof Error
-            ? error.message
-            : undefined;
+      const description = queryErrorMessage(error);
       toast({ title: "Couldn't issue certificate", description, variant: "destructive" });
     }
   });

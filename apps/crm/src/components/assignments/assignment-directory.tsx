@@ -24,6 +24,7 @@ import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { getModulePermissions, hasPermission } from "../../lib/permissions";
 import { AssignmentFormDrawer } from "./assignment-form-drawer";
 import { GradeSubmissionDrawer } from "./grade-submission-drawer";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const KIND_OPTIONS: { value: AssignmentKind; label: string }[] = [
   { value: "assignment", label: "Assignment" },
@@ -65,7 +66,7 @@ export function AssignmentDirectory({
     setPage(1);
   }, [debouncedSearch, kind]);
 
-  const { data, isLoading, isError, refetch, isFetching } = useAssignmentsList({
+  const { data, isLoading, isError, error, refetch, isFetching } = useAssignmentsList({
     page,
     pageSize,
     search: debouncedSearch || undefined,
@@ -77,6 +78,7 @@ export function AssignmentDirectory({
     data: submissionsData,
     isLoading: submissionsLoading,
     isError: submissionsError,
+    error: submissionsFetchError,
     refetch: refetchSubmissions,
   } = useSubmissionsList(selectedAssignmentId ?? undefined, { page: 1, pageSize: 50 });
 
@@ -151,7 +153,7 @@ export function AssignmentDirectory({
       <EmptyState
         data-testid="assignments-error"
         title="Couldn't load assignments"
-        description="Something went wrong fetching the assignment list."
+        description={queryErrorMessage(error, "Something went wrong fetching the assignment list.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="assignments-retry">
             Try again
@@ -248,7 +250,7 @@ export function AssignmentDirectory({
             <EmptyState
               data-testid="submissions-error"
               title="Couldn't load submissions"
-              description="Something went wrong fetching submissions."
+              description={queryErrorMessage(submissionsFetchError, "Something went wrong fetching submissions.")}
               action={
                 <Button variant="secondary" size="sm" onClick={() => refetchSubmissions()}>
                   Try again

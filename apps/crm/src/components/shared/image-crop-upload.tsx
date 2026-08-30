@@ -185,7 +185,11 @@ export function ImageCropUpload({
     );
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
     if (!blob) {
-      toast({ title: "Couldn't process the image", variant: "destructive" });
+      toast({
+        title: "Couldn't process the image",
+        description: "The browser could not read this file as an image. Try a different file, or a JPEG or PNG.",
+        variant: "destructive",
+      });
       return;
     }
     const baseName = adjust.file.name.replace(/\.[^.]+$/, "") || "image";

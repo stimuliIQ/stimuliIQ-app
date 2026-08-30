@@ -18,6 +18,7 @@ import {
 import { ManualPaymentRequestSchema, type ManualPaymentRequest } from "@repo/types";
 
 import { useRecordManualPayment } from "../../hooks/use-payments";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface ManualPaymentFormDrawerProps {
   open: boolean;
@@ -101,13 +102,7 @@ export function ManualPaymentFormDrawer({
       toast({ title: "Payment recorded", description: "The manual payment was added to the ledger.", variant: "success" });
       onOpenChange(false);
     } catch (error) {
-      const description =
-        error && typeof error === "object" && "problem" in error
-          ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
-            (error as { problem: { detail?: string; title?: string } }).problem.title)
-          : error instanceof Error
-            ? error.message
-            : undefined;
+      const description = queryErrorMessage(error);
       toast({ title: "Couldn't record payment", description, variant: "destructive" });
     }
   });

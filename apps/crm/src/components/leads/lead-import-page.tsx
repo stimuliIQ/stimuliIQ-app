@@ -19,6 +19,7 @@ import { useCreateLead } from "../../hooks/use-leads";
 import { useBulkMoveLeadsStage } from "../../hooks/use-bulk-saved-views";
 import { hasPermission } from "../../lib/permissions";
 import { LEAD_STAGE_COLUMNS } from "./lead-stage-chip";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface LeadImportPageProps {
   me: MeResponse | undefined;
@@ -142,11 +143,10 @@ export function LeadImportPage({ me }: LeadImportPageProps): React.JSX.Element {
         const created = await createLead.mutateAsync(row.body!);
         createdIds.push(created.id);
       } catch (err) {
-        const problem =
-          err && typeof err === "object" && "problem" in err
-            ? (err as { problem: { detail?: string; title?: string } }).problem
-            : undefined;
-        failed.push({ name: row.name || `row ${row.index + 2}`, reason: problem?.detail ?? problem?.title ?? "failed" });
+        failed.push({
+          name: row.name || `row ${row.index + 2}`,
+          reason: queryErrorMessage(err, "The server rejected this row."),
+        });
       }
       setProgress(i + 1);
     }

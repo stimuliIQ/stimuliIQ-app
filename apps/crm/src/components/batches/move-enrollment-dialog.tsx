@@ -6,6 +6,7 @@ import { Button, Drawer, DrawerContent, DrawerBody, DrawerFooter, Select, Select
 
 import { useBatchesList } from "../../hooks/use-batches";
 import { useMoveEnrollment } from "../../hooks/use-enrollments";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface MoveEnrollmentDialogProps {
   open: boolean;
@@ -44,13 +45,7 @@ export function MoveEnrollmentDialog({
       toast({ title: "Enrollment moved", variant: "success" });
       onOpenChange(false);
     } catch (error) {
-      const description =
-        error && typeof error === "object" && "problem" in error
-          ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
-            (error as { problem: { detail?: string; title?: string } }).problem.title)
-          : error instanceof Error
-            ? error.message
-            : undefined;
+      const description = queryErrorMessage(error);
       toast({ title: "Couldn't move enrollment", description, variant: "destructive" });
     }
   };

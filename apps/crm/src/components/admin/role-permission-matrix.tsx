@@ -46,6 +46,7 @@ import type { MeResponse, PermissionCatalogEntry, PermissionScope, RolePermissio
 
 import { usePermissionCatalog, useRolePermissions, useUpdateRolePermissions } from "../../hooks/use-roles";
 import { describePermission } from "../../lib/permission-help";
+import { errorStatus, queryErrorMessage } from "../../lib/surface-error";
 import { buildPermissionModel, type PermissionActionRow, type PermissionScreenRow } from "../../lib/permission-screens";
 
 // ON grants the permission at "all" (org-wide) scope; OFF revokes it.
@@ -64,12 +65,18 @@ function matches(query: string, ...haystack: string[]): boolean {
 
 export function RolePermissionMatrix({ role, me }: RolePermissionMatrixProps): React.JSX.Element {
   const { toast } = useToast();
-  const { data: catalog, isLoading: catalogLoading, isError: catalogError, refetch: refetchCatalog } =
-    usePermissionCatalog();
+  const {
+    data: catalog,
+    isLoading: catalogLoading,
+    isError: catalogError,
+    error: catalogFetchError,
+    refetch: refetchCatalog,
+  } = usePermissionCatalog();
   const {
     data: rolePermissions,
     isLoading: grantsLoading,
     isError: grantsError,
+    error: grantsFetchError,
     refetch: refetchGrants,
   } = useRolePermissions(role.id);
   const updatePermissions = useUpdateRolePermissions();
@@ -129,7 +136,10 @@ export function RolePermissionMatrix({ role, me }: RolePermissionMatrixProps): R
       <EmptyState
         data-testid="permission-matrix-error"
         title="Couldn't load the permission matrix"
-        description="Something went wrong fetching the permission catalog or this role's grants."
+        description={queryErrorMessage(
+          catalogFetchError ?? grantsFetchError,
+          "Something went wrong fetching the permission catalog or this role's grants.",
+        )}
         action={
           <Button
             variant="secondary"
@@ -183,14 +193,10 @@ export function RolePermissionMatrix({ role, me }: RolePermissionMatrixProps): R
     } catch (error) {
       // Surface the server's privilege-escalation 403/validation error clearly — both as a
       // toast and an inline banner, since this is the real enforcement point (CLAUDE.md §3.5).
-      const problem =
-        error && typeof error === "object" && "problem" in error
-          ? (error as { problem: { detail?: string; title?: string; status?: number } }).problem
-          : undefined;
-      const description = problem?.detail ?? problem?.title ?? (error instanceof Error ? error.message : undefined);
-      setServerError(description ?? "The server rejected this permission change.");
+      const description = queryErrorMessage(error, "The server rejected this permission change.");
+      setServerError(description);
       toast({
-        title: problem?.status === 403 ? "Permission change rejected" : "Couldn't save permissions",
+        title: errorStatus(error) === 403 ? "Permission change rejected" : "Couldn't save permissions",
         description,
         variant: "destructive",
       });

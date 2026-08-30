@@ -233,4 +233,56 @@ describe("RolePermissionMatrix", () => {
     expect(screen.getByTestId("permission-toggle-students.delete")).toBeInTheDocument();
     expect(screen.queryByTestId("permission-toggle-students.edit")).not.toBeInTheDocument();
   });
+it("says WHY the matrix could not load, instead of a generic apology", () => {
+    // The screen used to print "Something went wrong fetching the permission catalog or
+    // this role's grants" for every failure, so an expired session and a dead API looked
+    // identical and "Try again" was the only suggestion for both.
+    const expired = {
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: {
+        problem: {
+          type: "https://docs.stimuliiq.com/errors/auth.unauthenticated",
+          title: "Unauthorized",
+          status: 401,
+          code: "auth.unauthenticated",
+        },
+      },
+      refetch: vi.fn(),
+    };
+    usePermissionCatalogMock.mockReturnValue(expired);
+    useRolePermissionsMock.mockReturnValue(expired);
+    renderMatrix();
+
+    expect(screen.getByTestId("permission-matrix-error")).toHaveTextContent("Your session has expired");
+    expect(screen.queryByText(/Something went wrong fetching the permission catalog/i)).not.toBeInTheDocument();
+  });
+
+  it("names the rejected field when a save fails validation", async () => {
+    usePermissionCatalogMock.mockReturnValue(catalogLoaded);
+    useRolePermissionsMock.mockReturnValue(noGrants);
+    useUpdateRolePermissionsMock.mockReturnValue({
+      isPending: false,
+      mutateAsync: vi.fn().mockRejectedValue({
+        problem: {
+          type: "https://docs.stimuliiq.com/errors/validation.failed",
+          title: "Validation failed",
+          status: 400,
+          code: "validation.failed",
+          detail: "One or more fields failed validation.",
+          errors: [{ path: "body.grants.0.permissionKey", message: "must be dot-separated lowercase segments" }],
+        },
+      }),
+    });
+
+    const user = userEvent.setup();
+    renderMatrix();
+    await openSection(user, "Students");
+    await user.click(screen.getByTestId("permission-toggle-students.view"));
+    await user.click(screen.getByTestId("permission-matrix-save"));
+
+    const banner = await screen.findByTestId("permission-matrix-server-error");
+    expect(banner).toHaveTextContent("grants › 1 › permissionKey: must be dot-separated lowercase segments");
+  });
 });

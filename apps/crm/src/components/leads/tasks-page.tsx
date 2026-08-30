@@ -78,6 +78,7 @@ export function TasksPage({ me: _me }: TasksPageProps): React.JSX.Element {
         tasks={filteredTasks}
         isLoading={tasksQuery.isLoading}
         isError={tasksQuery.isError}
+        error={tasksQuery.error}
         onRetry={() => tasksQuery.refetch()}
         showLeadId
         emptyTitle="No tasks here"

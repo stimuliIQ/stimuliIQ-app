@@ -7,6 +7,7 @@ import { Download } from "lucide-react";
 
 import { usePayment, usePaymentReceipt } from "../../hooks/use-payments";
 import { PaymentStatusChip } from "./payment-status-chip";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface PaymentDetailDrawerProps {
   paymentId: string | null;
@@ -15,7 +16,7 @@ interface PaymentDetailDrawerProps {
 
 export function PaymentDetailDrawer({ paymentId, onOpenChange }: PaymentDetailDrawerProps): React.JSX.Element {
   const open = Boolean(paymentId);
-  const { data: payment, isLoading, isError, refetch } = usePayment(paymentId ?? undefined);
+  const { data: payment, isLoading, isError, error, refetch } = usePayment(paymentId ?? undefined);
   const [receiptRequested, setReceiptRequested] = React.useState(false);
   const { data: receipt, isFetching: receiptFetching } = usePaymentReceipt(paymentId ?? undefined, receiptRequested);
 
@@ -49,7 +50,7 @@ export function PaymentDetailDrawer({ paymentId, onOpenChange }: PaymentDetailDr
             <EmptyState
               data-testid="payment-detail-error"
               title="Couldn't load this payment"
-              description="Something went wrong fetching the payment details."
+              description={queryErrorMessage(error, "Something went wrong fetching the payment details.")}
               action={
                 <Button variant="secondary" onClick={() => refetch()} data-testid="payment-detail-retry">
                   Try again

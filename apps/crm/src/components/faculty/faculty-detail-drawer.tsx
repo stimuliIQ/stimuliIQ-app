@@ -24,6 +24,7 @@ import {
 import { getModulePermissions } from "../../lib/permissions";
 import { BatchStatusChip } from "../shared/batch-status-chip";
 import { FacultyFormDrawer } from "./faculty-form-drawer";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface FacultyDetailDrawerProps {
   facultyId: string | null;
@@ -33,7 +34,7 @@ interface FacultyDetailDrawerProps {
 
 export function FacultyDetailDrawer({ facultyId, onOpenChange, me }: FacultyDetailDrawerProps): React.JSX.Element {
   const open = Boolean(facultyId);
-  const { data: faculty, isLoading, isError, refetch } = useFacultyMember(facultyId ?? undefined);
+  const { data: faculty, isLoading, isError, error, refetch } = useFacultyMember(facultyId ?? undefined);
   const deleteFaculty = useDeleteFaculty();
   const restoreFaculty = useRestoreFaculty();
   const resetPassword = useResetFacultyPassword();
@@ -104,7 +105,7 @@ export function FacultyDetailDrawer({ facultyId, onOpenChange, me }: FacultyDeta
               <EmptyState
                 data-testid="faculty-detail-error"
                 title="Couldn't load this faculty member"
-                description="Something went wrong fetching their profile."
+                description={queryErrorMessage(error, "Something went wrong fetching their profile.")}
                 action={
                   <Button variant="secondary" onClick={() => refetch()} data-testid="faculty-detail-retry">
                     Try again

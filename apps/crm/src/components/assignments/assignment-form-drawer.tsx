@@ -41,6 +41,7 @@ import type { z } from "zod";
 
 import { useCreateAssignment, useUpdateAssignment } from "../../hooks/use-assignments";
 import { useCurriculum, useProgramsList } from "../../hooks/use-courses";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const KIND_OPTIONS: { value: AssignmentKind; label: string; description: string }[] = [
   { value: "assignment", label: "Assignment", description: "Single-submission assignment" },
@@ -258,13 +259,7 @@ export function AssignmentFormDrawer({
       }
       onOpenChange(false);
     } catch (error) {
-      const description =
-        error && typeof error === "object" && "problem" in error
-          ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
-            (error as { problem: { detail?: string; title?: string } }).problem.title)
-          : error instanceof Error
-            ? error.message
-            : undefined;
+      const description = queryErrorMessage(error);
       toast({
         title: isEdit ? `Couldn't update ${noun}` : `Couldn't create ${noun}`,
         description,

@@ -13,7 +13,7 @@ import { useEnrollmentsList } from "../../hooks/use-enrollments";
 import { useOrdersList, useCancelOrder } from "../../hooks/use-orders";
 import { hasPermission } from "../../lib/permissions";
 import { AddProgramDialog } from "./add-program-dialog";
-import { surfaceError } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 
 const STATUS_TONE: Record<EnrollmentStatus, "success" | "info" | "danger"> = {
   active: "success",
@@ -28,7 +28,7 @@ export function StudentEnrollmentsTab({
   studentId: string;
   me: MeResponse | undefined;
 }): React.JSX.Element {
-  const { data, isLoading, isError, refetch } = useEnrollmentsList({ studentId, page: 1, pageSize: 20 });
+  const { data, isLoading, isError, error, refetch } = useEnrollmentsList({ studentId, page: 1, pageSize: 20 });
   // Open (unpaid) orders = program assignments awaiting payment.
   const orders = useOrdersList({ studentId, status: "created", page: 1, pageSize: 20 });
   const pendingOrders = orders.data?.items ?? [];
@@ -100,7 +100,7 @@ export function StudentEnrollmentsTab({
       <EmptyState
         data-testid="student-enrollments-error"
         title="Couldn't load enrollments"
-        description="Something went wrong fetching this student's enrollments."
+        description={queryErrorMessage(error, "Something went wrong fetching this student's enrollments.")}
         action={
           <button type="button" onClick={() => refetch()} className="text-sm font-medium text-brand-500 hover:underline">
             Try again

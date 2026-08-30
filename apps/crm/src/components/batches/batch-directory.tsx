@@ -16,6 +16,7 @@ import { getModulePermissions } from "../../lib/permissions";
 import { BatchStatusChip } from "../shared/batch-status-chip";
 import { BatchFormDrawer } from "./batch-form-drawer";
 import { BatchDetailDrawer } from "./batch-detail-drawer";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const STATUS_OPTIONS: { value: BatchStatus; label: string }[] = [
   { value: "planned", label: "Planned" },
@@ -63,7 +64,7 @@ export function BatchDirectory({ me }: BatchDirectoryProps): React.JSX.Element {
     includeDeleted: false,
   };
 
-  const { data, isLoading, isError, refetch, isFetching } = useBatchesList(query);
+  const { data, isLoading, isError, error, refetch, isFetching } = useBatchesList(query);
 
   const columns: Array<DataTableColumn<BatchSummary>> = [
     { id: "name", header: "Batch", cell: (row) => row.name, sortable: true },
@@ -94,7 +95,7 @@ export function BatchDirectory({ me }: BatchDirectoryProps): React.JSX.Element {
       <EmptyState
         data-testid="batches-error"
         title="Couldn't load batches"
-        description="Something went wrong fetching the batch list."
+        description={queryErrorMessage(error, "Something went wrong fetching the batch list.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="batches-retry">
             Try again

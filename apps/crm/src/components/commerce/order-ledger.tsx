@@ -14,6 +14,7 @@ import { useProgramsList } from "../../hooks/use-courses";
 import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { OrderStatusChip } from "./order-status-chip";
 import { OrderDetailDrawer } from "./order-detail-drawer";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
   { value: "created", label: "Created" },
@@ -54,7 +55,7 @@ export function OrderLedger({ me: _me }: OrderLedgerProps): React.JSX.Element {
     to: to ? new Date(to).toISOString() : undefined,
   };
 
-  const { data, isLoading, isError, refetch, isFetching } = useOrdersList(query);
+  const { data, isLoading, isError, error, refetch, isFetching } = useOrdersList(query);
 
   const columns: Array<DataTableColumn<OrderSummary>> = [
     { id: "studentName", header: "Student", cell: (row) => row.studentName, sortable: true },
@@ -91,7 +92,7 @@ export function OrderLedger({ me: _me }: OrderLedgerProps): React.JSX.Element {
       <EmptyState
         data-testid="orders-error"
         title="Couldn't load the order ledger"
-        description="Something went wrong fetching orders."
+        description={queryErrorMessage(error, "Something went wrong fetching orders.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="orders-retry">
             Try again

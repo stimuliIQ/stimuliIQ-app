@@ -26,6 +26,7 @@ import { CampaignStatusChip } from "./campaign-status-chip";
 import { CampaignBuilderDrawer } from "./campaign-builder-drawer";
 import { CampaignDetailDrawer } from "./campaign-detail-drawer";
 import { CampaignTemplatesManagerDrawer } from "./campaign-templates-manager-drawer";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const STATUS_FILTER_OPTIONS: Array<{ value: CampaignStatus | ""; label: string }> = [
   { value: "",           label: "All statuses" },
@@ -65,7 +66,7 @@ export function CampaignDirectory({ me }: CampaignDirectoryProps): React.JSX.Ele
     setPage(1);
   }, [statusFilter, channelFilter]);
 
-  const { data, isLoading, isError, refetch, isFetching } = useCampaignsList({
+  const { data, isLoading, isError, error, refetch, isFetching } = useCampaignsList({
     status: statusFilter || undefined,
     channel: channelFilter || undefined,
     page,
@@ -137,7 +138,7 @@ export function CampaignDirectory({ me }: CampaignDirectoryProps): React.JSX.Ele
     return (
       <EmptyState
         title="Couldn't load campaigns"
-        description="Something went wrong fetching the campaign list."
+        description={queryErrorMessage(error, "Something went wrong fetching the campaign list.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="campaigns-retry">
             Try again

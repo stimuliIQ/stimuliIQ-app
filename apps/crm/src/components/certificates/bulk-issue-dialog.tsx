@@ -13,6 +13,7 @@ import type { EligibilityListItem } from "@repo/types";
 import { CERTIFICATE_KIND_LABEL } from "@repo/types";
 
 import { useCertificateTemplates, useIssueCertificate } from "../../hooks/use-certificates";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface BulkIssueDialogProps {
   open: boolean;
@@ -59,13 +60,7 @@ export function BulkIssueDialog({ open, onOpenChange, candidates, onDone }: Bulk
         });
         rowResults.push({ enrollmentId: candidate.enrollmentId, studentName: candidate.studentName, success: true });
       } catch (error) {
-        const message =
-          error && typeof error === "object" && "problem" in error
-            ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
-              (error as { problem: { detail?: string; title?: string } }).problem.title)
-            : error instanceof Error
-              ? error.message
-              : "Failed";
+        const message = queryErrorMessage(error, "Failed");
         rowResults.push({ enrollmentId: candidate.enrollmentId, studentName: candidate.studentName, success: false, error: message });
       }
     }

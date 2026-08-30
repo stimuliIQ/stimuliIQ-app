@@ -12,6 +12,7 @@ import { formatPaiseAsInr } from "../../lib/money";
 import { ProgramStatusChip } from "./program-status-chip";
 import { ProgramFormDrawer } from "./program-form-drawer";
 import { CurriculumBuilder } from "./curriculum-builder";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface ProgramDetailDrawerProps {
   programId: string | null;
@@ -21,7 +22,7 @@ interface ProgramDetailDrawerProps {
 
 export function ProgramDetailDrawer({ programId, onOpenChange, me }: ProgramDetailDrawerProps): React.JSX.Element {
   const open = Boolean(programId);
-  const { data: program, isLoading, isError, refetch } = useProgram(programId ?? undefined);
+  const { data: program, isLoading, isError, error, refetch } = useProgram(programId ?? undefined);
   const publishProgram = usePublishProgram();
   const unpublishProgram = useUnpublishProgram();
   const setVisibility = useSetProgramVisibility();
@@ -144,7 +145,7 @@ export function ProgramDetailDrawer({ programId, onOpenChange, me }: ProgramDeta
               <EmptyState
                 data-testid="program-detail-error"
                 title="Couldn't load this program"
-                description="Something went wrong fetching its details."
+                description={queryErrorMessage(error, "Something went wrong fetching its details.")}
                 action={
                   <Button variant="secondary" onClick={() => refetch()} data-testid="program-detail-retry">
                     Try again

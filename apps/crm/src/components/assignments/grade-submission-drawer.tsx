@@ -36,6 +36,7 @@ import {
 import { useSubmissionDetail, useGradeSubmission, useReturnSubmission } from "../../hooks/use-assignments";
 import { AssignmentStatusChip } from "./assignment-status-chip";
 import { sanitizeHtml } from "../../lib/sanitize";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 // Default rubric criteria for assignments without a custom rubric.
 const DEFAULT_CRITERIA: RubricCriterion[] = [
@@ -64,6 +65,7 @@ export function GradeSubmissionDrawer({
     data: submission,
     isLoading,
     isError,
+    error,
     refetch,
   } = useSubmissionDetail(submissionId ?? undefined);
 
@@ -133,13 +135,7 @@ export function GradeSubmissionDrawer({
       toast({ title: "Submission graded", variant: "success" });
       onOpenChange(false);
     } catch (error) {
-      const description =
-        error && typeof error === "object" && "problem" in error
-          ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
-            (error as { problem: { detail?: string; title?: string } }).problem.title)
-          : error instanceof Error
-            ? error.message
-            : undefined;
+      const description = queryErrorMessage(error);
       toast({ title: "Couldn't grade submission", description, variant: "destructive" });
     }
   };
@@ -160,13 +156,7 @@ export function GradeSubmissionDrawer({
       });
       onOpenChange(false);
     } catch (error) {
-      const description =
-        error && typeof error === "object" && "problem" in error
-          ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
-            (error as { problem: { detail?: string; title?: string } }).problem.title)
-          : error instanceof Error
-            ? error.message
-            : undefined;
+      const description = queryErrorMessage(error);
       toast({ title: "Couldn't send this back", description, variant: "destructive" });
     }
   };
@@ -192,7 +182,7 @@ export function GradeSubmissionDrawer({
             <EmptyState
               data-testid="grade-submission-error"
               title="Couldn't load submission"
-              description="Something went wrong fetching the submission details."
+              description={queryErrorMessage(error, "Something went wrong fetching the submission details.")}
               action={
                 <Button variant="secondary" onClick={() => refetch()} data-testid="grade-submission-retry">
                   Try again

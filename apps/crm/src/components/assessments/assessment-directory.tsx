@@ -26,6 +26,7 @@ import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { getModulePermissions, hasPermission } from "../../lib/permissions";
 import { AssessmentFormDrawer } from "./assessment-form-drawer";
 import { DescriptiveGradeDrawer } from "./descriptive-grade-drawer";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const TYPE_OPTIONS: { value: AssessmentType; label: string }[] = [
   { value: "quiz", label: "Quiz" },
@@ -55,7 +56,7 @@ export function AssessmentDirectory({ me }: AssessmentDirectoryProps): React.JSX
     setPage(1);
   }, [debouncedSearch, typeFilter, isRequiredFilter]);
 
-  const { data, isLoading, isError, refetch, isFetching } = useAssessmentsList({
+  const { data, isLoading, isError, error, refetch, isFetching } = useAssessmentsList({
     page,
     pageSize,
     search: debouncedSearch || undefined,
@@ -107,7 +108,7 @@ export function AssessmentDirectory({ me }: AssessmentDirectoryProps): React.JSX
       <EmptyState
         data-testid="assessments-error"
         title="Couldn't load assessments"
-        description="Something went wrong fetching the assessment list."
+        description={queryErrorMessage(error, "Something went wrong fetching the assessment list.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="assessments-retry">
             Try again

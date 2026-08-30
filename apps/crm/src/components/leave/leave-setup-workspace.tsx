@@ -42,7 +42,7 @@ import {
   useUpdateLeaveSettings,
   useUpdateLeaveType,
 } from "../../hooks/use-leave";
-import { surfaceError } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 import { CheckboxField } from "./checkbox-field";
 
 const WEEKDAYS = [
@@ -123,7 +123,7 @@ function LeaveTypeDrawer({
       toast({ title: editing ? "Leave type updated" : "Leave type added", variant: "success" });
       onOpenChange(false);
     } catch (err) {
-      surfaceError(toast, err, "Something went wrong");
+      surfaceError(toast, err, "Couldn't save this leave type");
     }
   }
 
@@ -258,6 +258,12 @@ function LeaveTypesTab(): React.JSX.Element {
         </Button>
       </div>
 
+      {typesQuery.isError ? (
+        <Alert tone="danger" title="Couldn't load the leave types">
+          {queryErrorMessage(typesQuery.error, "Something went wrong fetching the leave types.")}
+        </Alert>
+      ) : null}
+
       <DataTable
         rows={typesQuery.data ?? []}
         columns={columns}
@@ -292,7 +298,7 @@ function LeaveTypesTab(): React.JSX.Element {
             toast({ title: "Leave type deleted", variant: "success" });
             setDeleteTarget(null);
           } catch (err) {
-            surfaceError(toast, err, "Something went wrong");
+            surfaceError(toast, err, "Couldn't delete this leave type");
           }
         }}
       />
@@ -331,7 +337,7 @@ function AllowancesTab(): React.JSX.Element {
       await save.mutateAsync({ year, allocations });
       toast({ title: `${year} allowances saved`, variant: "success" });
     } catch (err) {
-      surfaceError(toast, err, "Something went wrong");
+      surfaceError(toast, err, "Couldn't save the allowances");
     }
   }
 
@@ -357,7 +363,16 @@ function AllowancesTab(): React.JSX.Element {
         ))}
       </div>
 
-      {paidTypes.length === 0 ? (
+      {typesQuery.isError || quotasQuery.isError ? (
+        // Never fall through to "there are no leave types yet" on a failed load: that reads
+        // as a fact about the data and invites an admin to re-create allowances that exist.
+        <Alert tone="danger" title="Couldn't load the allowances">
+          {queryErrorMessage(
+            typesQuery.error ?? quotasQuery.error,
+            "Something went wrong fetching this year's allowances.",
+          )}
+        </Alert>
+      ) : paidTypes.length === 0 ? (
         <Alert tone="warning">
           There are no leave types with an allowance yet. Add one on the Leave types tab first.
         </Alert>
@@ -416,7 +431,7 @@ function HolidaysTab(): React.JSX.Element {
       setName("");
       setOptional(false);
     } catch (err) {
-      surfaceError(toast, err, "Something went wrong");
+      surfaceError(toast, err, "Couldn't add this holiday");
     }
   }
 
@@ -425,7 +440,7 @@ function HolidaysTab(): React.JSX.Element {
     try {
       await updateSettings.mutateAsync({ weeklyOffDays: next });
     } catch (err) {
-      surfaceError(toast, err, "Something went wrong");
+      surfaceError(toast, err, "Couldn't save the working week");
     }
   }
 
@@ -532,6 +547,12 @@ function HolidaysTab(): React.JSX.Element {
           </Button>
         </div>
 
+        {holidaysQuery.isError ? (
+          <Alert tone="danger" title="Couldn't load the holiday list">
+            {queryErrorMessage(holidaysQuery.error, "Something went wrong fetching this year's holidays.")}
+          </Alert>
+        ) : null}
+
         <DataTable
           rows={holidaysQuery.data ?? []}
           columns={columns}
@@ -565,7 +586,7 @@ function HolidaysTab(): React.JSX.Element {
             toast({ title: "Holiday deleted", variant: "success" });
             setDeleteTarget(null);
           } catch (err) {
-            surfaceError(toast, err, "Something went wrong");
+            surfaceError(toast, err, "Couldn't delete this holiday");
           }
         }}
       />

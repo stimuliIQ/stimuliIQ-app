@@ -9,12 +9,14 @@ import { Button, EmptyState, SlaChip, Skeleton, useToast } from "@repo/ui";
 import type { ActivityDetail } from "@repo/types";
 
 import { useCompleteTask } from "../../hooks/use-activities";
-import { surfaceError } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 
 interface TaskListProps {
   tasks: ActivityDetail[];
   isLoading?: boolean;
   isError?: boolean;
+  /** The failure behind `isError`, so the empty state can say WHY (403 vs offline vs 500). */
+  error?: unknown;
   onRetry?: () => void;
   emptyTitle?: string;
   emptyDescription?: string;
@@ -27,6 +29,7 @@ export function TaskList({
   tasks,
   isLoading,
   isError,
+  error,
   onRetry,
   emptyTitle = "No follow-up tasks",
   emptyDescription = "Tasks you log with a due date will appear here.",
@@ -60,7 +63,7 @@ export function TaskList({
       <EmptyState
         data-testid={testId ? `${testId}-error` : "task-list-error"}
         title="Couldn't load tasks"
-        description="Something went wrong fetching follow-up tasks."
+        description={queryErrorMessage(error, "Something went wrong fetching follow-up tasks.")}
         action={
           onRetry ? (
             <Button variant="secondary" onClick={onRetry} data-testid="task-list-retry">

@@ -40,6 +40,7 @@ import {
 } from "../../hooks/use-campaigns";
 import { getModulePermissions } from "../../lib/permissions";
 import { CampaignTemplateFormDrawer } from "./campaign-template-form-drawer";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 const CHANNEL_OPTIONS: Array<{ value: CampaignChannel | ""; label: string }> = [
   { value: "",          label: "All channels" },
@@ -75,7 +76,7 @@ export function NotificationAdmin({ me }: NotificationAdminProps): React.JSX.Ele
 
   const PAGE_SIZE = 20;
 
-  const { data, isLoading, isError, refetch, isFetching } = useCampaignTemplatesList({
+  const { data, isLoading, isError, error, refetch, isFetching } = useCampaignTemplatesList({
     channel: channelFilter || undefined,
     page,
     pageSize: PAGE_SIZE,
@@ -208,7 +209,7 @@ export function NotificationAdmin({ me }: NotificationAdminProps): React.JSX.Ele
     return (
       <EmptyState
         title="Couldn't load templates"
-        description="Something went wrong fetching the template registry."
+        description={queryErrorMessage(error, "Something went wrong fetching the template registry.")}
         action={
           <Button variant="secondary" onClick={() => refetch()} data-testid="templates-retry">
             Try again

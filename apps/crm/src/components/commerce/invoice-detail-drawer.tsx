@@ -9,6 +9,7 @@ import { Button, Drawer, DrawerContent, DrawerBody, DrawerFooter, EmptyState, fo
 
 import { useInvoice, useInvoiceDownload } from "../../hooks/use-invoices";
 import { InvoiceStatusChip } from "./invoice-status-chip";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface InvoiceDetailDrawerProps {
   invoiceId: string | null;
@@ -17,7 +18,7 @@ interface InvoiceDetailDrawerProps {
 
 export function InvoiceDetailDrawer({ invoiceId, onOpenChange }: InvoiceDetailDrawerProps): React.JSX.Element {
   const open = Boolean(invoiceId);
-  const { data: invoice, isLoading, isError, refetch } = useInvoice(invoiceId ?? undefined);
+  const { data: invoice, isLoading, isError, error, refetch } = useInvoice(invoiceId ?? undefined);
   const { toast } = useToast();
   const [downloadRequested, setDownloadRequested] = React.useState(false);
   const { data: download, isFetching: downloadFetching } = useInvoiceDownload(
@@ -61,7 +62,7 @@ export function InvoiceDetailDrawer({ invoiceId, onOpenChange }: InvoiceDetailDr
             <EmptyState
               data-testid="invoice-detail-error"
               title="Couldn't load this invoice"
-              description="Something went wrong fetching the invoice details."
+              description={queryErrorMessage(error, "Something went wrong fetching the invoice details.")}
               action={
                 <Button variant="secondary" onClick={() => refetch()} data-testid="invoice-detail-retry">
                   Try again

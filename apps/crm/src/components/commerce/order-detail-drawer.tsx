@@ -21,6 +21,7 @@ import { useOrder } from "../../hooks/use-orders";
 import { usePaymentsList } from "../../hooks/use-payments";
 import { OrderStatusChip } from "./order-status-chip";
 import { PaymentStatusChip } from "./payment-status-chip";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface OrderDetailDrawerProps {
   orderId: string | null;
@@ -29,8 +30,14 @@ interface OrderDetailDrawerProps {
 
 export function OrderDetailDrawer({ orderId, onOpenChange }: OrderDetailDrawerProps): React.JSX.Element {
   const open = Boolean(orderId);
-  const { data: order, isLoading, isError, refetch } = useOrder(orderId ?? undefined);
-  const { data: paymentsData, isLoading: paymentsLoading, isError: paymentsError, refetch: refetchPayments } =
+  const { data: order, isLoading, isError, error, refetch } = useOrder(orderId ?? undefined);
+  const {
+    data: paymentsData,
+    isLoading: paymentsLoading,
+    isError: paymentsError,
+    error: paymentsFetchError,
+    refetch: refetchPayments,
+  } =
     usePaymentsList({ orderId: orderId ?? undefined, page: 1, pageSize: 20 });
 
   const paymentColumns: Array<DataTableColumn<PaymentSummary>> = [
@@ -71,7 +78,7 @@ export function OrderDetailDrawer({ orderId, onOpenChange }: OrderDetailDrawerPr
             <EmptyState
               data-testid="order-detail-error"
               title="Couldn't load this order"
-              description="Something went wrong fetching the order details."
+              description={queryErrorMessage(error, "Something went wrong fetching the order details.")}
               action={
                 <Button variant="secondary" onClick={() => refetch()} data-testid="order-detail-retry">
                   Try again
@@ -147,7 +154,7 @@ export function OrderDetailDrawer({ orderId, onOpenChange }: OrderDetailDrawerPr
                   <EmptyState
                     data-testid="order-payments-error"
                     title="Couldn't load payments"
-                    description="Something went wrong fetching payments for this order."
+                    description={queryErrorMessage(paymentsFetchError, "Something went wrong fetching payments for this order.")}
                     action={
                       <Button variant="secondary" onClick={() => refetchPayments()} data-testid="order-payments-retry">
                         Try again

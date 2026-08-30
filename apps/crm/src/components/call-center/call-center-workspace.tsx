@@ -14,7 +14,7 @@
 // password" call is served inside the Student 360 via "Send password reset link".
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState, Input, PageHeader, Skeleton } from "@repo/ui";
+import { Button, EmptyState, Input, PageHeader, Skeleton } from "@repo/ui";
 import { ArrowRight } from "lucide-react";
 import type { LeadSummary, LifecycleStage, MeResponse, StudentSummary } from "@repo/types";
 
@@ -26,6 +26,7 @@ import { StudentDetailDrawer } from "../students/student-detail-drawer";
 import { LeadDetailDrawer } from "../leads/lead-detail-drawer";
 import { LeadStageChip } from "../leads/lead-stage-chip";
 import { LifecycleChip } from "../shared/lifecycle-chip";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface CallCenterWorkspaceProps {
   me: MeResponse | undefined;
@@ -175,6 +176,10 @@ export function CallCenterWorkspace({ me }: CallCenterWorkspaceProps): React.JSX
   // stage. The Pipeline keeps showing them (its context is lead history).
   const leads: LeadSummary[] = (leadsQuery.data?.items ?? []).filter((lead) => !lead.convertedStudentId);
   const isLoading = searching && (studentsQuery.isLoading || leadsQuery.isLoading);
+  // Only the queries this role actually runs count — a counsellor without students.view
+  // has a permanently idle (never failing) students query.
+  const searchFailed =
+    searching && ((canViewStudents && studentsQuery.isError) || (canViewLeads && leadsQuery.isError));
 
   return (
     <div className="space-y-4 md:space-y-5" data-testid="call-center-workspace">
@@ -205,6 +210,29 @@ export function CallCenterWorkspace({ me }: CallCenterWorkspaceProps): React.JSX
           <Skeleton className="h-40 w-full rounded-lg" />
           <Skeleton className="h-40 w-full rounded-lg" />
         </div>
+      ) : searchFailed ? (
+        // NEVER fall through to "No match" on a failed search: an agent with the caller on
+        // the line would tell a real student they are not in the system.
+        <EmptyState
+          title="Couldn't run the search"
+          description={queryErrorMessage(
+            studentsQuery.error ?? leadsQuery.error,
+            "Something went wrong searching students and leads.",
+          )}
+          action={
+            <Button
+              variant="secondary"
+              onClick={() => {
+                void studentsQuery.refetch();
+                void leadsQuery.refetch();
+              }}
+              data-testid="call-center-retry"
+            >
+              Try again
+            </Button>
+          }
+          data-testid="call-center-error"
+        />
       ) : students.length === 0 && leads.length === 0 ? (
         <EmptyState
           title="No match"

@@ -21,6 +21,7 @@ import {
 
 import { useApproveRefund, useRefund, useRejectRefund } from "../../hooks/use-refunds";
 import { RefundStatusChip } from "./refund-status-chip";
+import { queryErrorMessage } from "../../lib/surface-error";
 
 interface RefundDetailDrawerProps {
   refundId: string | null;
@@ -30,7 +31,7 @@ interface RefundDetailDrawerProps {
 
 export function RefundDetailDrawer({ refundId, onOpenChange, canApprove }: RefundDetailDrawerProps): React.JSX.Element {
   const open = Boolean(refundId);
-  const { data: refund, isLoading, isError, refetch } = useRefund(refundId ?? undefined);
+  const { data: refund, isLoading, isError, error, refetch } = useRefund(refundId ?? undefined);
   const approveRefund = useApproveRefund();
   const rejectRefund = useRejectRefund();
   const { toast } = useToast();
@@ -42,13 +43,7 @@ export function RefundDetailDrawer({ refundId, onOpenChange, canApprove }: Refun
   const isPending = refund?.status === "requested";
 
   function surfaceError(error: unknown, title: string) {
-    const description =
-      error && typeof error === "object" && "problem" in error
-        ? ((error as { problem: { detail?: string; title?: string } }).problem.detail ??
-          (error as { problem: { detail?: string; title?: string } }).problem.title)
-        : error instanceof Error
-          ? error.message
-          : undefined;
+    const description = queryErrorMessage(error);
     toast({ title, description, variant: "destructive" });
   }
 
@@ -95,7 +90,7 @@ export function RefundDetailDrawer({ refundId, onOpenChange, canApprove }: Refun
               <EmptyState
                 data-testid="refund-detail-error"
                 title="Couldn't load this refund"
-                description="Something went wrong fetching the refund details."
+                description={queryErrorMessage(error, "Something went wrong fetching the refund details.")}
                 action={
                   <Button variant="secondary" onClick={() => refetch()} data-testid="refund-detail-retry">
                     Try again
