@@ -14,7 +14,15 @@
 // renamed — enforced server-side, not encoded in this schema.
 
 import { z } from "zod";
-import { UuidSchema, IsoDateTimeSchema, PermissionScopeSchema, PhoneSchema, PasswordSchema } from "../common/primitives.js";
+import {
+  UuidSchema,
+  IsoDateTimeSchema,
+  PermissionScopeSchema,
+  PhoneSchema,
+  PasswordSchema,
+  PERMISSION_KEY_PATTERN,
+  PERMISSION_KEY_MESSAGE,
+} from "../common/primitives.js";
 import { PageQuerySchema } from "../common/pagination.js";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -66,8 +74,8 @@ export type PermissionAction = z.infer<typeof PermissionActionSchema>;
 export const PermissionCatalogEntrySchema = z.object({
   key: z
     .string()
-    .regex(/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/, "must be `module.action`")
-    .describe("e.g. `students.edit`."),
+    .regex(PERMISSION_KEY_PATTERN, PERMISSION_KEY_MESSAGE)
+    .describe("e.g. `students.edit`, or `reports.revenue.view` for a sub-scoped one."),
   module: z.string().min(1).max(60),
   action: PermissionActionSchema,
   label: z.string().min(1).max(160),
@@ -113,7 +121,7 @@ export const UpdateRolePermissionsRequestSchema = z
   .object({
     grants: z.array(
       z.object({
-        permissionKey: z.string().regex(/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/, "must be `module.action`"),
+        permissionKey: z.string().regex(PERMISSION_KEY_PATTERN, PERMISSION_KEY_MESSAGE),
         scope: PermissionScopeSchema,
       }),
     ),

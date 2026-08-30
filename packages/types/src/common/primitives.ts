@@ -17,13 +17,33 @@ export const PermissionScopeSchema = z.enum(["all", "branch", "assigned", "own"]
 export type PermissionScope = z.infer<typeof PermissionScopeSchema>;
 
 /**
+ * Shape of a permission key: TWO OR MORE dot-separated lowercase segments.
+ *
+ * It used to be `module.action` EXACTLY, which quietly made roles unsavable. The seeded
+ * catalog has always carried deeper keys — `reports.revenue.view`, `leave.calendar.view`,
+ * `careers.openings.manage`, `onboarding.fields.manage`, `dpdp.erasure.execute`,
+ * `mentor.dashboard.view` — and the CRM permission matrix renders every one of them as a
+ * toggle. Because that save is a FULL REPLACE, switching a single one of those on made the
+ * entire PUT fail validation (400), taking the role's other, perfectly valid grants down
+ * with it: "Couldn't save permissions — one or more fields failed validation", with nothing
+ * on screen naming the offending field. Reads were never affected, only writes, which is
+ * exactly why the catalog kept offering keys that could not be saved.
+ *
+ * The catalog remains the real gate — RolesService.updatePermissions resolves every key
+ * against it and 404s on an unknown one. This pattern is only a cheap shape check.
+ */
+export const PERMISSION_KEY_PATTERN = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/;
+export const PERMISSION_KEY_MESSAGE =
+  "must be dot-separated lowercase segments, e.g. `students.edit` or `reports.revenue.view`";
+
+/**
  * A flattened, resolved permission grant for the current user — the shape
- * the frontend needs to do RBAC-aware UI hiding. `key` is `module.action`
- * (e.g. `students.edit`). The server is still the only enforcement point;
- * this is presentation-only (CLAUDE.md §3.5).
+ * the frontend needs to do RBAC-aware UI hiding. `key` is a dotted permission
+ * key (e.g. `students.edit`, `reports.revenue.view`). The server is still the
+ * only enforcement point; this is presentation-only (CLAUDE.md §3.5).
  */
 export const PermissionGrantSchema = z.object({
-  key: z.string().regex(/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/, "must be `module.action`"),
+  key: z.string().regex(PERMISSION_KEY_PATTERN, PERMISSION_KEY_MESSAGE),
   scope: PermissionScopeSchema,
 });
 export type PermissionGrant = z.infer<typeof PermissionGrantSchema>;
