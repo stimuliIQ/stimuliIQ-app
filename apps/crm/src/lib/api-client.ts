@@ -6,6 +6,11 @@
 // httpOnly refresh cookie; resolve "retried" so the original request replays
 // once, or "failed" so the 401 surfaces to the caller (the UI then renders
 // the signed-out empty state instead of crashing — see useMe()).
+//
+// This hook does NOT need its own concurrency guard: @repo/api-client single-flights
+// it (ApiClient.refreshInFlight), so several requests 401-ing at once share one
+// /auth/refresh instead of racing over the single-use rotating token — a race the
+// server answers by revoking the whole session (auth.refresh_reuse_detected).
 import { createApiClient } from "@repo/api-client";
 
 // Vite inlines `import.meta.env.VITE_*` at build time — never `process.env` in

@@ -26,16 +26,16 @@
 //     retry the exact same logical mutation safely).
 //
 // 401 -> refresh -> retry seam:
-//   This client does NOT automatically retry on 401. Auto-retry needs
-//   app-level coordination (e.g. a TanStack Query mutation queue) to avoid a
-//   thundering herd of parallel refreshes. Instead it exposes
+//   This client does NOT automatically retry on 401. Instead it exposes
 //   `onUnauthorized`, a hook the frontend wires once at app bootstrap
 //   (Wave 5, frontend-builder): when any request gets a 401, this hook is
 //   awaited before the ApiError is thrown; if the hook resolves to `"retried"`
 //   the original request is replayed once. A typical implementation calls
 //   `authApi.refresh()` and resolves `"retried"` on success, `"failed"` on
 //   refresh failure (in which case the original 401 surfaces and the app
-//   redirects to login).
+//   redirects to login). The hook itself is SINGLE-FLIGHTED by this client
+//   (see `refreshInFlight`): parallel 401s share one refresh call rather than
+//   racing each other over a single-use rotating token.
 
 import type { ProblemDetails, OffsetPaginationMeta } from "@repo/types";
 import { ApiError } from "./envelope-error.js";
@@ -108,6 +108,19 @@ export class ApiClient {
    * rotated elsewhere (see fetchEnvelope).
    */
   private lastCsrfToken: string | undefined;
+
+  /**
+   * SINGLE-FLIGHT REFRESH. The refresh token is rotating and single-use, and the server
+   * revokes the WHOLE session family when it sees an already-rotated one replayed
+   * (auth.service.ts refresh(), `auth.refresh_reuse_detected`). Any screen that fires two
+   * queries in parallel — the role permission matrix loads the catalog and the role's
+   * grants together — therefore used to kill the session outright once the 15-minute
+   * access token had expired: both requests 401 at the same instant, both called
+   * `onUnauthorized`, and the loser of that race presented a stale token. This holds the
+   * in-flight refresh so concurrent 401s await ONE call and then all retry; it is cleared
+   * on settle, so a 401 arriving after a refresh has finished still gets its own.
+   */
+  private refreshInFlight: Promise<"retried" | "failed"> | null = null;
 
   constructor(config: ApiClientConfig) {
     this.baseUrl = config.baseUrl.replace(/\/+$/, "");
@@ -235,6 +248,17 @@ export class ApiClient {
     return { httpStatus: response.status, body };
   }
 
+  /**
+   * Runs `onUnauthorized` at most once at a time (see refreshInFlight).
+   */
+  private refreshOnce(): Promise<"retried" | "failed"> {
+    if (!this.onUnauthorized) return Promise.resolve("failed");
+    this.refreshInFlight ??= this.onUnauthorized().finally(() => {
+      this.refreshInFlight = null;
+    });
+    return this.refreshInFlight;
+  }
+
   private async fetchEnvelope<TResponse>(
     method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
     path: string,
@@ -294,7 +318,7 @@ export class ApiClient {
     // and re-entering `onUnauthorized` -> `refresh()` on the refresh call itself
     // would recurse forever (thundering herd of /auth/refresh 401s).
     if (response.status === 401 && !options.retried && !options.skipAuthRefresh && this.onUnauthorized) {
-      const outcome = await this.onUnauthorized();
+      const outcome = await this.refreshOnce();
       if (outcome === "retried") {
         return this.fetchEnvelope<TResponse>(method, path, { ...options, retried: true });
       }
