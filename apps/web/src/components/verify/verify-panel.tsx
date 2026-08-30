@@ -3,8 +3,9 @@
 // (CLAUDE.md §3: "No business logic in components — use hooks/services.")
 //
 // Three states (AC-H1, AC-H2, AC-H3/H4/H5):
-//   valid    → green/valid visual (shield-check icon + "Certificate Verified" + program/date/holder)
-//   revoked  → distinct revoked visual (shield-x icon + text + program info; NOT color-only)
+//   valid    → a photo of the real certificate stock, filling the panel; the verdict text is
+//              sr-only there (see StatusSeal), and the program/date/holder card sits beside it
+//   revoked  → distinct revoked visual (struck seal, cross glyph + text + program info; NOT color-only)
 //   invalid  → clean "This certificate could not be verified" (no internal details leaked)
 //
 // A11y (docs/07-design-system.md §11 + CLAUDE.md §3 rule 9, WCAG 2.2 AA):
@@ -23,6 +24,7 @@
 // server-rendered result to unveil, so the verdict is in the DOM whether or not it runs.
 
 import * as React from "react";
+import Image from "next/image";
 import type { VerifyResult } from "@repo/types";
 import { isCertificateSerial, normalizeCertificateSerial } from "@repo/types";
 import { StatusChip, Card, CardContent, cn } from "@repo/ui";
@@ -328,9 +330,37 @@ const SEAL_TONES = {
   },
 } as const;
 
+/**
+ * The verified state's medallion is a PHOTOGRAPH of the real certificate stock — the milled
+ * guilloche and the rosette a Stimuli IQ certificate is actually printed with — rather than
+ * a drawn tick. A visitor arrives here holding (or looking at) that document, and matching
+ * what they hold is a stronger claim than a generic check mark.
+ *
+ * It is used ONLY for `valid`. Revoked and not-found keep their drawn glyphs: those two must
+ * stay tellable apart by SHAPE, and a photo that reads "certificate" would be exactly the
+ * wrong thing to stamp on a withdrawn one. Status is still carried by the eyebrow, the title
+ * and the chip in every state, so nothing here depends on the image loading, or on colour
+ * (docs/07 §2, WCAG 1.4.1).
+ */
+const VERIFIED_SEAL_IMAGE = "/images/certificate-verified-seal.webp";
+
+/**
+ * The crop. The source is 4:3 and the band is 16:9, so `object-cover` trims the HEIGHT and
+ * this Y value decides what survives. The rosette sits high in the frame (its centre is at
+ * roughly 32% of the image), so a centred crop would slice its top off and fill the band
+ * with the empty paper below it.
+ *
+ * A circle was tried first and abandoned: at 76px the crop is horizontal-only, which leaves
+ * the rosette stuck near the top of the disc, and zooming enough to centre it makes it fill
+ * the disc edge to edge. The artwork is a photograph of a rolled certificate — a band lets
+ * it be that, instead of losing everything outside a 76px hole.
+ */
+const VERIFIED_SEAL_POSITION = "50% 32%";
+
 function StatusSeal({
   tone,
   glyph,
+  image,
   eyebrow,
   title,
   chip,
@@ -339,6 +369,8 @@ function StatusSeal({
 }: {
   tone: keyof typeof SEAL_TONES;
   glyph: "check" | "cross" | "alert";
+  /** When set, the medallion shows this image instead of the drawn glyph. Decorative. */
+  image?: string;
   /** The small tracked line above the title. Says what happened; the title says what it is. */
   eyebrow: string;
   title: string;
@@ -351,50 +383,90 @@ function StatusSeal({
   return (
     <div
       className={cn(
-        "flex h-full w-full flex-col items-center justify-center gap-5 rounded-2xl border",
-        "px-6 py-10 text-center",
+        // overflow-hidden so the banner can run to the card's rounded edges. The padding
+        // moved onto the inner column: a full-bleed image cannot live inside px-6.
+        "flex h-full w-full flex-col items-center overflow-hidden rounded-2xl border text-center",
+        image ? "justify-start" : "justify-center",
         toneClasses.panel,
         className,
       )}
       aria-live="polite"
       role="status"
     >
-      {/* Medallion: halo, tinted disc, struck seal. All of it decorative. */}
-      <span className="relative flex size-24 items-center justify-center" aria-hidden="true">
-        <span className={cn("absolute inset-1 rounded-full blur-lg", toneClasses.halo)} />
-        <span
-          className={cn("absolute inset-2 rounded-full ring-1", toneClasses.ring, toneClasses.disc)}
+      {image ? (
+        <Image
+          src={image}
+          alt=""
+          width={1448}
+          height={1086}
+          // This is the beat the whole reveal animation lands on, and it is above the fold
+          // on the page's only purpose. Lazy-loading it would show an empty band at exactly
+          // the moment the visitor is looking for the verdict.
+          priority
+          sizes="(min-width: 768px) 26rem, 92vw"
+          // The photo IS the card in this state, so it fills the column: a 16:9 band when
+          // stacked on mobile, stretched to match the details card beside it from md up.
+          className="aspect-[16/9] w-full shrink-0 object-cover md:aspect-auto md:h-full md:flex-1"
+          style={{ objectPosition: VERIFIED_SEAL_POSITION }}
         />
-        <SealMark glyph={glyph} className={cn("relative size-[4.25rem]", toneClasses.mark)} />
-      </span>
+      ) : null}
 
-      <div className="flex flex-col items-center gap-2">
-        <p
-          className={cn(
-            "text-[10px] font-semibold uppercase tracking-[0.28em]",
-            toneClasses.eyebrow,
-          )}
-        >
-          {eyebrow}
+      {/*
+        WITH A PHOTO, THE WORDS ARE SCREEN-READER ONLY (product decision, 2026-08-30: the
+        verified card is the certificate, nothing else). They are NOT deleted. The image is
+        decorative (alt=""), so removing this block outright would leave this panel with no
+        text alternative at all — a verdict conveyed only as a picture, announced to a
+        screen reader as silence, and indistinguishable from the revoked panel to anyone
+        who cannot see it (WCAG 1.1.1 / 1.4.1, and the a11y contract in this file header).
+        `sr-only` keeps every word in the accessibility tree and paints none of it.
+      */}
+      <div
+        className={cn(
+          "flex w-full flex-1 flex-col items-center justify-center gap-5 px-6",
+          image ? "sr-only" : "py-10",
+        )}
+      >
+        {image ? null : (
+          /* Medallion: halo, tinted disc, struck seal. All of it decorative — every word
+             of the verdict is in the text below. */
+          <span className="relative flex size-24 items-center justify-center" aria-hidden="true">
+            <span className={cn("absolute inset-1 rounded-full blur-lg", toneClasses.halo)} />
+            <span
+              className={cn(
+                "absolute inset-2 rounded-full ring-1",
+                toneClasses.ring,
+                toneClasses.disc,
+              )}
+            />
+            <SealMark glyph={glyph} className={cn("relative size-[4.25rem]", toneClasses.mark)} />
+          </span>
+        )}
+
+        <div className="flex flex-col items-center gap-2">
+          <p
+            className={cn(
+              "text-[10px] font-semibold uppercase tracking-[0.28em]",
+              toneClasses.eyebrow,
+            )}
+          >
+            {eyebrow}
+          </p>
+          {/* Text label — status is NOT colour-only */}
+          <p
+            className={cn("font-display text-2xl font-bold tracking-tight", toneClasses.title)}
+            data-testid="verify-status-label"
+          >
+            {title}
+          </p>
+          {chip}
+        </div>
+
+        {/* text-balance: at this measure the sentence otherwise leaves two words alone on
+            the last line, which is the one thing that makes a careful card look careless. */}
+        <p className="max-w-[19rem] text-balance text-sm leading-relaxed text-fg-muted">
+          {description}
         </p>
-        {/* Text label — status is NOT colour-only */}
-        <p
-          className={cn(
-            "font-display text-2xl font-bold tracking-tight",
-            toneClasses.title,
-          )}
-          data-testid="verify-status-label"
-        >
-          {title}
-        </p>
-        {chip}
       </div>
-
-      {/* text-balance: at this measure the sentence otherwise leaves two words alone on
-          the last line, which is the one thing that makes a careful card look careless. */}
-      <p className="max-w-[19rem] text-balance text-sm leading-relaxed text-fg-muted">
-        {description}
-      </p>
     </div>
   );
 }
@@ -419,6 +491,7 @@ function ValidPanel({
     <StatusSeal
       tone="success"
       glyph="check"
+      image={VERIFIED_SEAL_IMAGE}
       eyebrow="Authenticity confirmed"
       title="Verified Authentic"
       chip={<StatusChip tone="success" label="Valid" size="sm" data-testid="verify-status-chip" />}
@@ -438,6 +511,7 @@ function ValidPanel({
         <StatusSeal
           tone="success"
           glyph="check"
+          image={VERIFIED_SEAL_IMAGE}
           eyebrow="Authenticity confirmed"
           title="Verified Authentic"
           chip={<StatusChip tone="success" label="Valid" size="sm" data-testid="verify-status-chip" />}

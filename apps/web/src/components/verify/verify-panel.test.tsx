@@ -144,6 +144,30 @@ describe("VerifyPanel, valid state", () => {
     render(<VerifyPanel state={VALID_STATE} certId="eyJzIjoiYWJjIn0.k9Xr2mQ7vB" />);
     expect(screen.queryByTestId("verify-serial")).not.toBeInTheDocument();
   });
+
+  it("hides the verdict text visually but keeps it for assistive tech", () => {
+    // Product decision (2026-08-30): the verified card shows the certificate and nothing
+    // else. The words are not deleted — the photo is decorative (alt=""), so dropping them
+    // would leave a verdict conveyed only as a picture and announced as silence.
+    const { container } = render(<VerifyPanel state={VALID_STATE} certId={CERT_ID} />);
+
+    const label = screen.getByTestId("verify-status-label");
+    expect(label).toHaveTextContent("Verified Authentic");
+    expect(label.closest(".sr-only")).not.toBeNull();
+    expect(screen.getByTestId("verify-status-chip")).toBeInTheDocument();
+    expect(container.querySelector(".sr-only")).toHaveTextContent("Authenticity confirmed");
+  });
+
+  it("keeps the seal photo decorative — the verdict is readable without it", () => {
+    const { container } = render(<VerifyPanel state={VALID_STATE} certId={CERT_ID} />);
+    const image = container.querySelector<HTMLImageElement>('[data-testid="verify-panel-valid"] img');
+
+    // Empty alt marks it decorative, so the card's role="status" announces the verdict and
+    // not a description of a photograph. The banner sits inside that live region, so an
+    // alt string here would be read out on every result.
+    expect(image?.getAttribute("alt")).toBe("");
+    expect(screen.getByTestId("verify-status-label")).toHaveTextContent("Verified Authentic");
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -177,17 +201,27 @@ describe("VerifyPanel, revoked state", () => {
     expect(region).toBeInTheDocument();
   });
 
-  it("icon in revoked panel uses a distinct shape (ShieldX vs ShieldCheck for valid)", () => {
+  it("marks revoked with a drawn glyph, never the certificate photo the valid state carries", () => {
     const { container: revokedContainer } = render(
       <VerifyPanel state={REVOKED_STATE} certId={CERT_ID} />,
     );
     const { container: validContainer } = render(
       <VerifyPanel state={VALID_STATE} certId={CERT_ID} />,
     );
-    // The rendered SVG path data should differ between ShieldX and ShieldCheck
-    const revokedSvg = revokedContainer.querySelector('[data-testid="verify-panel-revoked"] svg');
-    const validSvg = validContainer.querySelector('[data-testid="verify-panel-valid"] svg');
-    expect(revokedSvg?.innerHTML).not.toEqual(validSvg?.innerHTML);
+
+    // Valid stamps the medallion with a photo of the real certificate stock; revoked keeps
+    // the struck seal and its cross. Putting a picture of a certificate on a WITHDRAWN one
+    // would be exactly the wrong claim, so the two must not converge.
+    const validImage = validContainer.querySelector<HTMLImageElement>(
+      '[data-testid="verify-panel-valid"] img',
+    );
+    expect(validImage?.getAttribute("src")).toContain("certificate-verified-seal");
+    expect(revokedContainer.querySelector('[data-testid="verify-panel-revoked"] img')).toBeNull();
+
+    // And the revoked seal is still distinguishable by SHAPE, not only by tone.
+    const revokedSeal = revokedContainer.querySelector('[data-testid="verify-panel-revoked"] svg');
+    const validSeal = validContainer.querySelector('[data-testid="verify-panel-valid"] svg');
+    expect(revokedSeal?.innerHTML).not.toEqual(validSeal?.innerHTML);
   });
 
   it("does not render valid or invalid panels", () => {
