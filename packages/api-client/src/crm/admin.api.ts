@@ -5,6 +5,7 @@
 import type {
   Role,
   ListRolesQuery,
+  CloneRoleRequest,
   CreateRoleRequest,
   UpdateRoleRequest,
   PermissionMatrix,
@@ -40,6 +41,17 @@ export class RolesApi {
   /** POST /api/v1/crm/admin/roles */
   async create(body: CreateRoleRequest, idempotencyKey: string = crypto.randomUUID()): Promise<Role> {
     return this.client.request<Role>("POST", "/api/v1/crm/admin/roles", { body, idempotencyKey });
+  }
+
+  /**
+   * POST /api/v1/crm/admin/roles/:id/clone — a new role carrying a copy of this one's matrix.
+   *
+   * Refuses (403 `roles.privilege_escalation`) if the source holds anything the caller does
+   * not, rather than copying a reduced matrix: a role that looks like the original in the
+   * list and quietly is not is worse than a refusal.
+   */
+  async clone(id: string, body: CloneRoleRequest, idempotencyKey: string = crypto.randomUUID()): Promise<Role> {
+    return this.client.request<Role>("POST", `/api/v1/crm/admin/roles/${id}/clone`, { body, idempotencyKey });
   }
 
   /** PATCH /api/v1/crm/admin/roles/:id — non-system roles only. */

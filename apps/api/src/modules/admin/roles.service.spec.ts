@@ -22,6 +22,7 @@ function mockRepository(): Mocked<RolesRepository> {
     listPermissionCatalog: jest.fn(),
     findPermissionByKey: jest.fn(),
     getRoleGrants: jest.fn(),
+    getRoleGrantsWithIds: jest.fn(),
     replaceGrants: jest.fn(),
     recordPermissionMatrixAudit: jest.fn(),
     countAssignedUsers: jest.fn(),
@@ -52,6 +53,119 @@ describe("RolesService", () => {
     repo = mockRepository();
     authRepo = mockAuthRepository();
     service = new RolesService(repo as unknown as RolesRepository, authRepo as unknown as AuthRepository);
+  });
+
+
+  // ── Cloning a role ──────────────────────────────────────────────────────
+  //
+  // A clone copies a permission matrix wholesale, which makes it the one write on this
+  // service that could hand somebody more authority than they hold without ever calling
+  // updatePermissions. These tests pin that it cannot.
+
+  describe("clone", () => {
+    const SOURCE_GRANTS = [
+      { permissionId: "perm-1", permissionKey: "students.view", scope: "all" as const },
+      { permissionId: "perm-2", permissionKey: "students.edit", scope: "branch" as const },
+    ];
+
+    beforeEach(() => {
+      repo.findById.mockResolvedValue(TARGET_ROLE);
+      repo.findByKey.mockResolvedValue(null);
+      repo.getRoleGrantsWithIds.mockResolvedValue(SOURCE_GRANTS);
+      repo.create.mockResolvedValue({ ...TARGET_ROLE, id: "role-new", key: "branch_manager_lite", name: "Branch Manager (Lite)" });
+      repo.replaceGrants.mockResolvedValue(undefined);
+      repo.recordPermissionMatrixAudit.mockResolvedValue(undefined);
+      authRepo.getRbacProfile.mockResolvedValue({
+        permissions: [
+          { key: "students.view", scope: "all" },
+          { key: "students.edit", scope: "all" },
+        ],
+      } as never);
+    });
+
+    it("creates a new role carrying the source's grants", async () => {
+      const created = await service.clone("tenant-1", "editor-1", "role-branch-manager", {
+        key: "branch_manager_lite",
+        name: "Branch Manager (Lite)",
+      });
+
+      expect(repo.create).toHaveBeenCalledWith("tenant-1", "branch_manager_lite", "Branch Manager (Lite)");
+      expect(repo.replaceGrants).toHaveBeenCalledWith("role-new", [
+        { permissionId: "perm-1", scope: "all" },
+        { permissionId: "perm-2", scope: "branch" },
+      ]);
+      expect(created.key).toBe("branch_manager_lite");
+    });
+
+    it("audits the copy with an empty before, which is the truth", async () => {
+      // Without this, cloning would be the one way to create a fully-privileged role
+      // leaving no record of what it was granted.
+      await service.clone("tenant-1", "editor-1", "role-branch-manager", { key: "k", name: "N" });
+
+      expect(repo.recordPermissionMatrixAudit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorId: "editor-1",
+          roleId: "role-new",
+          before: [],
+          after: [
+            { permissionKey: "students.view", scope: "all" },
+            { permissionKey: "students.edit", scope: "branch" },
+          ],
+        }),
+      );
+    });
+
+    it("REFUSES a permission the actor does not hold, rather than dropping it", async () => {
+      // Dropping it would hand somebody a role that looks like the original in the list and
+      // quietly is not, with nothing saying which permissions went missing.
+      authRepo.getRbacProfile.mockResolvedValue({ permissions: [{ key: "students.view", scope: "all" }] } as never);
+
+      await expect(
+        service.clone("tenant-1", "editor-1", "role-branch-manager", { key: "k", name: "N" }),
+      ).rejects.toMatchObject({ response: { code: "roles.privilege_escalation" } });
+
+      expect(repo.create).not.toHaveBeenCalled();
+      expect(repo.replaceGrants).not.toHaveBeenCalled();
+    });
+
+    it("REFUSES a scope broader than the actor's own", async () => {
+      authRepo.getRbacProfile.mockResolvedValue({
+        permissions: [{ key: "students.view", scope: "own" }, { key: "students.edit", scope: "all" }],
+      } as never);
+
+      await expect(
+        service.clone("tenant-1", "editor-1", "role-branch-manager", { key: "k", name: "N" }),
+      ).rejects.toMatchObject({ response: { code: "roles.privilege_escalation" } });
+
+      expect(repo.create).not.toHaveBeenCalled();
+    });
+
+    it("copies a SYSTEM role into an ordinary one, never another system role", async () => {
+      // Inheriting is_system would produce a role nobody could ever edit or delete,
+      // including the person who just made it.
+      repo.findById.mockResolvedValue({ ...TARGET_ROLE, isSystem: true });
+
+      await service.clone("tenant-1", "editor-1", "role-branch-manager", { key: "k", name: "N" });
+
+      // `create` takes no isSystem argument at all, which is what guarantees it.
+      expect(repo.create).toHaveBeenCalledWith("tenant-1", "k", "N");
+    });
+
+    it("409s a key that is already taken", async () => {
+      repo.findByKey.mockResolvedValue(TARGET_ROLE);
+
+      await expect(
+        service.clone("tenant-1", "editor-1", "role-branch-manager", { key: "branch_manager", name: "N" }),
+      ).rejects.toMatchObject({ response: { code: "roles.key_taken" } });
+    });
+
+    it("404s an unknown source role", async () => {
+      repo.findById.mockResolvedValue(null);
+
+      await expect(
+        service.clone("tenant-1", "editor-1", "missing", { key: "k", name: "N" }),
+      ).rejects.toMatchObject({ response: { code: "roles.not_found" } });
+    });
   });
 
   describe("update, system role immutability", () => {

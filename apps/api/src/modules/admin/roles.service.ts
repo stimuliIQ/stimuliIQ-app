@@ -25,7 +25,7 @@ import type { RolePermissionScope } from "@prisma/client";
 import { RolesRepository, type RoleRow } from "./roles.repository";
 import { AuthRepository } from "../auth/auth.repository";
 import { PaginatedResult } from "../../common/dto/paginated-result";
-import type { CreateRoleRequest, ListRolesQuery, UpdateRolePermissionsRequest, UpdateRoleRequest } from "./dto";
+import type { CloneRoleRequest, CreateRoleRequest, ListRolesQuery, UpdateRolePermissionsRequest, UpdateRoleRequest } from "./dto";
 
 const SCOPE_RANK: Record<RolePermissionScope, number> = { all: 4, branch: 3, assigned: 2, own: 1 };
 
@@ -80,6 +80,96 @@ export class RolesService {
       });
     }
     const created = await this.repository.create(tenantId, body.key, body.name);
+    return toRoleDto(created);
+  }
+
+  /**
+   * `POST /admin/roles/:id/clone` — a new role carrying a copy of the source's matrix.
+   *
+   * Exists because building a role "like Counsellor but without deletes" otherwise meant
+   * creating it blank and re-ticking several dozen checkboxes by eye against another screen.
+   * That is the kind of task people get subtly wrong and never find out about, because a
+   * permission that should be on and is not fails as a 403 for somebody else, weeks later.
+   *
+   * THE SECURITY DECISION: a clone is bounded by the ACTOR'S OWN permissions, exactly as
+   * `updatePermissions` is, and it REFUSES rather than silently dropping what it cannot
+   * copy.
+   *
+   * Both halves matter. Without the bound, cloning would be a way around
+   * `roles.system_role_immutable`: an admin cannot edit super_admin's matrix, but copying it
+   * into a fresh non-system role and assigning themselves that role reaches the same place.
+   * And dropping the un-copyable grants instead of refusing would hand somebody a role that
+   * LOOKS like the original in the list and quietly is not — the worst of the three
+   * outcomes, since nothing tells them which permissions went missing.
+   *
+   * The source may be a system role. Reading super_admin's matrix is not itself authority,
+   * and in practice only a super_admin can complete such a clone, because anybody else trips
+   * the bound on the first grant they do not hold.
+   */
+  async clone(tenantId: string, editorActorId: string, sourceId: string, body: CloneRoleRequest): Promise<Role> {
+    const source = await this.repository.findById(tenantId, sourceId);
+    if (!source) {
+      throw new NotFoundException({ code: "roles.not_found", title: "Role not found" });
+    }
+
+    const existing = await this.repository.findByKey(tenantId, body.key);
+    if (existing) {
+      throw new ConflictException({
+        code: "roles.key_taken",
+        title: "Role key already exists",
+        detail: `A role with key "${body.key}" already exists for this tenant.`,
+      });
+    }
+
+    const sourceGrants = await this.repository.getRoleGrantsWithIds(sourceId);
+
+    const editorProfile = await this.authRepository.getRbacProfile(editorActorId);
+    const editorGrantByKey = new Map(editorProfile.permissions.map((p) => [p.key, p.scope]));
+
+    for (const grant of sourceGrants) {
+      const editorScope = editorGrantByKey.get(grant.permissionKey);
+      if (!editorScope) {
+        throw new ForbiddenException({
+          code: "roles.privilege_escalation",
+          title: "Cannot copy a permission you do not hold",
+          detail:
+            `"${source.name}" holds "${grant.permissionKey}", which you do not. ` +
+            "Cloning it would give the new role more than you have. Ask somebody who holds it to make the copy.",
+        });
+      }
+      if (SCOPE_RANK[grant.scope] > SCOPE_RANK[editorScope]) {
+        throw new ForbiddenException({
+          code: "roles.privilege_escalation",
+          title: "Cannot copy a broader scope than your own",
+          detail:
+            `"${source.name}" holds "${grant.permissionKey}" at scope "${grant.scope}" and you hold it at "${editorScope}". ` +
+            "Cloning it would widen your own reach.",
+        });
+      }
+    }
+
+    // Created as an ORDINARY role even when the source is a system one. `isSystem` marks the
+    // two seed-defined roles other code resolves by key and refuses to edit; a copy is
+    // neither of those, and inheriting the flag would produce a role nobody could ever edit
+    // or delete, including the person who just made it.
+    const created = await this.repository.create(tenantId, body.key, body.name);
+
+    await this.repository.replaceGrants(
+      created.id,
+      sourceGrants.map((g) => ({ permissionId: g.permissionId, scope: g.scope })),
+    );
+
+    // Audited through the same channel as an ordinary matrix edit, with an empty `before`,
+    // which is the truth: the role did not exist a moment ago. Without this a clone would be
+    // the one way to create a fully-privileged role leaving no trace of what it was granted.
+    await this.repository.recordPermissionMatrixAudit({
+      tenantId,
+      actorId: editorActorId,
+      roleId: created.id,
+      before: [],
+      after: sourceGrants.map((g) => ({ permissionKey: g.permissionKey, scope: g.scope })),
+    });
+
     return toRoleDto(created);
   }
 

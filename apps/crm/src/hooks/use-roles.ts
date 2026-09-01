@@ -4,6 +4,7 @@
 // saves via a full-replace PUT (see @repo/types crm/admin.schemas.ts header).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  CloneRoleRequest,
   CreateRoleRequest,
   ListRolesQuery,
   UpdateRolePermissionsRequest,
@@ -61,6 +62,21 @@ export function useCreateRole() {
   const invalidate = useInvalidateRoles();
   return useMutation({
     mutationFn: (body: CreateRoleRequest) => apiClient.crm.admin.roles.create(body),
+    onSuccess: () => invalidate(),
+  });
+}
+
+/**
+ * Copy a role, matrix and all.
+ *
+ * Invalidates the role list AND the permission-matrix caches: a clone writes grants, and a
+ * stale matrix would show the new role as empty right after it was created with a full one.
+ */
+export function useCloneRole() {
+  const invalidate = useInvalidateRoles();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: CloneRoleRequest }) =>
+      apiClient.crm.admin.roles.clone(id, body),
     onSuccess: () => invalidate(),
   });
 }

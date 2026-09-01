@@ -42,6 +42,20 @@ export const CreateRoleRequestSchema = z
   .strict();
 export type CreateRoleRequest = z.infer<typeof CreateRoleRequestSchema>;
 
+/**
+ * POST /api/v1/crm/admin/roles/:id/clone — a new role carrying a copy of this one's matrix.
+ *
+ * Same two fields as create, and that is the point: a clone IS a create, with the grants
+ * pre-filled. Building a role like an existing one otherwise meant creating it blank and
+ * re-ticking several dozen checkboxes by eye against another screen, which is exactly the
+ * task people get subtly wrong and never notice.
+ *
+ * The source's grants are NOT in the body. Sending them would let a client clone a role into
+ * something the original never was, and the server would have to re-derive the truth anyway.
+ */
+export const CloneRoleRequestSchema = CreateRoleRequestSchema;
+export type CloneRoleRequest = z.infer<typeof CloneRoleRequestSchema>;
+
 /** PATCH /api/v1/crm/admin/roles/:id — `name` only; `key` is immutable once created, `isSystem` roles cannot be renamed. */
 export const UpdateRoleRequestSchema = z
   .object({

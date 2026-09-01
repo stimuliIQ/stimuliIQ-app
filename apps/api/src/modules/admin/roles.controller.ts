@@ -34,7 +34,9 @@ import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { PaginatedResult } from "../../common/dto/paginated-result";
 import { RolesService } from "./roles.service";
 import {
+  CloneRoleRequestSchema,
   CreateRoleRequestSchema,
+  type CloneRoleRequest,
   type CreateRoleRequest,
   UpdateRoleRequestSchema,
   type UpdateRoleRequest,
@@ -65,6 +67,25 @@ export class RolesController {
   @UsePipes(new ZodValidationPipe(CreateRoleRequestSchema))
   async create(@CurrentUser() user: RequestUser, @Body() body: CreateRoleRequest): Promise<Role> {
     return this.rolesService.create(user.tenantId, body);
+  }
+
+  /**
+   * Copy a role, matrix and all.
+   *
+   * Gated on `roles.create` rather than `roles.edit`: the outcome is a NEW role, and whoever
+   * may create one may create this one. The dangerous half — copying grants — is bounded in
+   * the service by the actor's own permissions, which is a stronger check than any single
+   * key could express.
+   */
+  @Post("roles/:id/clone")
+  @HttpCode(201)
+  @RequirePermission("roles.create")
+  async clone(
+    @CurrentUser() user: RequestUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body(new ZodValidationPipe(CloneRoleRequestSchema)) body: CloneRoleRequest,
+  ): Promise<Role> {
+    return this.rolesService.clone(user.tenantId, user.id, id, body);
   }
 
   @Patch("roles/:id")

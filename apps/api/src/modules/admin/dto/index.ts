@@ -5,6 +5,8 @@
 // single source of truth stays in the shared package.
 
 export {
+  CloneRoleRequestSchema,
+  type CloneRoleRequest,
   CreateRoleRequestSchema,
   type CreateRoleRequest,
   UpdateRoleRequestSchema,

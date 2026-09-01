@@ -108,6 +108,29 @@ export class RolesRepository {
   }
 
   /**
+   * The same grants, carrying the permission ID as well as the key — what cloning needs.
+   *
+   * `getRoleGrants` deliberately projects keys only, because that is the vocabulary the API
+   * and the audit trail speak. A clone has to WRITE the grants, and `replaceGrants` takes
+   * ids, so it needs both halves. Resolving each key back through `findPermissionByKey`
+   * would work and would be one query per permission for a matrix that routinely runs to
+   * dozens of rows.
+   */
+  async getRoleGrantsWithIds(
+    roleId: string,
+  ): Promise<Array<{ permissionId: string; permissionKey: string; scope: RolePermissionScope }>> {
+    const rows = await this.prisma.client.rolePermission.findMany({
+      where: { roleId },
+      include: { permission: { select: { id: true, key: true } } },
+    });
+    return rows.map((row) => ({
+      permissionId: row.permission.id,
+      permissionKey: row.permission.key,
+      scope: row.scope,
+    }));
+  }
+
+  /**
    * Full-replace a role's permission grants in one transaction: deletes every existing
    * `role_permissions` row for this role, then inserts the desired grant list. The
    * privilege-escalation guard and "permission keys must exist in the catalog" validation

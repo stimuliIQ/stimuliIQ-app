@@ -4,12 +4,25 @@
 // editor for that role in a side panel. RBAC-aware: Create/Edit gated on
 // `roles.create`/`roles.edit`.
 import * as React from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
-import { Button, ConfirmDialog, DataTable, type DataTableColumn, Drawer, DrawerBody, DrawerContent, EmptyState, PageHeader, StatusChip, useToast } from "@repo/ui";
+import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  Button,
+  ConfirmDialog,
+  DataTable,
+  type DataTableColumn,
+  Drawer,
+  DrawerBody,
+  DrawerContent,
+  EmptyState,
+  PageHeader,
+  StatusChip,
+  useToast,
+} from "@repo/ui";
 import type { MeResponse, Role } from "@repo/types";
 
 import { useDeleteRole, useRolesList } from "../../hooks/use-roles";
 import { getModulePermissions } from "../../lib/permissions";
+import { RoleCloneDialog } from "./role-clone-dialog";
 import { RoleFormDrawer } from "./role-form-drawer";
 import { RolePermissionMatrix } from "./role-permission-matrix";
 import { queryErrorMessage } from "../../lib/surface-error";
@@ -27,6 +40,7 @@ export function RoleDirectory({ me }: RoleDirectoryProps): React.JSX.Element {
   const [editingRole, setEditingRole] = React.useState<Role | null>(null);
   const [selectedRole, setSelectedRole] = React.useState<Role | null>(null);
   const [deletingRole, setDeletingRole] = React.useState<Role | null>(null);
+  const [cloningRole, setCloningRole] = React.useState<Role | null>(null);
   const pageSize = 20;
 
   const { data, isLoading, isError, error, refetch, isFetching } = useRolesList({ page, pageSize });
@@ -63,7 +77,10 @@ export function RoleDirectory({ me }: RoleDirectoryProps): React.JSX.Element {
       id: "isSystem",
       header: "Type",
       cell: (row) => (
-        <StatusChip tone={row.isSystem ? "neutral" : "info"} label={row.isSystem ? "System" : "Custom"} />
+        <StatusChip
+          tone={row.isSystem ? "neutral" : "info"}
+          label={row.isSystem ? "System" : "Custom"}
+        />
       ),
     },
     {
@@ -135,6 +152,24 @@ export function RoleDirectory({ me }: RoleDirectoryProps): React.JSX.Element {
                   >
                     <Pencil className="size-4" aria-hidden="true" />
                   </Button>
+                  {/*
+                    Offered for SYSTEM roles too, unlike edit and delete. Their matrix is
+                    fixed at seed time and cannot be edited, which is exactly why copying one
+                    is useful: it is the only way to start from super_admin or admin and
+                    narrow it. The copy is an ordinary role.
+                  */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Copy ${row.name}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCloningRole(row);
+                    }}
+                    data-testid={`role-clone-row-button-${row.id}`}
+                  >
+                    <Copy className="size-4" aria-hidden="true" />
+                  </Button>
                   {/* System roles (super_admin, admin) are seed-fixed — no delete. */}
                   {!row.isSystem ? (
                     <Button
@@ -189,7 +224,16 @@ export function RoleDirectory({ me }: RoleDirectoryProps): React.JSX.Element {
         onOpenChange={setCreateOpen}
         onCreated={(created) => setSelectedRole(created)}
       />
-      <RoleFormDrawer open={Boolean(editingRole)} onOpenChange={(open) => !open && setEditingRole(null)} role={editingRole ?? undefined} />
+      <RoleFormDrawer
+        open={Boolean(editingRole)}
+        onOpenChange={(open) => !open && setEditingRole(null)}
+        role={editingRole ?? undefined}
+      />
+      <RoleCloneDialog
+        source={cloningRole}
+        onOpenChange={(open) => !open && setCloningRole(null)}
+        onCloned={(created) => setSelectedRole(created)}
+      />
     </div>
   );
 }
