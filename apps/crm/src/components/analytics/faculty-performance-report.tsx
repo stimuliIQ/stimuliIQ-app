@@ -15,7 +15,17 @@ import { ReportErrorState } from "./report-error-state";
 import { ReportPageShell } from "./report-page-shell";
 
 export function FacultyPerformanceReport({ me }: { me: MeResponse | undefined }): React.JSX.Element {
-  const canView = hasPermission(me?.permissions, "faculty.view") && hasPermission(me?.permissions, "reports.attendance.view");
+  // Gated on `faculty.view` ALONE, matching the tile that links here.
+  //
+  // It also required `reports.attendance.view`, a key seeded NOWHERE — so this page showed
+  // its no-access state to every role including super_admin, while the Analytics overview
+  // offered a tile that opened it. A control that lies about what it does.
+  //
+  // The key was almost certainly a leftover from the removed attendance feature. Deleting
+  // the requirement rather than seeding the key, because this report is batch load and fill
+  // rate — it has nothing to do with attendance, and minting a permission to justify a stale
+  // gate would be inventing authority nobody asked for.
+  const canView = hasPermission(me?.permissions, "faculty.view");
   const { data, isLoading, isError, error, refetch } = useBatchesList({ page: 1, pageSize: 200, includeDeleted: false });
   const rows = React.useMemo(() => summarizeFacultyPerformance(data?.items ?? []), [data]);
 
