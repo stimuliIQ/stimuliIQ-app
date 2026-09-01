@@ -132,7 +132,9 @@ export function CurriculumBuilder({
   const [newLessonTitle, setNewLessonTitle] = React.useState("");
   const [newLessonType, setNewLessonType] = React.useState<LessonType>("video");
   // Lesson whose attachments drawer is open (PDF/slides/datasets).
-  const [resourcesFor, setResourcesFor] = React.useState<{ id: string; title: string } | null>(null);
+  const [resourcesFor, setResourcesFor] = React.useState<
+    { id: string; title: string; moduleId: string } | null
+  >(null);
 
   if (isLoading) {
     return (
@@ -454,14 +456,16 @@ export function CurriculumBuilder({
                                 <Video className="size-4" aria-hidden="true" />
                               </Button>
                             ) : null}
-                            {/* Lesson attachments (PDF/slides/datasets) — kept distinct
-                                from the video action above; this is the paperclip. */}
+                            {/* The lesson's summary + its attachments — kept distinct from the
+                                video action above; this is the paperclip. */}
                             <Button
                               variant="ghost"
                               size="icon"
-                              aria-label={`Manage resources for ${lesson.title}`}
-                              title="Resources (PDF, slides, datasets)"
-                              onClick={() => setResourcesFor({ id: lesson.id, title: lesson.title })}
+                              aria-label={`Edit summary and resources for ${lesson.title}`}
+                              title="Summary and resources"
+                              onClick={() =>
+                                setResourcesFor({ id: lesson.id, title: lesson.title, moduleId: moduleNode.id })
+                              }
                               data-testid="lesson-resources-button"
                             >
                               <Paperclip className="size-4" aria-hidden="true" />
@@ -567,8 +571,10 @@ export function CurriculumBuilder({
         </div>
       ) : null}
 
-      {/* Lesson attachments (PDF / slides / datasets) for the selected lesson. */}
+      {/* The selected lesson's summary + its attachments. */}
       <LessonResourcesDrawer
+        programId={programId}
+        moduleId={resourcesFor?.moduleId ?? null}
         lessonId={resourcesFor?.id ?? null}
         lessonTitle={resourcesFor?.title ?? ""}
         open={Boolean(resourcesFor)}

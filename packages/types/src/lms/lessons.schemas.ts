@@ -150,8 +150,9 @@ export const LessonDetailResponseSchema = z.object({
     "accessed without enrollment. Always populated for enrolled access.",
   ),
   content: z.unknown().nullable().describe(
-    "Rich lesson body. Type is lesson-specific (HTML string for reading, null for video, " +
-    "structured JSON for quiz/assignment). Treat as opaque; handle null gracefully.",
+    "Rich lesson body, set for ANY lesson type. HTML string for reading; on a video lesson " +
+    "it is the summary/notes shown under the player (optional, so often null); structured " +
+    "JSON for quiz/assignment. Treat as opaque; handle null gracefully.",
   ),
   videoMeta: VideoMetaSchema.nullable().describe(
     "Present only when type='video' and a videos row exists. Null otherwise. " +

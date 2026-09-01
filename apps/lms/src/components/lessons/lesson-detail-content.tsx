@@ -218,6 +218,21 @@ function VideoLesson({ lesson, initialTimeS }: VideoLessonProps): React.JSX.Elem
           ) : null}
         </div>
       ) : null}
+
+      {/* Summary & notes the faculty wrote for this video (lessons.content). A video
+          lesson used to render the player and nothing else, so anything written about
+          the video had nowhere to appear. Omitted entirely when empty — an "About this
+          lesson" heading over blank space reads as something failing to load. */}
+      {lesson.content ? (
+        <Card className="mt-4" data-testid="video-lesson-summary">
+          <CardHeader>
+            <CardTitle>About this lesson</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ReadingContent content={lesson.content} />
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

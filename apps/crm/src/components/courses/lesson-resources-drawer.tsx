@@ -1,4 +1,10 @@
-// Lesson resources drawer — attach PDFs / slides / datasets to a lesson.
+// Lesson content drawer — the lesson's written summary, and the files attached to it.
+//
+// The summary lives here as well as in the lesson editor (the pencil), because this is the
+// panel staff are already in when they finish attaching a video or a deck and want to say
+// what it covers. Both editors read and write the same `lessons.content` through the same
+// hooks, so whichever is opened second shows what the other saved — there is one field, two
+// doors to it, not two fields.
 //
 // This is the PDF counterpart to the video ingest flow, with one structural
 // difference: a lesson has MANY resources (1:N), whereas video is 1:1 (uploading
@@ -15,7 +21,7 @@
 //
 // CLAUDE.md §3: no business logic here — the hooks own the calls.
 import * as React from "react";
-import { FileText, Trash2, Upload } from "lucide-react";
+import { FileText, Paperclip, Trash2, Upload } from "lucide-react";
 import {
   Button,
   ConfirmDialog,
@@ -29,6 +35,7 @@ import {
   Select,
   SelectItem,
   Skeleton,
+  Textarea,
   useToast,
   type SignedUploadResult,
 } from "@repo/ui";
@@ -40,6 +47,7 @@ import {
   useLessonResources,
   useResourceUploadUrl,
 } from "../../hooks/use-lesson-resources";
+import { useLesson, useUpdateLesson } from "../../hooks/use-courses";
 import { surfaceError } from "../../lib/surface-error";
 
 const RESOURCE_TYPES: { value: LessonResourceType; label: string }[] = [
@@ -86,6 +94,9 @@ function formatBytes(bytes: number | null): string {
 }
 
 interface LessonResourcesDrawerProps {
+  programId: string;
+  /** The lesson's module — the lesson PATCH route is nested under it. */
+  moduleId: string | null;
   lessonId: string | null;
   lessonTitle: string;
   open: boolean;
@@ -94,6 +105,8 @@ interface LessonResourcesDrawerProps {
 }
 
 export function LessonResourcesDrawer({
+  programId,
+  moduleId,
   lessonId,
   lessonTitle,
   open,
@@ -106,8 +119,14 @@ export function LessonResourcesDrawer({
   const createResource = useCreateLessonResource();
   const deleteResource = useDeleteLessonResource();
 
+  // The lesson's own row, for the summary. Fetched per-lesson because the curriculum tree
+  // omits `content` on purpose (a body can be 20k characters and the tree refetches on reorder).
+  const { data: lessonDetail } = useLesson(programId, open ? moduleId : null, open ? lessonId : null);
+  const updateLesson = useUpdateLesson(programId);
+
   const [title, setTitle] = React.useState("");
   const [type, setType] = React.useState<LessonResourceType>("pdf");
+  const [summary, setSummary] = React.useState("");
   const [pendingDelete, setPendingDelete] = React.useState<LessonResource | null>(null);
 
   React.useEffect(() => {
@@ -116,6 +135,24 @@ export function LessonResourcesDrawer({
       setType("pdf");
     }
   }, [open]);
+
+  // Seed the summary from the fetched lesson, and again when a different lesson is opened.
+  React.useEffect(() => {
+    if (!lessonDetail) return;
+    setSummary(lessonDetail.content ?? "");
+  }, [lessonDetail]);
+
+  /** Saves the summary alone — title and type are the pencil's business, so they are sent back
+   *  unchanged rather than omitted, which a partial PATCH would treat as "leave alone" anyway. */
+  async function handleSaveSummary(): Promise<void> {
+    if (!lessonId || !moduleId) return;
+    try {
+      await updateLesson.mutateAsync({ moduleId, lessonId, body: { content: summary } });
+      toast({ title: "Summary saved", description: "Students see it on the lesson page.", variant: "success" });
+    } catch (error) {
+      surfaceError(toast, error, "Couldn't save the summary.");
+    }
+  }
 
   /** Step 1+2: mint the signed PUT for the picked file. */
   async function requestUploadUrl(file: File): Promise<SignedUploadResult> {
@@ -170,13 +207,47 @@ export function LessonResourcesDrawer({
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent
-        title="Lesson resources"
-        description={`PDFs, slides and datasets attached to "${lessonTitle}". Students download these from the lesson page.`}
+        title="Lesson content"
+        description={`The summary students read for "${lessonTitle}", and the files they download from it.`}
         size="md"
         data-testid="lesson-resources-drawer"
       >
         <DrawerBody className="flex flex-col gap-4">
+          {/* Summary & notes — the lesson's own body (lessons.content), shown to students on
+              the lesson page: under the player on a video lesson, as the body on a reading one. */}
+          {canEdit && lessonId ? (
+            <div className="flex flex-col gap-3">
+              <Textarea
+                label="Summary & notes"
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                rows={6}
+                placeholder="What this lesson covers, key points, and anything to read or do afterwards. HTML is allowed."
+                helperText="Shown to enrolled students on the lesson page. Plain text or HTML."
+                data-testid="lesson-summary-input"
+              />
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void handleSaveSummary()}
+                  loading={updateLesson.isPending}
+                  disabled={summary === (lessonDetail?.content ?? "")}
+                  data-testid="lesson-summary-save"
+                >
+                  Save summary
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
           {/* Existing attachments */}
+          <p
+            className={`inline-flex items-center gap-1.5 text-sm font-medium text-fg${canEdit && lessonId ? " border-t border-border pt-4" : ""}`}
+          >
+            <Paperclip aria-hidden="true" className="size-4" />
+            Attached files
+          </p>
           <div className="flex flex-col gap-2">
             {isLoading ? (
               <Skeleton shape="block" className="h-16 w-full rounded-md" />

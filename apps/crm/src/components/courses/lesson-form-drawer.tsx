@@ -5,9 +5,14 @@
 // the API and editable nowhere. The body is fetched per-lesson (GET .../lessons/:id)
 // because the curriculum tree omits it on purpose.
 //
-// Video lessons have no body: their content is the attached video, managed by the
-// camera button on the lesson row, so this drawer says so instead of showing an
-// empty textarea that looks like it should do something.
+// A VIDEO lesson has a body too. It used to be refused one — this drawer said "a video
+// lesson's content is its video" and dropped `content` from the PATCH — which left a video
+// lesson as a bare player with nothing written around it: no summary of what the video
+// covers, no notes to read alongside it, nowhere to put the reading meant to follow it. The
+// column and the API always accepted a body; only the two UIs refused. So the field is now
+// offered for every type, worded per type, and the LMS renders it under the player. The
+// camera-button note stays: attaching the video is still a different control, and the
+// textarea must not look like where that goes.
 import * as React from "react";
 import {
   Button,
@@ -75,8 +80,7 @@ export function LessonFormDrawer({ programId, moduleId, lesson, open, onOpenChan
       await updateLesson.mutateAsync({
         moduleId,
         lessonId: lesson.id,
-        // A video lesson keeps whatever body it had (unused) rather than being wiped here.
-        body: type === "video" ? { title: trimmed, type } : { title: trimmed, type, content },
+        body: { title: trimmed, type, content },
       });
       toast({ title: "Lesson updated", variant: "success" });
       onOpenChange(false);
@@ -137,26 +141,31 @@ export function LessonFormDrawer({ programId, moduleId, lesson, open, onOpenChan
                   className="rounded-md border border-border bg-surface p-3 text-sm text-fg-muted"
                   data-testid="lesson-form-video-note"
                 >
-                  A video lesson&apos;s content is its video. Use the camera button on the lesson row to add or
-                  replace it.
+                  The video itself is attached with the camera button on the lesson row. Write what goes
+                  <em> around</em> it below.
                 </p>
-              ) : (
-                <Textarea
-                  label="Content"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  rows={14}
-                  placeholder={
-                    type === "quiz"
+              ) : null}
+              <Textarea
+                label={type === "video" ? "Summary & notes" : "Content"}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={14}
+                placeholder={
+                  type === "video"
+                    ? "What this video covers, key points, and anything to read or do after watching. HTML is allowed."
+                    : type === "quiz"
                       ? "Questions and instructions students see on this lesson. HTML is allowed."
                       : type === "assignment"
                         ? "The brief students see on this lesson. HTML is allowed."
                         : "What students read on this lesson. HTML is allowed."
-                  }
-                  helperText="Shown to enrolled students on the lesson page. Plain text or HTML."
-                  data-testid="lesson-form-content"
-                />
-              )}
+                }
+                helperText={
+                  type === "video"
+                    ? "Shown to enrolled students underneath the player. Plain text or HTML."
+                    : "Shown to enrolled students on the lesson page. Plain text or HTML."
+                }
+                data-testid="lesson-form-content"
+              />
             </div>
           )}
         </DrawerBody>

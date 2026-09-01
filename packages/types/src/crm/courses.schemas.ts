@@ -388,7 +388,7 @@ export const CreateLessonRequestSchema = z
     title: z.string().min(1).max(200),
     type: LessonTypeSchema,
     order: z.number().int().min(0),
-    content: z.string().max(20000).optional().describe("Rich content/body; video attach is a P3 video-library concern, not P1."),
+    content: z.string().max(20000).optional().describe("Rich content/body — the reading for a reading lesson, the summary/notes under the player for a video lesson. Attaching the video file itself is a separate video-library concern."),
     isPreview: z.boolean().default(false),
   })
   .strict();
@@ -468,7 +468,8 @@ export type LessonNode = z.infer<typeof LessonNodeSchema>;
  * fetched on every reorder.
  */
 export const LessonDetailSchema = LessonNodeSchema.extend({
-  /** Rich body: HTML for reading/quiz/assignment lessons; null (unused) for video lessons. */
+  /** Rich body: HTML for reading/quiz/assignment lessons; the summary/notes rendered under
+   *  the player for video lessons. Optional for all types. */
   content: z.string().nullable(),
 });
 export type LessonDetail = z.infer<typeof LessonDetailSchema>;
