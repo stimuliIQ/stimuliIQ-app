@@ -68,6 +68,7 @@ import { analyticsRevenueRoute } from "./routes/analytics-revenue-route";
 import { analyticsEnrollmentRoute } from "./routes/analytics-enrollment-route";
 import { analyticsFunnelRoute } from "./routes/analytics-funnel-route";
 import { analyticsLeadPerformanceRoute } from "./routes/analytics-lead-performance-route";
+import { analyticsTeamRevenueRoute } from "./routes/analytics-team-revenue-route";
 import { analyticsEngagementRoute } from "./routes/analytics-engagement-route";
 import { analyticsCampaignsRoute } from "./routes/analytics-campaigns-route";
 import { analyticsGamificationRoute } from "./routes/analytics-gamification-route";
@@ -154,6 +155,7 @@ const routeTree = rootRoute.addChildren([
   analyticsEnrollmentRoute,
   analyticsFunnelRoute,
   analyticsLeadPerformanceRoute,
+  analyticsTeamRevenueRoute,
   analyticsEngagementRoute,
   analyticsCampaignsRoute,
   analyticsGamificationRoute,

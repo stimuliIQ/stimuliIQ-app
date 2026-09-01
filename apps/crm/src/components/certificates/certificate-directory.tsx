@@ -54,6 +54,37 @@ interface CertificateDirectoryProps {
   onBatchChange: (batchId: string | null) => void;
 }
 
+/**
+ * The certificate serial, click-to-copy.
+ *
+ * An identifier you cannot get out of the screen is barely an identifier — the whole point
+ * of the serial is that somebody reads it to a student or pastes it into the verify form.
+ * Monospace and tabular so a column of them lines up and a mistyped character is visible.
+ *
+ * A `<button>` rather than a bare span: it is genuinely actionable, so it has to be
+ * reachable by keyboard and announced as a control.
+ */
+function CertificateSerial({ serial }: { serial: string }): React.JSX.Element {
+  const { toast } = useToast();
+  return (
+    <button
+      type="button"
+      className="font-mono text-[11px] tabular-nums text-fg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      title="Copy certificate ID"
+      aria-label={`Copy certificate ID ${serial}`}
+      onClick={async (e) => {
+        // The row itself opens the eligibility breakdown; copying an id is not that.
+        e.stopPropagation();
+        await navigator.clipboard.writeText(serial);
+        toast({ title: "Certificate ID copied", description: serial, variant: "success" });
+      }}
+      data-testid={`certificate-serial-${serial}`}
+    >
+      {serial}
+    </button>
+  );
+}
+
 export function CertificateDirectory({
   me,
   batchId,
@@ -119,6 +150,10 @@ export function CertificateDirectory({
   // editing `?batchId=` by hand must not leave the previous cohort's name on screen.
   const contextBatch = openedBatch?.batchId === batchId ? openedBatch : null;
   const firstRow = data?.items[0];
+  // The row the breakdown panel is describing. Read from the list already in hand rather
+  // than another fetch: the detail endpoint returns the eligibility gates, not the
+  // certificate, so the id lives here.
+  const selectedRow = (data?.items ?? []).find((row) => row.enrollmentId === selectedEnrollmentId) ?? null;
   const batchName = contextBatch?.batchName ?? firstRow?.batchName ?? null;
   const programTitle = contextBatch?.programTitle ?? firstRow?.programTitle ?? null;
 
@@ -235,12 +270,26 @@ export function CertificateDirectory({
       header: "Certificate",
       cell: (row) =>
         row.certificateStatus ? (
-          <StatusChip
-            size="sm"
-            className="whitespace-nowrap"
-            tone={row.certificateStatus === "valid" ? "success" : "danger"}
-            label={row.certificateStatus === "valid" ? "Issued" : "Revoked"}
-          />
+          <div className="flex flex-col items-start gap-1">
+            <StatusChip
+              size="sm"
+              className="whitespace-nowrap"
+              tone={row.certificateStatus === "valid" ? "success" : "danger"}
+              label={row.certificateStatus === "valid" ? "Issued" : "Revoked"}
+            />
+            {/* THE SERIAL, not the internal uuid.
+
+                A certificate has three identifiers and only one of them belongs on screen:
+                `certificateId` is a database uuid nobody quotes, `certUid` is the long
+                HMAC-signed string behind the QR link (unguessable by design, and unreadable),
+                and `serial` — STMQ-YYYY-XXXX-XXXX — is the short one built to be read off a
+                printed certificate and typed into the verify form.
+
+                Shown even on a REVOKED row: "which certificate was revoked?" is exactly the
+                question somebody asks when a student rings up, and hiding the id then would
+                make the row useless at the one moment it matters. */}
+            {row.serial ? <CertificateSerial serial={row.serial} /> : null}
+          </div>
         ) : (
           <span className="whitespace-nowrap text-xs text-fg-muted">Not issued</span>
         ),
@@ -440,8 +489,21 @@ export function CertificateDirectory({
           className="flex flex-col gap-3 rounded-md border border-border p-4"
           data-testid="eligibility-detail-panel"
         >
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-fg">Eligibility breakdown</h2>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h2 className="text-sm font-semibold text-fg">Eligibility breakdown</h2>
+              {/* The selected student's certificate ID, once one exists. Repeated from the
+                  table row on purpose: this panel is where somebody lands when they are
+                  answering a question about ONE student, and making them close it and hunt
+                  back up the row for the id is the sort of small friction that gets solved
+                  by writing the number on a sticky note. */}
+              {selectedRow?.serial ? (
+                <span className="inline-flex items-baseline gap-1.5 text-xs text-fg-muted">
+                  <span>Certificate ID</span>
+                  <CertificateSerial serial={selectedRow.serial} />
+                </span>
+              ) : null}
+            </div>
             <Button
               variant="ghost"
               size="sm"

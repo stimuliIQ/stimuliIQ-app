@@ -37,6 +37,8 @@ import type {
   ForumHealthReportDto,
   LeadPerformanceReportQuery,
   LeadPerformanceReportDto,
+  TeamRevenueReportQuery,
+  TeamRevenueReportDto,
 } from "@repo/types";
 import type { ApiClient } from "../http/client.js";
 import { toQueryString } from "../http/query.js";
@@ -144,6 +146,21 @@ export class ReportsApi {
     return this.client.request<LeadPerformanceReportDto>(
       "GET",
       `/api/v1/crm/reports/lead-performance${toQueryString(query)}`,
+    );
+  }
+
+  /**
+   * GET /api/v1/crm/reports/team-revenue — what each team brought in.
+   *
+   * Computed live off the write-path tables like getLeadPerformance, so no freshness pair.
+   * The two unattributed buckets on the response are not error states: they are money whose
+   * member has no owner, and money whose owner is on no team. Render them, never hide them —
+   * they are what makes the team rows add up to the company total.
+   */
+  async getTeamRevenue(query: TeamRevenueReportQuery): Promise<TeamRevenueReportDto> {
+    return this.client.request<TeamRevenueReportDto>(
+      "GET",
+      `/api/v1/crm/reports/team-revenue${toQueryString(query)}`,
     );
   }
 }

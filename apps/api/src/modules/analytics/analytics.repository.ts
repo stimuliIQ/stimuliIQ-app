@@ -748,6 +748,163 @@ export class AnalyticsRepository {
 
     return { unassigned, uncontacted };
   }
+
+  // ── Team revenue (org hierarchy × money) ────────────────────────────────
+
+  /**
+   * Every team the caller may see, with its manager, lead and headcount.
+   *
+   * Headcount counts the people ON the team: its members plus its lead and its manager.
+   * `validateTeamAssignment` forbids the lead or manager from also being a member, so there
+   * is no double-count to guard against — the three sets are disjoint by construction.
+   */
+  async listTeamsForRevenue(
+    tenantId: string,
+    teamId: string | undefined,
+    visibleUserIds: string[] | null,
+  ): Promise<Array<{ id: string; name: string; managerName: string | null; leadName: string | null; staffCount: number }>> {
+    const rows = await this.prisma.client.team.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        ...(teamId ? { id: teamId } : {}),
+        // A manager reading their own patch sees the teams they lead or manage, and nothing
+        // else. Null means scope=all: every team.
+        ...(visibleUserIds
+          ? { OR: [{ managerUserId: { in: visibleUserIds } }, { leadUserId: { in: visibleUserIds } }] }
+          : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        manager: { select: { name: true } },
+        lead: { select: { name: true } },
+        _count: { select: { members: true } },
+      },
+      orderBy: [{ name: "asc" }],
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      managerName: row.manager?.name ?? null,
+      leadName: row.lead?.name ?? null,
+      staffCount: row._count.members + (row.manager ? 1 : 0) + (row.lead ? 1 : 0),
+    }));
+  }
+
+  /** Which staff sit on which team — members, leads and managers alike. */
+  async listTeamStaffIds(tenantId: string, teamIds: string[]): Promise<Map<string, string[]>> {
+    const byTeam = new Map<string, string[]>(teamIds.map((id) => [id, []]));
+    if (teamIds.length === 0) return byTeam;
+
+    const [teams, members] = await Promise.all([
+      this.prisma.client.team.findMany({
+        where: { id: { in: teamIds }, tenantId, deletedAt: null },
+        select: { id: true, managerUserId: true, leadUserId: true },
+      }),
+      this.prisma.client.user.findMany({
+        where: { tenantId, deletedAt: null, teamId: { in: teamIds } },
+        select: { id: true, teamId: true },
+      }),
+    ]);
+
+    for (const team of teams) {
+      const ids = byTeam.get(team.id) ?? [];
+      if (team.managerUserId) ids.push(team.managerUserId);
+      if (team.leadUserId) ids.push(team.leadUserId);
+      byTeam.set(team.id, ids);
+    }
+    for (const member of members) {
+      if (!member.teamId) continue;
+      const ids = byTeam.get(member.teamId);
+      if (ids) ids.push(member.id);
+    }
+    // A person could in principle be a member of one team and lead another; the sets are
+    // deduped per team so a team's own list never counts anybody twice.
+    for (const [teamId, ids] of byTeam) byTeam.set(teamId, [...new Set(ids)]);
+    return byTeam;
+  }
+
+  /** How many members each of these staff own right now. Not windowed: it is a snapshot. */
+  async countMembersOwnedBy(tenantId: string, ownerIds: string[]): Promise<Map<string, number>> {
+    const counts = new Map<string, number>(ownerIds.map((id) => [id, 0]));
+    if (ownerIds.length === 0) return counts;
+
+    const rows = await this.prisma.client.studentProfile.groupBy({
+      by: ["ownerId"],
+      where: { tenantId, deletedAt: null, ownerId: { in: ownerIds } },
+      _count: { _all: true },
+    });
+    for (const row of rows) {
+      if (row.ownerId) counts.set(row.ownerId, row._count._all);
+    }
+    return counts;
+  }
+
+  /**
+   * Captured revenue in the window, grouped by the OWNER of the paying member, plus the
+   * company total and the money that belongs to nobody.
+   *
+   * Returned as one shape rather than three queries in the service, because the three
+   * numbers only mean anything together: the report's whole claim is that
+   * `attributed + unowned === total`, and computing the parts from separate filters is how
+   * that stops being true without anybody noticing.
+   *
+   * `status='captured' AND paid_at IS NOT NULL` is copied verbatim from `mv_revenue_daily`,
+   * so this reconciles line-for-line with the revenue dashboard. Gross of refunds, as that
+   * view is.
+   */
+  async sumRevenueByMemberOwner(
+    tenantId: string,
+    from: Date,
+    to: Date,
+  ): Promise<{
+    byOwner: Map<string, { revenuePaise: number; payingMembers: number }>;
+    totalPaise: number;
+    unownedPaise: number;
+  }> {
+    const rows = await this.prisma.client.$queryRaw<
+      Array<{ owner_id: string | null; total: bigint; paying_members: bigint }>
+    >(
+      Prisma.sql`
+        SELECT sp.owner_id                          AS owner_id,
+               COALESCE(SUM(p.amount_paise), 0)::bigint AS total,
+               COUNT(DISTINCT sp.id)::bigint            AS paying_members
+        FROM "payments" p
+        JOIN "orders" o            ON o.id = p.order_id
+        JOIN "student_profiles" sp ON sp.id = o.student_id
+        WHERE p.tenant_id = ${tenantId}::uuid
+          AND p.deleted_at IS NULL
+          AND p.status = 'captured'
+          AND p.paid_at IS NOT NULL
+          AND p.paid_at >= ${from}
+          AND p.paid_at <= ${to}
+          AND sp.deleted_at IS NULL
+        GROUP BY sp.owner_id
+      `,
+    );
+
+    const byOwner = new Map<string, { revenuePaise: number; payingMembers: number }>();
+    let totalPaise = 0;
+    let unownedPaise = 0;
+
+    for (const row of rows) {
+      // SUM() returns bigint. Paise fit an INTEGER column and a windowed company total
+      // cannot approach Number.MAX_SAFE_INTEGER, so Number() is safe here.
+      const revenuePaise = Number(row.total);
+      totalPaise += revenuePaise;
+      if (row.owner_id === null) {
+        // The null group is not noise to be filtered out — it is the money nobody owns, and
+        // reporting it is the difference between an honest total and a quiet shortfall.
+        unownedPaise += revenuePaise;
+        continue;
+      }
+      byOwner.set(row.owner_id, { revenuePaise, payingMembers: Number(row.paying_members) });
+    }
+
+    return { byOwner, totalPaise, unownedPaise };
+  }
 }
 
 /** Collapses a groupBy result into a lookup, dropping the null-key bucket Prisma includes for nullable group columns. */

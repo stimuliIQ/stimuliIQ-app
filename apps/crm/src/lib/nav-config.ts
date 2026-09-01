@@ -338,6 +338,14 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/analytics/lead-performance",
         permission: "reports.lead_performance.view",
       },
+      // Directly under Team Performance, which is the same question about leads: that one
+      // says who converted them, this says what the team actually took.
+      {
+        label: "Team Revenue",
+        icon: IndianRupee,
+        to: "/analytics/team-revenue",
+        permission: "reports.revenue.view",
+      },
       { label: "Campaign Performance", icon: BarChart3, to: "/analytics/campaigns", permission: "reports.campaigns.view" },
       { label: "Exports", icon: Download, to: "/analytics/exports", permission: "reports.export" },
     ],

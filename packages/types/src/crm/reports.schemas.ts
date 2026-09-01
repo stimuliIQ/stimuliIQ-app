@@ -510,3 +510,96 @@ const _assertCampaignPerformance: _AssertCampaignPerformanceNoSecret = true;
 export type { _AssertRevenueReportNoSecret, _AssertCampaignPerformanceNoSecret };
 void _assertRevenueReport;
 void _assertCampaignPerformance;
+
+// ─────────────────────────────────────────────────────────────────────────
+// Team revenue (org hierarchy × money)
+//
+// WHAT THIS ANSWERS that no existing report does: "what did this TEAM bring in?"
+//
+// Revenue was per-person only, and reachable only through `leads.owner_id`, so a member
+// enrolled through the onboarding form counted for nobody at all. Ownership now lives on
+// `student_profiles.owner_id` and this report rolls it up the org chart: a member belongs to
+// a person, that person belongs to a team, and the team's revenue is the sum.
+//
+// THE UNATTRIBUTED BUCKETS ARE THE LOAD-BEARING PART. `unownedRevenuePaise` (money from
+// members nobody owns) and `unteamedRevenuePaise` (money from members whose owner is on no
+// team) are reported explicitly, so that
+//
+//     sum(rows.revenuePaise) + unownedRevenuePaise + unteamedRevenuePaise === totalRevenuePaise
+//
+// holds exactly. Without them a team report silently under-reports the company: money with
+// nowhere to go would simply not appear, and the only symptom would be a total that nobody
+// cross-checks. Money that belongs to nobody is a fact about the org chart, not a rounding
+// error, and it is shown rather than dropped.
+//
+// Gross of refunds, and copied from `mv_revenue_daily`'s exact `captured` + `paid_at` pair,
+// so this reconciles line-for-line with the revenue dashboard.
+// ─────────────────────────────────────────────────────────────────────────
+
+/** GET /api/v1/crm/reports/team-revenue?from=&to= */
+export const TeamRevenueReportQuerySchema = ReportDateRangeQuerySchema.extend({
+  /** Narrow to one team. Omit for every team the caller may see. */
+  teamId: UuidSchema.optional(),
+}).strict();
+export type TeamRevenueReportQuery = z.infer<typeof TeamRevenueReportQuerySchema>;
+
+/** One team's row. */
+export const TeamRevenueRowSchema = z
+  .object({
+    teamId: UuidSchema,
+    teamName: z.string(),
+    managerName: z.string().nullable().describe("null while the post is vacant — a team is routinely created before it is staffed."),
+    leadName: z.string().nullable(),
+    staffCount: z.number().int().min(0).describe("People ON the team: members, plus its lead and manager."),
+    membersOwned: z
+      .number()
+      .int()
+      .min(0)
+      .describe("Members owned by this team's people, as of now. NOT windowed — it is a snapshot of the book."),
+    payingMembers: z
+      .number()
+      .int()
+      .min(0)
+      .describe("Distinct members who paid something in the window. Windowed."),
+    revenuePaise: z
+      .number()
+      .int()
+      .min(0)
+      .describe("Captured payments in the window, integer paise. Gross of refunds, matching mv_revenue_daily."),
+  })
+  .strict();
+export type TeamRevenueRow = z.infer<typeof TeamRevenueRowSchema>;
+
+export const TeamRevenueReportDtoSchema = z
+  .object({
+    from: IsoDateSchema,
+    to: IsoDateSchema,
+    currency: z.string().describe("Single tenant currency, so the UI never has to mix symbols in one column."),
+    rows: z.array(TeamRevenueRowSchema).describe("One row per team, including teams that took nothing (all-zero, never omitted)."),
+    totalRevenuePaise: z.number().int().min(0).describe("Every captured payment in the window, attributed or not."),
+    unownedRevenuePaise: z
+      .number()
+      .int()
+      .min(0)
+      .describe("From members nobody owns. Tag them on the member record to make this fall to zero."),
+    unteamedRevenuePaise: z
+      .number()
+      .int()
+      .min(0)
+      .describe("From members whose owner is on no team. Put that person on a team to attribute it."),
+  })
+  .strict();
+export type TeamRevenueReportDto = z.infer<typeof TeamRevenueReportDtoSchema>;
+
+/**
+ * The invariant the report is only honest if it keeps: every rupee is either on a team row
+ * or in one of the two named buckets.
+ *
+ * Exported and asserted on both sides rather than trusted, because the failure it catches is
+ * silent by construction: a join that quietly drops rows produces a report that still adds
+ * up internally and simply reports less money than came in.
+ */
+export function teamRevenueReconciles(report: TeamRevenueReportDto): boolean {
+  const attributed = report.rows.reduce((sum, row) => sum + row.revenuePaise, 0);
+  return attributed + report.unownedRevenuePaise + report.unteamedRevenuePaise === report.totalRevenuePaise;
+}

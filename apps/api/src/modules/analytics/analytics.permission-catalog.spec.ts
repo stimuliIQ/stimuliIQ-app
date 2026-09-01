@@ -41,6 +41,11 @@ const EXPECTED_KEYS = [
   "reports.gamification.view",
   // Declared BEFORE forum-health in the controller, and this list asserts file order.
   "reports.lead_performance.view",
+  // Team revenue REUSES reports.revenue.view rather than minting a key of its own: it is the
+  // same money as the revenue dashboard, split by team, and a separate grant would let
+  // somebody hold one view and not the other while both answer the same question. So the
+  // key appears twice in this list, which is file order, not a duplicate.
+  "reports.revenue.view",
   "reports.forum.view",
 ] as const;
 

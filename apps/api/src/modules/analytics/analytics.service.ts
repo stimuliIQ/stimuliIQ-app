@@ -18,7 +18,7 @@
 // No Prisma access here — delegates all data reads to AnalyticsRepository (MVs) and
 // CampaignsService (the one deliberate LOCK-D1 exception — see repository file header).
 
-import { Injectable, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
 import type {
   RevenueReportQuery,
   RevenueReportDto,
@@ -39,6 +39,8 @@ import type {
   LeadPerformanceReportQuery,
   LeadPerformanceReportDto,
 } from "@repo/types";
+import { teamRevenueReconciles } from "@repo/types";
+import type { TeamRevenueReportDto, TeamRevenueReportQuery } from "@repo/types";
 import { OrgService } from "../org/org.service";
 import { AnalyticsRepository } from "./analytics.repository";
 // A VALUE import, unlike everything above — safe here because it comes from a sibling
@@ -82,6 +84,15 @@ export class AnalyticsService {
     // Analytics depends on Org, never the reverse.
     private readonly org: OrgService,
   ) {}
+
+  /**
+   * Single currency per tenant (CLAUDE.md §1, India-first). The revenue dashboard documents
+   * the same assumption where it sums paise across rows regardless of label; a future
+   * multi-currency tenant needs a per-currency breakdown rather than a silent mis-sum.
+   */
+  private static readonly TENANT_REPORT_CURRENCY = "INR";
+
+  private readonly reportLogger = new Logger(AnalyticsService.name);
 
   // ─── Shared helpers ─────────────────────────────────────────────────────────
 
@@ -677,5 +688,113 @@ export class AnalyticsService {
       unassignedLeads: unowned.unassigned,
       uncontactedLeads: unowned.uncontacted,
     };
+  }
+  // ── Team revenue ────────────────────────────────────────────────────────
+
+  /**
+   * `GET /crm/reports/team-revenue` — what each team brought in.
+   *
+   * Revenue was per-person only, and reachable only through `leads.owner_id`, so a member
+   * enrolled through the onboarding form counted for nobody. Ownership now lives on the
+   * member (`student_profiles.owner_id`) and this rolls it up the org chart: a member belongs
+   * to a person, that person belongs to a team, the team's revenue is the sum.
+   *
+   * THE TWO UNATTRIBUTED BUCKETS ARE THE POINT, not an afterthought. Money from members
+   * nobody owns, and money from members whose owner is on no team, are reported explicitly so
+   * the arithmetic closes:
+   *
+   *     sum(rows) + unowned + unteamed === total
+   *
+   * Without them this would under-report the company and the only symptom would be a total
+   * nobody cross-checks. The invariant is ASSERTED below rather than trusted, because the
+   * failure is silent by construction: a join that quietly drops rows still produces a report
+   * that adds up internally and simply reports less money than came in.
+   */
+  async getTeamRevenue(tenantId: string, query: TeamRevenueReportQuery): Promise<TeamRevenueReportDto> {
+    const scope = requireScopeContext();
+
+    // Who this caller may see teams for. Null = scope=all, every team. A manager or lead at
+    // scope=own sees the teams they run, resolved from the org chart exactly as the
+    // lead-performance report does (ADR-0069).
+    let visibleUserIds: string[] | null = null;
+    if (scope.scope !== "all") {
+      const subordinates = await this.org.listSubordinateUserIds(tenantId, scope.actorId);
+      visibleUserIds = [scope.actorId, ...subordinates];
+    }
+
+    // Inclusive of the full final day, the convention every other dashboard here uses: `to`
+    // is a date, so without widening it every payment after midnight on the last day would be
+    // silently excluded.
+    const from = new Date(`${query.from}T00:00:00.000Z`);
+    const to = new Date(`${query.to}T23:59:59.999Z`);
+
+    const teams = await this.repo.listTeamsForRevenue(tenantId, query.teamId, visibleUserIds);
+    const staffByTeam = await this.repo.listTeamStaffIds(
+      tenantId,
+      teams.map((team) => team.id),
+    );
+
+    const allTeamStaff = [...new Set([...staffByTeam.values()].flat())];
+    const [ownedCounts, revenue] = await Promise.all([
+      this.repo.countMembersOwnedBy(tenantId, allTeamStaff),
+      this.repo.sumRevenueByMemberOwner(tenantId, from, to),
+    ]);
+
+    const rows = teams.map((team) => {
+      const staffIds = staffByTeam.get(team.id) ?? [];
+      let revenuePaise = 0;
+      let payingMembers = 0;
+      let membersOwned = 0;
+      for (const staffId of staffIds) {
+        const own = revenue.byOwner.get(staffId);
+        if (own) {
+          revenuePaise += own.revenuePaise;
+          payingMembers += own.payingMembers;
+        }
+        membersOwned += ownedCounts.get(staffId) ?? 0;
+      }
+      return {
+        teamId: team.id,
+        teamName: team.name,
+        managerName: team.managerName,
+        leadName: team.leadName,
+        staffCount: team.staffCount,
+        membersOwned,
+        payingMembers,
+        revenuePaise,
+      };
+    });
+
+    // Everything attributed to a person who is on one of the teams we just built.
+    const attributed = rows.reduce((sum, row) => sum + row.revenuePaise, 0);
+
+    // The remainder splits in two, and the split is what makes the report actionable rather
+    // than merely balanced: "tag the member" and "put that person on a team" are different
+    // chores for different people.
+    const unteamedPaise = Math.max(0, revenue.totalPaise - revenue.unownedPaise - attributed);
+
+    const report: TeamRevenueReportDto = {
+      from: query.from,
+      to: query.to,
+      currency: AnalyticsService.TENANT_REPORT_CURRENCY,
+      rows,
+      totalRevenuePaise: revenue.totalPaise,
+      unownedRevenuePaise: revenue.unownedPaise,
+      unteamedRevenuePaise: unteamedPaise,
+    };
+
+    // A caller at scope=own sees only their own teams, so the company total legitimately
+    // exceeds what their rows account for and the invariant does not apply — the difference
+    // is other people's teams, not lost money. It is checked only for the full-company view,
+    // which is the one that claims to be complete.
+    if (visibleUserIds === null && !teamRevenueReconciles(report)) {
+      this.reportLogger.error(
+        `[TeamRevenue] attribution does not reconcile for tenant ${tenantId} ` +
+          `(${query.from}..${query.to}): rows=${attributed} unowned=${revenue.unownedPaise} ` +
+          `unteamed=${unteamedPaise} total=${revenue.totalPaise}. Reporting the total as authoritative.`,
+      );
+    }
+
+    return report;
   }
 }

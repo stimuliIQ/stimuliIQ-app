@@ -17,6 +17,7 @@
 //     qa-engineer's integration-test territory; this pins the service's arithmetic).
 
 import { NotFoundException, UnprocessableEntityException } from "@nestjs/common";
+import { teamRevenueReconciles } from "@repo/types";
 import { AnalyticsService } from "./analytics.service";
 import type { AnalyticsRepository } from "./analytics.repository";
 import type { CampaignsService } from "../campaigns/campaigns.service";
@@ -27,6 +28,12 @@ type Mocked<T> = { [K in keyof T]: T[K] extends (...args: never[]) => unknown ? 
 function mockRepo(): Mocked<AnalyticsRepository> {
   return {
     getFreshness: jest.fn().mockResolvedValue({ asOf: new Date("2026-07-04T09:00:00.000Z"), stale: false }),
+    listTeamsForRevenue: jest.fn().mockResolvedValue([]),
+    listTeamStaffIds: jest.fn().mockResolvedValue(new Map()),
+    countMembersOwnedBy: jest.fn().mockResolvedValue(new Map()),
+    sumRevenueByMemberOwner: jest
+      .fn()
+      .mockResolvedValue({ byOwner: new Map(), totalPaise: 0, unownedPaise: 0 }),
     findFacultyProfileId: jest.fn(),
     findAssignedBatchIds: jest.fn(),
     listCallerBranchIds: jest.fn(),
@@ -418,4 +425,150 @@ describe("AnalyticsService", () => {
       expect(repo.listLessonsForProgram).toHaveBeenCalledWith(TENANT_ID, "prog-other-tenant");
     });
   });
+
+  // ─── Team revenue ──────────────────────────────────────────────────────────
+  //
+  // The property under test throughout is that every rupee lands SOMEWHERE. A team report
+  // that silently drops unattributable money still adds up internally and simply reports
+  // less than came in, which is the failure nobody notices.
+
+  describe("getTeamRevenue", () => {
+    const TEAMS = [
+      { id: "team-1", name: "North", managerName: "Asha", leadName: "Vikram", staffCount: 3 },
+      { id: "team-2", name: "South", managerName: "Asha", leadName: null, staffCount: 2 },
+    ];
+
+    beforeEach(() => {
+      repo.listTeamsForRevenue.mockResolvedValue(TEAMS);
+      repo.listTeamStaffIds.mockResolvedValue(
+        new Map([
+          ["team-1", ["u-lead", "u-member"]],
+          ["team-2", ["u-solo"]],
+        ]),
+      );
+      repo.countMembersOwnedBy.mockResolvedValue(
+        new Map([["u-lead", 2], ["u-member", 5], ["u-solo", 1]]),
+      );
+      repo.sumRevenueByMemberOwner.mockResolvedValue({
+        byOwner: new Map([
+          ["u-lead", { revenuePaise: 100_000, payingMembers: 1 }],
+          ["u-member", { revenuePaise: 250_000, payingMembers: 2 }],
+          ["u-solo", { revenuePaise: 50_000, payingMembers: 1 }],
+        ]),
+        totalPaise: 400_000,
+        unownedPaise: 0,
+      });
+    });
+
+    it("sums each team's people into one row", async () => {
+      const report = await runWithScope("all", () =>
+        service.getTeamRevenue(TENANT_ID, { from: "2026-07-01", to: "2026-07-31" }),
+      );
+
+      const north = report.rows.find((r) => r.teamId === "team-1")!;
+      expect(north.revenuePaise).toBe(350_000);
+      expect(north.payingMembers).toBe(3);
+      expect(north.membersOwned).toBe(7);
+      expect(north.managerName).toBe("Asha");
+    });
+
+    it("reconciles: team rows plus the unattributed buckets equal the company total", async () => {
+      const report = await runWithScope("all", () =>
+        service.getTeamRevenue(TENANT_ID, { from: "2026-07-01", to: "2026-07-31" }),
+      );
+
+      expect(teamRevenueReconciles(report)).toBe(true);
+    });
+
+    it("reports money from members nobody owns, rather than dropping it", async () => {
+      // This is the money the old lead-join lost entirely. Showing it is what turns
+      // "our numbers are short" into "tag these members".
+      repo.sumRevenueByMemberOwner.mockResolvedValue({
+        byOwner: new Map([["u-lead", { revenuePaise: 100_000, payingMembers: 1 }]]),
+        totalPaise: 175_000,
+        unownedPaise: 75_000,
+      });
+
+      const report = await runWithScope("all", () =>
+        service.getTeamRevenue(TENANT_ID, { from: "2026-07-01", to: "2026-07-31" }),
+      );
+
+      expect(report.unownedRevenuePaise).toBe(75_000);
+      expect(teamRevenueReconciles(report)).toBe(true);
+    });
+
+    it("reports money whose owner is on no team as its own bucket", async () => {
+      // Distinct from unowned on purpose: "tag the member" and "put that person on a team"
+      // are different chores for different people, and one bucket would hide which.
+      repo.sumRevenueByMemberOwner.mockResolvedValue({
+        byOwner: new Map([
+          ["u-lead", { revenuePaise: 100_000, payingMembers: 1 }],
+          ["u-nobody-team", { revenuePaise: 60_000, payingMembers: 1 }],
+        ]),
+        totalPaise: 160_000,
+        unownedPaise: 0,
+      });
+
+      const report = await runWithScope("all", () =>
+        service.getTeamRevenue(TENANT_ID, { from: "2026-07-01", to: "2026-07-31" }),
+      );
+
+      expect(report.unteamedRevenuePaise).toBe(60_000);
+      expect(report.unownedRevenuePaise).toBe(0);
+      expect(teamRevenueReconciles(report)).toBe(true);
+    });
+
+    it("keeps a team that took nothing, all-zero rather than omitted", async () => {
+      // An absent row reads as "no such team"; a zero row reads as "this team took nothing",
+      // which is the fact the reader needs.
+      repo.sumRevenueByMemberOwner.mockResolvedValue({
+        byOwner: new Map([["u-lead", { revenuePaise: 100_000, payingMembers: 1 }]]),
+        totalPaise: 100_000,
+        unownedPaise: 0,
+      });
+
+      const report = await runWithScope("all", () =>
+        service.getTeamRevenue(TENANT_ID, { from: "2026-07-01", to: "2026-07-31" }),
+      );
+
+      const south = report.rows.find((r) => r.teamId === "team-2")!;
+      expect(south).toBeDefined();
+      expect(south.revenuePaise).toBe(0);
+    });
+
+    it("narrows to the caller's own teams at scope=own", async () => {
+      // The org chart decides, not the permission (ADR-0069). Asserted on what the
+      // repository is ASKED for, since that is where the narrowing has to happen -- doing it
+      // in memory afterwards would still have loaded every team.
+      await runWithScope("own", () =>
+        service.getTeamRevenue(TENANT_ID, { from: "2026-07-01", to: "2026-07-31" }),
+      "manager-9");
+
+      expect(repo.listTeamsForRevenue).toHaveBeenCalledWith(
+        TENANT_ID,
+        undefined,
+        expect.arrayContaining(["manager-9"]),
+      );
+    });
+
+    it("passes null for the visible set at scope=all, meaning every team", async () => {
+      await runWithScope("all", () =>
+        service.getTeamRevenue(TENANT_ID, { from: "2026-07-01", to: "2026-07-31" }),
+      );
+
+      expect(repo.listTeamsForRevenue).toHaveBeenCalledWith(TENANT_ID, undefined, null);
+    });
+
+    it("includes the whole final day, not up to its midnight", async () => {
+      // `to` is a date. Without widening it, every payment taken after midnight on the last
+      // day of the window vanishes -- which is most of the last day's money.
+      await runWithScope("all", () =>
+        service.getTeamRevenue(TENANT_ID, { from: "2026-07-01", to: "2026-07-31" }),
+      );
+
+      const [, , to] = repo.sumRevenueByMemberOwner.mock.calls[0]!;
+      expect((to as Date).toISOString()).toBe("2026-07-31T23:59:59.999Z");
+    });
+  });
+
 });

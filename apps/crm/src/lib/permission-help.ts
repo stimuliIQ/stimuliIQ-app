@@ -477,7 +477,8 @@ const PERMISSION_HELP: Record<string, string> = {
     "Legacy key that controls nothing. Homepage numbers are edited inside the home page's own stats section.",
 
   // ── Reports ───────────────────────────────────────────────────────────────
-  "reports.revenue.view": "Opens the revenue dashboard: money collected over time.",
+  "reports.revenue.view":
+    "Opens the revenue dashboard (money collected over time) AND the team revenue report, which splits the same money by team.",
   "reports.enrollment.view": "Opens the enrolment trend report.",
   "reports.funnel.view": "Opens the lead funnel report, which measures the BUSINESS as a whole.",
   "reports.engagement.view": "Opens the course engagement report: what students are actually watching and finishing.",

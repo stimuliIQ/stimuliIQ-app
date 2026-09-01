@@ -23,6 +23,7 @@ import type {
   FunnelReportQuery,
   GamificationParticipationQuery,
   LeadPerformanceReportQuery,
+  TeamRevenueReportQuery,
   RevenueReportQuery,
 } from "@repo/types";
 
@@ -114,6 +115,21 @@ export function useForumHealthReport(query: ForumHealthReportQuery = {}, enabled
  * logged today", which changes the moment somebody hangs up. A short window keeps a
  * manager refreshing the page from being told yesterday's answer.
  */
+/**
+ * What each team brought in, over the window.
+ *
+ * Same live-computed shape as the lead-performance report (no freshness pair), and scoped
+ * server-side by the org chart: a manager gets their own teams, scope=all gets every team.
+ */
+export function useTeamRevenueReport(query: TeamRevenueReportQuery, enabled = true) {
+  return useQuery({
+    queryKey: [...REPORTS_QUERY_KEY, "team-revenue", query] as const,
+    queryFn: () => apiClient.crm.reports.getTeamRevenue(query),
+    enabled,
+    staleTime: 30 * 1000,
+  });
+}
+
 export function useLeadPerformanceReport(query: LeadPerformanceReportQuery, enabled = true) {
   return useQuery({
     queryKey: [...REPORTS_QUERY_KEY, "lead-performance", query] as const,

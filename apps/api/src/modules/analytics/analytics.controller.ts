@@ -37,6 +37,8 @@ import type {
   ForumHealthReportDto,
   LeadPerformanceReportQuery,
   LeadPerformanceReportDto,
+  TeamRevenueReportDto,
+  TeamRevenueReportQuery,
 } from "@repo/types";
 import {
   RevenueReportQuerySchema,
@@ -47,6 +49,7 @@ import {
   GamificationParticipationQuerySchema,
   ForumHealthReportQuerySchema,
   LeadPerformanceReportQuerySchema,
+  TeamRevenueReportQuerySchema,
 } from "@repo/types";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
@@ -139,6 +142,26 @@ export class AnalyticsController {
     @Query(new ZodValidationPipe(LeadPerformanceReportQuerySchema)) query: LeadPerformanceReportQuery,
   ): Promise<LeadPerformanceReportDto> {
     return this.service.getLeadPerformance(user.tenantId, query);
+  }
+
+  /**
+   * GET /api/v1/crm/reports/team-revenue — what each team brought in.
+   *
+   * Gated on `reports.revenue.view`, the key that already governs "may this person see what
+   * the company earns". A dedicated key was considered and rejected: this is the SAME money
+   * as the revenue dashboard, split by team, and a separate grant would let somebody hold
+   * one view and not the other while both answer the same question.
+   *
+   * Team-scoped by the org chart rather than by the permission (ADR-0069): scope=all sees
+   * every team, scope=own sees the teams the caller leads or manages.
+   */
+  @Get("team-revenue")
+  @RequirePermission("reports.revenue.view")
+  async getTeamRevenue(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(TeamRevenueReportQuerySchema)) query: TeamRevenueReportQuery,
+  ): Promise<TeamRevenueReportDto> {
+    return this.service.getTeamRevenue(user.tenantId, query);
   }
 
   /** GET /api/v1/crm/reports/forum-health — AC-26..AC-27. */
