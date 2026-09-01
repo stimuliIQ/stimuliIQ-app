@@ -19,7 +19,7 @@ import {
   formatPaise,
 } from "@repo/ui";
 import type { MeResponse } from "@repo/types";
-import { DollarSign, LifeBuoy, Percent, Receipt, UserPlus } from "lucide-react";
+import { CalendarClock, DollarSign, LifeBuoy, Percent, Receipt, UserPlus } from "lucide-react";
 
 import {
   useEnrollmentTrendReport,
@@ -28,6 +28,8 @@ import {
 } from "../../hooks/use-reports";
 import { usePaymentsList } from "../../hooks/use-payments";
 import { useTicketsList } from "../../hooks/use-tickets";
+import { useLeaveRequests } from "../../hooks/use-leave";
+import { useCareerApplicationsList } from "../../hooks/use-careers";
 import { hasPermission } from "../../lib/permissions";
 import { defaultDateRange } from "../../lib/report-dates";
 import { PaymentStatusChip } from "../commerce/payment-status-chip";
@@ -48,6 +50,15 @@ export function OverviewDashboard({ me }: OverviewDashboardProps): React.JSX.Ele
   // OUT of the permission catalog, so the admin catch-all never grants it — an admin has no
   // target of their own and would get a permanently-empty card (ADR-0067).
   const canOwnTarget = hasPermission(me?.permissions, "marketing_targets.view");
+  // PEOPLE-FACING ROLES HAD NO DASHBOARD AT ALL. Every panel above answers a commercial
+  // question — revenue, funnel, payments, tickets — so an HR or hiring account, which holds
+  // none of those keys by design, landed on "Nothing to show yet" and stayed there. The
+  // answer is not to grant them revenue to fill the screen; it is to show them THEIR work.
+  // `leave.approve`, not `leave.view`. The card is titled "awaiting a decision" and links to
+  // /leave/approvals, which the nav itself gates on approve — showing it to somebody who can
+  // only READ leave would be a control that opens onto a refusal.
+  const canLeave = hasPermission(me?.permissions, "leave.approve");
+  const canCareers = hasPermission(me?.permissions, "careers.view");
 
   const range = React.useMemo(() => defaultDateRange(30), []);
 
@@ -62,9 +73,21 @@ export function OverviewDashboard({ me }: OverviewDashboardProps): React.JSX.Ele
   // wasn't reaching the request.
   const pendingPayments = usePaymentsList({ page: 1, pageSize: 5, status: "created" }, canPayments);
   const openTickets = useTicketsList({ page: 1, pageSize: 5, status: "open" }, canTickets);
+  const pendingLeave = useLeaveRequests({ page: 1, pageSize: 5, status: "pending" }, canLeave);
+  const newApplications = useCareerApplicationsList(
+    { page: 1, pageSize: 5, status: "new" },
+    canCareers,
+  );
 
   const hasAnyAccess =
-    canRevenue || canEnrollment || canFunnel || canPayments || canTickets || canOwnTarget;
+    canRevenue ||
+    canEnrollment ||
+    canFunnel ||
+    canPayments ||
+    canTickets ||
+    canOwnTarget ||
+    canLeave ||
+    canCareers;
 
   return (
     <div className="space-y-4 md:space-y-5" data-testid="overview-dashboard">
@@ -219,6 +242,65 @@ export function OverviewDashboard({ me }: OverviewDashboardProps): React.JSX.Ele
                       ) : (
                         <StatusChip tone="neutral" size="sm" label={ticket.priority} />
                       )}
+                    </li>
+                  ))}
+                </ul>
+              </OperationalListCard>
+            ) : null}
+
+            {/*
+              The two panels a people-facing role actually owns. Same card, same gating and
+              same empty/error handling as the commercial ones above — the only thing that
+              was missing was anybody asking what an HR or hiring account opens the CRM to do.
+            */}
+            {canLeave ? (
+              <OperationalListCard
+                title="Leave awaiting a decision"
+                icon={<CalendarClock className="size-4" aria-hidden="true" />}
+                to="/leave/approvals"
+                loading={pendingLeave.isLoading}
+                error={pendingLeave.isError}
+                empty={(pendingLeave.data?.items.length ?? 0) === 0}
+                emptyLabel="Nothing waiting on you."
+                data-testid="overview-pending-leave"
+              >
+                <ul className="flex flex-col gap-2">
+                  {(pendingLeave.data?.items ?? []).map((request) => (
+                    <li
+                      key={request.id}
+                      className="flex items-center justify-between gap-2 text-sm"
+                    >
+                      <span className="truncate text-fg">{request.userName}</span>
+                      <span className="shrink-0 text-xs text-fg-muted">
+                        {request.days} day{request.days === 1 ? "" : "s"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </OperationalListCard>
+            ) : null}
+
+            {canCareers ? (
+              <OperationalListCard
+                title="New applications"
+                icon={<UserPlus className="size-4" aria-hidden="true" />}
+                to="/careers/applications"
+                loading={newApplications.isLoading}
+                error={newApplications.isError}
+                empty={(newApplications.data?.items.length ?? 0) === 0}
+                emptyLabel="No new applications."
+                data-testid="overview-new-applications"
+              >
+                <ul className="flex flex-col gap-2">
+                  {(newApplications.data?.items ?? []).map((application) => (
+                    <li
+                      key={application.id}
+                      className="flex items-center justify-between gap-2 text-sm"
+                    >
+                      <span className="truncate text-fg">{application.name}</span>
+                      <span className="shrink-0 truncate text-xs text-fg-muted">
+                        {application.jobOpeningTitle ?? "—"}
+                      </span>
                     </li>
                   ))}
                 </ul>

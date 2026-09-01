@@ -43,11 +43,13 @@ function useInvalidateLeave() {
 
 // ── Requests ──────────────────────────────────────────────────────────────
 
-export function useLeaveRequests(query: ListLeaveRequestsQuery) {
+export function useLeaveRequests(query: ListLeaveRequestsQuery, enabled = true) {
   return useQuery({
     queryKey: [...LEAVE_REQUESTS_QUERY_KEY, "list", query] as const,
     queryFn: () => apiClient.crm.leave.requests.list(query),
     placeholderData: (previousData) => previousData,
+    /** False when the caller already knows the user lacks `leave.view` — see usePaymentsList. */
+    enabled,
   });
 }
 

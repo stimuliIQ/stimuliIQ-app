@@ -69,11 +69,13 @@ export function useDeleteJobOpening() {
 
 // ── Applications ────────────────────────────────────────────────────────────
 
-export function useCareerApplicationsList(query: ListCareerApplicationsQuery) {
+export function useCareerApplicationsList(query: ListCareerApplicationsQuery, enabled = true) {
   return useQuery({
     queryKey: [...CAREER_APPLICATIONS_QUERY_KEY, "list", query] as const,
     queryFn: () => apiClient.crm.careers.applications.list(query),
     placeholderData: (previousData) => previousData,
+    /** False when the caller already knows the user lacks `careers.view` — see usePaymentsList. */
+    enabled,
   });
 }
 

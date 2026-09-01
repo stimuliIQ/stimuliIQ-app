@@ -41,11 +41,29 @@ vi.mock("../../hooks/use-tickets", () => ({
   useTicketsList: (...args: unknown[]) => useTicketsListMock(...args),
 }));
 
+const useLeaveRequestsMock = vi.fn();
+vi.mock("../../hooks/use-leave", () => ({
+  useLeaveRequests: (...args: unknown[]) => useLeaveRequestsMock(...args),
+}));
+
+const useCareerApplicationsListMock = vi.fn();
+vi.mock("../../hooks/use-careers", () => ({
+  useCareerApplicationsList: (...args: unknown[]) => useCareerApplicationsListMock(...args),
+}));
+
 const IDLE_QUERY = { data: undefined, isLoading: false, isError: false };
 
 function meWithPermissions(keys: string[]): MeResponse {
   return {
-    user: { id: "u-1", email: "staff@stimuliiq.test", name: "Staff Member", phone: null, avatar: null, status: "active", mustChangePassword: false },
+    user: {
+      id: "u-1",
+      email: "staff@stimuliiq.test",
+      name: "Staff Member",
+      phone: null,
+      avatar: null,
+      status: "active",
+      mustChangePassword: false,
+    },
     tenantId: "t-1",
     roles: ["admin"],
     permissions: keys.map((key) => ({ key, scope: "all" as const })),
@@ -58,6 +76,12 @@ beforeEach(() => {
   useFunnelReportMock.mockReturnValue(IDLE_QUERY);
   usePaymentsListMock.mockReturnValue({ data: { items: [] }, isLoading: false, isError: false });
   useTicketsListMock.mockReturnValue({ data: { items: [] }, isLoading: false, isError: false });
+  useLeaveRequestsMock.mockReturnValue({ data: { items: [] }, isLoading: false, isError: false });
+  useCareerApplicationsListMock.mockReturnValue({
+    data: { items: [] },
+    isLoading: false,
+    isError: false,
+  });
 });
 
 describe("OverviewDashboard, RBAC-aware rendering", () => {
@@ -99,7 +123,9 @@ describe("OverviewDashboard, RBAC-aware rendering", () => {
   it("an operational list in an error state renders an alert, not a crash", () => {
     useTicketsListMock.mockReturnValue({ data: undefined, isLoading: false, isError: true });
     render(<OverviewDashboard me={meWithPermissions(["tickets.view"])} />);
-    expect(screen.getByTestId("overview-open-tickets")).toHaveTextContent(/couldn't load this list/i);
+    expect(screen.getByTestId("overview-open-tickets")).toHaveTextContent(
+      /couldn't load this list/i,
+    );
   });
 
   it("me undefined (still loading /me) renders the empty state, not a crash", () => {
@@ -131,6 +157,36 @@ describe("OverviewDashboard, a11y", () => {
   // what to RENDER. A role without them got two guaranteed 403s on every dashboard load,
   // for panels it was never going to be shown — visible to the user as console errors and
   // to the API as refused traffic on a screen everybody opens.
+
+  // ── People-facing roles ──────────────────────────────────────────────────
+  //
+  // Every panel on this dashboard used to answer a commercial question, so an HR or hiring
+  // account -- which holds none of those keys by design -- landed on "Nothing to show yet"
+  // and stayed there. Reported from production as "the dashboard is not loading".
+
+  it("shows an HR role its own work instead of an empty state", () => {
+    render(<OverviewDashboard me={meWithPermissions(["leave.approve", "careers.view"])} />);
+
+    expect(screen.getByTestId("overview-pending-leave")).toBeInTheDocument();
+    expect(screen.getByTestId("overview-new-applications")).toBeInTheDocument();
+    expect(screen.queryByTestId("overview-dashboard-empty")).not.toBeInTheDocument();
+  });
+
+  it("gives that role no commercial panels", () => {
+    // Filling the screen is not a reason to widen access to money.
+    render(<OverviewDashboard me={meWithPermissions(["leave.approve", "careers.view"])} />);
+
+    expect(screen.queryByTestId("overview-pending-payments")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("overview-open-tickets")).not.toBeInTheDocument();
+  });
+
+  it("does not offer the leave card to someone who may only READ leave", () => {
+    // The card links to /leave/approvals, which the nav gates on leave.approve. Offering it
+    // to a viewer would be a control that opens onto a refusal.
+    render(<OverviewDashboard me={meWithPermissions(["leave.view"])} />);
+
+    expect(screen.queryByTestId("overview-pending-leave")).not.toBeInTheDocument();
+  });
 
   it("does not ask for payments or tickets without the permissions", () => {
     render(<OverviewDashboard me={meWithPermissions(["reports.revenue.view"])} />);
