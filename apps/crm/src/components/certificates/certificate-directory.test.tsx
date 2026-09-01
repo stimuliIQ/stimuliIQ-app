@@ -90,7 +90,11 @@ function renderDirectory() {
   return render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <CertificateDirectory me={ME} batchId="44444444-4444-4444-8444-444444444444" />
+        <CertificateDirectory
+          me={ME}
+          batchId="44444444-4444-4444-8444-444444444444"
+          onBatchChange={() => {}}
+        />
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -146,11 +150,15 @@ describe("CertificateDirectory, the certificate ID", () => {
   it("copies the ID to the clipboard on click", async () => {
     // An identifier you cannot get out of the screen is barely an identifier.
     const user = userEvent.setup();
-    renderDirectory();
+    // AFTER setup(): userEvent installs its own clipboard stub, which would replace one
+    // defined in beforeEach and leave this asserting against a spy nothing calls.
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
+    renderDirectory();
     await user.click(screen.getByTestId(`certificate-serial-${SERIAL}`));
 
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(SERIAL);
+    expect(writeText).toHaveBeenCalledWith(SERIAL);
   });
 
   it("exposes the ID as a real control, so it is reachable by keyboard", () => {
