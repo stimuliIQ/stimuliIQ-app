@@ -29,6 +29,7 @@ const useReorderOnboardingFieldsMock = vi.fn();
 const useCreateOnboardingFieldMock = vi.fn();
 const useUpdateOnboardingFieldMock = vi.fn();
 const useOnboardingApprovableBatchesMock = vi.fn();
+const useOnboardingTaggableStaffMock = vi.fn();
 const useApproveOnboardingSubmissionMock = vi.fn();
 const useRejectOnboardingSubmissionMock = vi.fn();
 
@@ -43,6 +44,7 @@ vi.mock("../../hooks/use-onboarding", () => ({
   useCreateOnboardingField: (...args: unknown[]) => useCreateOnboardingFieldMock(...args),
   useUpdateOnboardingField: (...args: unknown[]) => useUpdateOnboardingFieldMock(...args),
   useOnboardingApprovableBatches: (...args: unknown[]) => useOnboardingApprovableBatchesMock(...args),
+  useOnboardingTaggableStaff: (...args: unknown[]) => useOnboardingTaggableStaffMock(...args),
   useApproveOnboardingSubmission: (...args: unknown[]) => useApproveOnboardingSubmissionMock(...args),
   useRejectOnboardingSubmission: (...args: unknown[]) => useRejectOnboardingSubmissionMock(...args),
 }));
@@ -173,6 +175,14 @@ beforeEach(() => {
     isLoading: false,
     isError: false,
   });
+  useOnboardingTaggableStaffMock.mockReturnValue({
+    data: [
+      { id: "staff-owner-1", name: "Meera Counsellor", email: "meera@stimuliiq.test" },
+      { id: "staff-owner-2", name: "Rahul Marketing", email: "rahul@stimuliiq.test" },
+    ],
+    isLoading: false,
+    isError: false,
+  });
   useApproveOnboardingSubmissionMock.mockReturnValue({ mutateAsync: vi.fn().mockResolvedValue(APPROVE_RESULT), isPending: false });
   useRejectOnboardingSubmissionMock.mockReturnValue({ mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false });
 });
@@ -280,17 +290,27 @@ describe("OnboardingWorkspace, accept / reject", () => {
     expect(screen.getByTestId("onboarding-accept-record-payment")).toBeInTheDocument();
   });
 
+  /**
+   * Tags the applicant to a staff member. Every accept needs this now: a member with no
+   * owner is a payment counted for nobody, which is what the required field exists to stop.
+   */
+  async function tagOwner(user: Awaited<ReturnType<typeof openDrawer>>): Promise<void> {
+    await user.click(screen.getByTestId("onboarding-accept-owner"));
+    await user.click(await screen.findByRole("option", { name: "Meera Counsellor" }));
+  }
+
   it("accepts into the only open batch, recording the payment", async () => {
     const approveMock = vi.fn().mockResolvedValue(APPROVE_RESULT);
     useApproveOnboardingSubmissionMock.mockReturnValue({ mutateAsync: approveMock, isPending: false });
     const user = await openDrawer();
 
     await user.click(screen.getByTestId("onboarding-accept"));
+    await tagOwner(user);
     await user.click(await screen.findByTestId("onboarding-accept-confirm"));
 
     expect(approveMock).toHaveBeenCalledWith({
       id: "sub-1",
-      body: { batchId: "batch-1", recordPayment: true },
+      body: { batchId: "batch-1", ownerUserId: "staff-owner-1", recordPayment: true },
     });
   });
 
@@ -300,10 +320,27 @@ describe("OnboardingWorkspace, accept / reject", () => {
     const user = await openDrawer();
 
     await user.click(screen.getByTestId("onboarding-accept"));
+    await tagOwner(user);
     await user.click(await screen.findByTestId("onboarding-accept-record-payment"));
     await user.click(screen.getByTestId("onboarding-accept-confirm"));
 
     expect(approveMock).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ recordPayment: false }) }));
+  });
+
+  // The member tag is the other thing only the reviewer knows, and it is required for the
+  // same reason the batch is: guessing is worse than asking. Accepting without it used to
+  // be possible, and it produced a member owned by nobody whose payment counted for
+  // nobody -- invisible, because a number that is too small is not one anybody queries.
+  it("won't accept until the applicant is tagged to somebody", async () => {
+    const user = await openDrawer();
+
+    await user.click(screen.getByTestId("onboarding-accept"));
+
+    // The batch preselects itself (only one open cohort), so the tag is the only thing missing.
+    expect(await screen.findByTestId("onboarding-accept-confirm")).toBeDisabled();
+
+    await tagOwner(user);
+    expect(screen.getByTestId("onboarding-accept-confirm")).toBeEnabled();
   });
 
   // Accepting enrols someone into a cohort; with several to choose from, guessing would put

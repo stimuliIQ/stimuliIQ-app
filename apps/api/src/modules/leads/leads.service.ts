@@ -519,7 +519,10 @@ export class LeadsService {
       status: fields.status,
     });
 
-    await this.repository.setConverted(id, student.id);
+    // The lead's owner becomes the member's owner (repository comment explains why it only
+    // ever fills a blank). Null when nobody was assigned the lead — an honest "unassigned"
+    // rather than an owner invented at conversion time.
+    await this.repository.setConverted(id, student.id, lead.ownerId ?? null);
 
     // NOTE (2026-07-26): conversion deliberately does NOT provision the LMS login.
     // Credentials are emailed by LmsAccountProvisioningService when the student's

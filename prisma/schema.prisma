@@ -684,26 +684,30 @@ model User {
   updatedAt          DateTime   @updatedAt @map("updated_at")
   deletedAt          DateTime?  @map("deleted_at")
 
-  tenant              Tenant          @relation(fields: [tenantId], references: [id])
+  tenant              Tenant           @relation(fields: [tenantId], references: [id])
   userRoles           UserRole[]
   sessions            Session[]
   auditLogs           AuditLog[]
   studentProfile      StudentProfile?
   facultyProfile      FacultyProfile?
   // Phase-2: user as lead owner, refund actor, activity actor
-  ownedLeads          Lead[]          @relation("LeadOwner")
+  ownedLeads          Lead[]           @relation("LeadOwner")
+  // The members this person owns. Distinct from `ownedLeads`: a lead is a prospect, a member
+  // is somebody who enrolled — and the two sets differ, because an onboarding member never
+  // was a lead. This is the relation every per-person and per-team revenue figure reads.
+  ownedStudents       StudentProfile[] @relation("StudentOwner")
   // Lead accountability (lead-ownership pass): who keyed a lead in, and who handed
   // it to its current owner. Both nullable — public/web leads have no staff creator,
   // and a round-robin assignment has no human assigner.
-  createdLeads        Lead[]          @relation("LeadCreatedBy")
-  assignedLeads       Lead[]          @relation("LeadAssignedBy")
-  requestedRefunds    Refund[]        @relation("RefundRequestedBy")
-  approvedRefunds     Refund[]        @relation("RefundApprovedBy")
+  createdLeads        Lead[]           @relation("LeadCreatedBy")
+  assignedLeads       Lead[]           @relation("LeadAssignedBy")
+  requestedRefunds    Refund[]         @relation("RefundRequestedBy")
+  approvedRefunds     Refund[]         @relation("RefundApprovedBy")
   activities          Activity[]
   // Phase-4: user as grader (submissions), certificate issuer/revoker
-  gradedSubmissions   Submission[]    @relation("SubmissionGradedBy")
-  issuedCertificates  Certificate[]   @relation("CertificateIssuedBy")
-  revokedCertificates Certificate[]   @relation("CertificateRevokedBy")
+  gradedSubmissions   Submission[]     @relation("SubmissionGradedBy")
+  issuedCertificates  Certificate[]    @relation("CertificateIssuedBy")
+  revokedCertificates Certificate[]    @relation("CertificateRevokedBy")
 
   // Phase-6 Engagement reverse relations
   notifications            Notification[]
@@ -747,8 +751,8 @@ model User {
 
   // Leave management — the same user is both an applicant and (if super_admin) a reviewer,
   // so the two sides need distinct relation names.
-  leaveRequests         LeaveRequest[] @relation("LeaveRequester")
-  reviewedLeaveRequests LeaveRequest[] @relation("LeaveReviewer")
+  leaveRequests             LeaveRequest[] @relation("LeaveRequester")
+  reviewedLeaveRequests     LeaveRequest[] @relation("LeaveReviewer")
   // Step one of the two-step chain — the lead who approved before the manager confirmed.
   leadApprovedLeaveRequests LeaveRequest[] @relation("LeaveLeadApprover")
 
@@ -1166,12 +1170,32 @@ model StudentProfile {
   city           String?
   source         String?
   status         StudentProfileStatus @default(lead)
+  // owner_id: the member of staff this person belongs to — who brought them in and whose
+  // number they count towards.
+  //
+  // It exists because ownership previously lived ONLY on `leads.owner_id`, reachable from a
+  // payment through `leads.converted_student_id`. Anyone who never was a lead therefore
+  // belonged to nobody: a student enrolled through onboarding (P12) has no Lead row at all,
+  // so their payment attributed to no person and appeared in no per-person or per-team
+  // revenue figure. The money was counted in the company total and silently missing from
+  // everybody's individual one, which is the direction nobody checks.
+  //
+  // Backfilled from `leads.owner_id` on migration, so no existing attribution moves. Both
+  // paths write it now: lead conversion copies the lead's owner, and onboarding approval
+  // requires a reviewer to name one.
+  //
+  // NULLABLE, and honestly so — a self-registered student genuinely belongs to nobody until
+  // somebody claims them, and inventing an owner to satisfy NOT NULL is the trap
+  // `course_type` was made nullable to escape. Reports show them as "Unassigned" rather
+  // than dropping them.
+  ownerId        String?              @map("owner_id") @db.Uuid
   createdAt      DateTime             @default(now()) @map("created_at")
   updatedAt      DateTime             @updatedAt @map("updated_at")
   deletedAt      DateTime?            @map("deleted_at")
 
   tenant                Tenant                 @relation(fields: [tenantId], references: [id])
   user                  User                   @relation(fields: [userId], references: [id])
+  owner                 User?                  @relation("StudentOwner", fields: [ownerId], references: [id])
   enrollments           Enrollment[]
   // Phase-2 reverse relations
   orders                Order[]
@@ -1186,6 +1210,8 @@ model StudentProfile {
 
   @@index([tenantId, status])
   @@index([tenantId, deletedAt])
+  // Every per-owner report filters on this, and the team roll-up filters on a SET of owners.
+  @@index([tenantId, ownerId])
   @@map("student_profiles")
 }
 
@@ -4225,47 +4251,47 @@ model LeaveSetting {
 }
 
 model LeaveRequest {
-  id           String             @id @default(uuid()) @db.Uuid
-  tenantId     String             @map("tenant_id") @db.Uuid
+  id               String             @id @default(uuid()) @db.Uuid
+  tenantId         String             @map("tenant_id") @db.Uuid
   // The applicant. ALWAYS the authenticated actor — the API never accepts a user id on
   // create, so nobody can file leave in a colleague's name.
-  userId       String             @map("user_id") @db.Uuid
-  leaveTypeId  String             @map("leave_type_id") @db.Uuid
-  startDate    DateTime           @map("start_date") @db.Date
-  endDate      DateTime           @map("end_date") @db.Date
+  userId           String             @map("user_id") @db.Uuid
+  leaveTypeId      String             @map("leave_type_id") @db.Uuid
+  startDate        DateTime           @map("start_date") @db.Date
+  endDate          DateTime           @map("end_date") @db.Date
   // Half-day markers on the boundary days. On a single-day request `endDayPart` mirrors
   // `startDayPart` and only one of them is read.
-  startDayPart LeaveDayPart       @default(full) @map("start_day_part")
-  endDayPart   LeaveDayPart       @default(full) @map("end_day_part")
+  startDayPart     LeaveDayPart       @default(full) @map("start_day_part")
+  endDayPart       LeaveDayPart       @default(full) @map("end_day_part")
   // Working half-days, computed SERVER-SIDE from the tenant's weekly offs and holidays.
   // Stored rather than recomputed on read so that changing next year's holiday list cannot
   // silently rewrite the length of leave somebody already took.
-  halfDays     Int                @map("half_days")
-  reason       String
-  status       LeaveRequestStatus @default(pending)
+  halfDays         Int                @map("half_days")
+  reason           String
+  status           LeaveRequestStatus @default(pending)
   /// Step one of a two-step chain: the team lead who approved, and when. Null on a
   /// single-step chain (the applicant is a lead, a manager, HR, or on no team yet) —
   /// which is honest: there was no first step, rather than one nobody performed.
-  leadApprovedById String?          @map("lead_approved_by_id") @db.Uuid
-  leadApprovedAt   DateTime?        @map("lead_approved_at")
-  leadApprovalNote String?          @map("lead_approval_note")
+  leadApprovedById String?            @map("lead_approved_by_id") @db.Uuid
+  leadApprovedAt   DateTime?          @map("lead_approved_at")
+  leadApprovalNote String?            @map("lead_approval_note")
   /// The FINAL decision — or, on a step-one rejection, the lead who turned it down.
   /// Deliberately NOT renamed when the two-step chain landed: every existing row already
   /// carries a meaning under this name, and a rename would be a lie about history.
-  reviewedById String?            @map("reviewed_by_id") @db.Uuid
-  reviewedAt   DateTime?          @map("reviewed_at")
+  reviewedById     String?            @map("reviewed_by_id") @db.Uuid
+  reviewedAt       DateTime?          @map("reviewed_at")
   // The approver's note, or — on a rejection — the mandatory reason shown to the applicant.
-  reviewNote   String?            @map("review_note")
-  cancelledAt  DateTime?          @map("cancelled_at")
-  createdAt    DateTime           @default(now()) @map("created_at")
-  updatedAt    DateTime           @updatedAt @map("updated_at")
-  deletedAt    DateTime?          @map("deleted_at")
+  reviewNote       String?            @map("review_note")
+  cancelledAt      DateTime?          @map("cancelled_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  deletedAt        DateTime?          @map("deleted_at")
 
-  tenant     Tenant    @relation(fields: [tenantId], references: [id])
-  user       User      @relation("LeaveRequester", fields: [userId], references: [id])
-  reviewedBy     User?  @relation("LeaveReviewer", fields: [reviewedById], references: [id])
-  leadApprovedBy User?  @relation("LeaveLeadApprover", fields: [leadApprovedById], references: [id])
-  leaveType  LeaveType @relation(fields: [leaveTypeId], references: [id])
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  user           User      @relation("LeaveRequester", fields: [userId], references: [id])
+  reviewedBy     User?     @relation("LeaveReviewer", fields: [reviewedById], references: [id])
+  leadApprovedBy User?     @relation("LeaveLeadApprover", fields: [leadApprovedById], references: [id])
+  leaveType      LeaveType @relation(fields: [leaveTypeId], references: [id])
 
   // (tenantId, status, startDate) drives the approval queue; (tenantId, userId, startDate)
   // drives both "my leave" and the balance aggregate; (tenantId, startDate, endDate) drives
@@ -4356,9 +4382,9 @@ model MarketingTarget {
 // a team is PEOPLE (who reports to whom). They answer different questions, so `Team.branchId`
 // is informational only and nothing scopes on it.
 model Team {
-  id       String @id @default(uuid()) @db.Uuid
-  tenantId String @map("tenant_id") @db.Uuid
-  name     String
+  id            String    @id @default(uuid()) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  name          String
   // Both nullable, and deliberately so: a team is routinely created before its lead is
   // hired or named. An unresolved pointer shortens the approval chain (see
   // resolveLeaveApprovalChain in @repo/types) rather than stranding the request.

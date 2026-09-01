@@ -43,6 +43,8 @@ function mockRepository(): Mocked<OnboardingRepository> {
     listApprovableBatches: jest.fn(),
     updateSubmission: jest.fn(),
     softDeleteSubmission: jest.fn(),
+    listTaggableStaff: jest.fn(),
+    findTaggableStaff: jest.fn(),
   } as unknown as Mocked<OnboardingRepository>;
 }
 
@@ -412,6 +414,9 @@ describe("OnboardingService", () => {
 
     // ── Approve: the decision with consequences ───────────────────────────
     describe("approveSubmission()", () => {
+      /** The staff member the reviewer tags the applicant to. NOT the reviewer ("staff-1"). */
+      const OWNER_ID = "owner-9";
+
       const ACTIVATION = {
         studentProfileId: "student-1",
         enrollmentId: "enrol-1",
@@ -424,12 +429,13 @@ describe("OnboardingService", () => {
 
       beforeEach(() => {
         repo.findSubmissionById.mockResolvedValue(ROW);
+        repo.findTaggableStaff.mockResolvedValue({ id: OWNER_ID });
         activation.activate.mockResolvedValue(ACTIVATION);
       });
 
       it("activates the student, then records the approval with the reviewer and the link", async () => {
         const result = await runWithScope("all", () =>
-          service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", recordPayment: true }, "staff-1"),
+          service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", ownerUserId: OWNER_ID, recordPayment: true }, "staff-1"),
         );
 
         expect(activation.activate).toHaveBeenCalledWith(
@@ -452,13 +458,49 @@ describe("OnboardingService", () => {
         expect(result.activation).toEqual(ACTIVATION);
       });
 
+      // ── The member tag ────────────────────────────────────────────────────
+      //
+      // A member's owner is what carries their payment into an individual report and a team
+      // revenue figure. Before this field existed, an onboarding member had no owner at all
+      // and their money appeared in nobody's number — counted in the company total, absent
+      // from every individual one, which is a discrepancy in the direction nobody queries.
+
+      it("passes the TAGGED owner to activation, not the reviewer", async () => {
+        // The distinction is the whole point. `staff-1` opened the queue; `owner-9` brought
+        // this member in. Defaulting one to the other would credit the wrong person's
+        // revenue quietly and plausibly, which is worse than crediting nobody.
+        await runWithScope("all", () =>
+          service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", ownerUserId: OWNER_ID, recordPayment: true }, "staff-1"),
+        );
+
+        expect(activation.activate).toHaveBeenCalledWith(
+          expect.objectContaining({ ownerUserId: OWNER_ID, actorId: "staff-1" }),
+        );
+      });
+
+      it("refuses an owner who is not live staff, before anything is activated", async () => {
+        // A uuid in a request body is a claim, not a fact. An unchecked one would attribute
+        // a member's revenue to a row that does not exist, which reads on every report as
+        // money belonging to nobody — the exact failure the field was added to end.
+        repo.findTaggableStaff.mockResolvedValue(null);
+
+        await expect(
+          runWithScope("all", () =>
+            service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", ownerUserId: "ghost", recordPayment: true }, "staff-1"),
+          ),
+        ).rejects.toMatchObject({ response: { code: "onboarding.unknown_owner" } });
+
+        expect(activation.activate).not.toHaveBeenCalled();
+        expect(repo.updateSubmission).not.toHaveBeenCalled();
+      });
+
       // Ordering guarantee: a failed activation must leave the submission untouched and
       // still actionable, never "approved" with no student behind it.
       it("does NOT mark the submission approved when activation fails", async () => {
         activation.activate.mockRejectedValue(new UnprocessableEntityException({ code: "onboarding.batch_not_found" }));
 
         await expect(
-          runWithScope("all", () => service.approveSubmission(TENANT, "sub-1", { batchId: "bad", recordPayment: true }, "staff-1")),
+          runWithScope("all", () => service.approveSubmission(TENANT, "sub-1", { batchId: "bad", ownerUserId: OWNER_ID, recordPayment: true }, "staff-1")),
         ).rejects.toBeInstanceOf(UnprocessableEntityException);
 
         expect(repo.updateSubmission).not.toHaveBeenCalled();
@@ -470,7 +512,7 @@ describe("OnboardingService", () => {
         repo.findSubmissionById.mockResolvedValue({ ...ROW, status: "approved", studentProfileId: "student-1" });
 
         await expect(
-          runWithScope("all", () => service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", recordPayment: true }, "staff-2")),
+          runWithScope("all", () => service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", ownerUserId: OWNER_ID, recordPayment: true }, "staff-2")),
         ).rejects.toBeInstanceOf(UnprocessableEntityException);
 
         expect(activation.activate).not.toHaveBeenCalled();
@@ -484,7 +526,7 @@ describe("OnboardingService", () => {
           ] as never,
         });
 
-        await runWithScope("all", () => service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", recordPayment: true }, "staff-1"));
+        await runWithScope("all", () => service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", ownerUserId: OWNER_ID, recordPayment: true }, "staff-1"));
 
         expect(activation.activate).toHaveBeenCalledWith(expect.objectContaining({ college: "ABC Institute" }));
       });
@@ -493,7 +535,7 @@ describe("OnboardingService", () => {
       // email, and the reviewer's checkbox is the only input the server can't derive.
       it("forwards the reviewer's record-payment decision and the receipt as the payment reference", async () => {
         await runWithScope("all", () =>
-          service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", recordPayment: true }, "staff-1"),
+          service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", ownerUserId: OWNER_ID, recordPayment: true }, "staff-1"),
         );
 
         expect(activation.activate).toHaveBeenCalledWith(
@@ -509,7 +551,7 @@ describe("OnboardingService", () => {
 
       it("honours an opt-out so a scholarship seat is enrolled without an invoice", async () => {
         await runWithScope("all", () =>
-          service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", recordPayment: false }, "staff-1"),
+          service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", ownerUserId: OWNER_ID, recordPayment: false }, "staff-1"),
         );
 
         expect(activation.activate).toHaveBeenCalledWith(expect.objectContaining({ recordPayment: false }));
@@ -517,7 +559,7 @@ describe("OnboardingService", () => {
 
       it("never emails a rejection notice on the approval path", async () => {
         await runWithScope("all", () =>
-          service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", recordPayment: true }, "staff-1"),
+          service.approveSubmission(TENANT, "sub-1", { batchId: "batch-1", ownerUserId: OWNER_ID, recordPayment: true }, "staff-1"),
         );
 
         expect(notifications.sendRejectionEmail).not.toHaveBeenCalled();

@@ -465,11 +465,30 @@ export class LeadsRepository {
    * WHEN a deal closed is the student row, which may predate the conversion because
    * converting can link a lead to a StudentProfile that already existed.
    */
-  async setConverted(id: string, studentId: string): Promise<void> {
+  async setConverted(id: string, studentId: string, ownerId: string | null): Promise<void> {
     await this.prisma.client.lead.update({
       where: { id },
       data: { convertedStudentId: studentId, stage: "won", convertedAt: new Date() },
     });
+
+    // CARRY THE OWNER ACROSS to the member, so attribution survives the conversion.
+    //
+    // Revenue used to be reached by joining a payment back through
+    // `leads.converted_student_id` to `leads.owner_id`. That worked only for people who had
+    // once been a lead, so an onboarding member's money belonged to nobody. Ownership now
+    // lives on the member (`student_profiles.owner_id`) and every report reads it there;
+    // this is the line that keeps the lead path producing the same answer it always did.
+    //
+    // Only ever FILLS a blank. A member may already have an owner — they can be tagged
+    // during onboarding, or claimed later — and converting a lead onto an existing student
+    // must not silently hand that person to the lead's owner instead. Whoever was recorded
+    // first stays, and reassignment is a deliberate act elsewhere.
+    if (ownerId) {
+      await this.prisma.client.studentProfile.updateMany({
+        where: { id: studentId, ownerId: null },
+        data: { ownerId },
+      });
+    }
   }
 
   async softDelete(id: string): Promise<void> {

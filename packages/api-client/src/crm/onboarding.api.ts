@@ -13,6 +13,7 @@ import type {
   ListOnboardingFieldsQuery,
   ListOnboardingSubmissionsQuery,
   OnboardingApprovableBatch,
+  OnboardingTaggableStaff,
   OnboardingField,
   OnboardingSubmissionDetail,
   OnboardingSubmissionSummary,
@@ -94,6 +95,17 @@ export class OnboardingSubmissionsApi {
    */
   async listBatches(id: string): Promise<OnboardingApprovableBatch[]> {
     return this.client.request<OnboardingApprovableBatch[]>("GET", `/api/v1/crm/onboarding/submissions/${id}/batches`);
+  }
+
+  /**
+   * GET /api/v1/crm/onboarding/submissions/taggable-staff — who an applicant can be tagged
+   * to on approval.
+   *
+   * Not submission-scoped (no `:id`): the candidate set is the same for every applicant, so
+   * the CRM fetches it once for the screen rather than per row.
+   */
+  async listTaggableStaff(): Promise<OnboardingTaggableStaff[]> {
+    return this.client.request<OnboardingTaggableStaff[]>("GET", `/api/v1/crm/onboarding/submissions/taggable-staff`);
   }
 
   /**

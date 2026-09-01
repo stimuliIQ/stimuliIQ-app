@@ -682,7 +682,7 @@ describe("LeadsService", () => {
       expect(studentsRepo.createStudentWithUser).toHaveBeenCalledWith(
         expect.objectContaining({ tenantId: "tenant-1", email: "asha@new.com" }),
       );
-      expect(repo.setConverted).toHaveBeenCalledWith(ROW.id, "new-student");
+      expect(repo.setConverted).toHaveBeenCalledWith(ROW.id, "new-student", ROW.ownerId ?? null);
       expect(commerce.createOrder).not.toHaveBeenCalled();
       expect(result).toEqual({ leadId: ROW.id, studentId: "new-student", orderId: null, enrollmentId: null });
     });

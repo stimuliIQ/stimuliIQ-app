@@ -268,15 +268,28 @@ export class MarketingTargetsRepository {
   /**
    * Paise captured inside [from, to) per lead owner.
    *
-   * Raw SQL because the join walks payment → order → student → the lead that converted to
-   * that student, and Prisma cannot express "group by a column three relations away" without
-   * fetching every payment row into memory first.
+   * Raw SQL because the join walks payment → order → member, and Prisma cannot express
+   * "group by a column two relations away" without fetching every payment row into memory
+   * first.
+   *
+   * ATTRIBUTION MOVED to `student_profiles.owner_id`. It used to walk one hop further, on to
+   * the LEAD that converted into that member (`leads.converted_student_id` → `leads.owner_id`),
+   * which meant revenue could only ever be attributed to somebody who had once been a lead
+   * owner. A member enrolled through the onboarding form has no lead row at all, so their
+   * payments matched nothing and were counted for nobody — present in the company total,
+   * absent from every individual and team figure. Nobody reports a number that is too SMALL,
+   * so it stayed invisible.
+   *
+   * The owner column was backfilled from `leads.owner_id`, so every figure this produced
+   * before still reconciles; what changes is that money which previously belonged to nobody
+   * now belongs to whoever the member is tagged to.
    *
    * `status='captured' AND paid_at IS NOT NULL` is copied from `mv_revenue_daily` so this
    * reconciles with the revenue dashboard. Gross of refunds, same as that view.
    *
-   * A student converted from two leads is impossible: `leads.converted_student_id` is UNIQUE,
-   * so the join cannot fan out and double-count a payment.
+   * One member, one owner column, so the join cannot fan out and double-count a payment —
+   * a stronger guarantee than the old one, which rested on `converted_student_id` being
+   * UNIQUE.
    */
   async sumRevenuePaiseByOwner(
     tenantId: string,
@@ -289,21 +302,21 @@ export class MarketingTargetsRepository {
 
     const rows = await this.prisma.client.$queryRaw<Array<{ owner_id: string; total: bigint }>>(
       Prisma.sql`
-        SELECT l.owner_id AS owner_id, COALESCE(SUM(p.amount_paise), 0)::bigint AS total
+        SELECT sp.owner_id AS owner_id, COALESCE(SUM(p.amount_paise), 0)::bigint AS total
         FROM "payments" p
         JOIN "orders" o ON o.id = p.order_id
-        JOIN "leads"  l ON l.converted_student_id = o.student_id
+        JOIN "student_profiles" sp ON sp.id = o.student_id
         WHERE p.tenant_id = ${tenantId}::uuid
           AND p.deleted_at IS NULL
           AND p.status = 'captured'
           AND p.paid_at IS NOT NULL
           AND p.paid_at >= ${from}
           AND p.paid_at <  ${to}
-          AND l.deleted_at IS NULL
-          AND l.owner_id = ANY(ARRAY[${Prisma.join(
+          AND sp.deleted_at IS NULL
+          AND sp.owner_id = ANY(ARRAY[${Prisma.join(
             userIds.map((id) => Prisma.sql`${id}::uuid`),
           )}]::uuid[])
-        GROUP BY l.owner_id
+        GROUP BY sp.owner_id
       `,
     );
 

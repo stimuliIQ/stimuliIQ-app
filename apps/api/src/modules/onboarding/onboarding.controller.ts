@@ -52,6 +52,7 @@ import type {
   ListOnboardingFieldsQuery,
   ListOnboardingSubmissionsQuery,
   OnboardingApprovableBatch,
+  OnboardingTaggableStaff,
   OnboardingField,
   OnboardingSubmissionDetail,
   OnboardingSubmissionSummary,
@@ -203,6 +204,23 @@ export class OnboardingSubmissionsController {
     @Query(new ZodValidationPipe(ListOnboardingSubmissionsQuerySchema)) query: ListOnboardingSubmissionsQuery,
   ): Promise<PaginatedResult<OnboardingSubmissionSummary>> {
     return this.service.listSubmissions(user.tenantId, query);
+  }
+
+  /**
+   * Who a member can be tagged to on approval.
+   *
+   * DECLARED BEFORE `@Get(":id")` deliberately: Nest matches routes in declaration order, so
+   * a literal path registered after a parameterised one at the same depth is unreachable —
+   * `taggable-staff` would be swallowed as an `:id` and rejected by ParseUUIDPipe as a
+   * malformed uuid, which reads as a client bug rather than a routing one.
+   *
+   * `onboarding.edit`, not `.view`: this list only exists to fill in the approve dialog, and
+   * whoever may merely read the queue has no reason to enumerate staff.
+   */
+  @Get("taggable-staff")
+  @RequirePermission("onboarding.edit")
+  async taggableStaff(@CurrentUser() user: RequestUser): Promise<OnboardingTaggableStaff[]> {
+    return this.service.listTaggableStaff(user.tenantId);
   }
 
   @Get(":id")

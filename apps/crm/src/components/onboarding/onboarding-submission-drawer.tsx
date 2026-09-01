@@ -41,6 +41,7 @@ import type { OnboardingAnswer, OnboardingSubmissionStatus } from "@repo/types";
 
 import {
   useApproveOnboardingSubmission,
+  useOnboardingTaggableStaff,
   useOnboardingApprovableBatches,
   useOnboardingSubmission,
   useRejectOnboardingSubmission,
@@ -99,15 +100,25 @@ export function OnboardingSubmissionDrawer({
   const [decision, setDecision] = React.useState<"accept" | "reject" | null>(null);
   const [batchId, setBatchId] = React.useState<string | undefined>(undefined);
   const [recordPayment, setRecordPayment] = React.useState(true);
+  /** Who this member will belong to. Required — approving without it is what left an
+   *  onboarding member owned by nobody, and their payment counted for nobody. */
+  const [ownerUserId, setOwnerUserId] = React.useState<string | undefined>(undefined);
 
   // Batches are per-submission and only needed once the reviewer commits to accepting, so
   // they are fetched when the panel opens rather than on every row someone glances at.
   const batchesQuery = useOnboardingApprovableBatches(decision === "accept" ? submissionId : null);
   const batches = batchesQuery.data;
 
+  // Fetched on the same trigger as batches. Deliberately NOT preselected to the signed-in
+  // reviewer: the person working the queue is usually not the person who brought the
+  // applicant in, and a prefilled wrong answer is accepted far more often than a blank one.
+  const staffQuery = useOnboardingTaggableStaff(decision === "accept");
+  const taggableStaff = staffQuery.data;
+
   React.useEffect(() => {
     setNotes(data?.reviewNotes ?? "");
     setDecision(null);
+    setOwnerUserId(undefined);
   }, [data?.id, data?.reviewNotes]);
 
   React.useEffect(() => {
@@ -137,12 +148,13 @@ export function OnboardingSubmissionDrawer({
   }
 
   async function handleAccept(): Promise<void> {
-    if (!data || !batchId) return;
+    if (!data || !batchId || !ownerUserId) return;
     try {
       const { activation } = await approve.mutateAsync({
         id: data.id,
         body: {
           batchId,
+          ownerUserId,
           recordPayment: invoiceable && recordPayment,
           ...(trimmedNotes ? { reviewNotes: trimmedNotes } : {}),
         },
@@ -295,6 +307,38 @@ export function OnboardingSubmissionDrawer({
                           </Select>
                         )}
 
+                        {/*
+                          WHO THIS MEMBER BELONGS TO. Required, and sits beside the batch
+                          because both are things only the reviewer knows.
+
+                          Their payment lands in this person's individual report and in their
+                          team's revenue. Before this field existed an onboarding member had
+                          no owner at all, so their money showed up in the company total and
+                          in nobody's individual one — a gap nothing on screen revealed,
+                          because a number that is too small is not a number anyone queries.
+                        */}
+                        {staffQuery.isError ? (
+                          <Alert tone="danger" title="Couldn't load the staff list" >
+                            Reload the page and try again — an applicant can&apos;t be accepted without being tagged.
+                          </Alert>
+                        ) : (
+                          <Select
+                            label="Tagged to"
+                            value={ownerUserId}
+                            placeholder={staffQuery.isLoading ? "Loading staff…" : "Who brought them in?"}
+                            onValueChange={setOwnerUserId}
+                            helperText="Their payment counts towards this person and their team."
+                            required
+                            data-testid="onboarding-accept-owner"
+                          >
+                            {(taggableStaff ?? []).map((person) => (
+                              <SelectItem key={person.id} value={person.id}>
+                                {person.name}
+                              </SelectItem>
+                            ))}
+                          </Select>
+                        )}
+
                         {invoiceable ? (
                           <div className="flex flex-col gap-1">
                             <label className="flex items-start gap-2 text-sm text-fg">
@@ -340,7 +384,7 @@ export function OnboardingSubmissionDrawer({
                   type="button"
                   onClick={handleAccept}
                   loading={approve.isPending}
-                  disabled={!batchId}
+                  disabled={!batchId || !ownerUserId}
                   data-testid="onboarding-accept-confirm"
                 >
                   Accept &amp; enrol

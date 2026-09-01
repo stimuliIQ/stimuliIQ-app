@@ -72,6 +72,15 @@ export interface ActivationInput {
   /** The reviewer — stamped on the order/payment rows the money leg creates. */
   actorId: string;
   /**
+   * WHO THIS MEMBER BELONGS TO — the staff member the reviewer tagged them to.
+   *
+   * Distinct from `actorId` on purpose, and the distinction is the whole point: the reviewer
+   * is whoever opened the queue, the owner is whoever brought this member in. Defaulting one
+   * to the other would credit the wrong person's revenue quietly and plausibly, which is
+   * worse than crediting nobody.
+   */
+  ownerUserId: string;
+  /**
    * Record the offline payment (order + captured manual payment + GST invoice) at the
    * program's list price. Silently ignored when the program is missing or free.
    */
@@ -140,6 +149,22 @@ export class OnboardingActivationService {
       fullName: input.fullName,
       phone: input.phone,
       college: input.college,
+    });
+
+    // TAG THE MEMBER, before anything else can enrol or invoice them.
+    //
+    // Placed here rather than inside `resolveStudent` because it must apply to BOTH branches
+    // it returns — a member created by this approval, and one that already existed. An
+    // approval that enrolled somebody and left them owned by nobody is precisely the state
+    // this field was added to end.
+    //
+    // `ownerId: null` in the WHERE, so it only ever fills a blank: a member who already
+    // belongs to somebody is not silently reassigned by a second submission arriving, and
+    // re-approving after a fix cannot move them either. Changing an existing owner is a
+    // deliberate act on the member record, not a side effect of approving a form.
+    await this.prisma.client.studentProfile.updateMany({
+      where: { id: studentProfileId, ownerId: null },
+      data: { ownerId: input.ownerUserId },
     });
 
     // Money leg first when asked for: it enrols, invoices AND emails in one lifecycle, so

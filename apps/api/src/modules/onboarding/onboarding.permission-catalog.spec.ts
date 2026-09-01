@@ -51,7 +51,17 @@ function controllerDecoratorIndex(source: string, path: string): number {
 
 describe("Onboarding module permission catalog", () => {
   const seedSource = readFileSync(SEED_PATH, "utf8");
-  const controllerSource = readFileSync(resolve(__dirname, CONTROLLER_FILE), "utf8");
+  // Comments stripped before any counting. The assertions below count decorators textually,
+  // and this controller is heavily annotated — a comment explaining WHY a route sits before
+  // the parameterised one naturally quotes the decorator it sits before, which the naive
+  // regex then counts as a fifteenth handler with no permission on it. That reads as "a
+  // route slipped its guard" when nothing did, and the cheap way out is to delete the
+  // comment, which is the wrong lesson entirely.
+  const controllerSource = readFileSync(resolve(__dirname, CONTROLLER_FILE), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("//"))
+    .join("\n");
 
   it("every @RequirePermission key the module declares is a known key", () => {
     const referenced = new Set(requiredPermissionKeys(CONTROLLER_FILE));

@@ -45,6 +45,7 @@ import type {
   OnboardingAnswer,
   OnboardingAnswerValue,
   OnboardingApprovableBatch,
+  OnboardingTaggableStaff,
   OnboardingSubmissionDetail,
   OnboardingSubmissionSummary,
   OnboardingUploadUrlRequest,
@@ -477,9 +478,17 @@ export class OnboardingService {
       });
     }
 
+    // The tagged owner must be a real, live member of staff in THIS tenant. Checked here
+    // rather than trusted from the client for the ordinary reason — a uuid in a request body
+    // is a claim, not a fact — and specifically because an unchecked id would attribute a
+    // member's revenue to a row that does not exist, which reads on every report as money
+    // belonging to nobody. That is the exact failure this field was added to end.
+    await this.assertTaggableOwner(tenantId, body.ownerUserId);
+
     const activation = await this.activation.activate({
       tenantId,
       batchId: body.batchId,
+      ownerUserId: body.ownerUserId,
       fullName: existing.fullName,
       email: existing.email,
       phone: existing.phone,
@@ -514,6 +523,32 @@ export class OnboardingService {
    * then tells the reviewer to create a batch rather than showing an empty dropdown with no
    * explanation.
    */
+  /**
+   * `GET /crm/onboarding/taggable-staff` — who the approve dialog can tag a member to.
+   *
+   * Its own endpoint rather than reusing `GET /crm/org/staff`, which is gated on
+   * `org.teams.view` — a key a counsellor working the intake queue does not hold. Sharing it
+   * would have meant either granting the org chart to everyone who reviews onboarding, or a
+   * required field whose picker 403s for the people who have to fill it in.
+   */
+  async listTaggableStaff(tenantId: string): Promise<OnboardingTaggableStaff[]> {
+    this.assertAllScope();
+    return this.repository.listTaggableStaff(tenantId);
+  }
+
+  /** Refuses an owner who is not live staff in this tenant. */
+  private async assertTaggableOwner(tenantId: string, ownerUserId: string): Promise<void> {
+    const owner = await this.repository.findTaggableStaff(tenantId, ownerUserId);
+    if (owner) return;
+    throw new UnprocessableEntityException({
+      code: "onboarding.unknown_owner",
+      title: "That person can't be tagged",
+      detail:
+        "The staff member you tagged this applicant to no longer exists, is deactivated, or is not staff. " +
+        "Reload the page and pick somebody else.",
+    });
+  }
+
   async listApprovableBatches(tenantId: string, id: string): Promise<OnboardingApprovableBatch[]> {
     this.assertAllScope();
     const existing = await this.repository.findSubmissionById(tenantId, id);

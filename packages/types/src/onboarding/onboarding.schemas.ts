@@ -433,6 +433,20 @@ export const OnboardingApprovableBatchSchema = z.object({
 export type OnboardingApprovableBatch = z.infer<typeof OnboardingApprovableBatchSchema>;
 
 /**
+ * `GET /crm/onboarding/taggable-staff` — who a member can be tagged to on approval.
+ *
+ * Every active non-student account, not a curated "sales" subset: who brings members in is
+ * a business fact that varies, and a hardcoded role list would quietly make somebody
+ * untaggable with no way for an admin to fix it.
+ */
+export const OnboardingTaggableStaffSchema = z.object({
+  id: UuidSchema,
+  name: z.string(),
+  email: z.string(),
+});
+export type OnboardingTaggableStaff = z.infer<typeof OnboardingTaggableStaffSchema>;
+
+/**
  * `POST /crm/onboarding/submissions/:id/approve` — the decision that activates a student.
  *
  * `batchId` is REQUIRED and not derivable: the form captures a program and a preferred
@@ -443,6 +457,26 @@ export type OnboardingApprovableBatch = z.infer<typeof OnboardingApprovableBatch
 export const ApproveOnboardingSubmissionRequestSchema = z
   .object({
     batchId: UuidSchema,
+    /**
+     * WHO THIS MEMBER BELONGS TO. Required, and it is the reason approval has a second
+     * mandatory field at all.
+     *
+     * Until this existed, ownership lived only on `leads.owner_id` and was reached from a
+     * payment by joining back through `leads.converted_student_id`. An onboarding member has
+     * no lead row, so their money attributed to nobody: counted in the company total, absent
+     * from every individual and team figure. Nothing looked wrong — a number that is too
+     * small is not a number anyone queries.
+     *
+     * REQUIRED rather than optional-with-a-default, because every default here is a lie.
+     * Defaulting to the reviewer credits whoever happened to open the queue; defaulting to
+     * null re-creates the silence this field exists to end. The reviewer is the one person
+     * who knows who actually brought this member in, and they are already in the dialog.
+     *
+     * Deliberately NOT the same thing as a lead owner picker: this is the MEMBER's owner,
+     * written to `student_profiles.owner_id`, which is what both the per-member report and
+     * the team revenue roll-up read.
+     */
+    ownerUserId: UuidSchema,
     /**
      * Record the money the student already paid offline, so approving also raises a real
      * GST invoice and emails it WITH their login (one message, not two).

@@ -275,4 +275,40 @@ export class OnboardingRepository {
   async softDeleteSubmission(id: string): Promise<void> {
     await this.prisma.client.onboardingSubmission.delete({ where: { id } }); // rewritten to soft-delete.
   }
+
+  /**
+   * The staff a member can be tagged to — everyone the approve dialog offers.
+   *
+   * Non-student roles only, because a member cannot belong to another member; active only,
+   * because tagging revenue to a deactivated account hides it from the person who now does
+   * that job. Deliberately NOT filtered to a set of "sales" roles: who brings members in is
+   * a business fact that varies, and a hardcoded role list here would quietly make somebody
+   * untaggable with no way for an admin to fix it.
+   */
+  async listTaggableStaff(tenantId: string): Promise<Array<{ id: string; name: string; email: string }>> {
+    return this.prisma.client.user.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        status: "active",
+        userRoles: { some: { deletedAt: null, role: { key: { not: "student" }, deletedAt: null } } },
+      },
+      select: { id: true, name: true, email: true },
+      orderBy: [{ name: "asc" }],
+    });
+  }
+
+  /** One taggable staff member, for validating what the approve dialog sent back. */
+  async findTaggableStaff(tenantId: string, userId: string): Promise<{ id: string } | null> {
+    return this.prisma.client.user.findFirst({
+      where: {
+        id: userId,
+        tenantId,
+        deletedAt: null,
+        status: "active",
+        userRoles: { some: { deletedAt: null, role: { key: { not: "student" }, deletedAt: null } } },
+      },
+      select: { id: true },
+    });
+  }
 }

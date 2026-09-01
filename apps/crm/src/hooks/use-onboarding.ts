@@ -135,6 +135,21 @@ export function useOnboardingApprovableBatches(id: string | null) {
 }
 
 /**
+ * The staff an applicant can be tagged to on approval.
+ *
+ * Not keyed by submission id: the candidate set is the same for every applicant, so this is
+ * one cached list for the whole screen rather than a refetch per row. `enabled` is driven by
+ * the accept panel being open, so merely browsing the queue never fetches a staff directory.
+ */
+export function useOnboardingTaggableStaff(enabled: boolean) {
+  return useQuery({
+    queryKey: [...ONBOARDING_SUBMISSIONS_QUERY_KEY, "taggable-staff"] as const,
+    queryFn: () => apiClient.crm.onboarding.submissions.listTaggableStaff(),
+    enabled,
+  });
+}
+
+/**
  * Accept: creates or matches the student, enrols them, optionally records the offline
  * payment (invoice) and emails them. Invalidates far more than the submissions list because
  * a successful approval also changes Students, Enrollments and — when it invoiced — the
