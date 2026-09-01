@@ -28,11 +28,13 @@ export function ticketDetailKey(id: string) {
   return [...TICKETS_QUERY_KEY, "detail", id] as const;
 }
 
-export function useTicketsList(query: ListTicketsQuery) {
+export function useTicketsList(query: ListTicketsQuery, enabled = true) {
   return useQuery({
     queryKey: ticketsListKey(query),
     queryFn: () => apiClient.crm.tickets.list(query),
     placeholderData: (previousData) => previousData,
+    /** False when the caller already knows the user lacks `tickets.view` — see usePaymentsList. */
+    enabled,
   });
 }
 

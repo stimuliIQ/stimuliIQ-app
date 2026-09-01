@@ -125,6 +125,27 @@ describe("OverviewDashboard, a11y", () => {
     expect(results.violations).toEqual([]);
   });
 
+  // ── Requests the user is not allowed to make ────────────────────────────
+  //
+  // These two fired unconditionally while their permission flags were used only to decide
+  // what to RENDER. A role without them got two guaranteed 403s on every dashboard load,
+  // for panels it was never going to be shown — visible to the user as console errors and
+  // to the API as refused traffic on a screen everybody opens.
+
+  it("does not ask for payments or tickets without the permissions", () => {
+    render(<OverviewDashboard me={meWithPermissions(["reports.revenue.view"])} />);
+
+    expect(usePaymentsListMock).toHaveBeenCalledWith(expect.anything(), false);
+    expect(useTicketsListMock).toHaveBeenCalledWith(expect.anything(), false);
+  });
+
+  it("does ask once the permissions are held", () => {
+    render(<OverviewDashboard me={meWithPermissions(["payments.view", "tickets.view"])} />);
+
+    expect(usePaymentsListMock).toHaveBeenCalledWith(expect.anything(), true);
+    expect(useTicketsListMock).toHaveBeenCalledWith(expect.anything(), true);
+  });
+
   it("has no detectable a11y violations in the empty state", async () => {
     const { container } = render(<OverviewDashboard me={meWithPermissions([])} />);
     const results = await axe(container);

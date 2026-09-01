@@ -21,7 +21,11 @@ import {
 import type { MeResponse } from "@repo/types";
 import { DollarSign, LifeBuoy, Percent, Receipt, UserPlus } from "lucide-react";
 
-import { useEnrollmentTrendReport, useFunnelReport, useRevenueReport } from "../../hooks/use-reports";
+import {
+  useEnrollmentTrendReport,
+  useFunnelReport,
+  useRevenueReport,
+} from "../../hooks/use-reports";
 import { usePaymentsList } from "../../hooks/use-payments";
 import { useTicketsList } from "../../hooks/use-tickets";
 import { hasPermission } from "../../lib/permissions";
@@ -51,8 +55,13 @@ export function OverviewDashboard({ me }: OverviewDashboardProps): React.JSX.Ele
   const enrollment = useEnrollmentTrendReport({ from: range.from, to: range.to }, canEnrollment);
   const funnel = useFunnelReport({ from: range.from, to: range.to }, canFunnel);
 
-  const pendingPayments = usePaymentsList({ page: 1, pageSize: 5, status: "created" });
-  const openTickets = useTicketsList({ page: 1, pageSize: 5, status: "open" });
+  // GATED, like the three reports above them. These two were fired unconditionally while
+  // `canPayments`/`canTickets` were used only to decide whether to RENDER the result — so a
+  // role without them got two guaranteed 403s on every dashboard load, for panels it was
+  // never going to be shown. The permission check was already sitting right there; it just
+  // wasn't reaching the request.
+  const pendingPayments = usePaymentsList({ page: 1, pageSize: 5, status: "created" }, canPayments);
+  const openTickets = useTicketsList({ page: 1, pageSize: 5, status: "open" }, canTickets);
 
   const hasAnyAccess =
     canRevenue || canEnrollment || canFunnel || canPayments || canTickets || canOwnTarget;
@@ -116,7 +125,10 @@ export function OverviewDashboard({ me }: OverviewDashboardProps): React.JSX.Ele
                 <AreaChart
                   title="Revenue trend"
                   description={`${range.from} – ${range.to}`}
-                  data={(revenue.data?.series ?? []).map((p) => ({ date: p.periodStart, amount: p.amountPaise }))}
+                  data={(revenue.data?.series ?? []).map((p) => ({
+                    date: p.periodStart,
+                    amount: p.amountPaise,
+                  }))}
                   xKey="date"
                   series={[{ key: "amount", label: "Revenue" }]}
                   valueFormatter={(v) => formatPaise(v)}
@@ -129,7 +141,10 @@ export function OverviewDashboard({ me }: OverviewDashboardProps): React.JSX.Ele
                 <AreaChart
                   title="Enrollment trend"
                   description={`${range.from} – ${range.to}`}
-                  data={(enrollment.data?.series ?? []).map((p) => ({ date: p.periodStart, count: p.value }))}
+                  data={(enrollment.data?.series ?? []).map((p) => ({
+                    date: p.periodStart,
+                    count: p.value,
+                  }))}
                   xKey="date"
                   series={[{ key: "count", label: "Enrollments" }]}
                   loading={enrollment.isLoading}
@@ -169,7 +184,10 @@ export function OverviewDashboard({ me }: OverviewDashboardProps): React.JSX.Ele
               >
                 <ul className="flex flex-col gap-2">
                   {(pendingPayments.data?.items ?? []).map((payment) => (
-                    <li key={payment.id} className="flex items-center justify-between gap-2 text-sm">
+                    <li
+                      key={payment.id}
+                      className="flex items-center justify-between gap-2 text-sm"
+                    >
                       <span className="truncate text-fg">Order {payment.orderId.slice(0, 8)}…</span>
                       <span className="flex items-center gap-2 shrink-0">
                         <span className="text-fg-muted">{formatPaise(payment.amountPaise)}</span>
@@ -238,7 +256,10 @@ function OperationalListCard({
   "data-testid": testId,
 }: OperationalListCardProps): React.JSX.Element {
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4" data-testid={testId}>
+    <div
+      className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
+      data-testid={testId}
+    >
       <div className="flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-fg">
           {icon}

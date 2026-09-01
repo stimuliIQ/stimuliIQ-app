@@ -41,15 +41,18 @@ export interface UseCrmNotificationsResult {
   isMarkingAll: boolean;
 }
 
-export function useCrmNotifications(): UseCrmNotificationsResult {
+export function useCrmNotifications(enabled = true): UseCrmNotificationsResult {
   const queryClient = useQueryClient();
 
   const query = useQuery<{ items: NotificationDto[] }, ApiError>({
     queryKey: CRM_NOTIFICATIONS_QUERY_KEY,
     queryFn: async () => {
-      const result = await apiClient.engagement.notifications.list({ limit: NOTIFICATION_PAGE_SIZE });
+      const result = await apiClient.engagement.notifications.list({
+        limit: NOTIFICATION_PAGE_SIZE,
+      });
       return { items: result.items };
     },
+    enabled,
     refetchInterval: POLL_INTERVAL_MS,
     // Poll while the tab is backgrounded too: the whole point is that a rep who is in
     // another tab still comes back to an accurate badge.
@@ -59,6 +62,11 @@ export function useCrmNotifications(): UseCrmNotificationsResult {
       // Never retry a 401 — the session is gone, and retrying just delays the signed-out
       // state behind three more failing requests.
       if (error instanceof ApiError && error.isUnauthenticated) return false;
+      // Nor a 403. A permission denial is not a transient failure — retrying cannot change
+      // the answer, it just turns one refused request into three console errors, on a
+      // timer, forever. ApiError.isForbidden's own contract says "hide the action, not
+      // retry"; this hook was retrying it anyway.
+      if (error instanceof ApiError && error.isForbidden) return false;
       return failureCount < 2;
     },
   });
@@ -72,18 +80,23 @@ export function useCrmNotifications(): UseCrmNotificationsResult {
     // what the user just did.
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: CRM_NOTIFICATIONS_QUERY_KEY });
-      const previous = queryClient.getQueryData<{ items: NotificationDto[] }>(CRM_NOTIFICATIONS_QUERY_KEY);
+      const previous = queryClient.getQueryData<{ items: NotificationDto[] }>(
+        CRM_NOTIFICATIONS_QUERY_KEY,
+      );
       queryClient.setQueryData<{ items: NotificationDto[] }>(CRM_NOTIFICATIONS_QUERY_KEY, (data) =>
         data
           ? {
-              items: data.items.map((n) => (n.id === id ? { ...n, readAt: n.readAt ?? new Date().toISOString() } : n)),
+              items: data.items.map((n) =>
+                n.id === id ? { ...n, readAt: n.readAt ?? new Date().toISOString() } : n,
+              ),
             }
           : data,
       );
       return { previous };
     },
     onError: (_error, _id, context) => {
-      const previous = (context as { previous?: { items: NotificationDto[] } } | undefined)?.previous;
+      const previous = (context as { previous?: { items: NotificationDto[] } } | undefined)
+        ?.previous;
       if (previous) queryClient.setQueryData(CRM_NOTIFICATIONS_QUERY_KEY, previous);
     },
     onSettled: () => void queryClient.invalidateQueries({ queryKey: CRM_NOTIFICATIONS_QUERY_KEY }),

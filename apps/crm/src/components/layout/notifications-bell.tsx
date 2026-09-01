@@ -14,16 +14,26 @@ import { useNavigate } from "@tanstack/react-router";
 import { NotificationBell, type NotificationBellItem } from "@repo/ui";
 
 import { useCrmNotifications } from "../../hooks/use-notifications";
+import { useMe } from "../../hooks/use-me";
+import { hasPermission } from "../../lib/permissions";
 import { deriveNotificationBody, deriveNotificationTitle } from "../../lib/notification-copy";
 
 export function NotificationsBell(): React.JSX.Element | null {
   const navigate = useNavigate();
-  const { items, isLoading, isSignedOut, markRead, markAllRead } = useCrmNotifications();
+  // `notifications.view` is granted to every seeded role, but NOT to every role that can
+  // exist: `mentor` and `hr` are both outside the grant loop in prisma/seed.ts, and a role
+  // created through the CRM starts with nothing. Any of those signs in to a bell that polls
+  // a 403 on a timer. Asking first is cheaper than being refused forever.
+  const { me } = useMe();
+  const canSee = hasPermission(me?.permissions, "notifications.view");
+  const { items, isLoading, isSignedOut, markRead, markAllRead } = useCrmNotifications(canSee);
 
   // A signed-out session renders nothing at all rather than an empty or erroring bell —
   // the app is about to bounce to the sign-in screen anyway, and a broken-looking control
   // in the chrome reads as an app fault rather than an expired session.
   if (isSignedOut) return null;
+  // No permission, no bell — rather than an empty one that suggests "you have no messages".
+  if (me && !canSee) return null;
 
   const bellItems: NotificationBellItem[] = items.map((notification) => ({
     id: notification.id,

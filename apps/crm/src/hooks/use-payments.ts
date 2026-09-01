@@ -23,11 +23,15 @@ export function reconciliationKey(params: { from: string; to: string }) {
   return [...PAYMENTS_QUERY_KEY, "reconciliation", params] as const;
 }
 
-export function usePaymentsList(query: ListPaymentsQuery) {
+export function usePaymentsList(query: ListPaymentsQuery, enabled = true) {
   return useQuery({
     queryKey: paymentsListKey(query),
     queryFn: () => apiClient.commerce.payments.list(query),
     placeholderData: (previousData) => previousData,
+    // Callers that already know the user lacks `payments.view` pass false. Asking anyway
+    // produces a 403 the UI then has to hide, which is noise in the console and a wasted
+    // round-trip on every load.
+    enabled,
   });
 }
 
@@ -58,7 +62,8 @@ export function usePaymentReceipt(id: string | undefined, enabled: boolean) {
 export function useLedgerReconciliation(params: { from: string; to: string } | undefined) {
   return useQuery({
     queryKey: reconciliationKey(params ?? { from: "", to: "" }),
-    queryFn: () => apiClient.commerce.payments.reconciliation(params as { from: string; to: string }),
+    queryFn: () =>
+      apiClient.commerce.payments.reconciliation(params as { from: string; to: string }),
     enabled: Boolean(params?.from && params?.to),
   });
 }
