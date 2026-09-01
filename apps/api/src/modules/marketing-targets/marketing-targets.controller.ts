@@ -28,6 +28,7 @@ import {
   Put,
   Query,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
 import type {
   MarketingTargetProgress,
@@ -43,11 +44,13 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermission } from "../auth/decorators/require-permission.decorator";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
+import { ScopeInterceptor } from "../auth/interceptors/scope.interceptor";
 import type { RequestUser } from "../auth/lib/request-user";
 import { MarketingTargetsService } from "./marketing-targets.service";
 
 @Controller("crm/marketing-targets")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseInterceptors(ScopeInterceptor)
 export class MyMarketingTargetController {
   constructor(private readonly service: MarketingTargetsService) {}
 
@@ -70,6 +73,7 @@ export class MyMarketingTargetController {
 
 @Controller("crm/marketing-targets")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseInterceptors(ScopeInterceptor)
 export class MarketingTargetsAdminController {
   constructor(private readonly service: MarketingTargetsService) {}
 

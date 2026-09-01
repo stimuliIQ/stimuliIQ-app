@@ -61,7 +61,10 @@ export function LeaveRequestDrawer({
   }, [requestId]);
 
   const request = query.data;
-  const isPending = request?.status === "pending";
+  // Decidable at EITHER step of the two-step chain (ADR-0070). The verb changes, not the
+  // availability: a team lead approves, and a manager then confirms.
+  const isDecidable = request?.status === "pending" || request?.status === "lead_approved";
+  const awaitingManager = request?.status === "lead_approved";
   const busy = approve.isPending || reject.isPending;
 
   async function onApprove(): Promise<void> {
@@ -130,8 +133,22 @@ export function LeaveRequestDrawer({
                   </DetailRow>
                 ) : null}
                 <DetailRow label="Reason">{request.reason}</DetailRow>
+                {/* BOTH steps are shown, and separately. A two-step chain that only ever
+                    named the final decider would hide the fact that somebody else looked
+                    first — which is precisely what the applicant and an auditor want to
+                    know. The row is omitted entirely when the id matches the final
+                    decider, because a direct approval by HR is one person doing both, not
+                    two signatures. */}
+                {request.leadApprovedByName && request.leadApprovedById !== request.reviewedById ? (
+                  <DetailRow label="Approved by team lead">{request.leadApprovedByName}</DetailRow>
+                ) : null}
+                {request.leadApprovalNote && request.leadApprovedById !== request.reviewedById ? (
+                  <DetailRow label="Team lead's note">{request.leadApprovalNote}</DetailRow>
+                ) : null}
                 {request.reviewedByName ? (
-                  <DetailRow label="Decided by">{request.reviewedByName}</DetailRow>
+                  <DetailRow label={request.leadApprovedById && request.leadApprovedById !== request.reviewedById ? "Confirmed by" : "Decided by"}>
+                    {request.reviewedByName}
+                  </DetailRow>
                 ) : null}
                 {request.reviewNote ? (
                   <DetailRow label={request.status === "rejected" ? "Reason given" : "Note"}>
@@ -163,7 +180,7 @@ export function LeaveRequestDrawer({
         </DrawerBody>
 
         <DrawerFooter>
-          {canDecide && isPending && mode === "view" ? (
+          {canDecide && isDecidable && mode === "view" ? (
             <>
               <Button
                 variant="secondary"
@@ -175,7 +192,10 @@ export function LeaveRequestDrawer({
               </Button>
               <Button onClick={() => setMode("approve")} data-testid="leave-approve-start">
                 <Check className="mr-1.5 size-4" aria-hidden="true" />
-                Approve
+                {/* Says which step this is. "Approve" on a request the team lead has already
+                    approved would hide the fact that this click is the one that commits the
+                    days and finishes the request. */}
+                {awaitingManager ? "Confirm" : "Approve"}
               </Button>
             </>
           ) : null}
@@ -191,12 +211,12 @@ export function LeaveRequestDrawer({
                 onClick={mode === "reject" ? onReject : onApprove}
                 data-testid={mode === "reject" ? "leave-reject-confirm" : "leave-approve-confirm"}
               >
-                {mode === "reject" ? "Turn down" : "Approve"}
+                {mode === "reject" ? "Turn down" : awaitingManager ? "Confirm" : "Approve"}
               </Button>
             </>
           ) : null}
 
-          {mode === "view" && (!canDecide || !isPending) ? (
+          {mode === "view" && (!canDecide || !isDecidable) ? (
             <Button variant="secondary" onClick={() => onOpenChange(false)}>
               Close
             </Button>

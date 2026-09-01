@@ -50,11 +50,16 @@ import type {
   ListLeaveRequestsQuery,
   RejectLeaveRequestRequest,
 } from "@repo/types";
+// The status sets live in @repo/types (ADR-0070). Ten separate string literals used to
+// answer "which requests are still live?", and missing one when the two-step chain landed
+// would silently stop counting somebody's days rather than fail a test.
+import { LEAVE_LIVE_STATUSES, LEAVE_UNCOMMITTED_STATUSES } from "@repo/types";
 import { computeLeaveDuration } from "@repo/types";
 
 import { PaginatedResult } from "../../common/dto/paginated-result";
 import { requireScopeContext, type ScopeContext } from "../auth/lib/scope-context";
 import { LeaveNotificationService } from "./leave-notification.service";
+import { OrgService } from "../org/org.service";
 import { LeaveSetupService } from "./leave-setup.service";
 import { LeaveRepository, type LeaveRequestRow } from "./leave.repository";
 import {
@@ -70,6 +75,13 @@ import {
 /** `{}` means tenant-wide (scope=all); `{ userId }` narrows to the actor's own rows. */
 type LeaveScopeFilter = Record<string, never> | { userId: string };
 
+/** How to describe a clashing request to the person who just tried to book over it. */
+function describeConflictStatus(status: string): string {
+  if (status === "approved") return "approved";
+  if (status === "lead_approved") return "part-approved";
+  return "pending";
+}
+
 @Injectable()
 export class LeaveService {
   private readonly logger = new Logger(LeaveService.name);
@@ -78,6 +90,9 @@ export class LeaveService {
     private readonly repo: LeaveRepository,
     private readonly setup: LeaveSetupService,
     private readonly notifications: LeaveNotificationService,
+    // The org chart is what decides who may approve whose leave. Leave depends on Org,
+    // never the reverse — nothing in the org module knows what a leave request is.
+    private readonly org: OrgService,
   ) {}
 
   /**
@@ -119,6 +134,20 @@ export class LeaveService {
     // permission already means.
     const userId = "userId" in filter ? filter.userId : query.userId;
 
+    // A TEAM LEAD OR MANAGER SEES THEIR PEOPLE, not just themselves.
+    //
+    // Every staff role holds `leave.view` at scope=own, which is right for somebody with
+    // nobody reporting to them. But a lead who cannot SEE their team's requests cannot
+    // approve them, and widening the grant to `all` would hand them the whole company —
+    // reasons included, which is exactly what `leave.calendar.view` was split out to avoid.
+    // So the widening comes from the ORG CHART rather than from the permission: the actor
+    // sees their own requests, plus the requests of the people they actually approve for.
+    let userIdIn: string[] | undefined;
+    if ("userId" in filter && !query.userId) {
+      const subordinates = await this.org.listSubordinateUserIds(tenantId, scope.actorId);
+      if (subordinates.length > 0) userIdIn = [scope.actorId, ...subordinates];
+    }
+
     const { rows, total } = await this.repo.listRequests({
       tenantId,
       page: query.page,
@@ -126,7 +155,9 @@ export class LeaveService {
       status: query.status,
       leaveTypeId: query.leaveTypeId,
       year: query.year,
-      userId,
+      // `userIdIn` supersedes the single id when the actor approves for other people.
+      userId: userIdIn ? undefined : userId,
+      userIdIn,
     });
 
     return new PaginatedResult(rows.map(toLeaveRequestSummaryDto), {
@@ -140,12 +171,17 @@ export class LeaveService {
   async getRequest(tenantId: string, id: string): Promise<LeaveRequestDetail> {
     const scope = requireScopeContext();
     const filter = this.resolveScopeFilter(scope);
-    const row = await this.repo.findRequestById(
-      tenantId,
-      id,
-      "userId" in filter ? filter.userId : undefined,
-    );
+    const row = await this.repo.findRequestById(tenantId, id);
     if (!row) throw this.notFound();
+
+    // Scoped AFTER the read rather than inside the WHERE, because "may I see this?" now has
+    // two answers — it is mine, or I approve for whoever filed it — and a single id in the
+    // WHERE cannot express the second. Still 404, never 403: an out-of-scope row must not
+    // be confirmed to exist. Same outcome as before, reached differently.
+    if ("userId" in filter && row.userId !== filter.userId) {
+      const subordinates = await this.org.listSubordinateUserIds(tenantId, scope.actorId);
+      if (!subordinates.includes(row.userId)) throw this.notFound();
+    }
     return toLeaveRequestDetailDto(row);
   }
 
@@ -214,7 +250,7 @@ export class LeaveService {
           code: "leave.overlapping_request",
           title: "You've already applied for those days",
           detail:
-            `You have ${conflict.status === "approved" ? "approved" : "pending"} leave from ` +
+            `You have ${describeConflictStatus(conflict.status)} leave from ` +
             `${toIsoDate(conflict.startDate)} to ${toIsoDate(conflict.endDate)}. ` +
             "Cancel it first, or pick dates that don't overlap.",
         });
@@ -277,7 +313,7 @@ export class LeaveService {
     const updated = await this.repo.transitionRequestStatus({
       tenantId,
       id,
-      from: ["pending", "approved"],
+      from: [...LEAVE_LIVE_STATUSES],
       to: "cancelled",
       actorId,
       note: null,
@@ -298,6 +334,63 @@ export class LeaveService {
   // ── Deciding ────────────────────────────────────────────────────────────
 
   /**
+   * Which step of the chain this actor is entitled to perform on this request — and a 404
+   * if they are entitled to none.
+   *
+   * THE PERMISSION IS UNIFORM; THE ORG CHART DECIDES. Every approving role holds the same
+   * `leave.approve` key. What separates a team lead from a manager from HR is not a
+   * grant — it is where they sit, which is data. That is what lets a lead be appointed in
+   * the Teams screen without also remembering to grant them something.
+   *
+   * Returns "lead" when the actor is the applicant's team lead and the request is still at
+   * step one; "final" when they are the manager, or hold company-wide leave authority.
+   *
+   * 404, NOT 403, for somebody with no standing over this request — the IDOR posture the
+   * rest of this module already uses (`notFound()`). A 403 would confirm the request exists,
+   * and its dates and applicant are exactly what it must not confirm.
+   */
+  private async resolveApprovalStep(
+    tenantId: string,
+    actorId: string,
+    row: LeaveRequestRow,
+  ): Promise<"lead" | "final"> {
+    const chain = await this.org.resolveApprovalChain(tenantId, row.userId);
+
+    // Company-wide authority (HR, the owner) can act at either step. This is also the escape
+    // hatch that keeps the company running when a lead is themselves on leave, and it is the
+    // ONLY way a request whose chain has a gap ever gets decided.
+    //
+    // Read from the actor's ROLES, not from the request's permission scope: authority here
+    // is a property of the person, and a scope-derived answer would break the moment this
+    // ran outside an HTTP request — which is exactly when it would fail open.
+    const actorPosition = await this.org.getPosition(tenantId, actorId);
+    const hasCompanyWideAuthority = actorPosition.isHr || actorPosition.isOwner;
+
+    if (row.status === "pending" && chain.steps[0] === "lead" && chain.firstApproverId === actorId) {
+      return "lead";
+    }
+
+    // The manager acts only once the request has REACHED their step: `lead_approved` on a
+    // two-step chain, or `pending` on a single-step one where there is no lead step to wait
+    // for. Matching on `finalApproverId` alone let a manager approve straight from `pending`
+    // and silently skip the team lead — which is a one-step approval wearing a two-step
+    // label, and it is invisible on screen because the row simply comes back approved.
+    const managerStepReached = row.status === "lead_approved" || chain.steps.length === 1;
+    if (managerStepReached && chain.finalApproverId === actorId) {
+      return "final";
+    }
+    if (hasCompanyWideAuthority) {
+      // Approving directly from `pending` skips the lead step. It is visible rather than
+      // silent: the CRM labels the button "Approve directly", and the row records this
+      // actor as both the lead approver and the final one, so the trail says one person
+      // did both rather than implying a step that never happened.
+      return "final";
+    }
+
+    throw this.notFound();
+  }
+
+  /**
    * Approve, deducting the days from the applicant's allowance.
    *
    * The whole thing runs in one transaction holding the APPLICANT's advisory lock — the same
@@ -316,7 +409,39 @@ export class LeaveService {
   ): Promise<LeaveRequestDetail> {
     const existing = await this.repo.findRequestById(tenantId, id);
     if (!existing) throw this.notFound();
-    this.assertPending(existing);
+    this.assertNotSelfReview(existing, actorId);
+    this.assertInState(existing, ["pending", "lead_approved"]);
+
+    // Which step is this actor performing? Resolved from the org chart, not from a
+    // permission: everyone who may approve holds the SAME key, and the hierarchy decides
+    // whose requests they see and at which stage they act.
+    const step = await this.resolveApprovalStep(tenantId, actorId, existing);
+
+    // STEP ONE — the team lead approves. Deducts nothing, so it takes no lock and does no
+    // allowance arithmetic: there is nothing yet to double-charge. The days keep counting
+    // as uncommitted (LEAVE_UNCOMMITTED_STATUSES) until the manager confirms.
+    if (step === "lead") {
+      const moved = await this.repo.transitionRequestStatus({
+        tenantId,
+        id,
+        from: ["pending"],
+        to: "lead_approved",
+        actorId,
+        note: body.note?.trim() || null,
+        leadStep: true,
+      });
+      if (moved === 0) {
+        throw new ConflictException({
+          code: "leave.already_reviewed",
+          title: "Someone got there first",
+          detail: "Another approver moved this request a moment ago. Reload to see where it stands.",
+        });
+      }
+      const afterLead = await this.repo.findRequestById(tenantId, id);
+      if (!afterLead) throw this.notFound();
+      await this.notifications.notifyLeadApproved(tenantId, afterLead);
+      return toLeaveRequestDetailDto(afterLead);
+    }
 
     const leaveType = await this.repo.findLeaveTypeById(tenantId, existing.leaveTypeId);
     const year = existing.startDate.getUTCFullYear();
@@ -367,8 +492,13 @@ export class LeaveService {
       const updated = await this.repo.transitionRequestStatus({
         tenantId,
         id,
-        from: ["pending"],
+        // Narrowed to the state we actually READ, not to both openings. If a lead approves
+        // between that read and this write, the guard misses and the service answers 409 —
+        // which is right. Accepting both here would let the manager's id overwrite the
+        // lead trio and erase who performed step one.
+        from: [existing.status === "pending" ? "pending" : "lead_approved"],
         to: "approved",
+        alsoRecordAsLead: existing.status === "pending",
         actorId,
         note: body.note?.trim() || null,
         tx,
@@ -405,12 +535,18 @@ export class LeaveService {
   ): Promise<LeaveRequestDetail> {
     const existing = await this.repo.findRequestById(tenantId, id);
     if (!existing) throw this.notFound();
-    this.assertPending(existing);
+    this.assertNotSelfReview(existing, actorId);
+    this.assertInState(existing, ["pending", "lead_approved"]);
+    // Authorisation is the same as for approving — the chain decides who may act. A lead
+    // may turn a request down OUTRIGHT rather than passing a "no" up to the manager: the
+    // applicant needs to re-plan, and making them wait for a second signature on a refusal
+    // helps nobody. Deliberately asymmetric with approval, same call P4 makes on grading.
+    await this.resolveApprovalStep(tenantId, actorId, existing);
 
     const updated = await this.repo.transitionRequestStatus({
       tenantId,
       id,
-      from: ["pending"],
+      from: ["pending", "lead_approved"],
       to: "rejected",
       actorId,
       note: body.reason.trim(),
@@ -501,10 +637,41 @@ export class LeaveService {
     const from = fromIsoDate(query.from);
     const to = fromIsoDate(query.to);
 
+    // WHO THIS PERSON MAY SEE. Server-enforced from their permission scope and their place
+    // on the org chart — NOT chosen by the caller.
+    //
+    // This used to be a free toggle over a company-wide calendar: every staff role held
+    // `leave.calendar.view` at scope=all, so anyone could switch back to "Everyone" and read
+    // the whole company's absences. The filter was a convenience sitting on top of a view
+    // that showed everything, which is not the same thing as a boundary.
+    //
+    //   scope=all (super_admin / admin / HR) — the whole company, and `scope=team` narrows
+    //     it to their own circle as a convenience, exactly as before.
+    //   scope=own (everybody else) — their own leave, PLUS the people they approve for.
+     //     A rank-and-file member approves for nobody, so they see strictly themselves. A
+    //     team lead or manager sees their team. There is no request they can send that
+    //     widens this.
+    //
+    // `listSubordinateUserIds` rather than `listTeamCircleUserIds` on purpose: the circle
+    // looks sideways and up (your team-mates AND your lead), which would let an ordinary
+    // member read their colleagues' dates. Subordinates look strictly DOWN, which is what
+    // "a member sees only their own" requires.
+    const scope = requireScopeContext();
+    let userIds: string[] | null = null;
+    if (scope.scope === "all") {
+      if (query.scope === "team") {
+        const circle = await this.org.listTeamCircleUserIds(tenantId, actorId);
+        userIds = [actorId, ...circle];
+      }
+    } else {
+      const approvesFor = await this.org.listSubordinateUserIds(tenantId, actorId);
+      userIds = [actorId, ...approvesFor];
+    }
+
     const [setting, holidays, rows] = await Promise.all([
       this.setup.getWeeklyOffDays(tenantId),
       this.repo.listHolidaysBetween(tenantId, from, to),
-      this.repo.listCalendarWindow(tenantId, from, to, actorId),
+      this.repo.listCalendarWindow(tenantId, from, to, actorId, userIds),
     ]);
 
     return {
@@ -573,7 +740,10 @@ export class LeaveService {
         .filter((s) => s.leaveTypeId === type.id && s.status === "approved")
         .reduce((total, s) => total + s.halfDays, 0);
       const pending = sums
-        .filter((s) => s.leaveTypeId === type.id && s.status === "pending")
+        // Every uncommitted status, not just `pending` — a request sitting with the manager
+        // is still an absence this person has asked for, and must keep counting against
+        // their balance until it is decided (ADR-0070).
+        .filter((s) => s.leaveTypeId === type.id && (LEAVE_UNCOMMITTED_STATUSES as readonly string[]).includes(s.status))
         .reduce((total, s) => total + s.halfDays, 0);
 
       // Unpaid leave has nothing to run out of, so it reports no entitlement rather than a
@@ -641,15 +811,42 @@ export class LeaveService {
     }
   }
 
-  private assertPending(row: LeaveRequestRow): void {
-    if (row.status === "pending") return;
+  /**
+   * Refuses a request that is not in one of the states this action can move it from.
+   *
+   * Replaces the old `assertPending`, which could only express one state. With a two-step
+   * chain the lead acts on `pending` and the manager on `lead_approved`, and a lead trying
+   * to confirm what they themselves approved has to be told that specifically — not "already
+   * decided", which is what the single-state version would have said.
+   */
+  private assertInState(row: LeaveRequestRow, allowed: readonly string[]): void {
+    if (allowed.includes(row.status)) return;
     throw new ConflictException({
       code: "leave.already_reviewed",
-      title: "Already decided",
+      title: row.status === "lead_approved" ? "Already approved by the team lead" : "Already decided",
       detail:
         row.status === "cancelled"
           ? "The applicant withdrew this request."
-          : `This request has already been ${row.status}.`,
+          : row.status === "lead_approved"
+            ? "The team lead has approved this. It is waiting on the manager to confirm."
+            : `This request has already been ${row.status}.`,
+    });
+  }
+
+  /**
+   * NOBODY DECIDES THEIR OWN REQUEST.
+   *
+   * Enforced here rather than by permissions, because a permission cannot express it: the
+   * super admin holds `leave.approve` at scope=all, which before this included their own row.
+   * This is the one place the module answers 403 rather than 404 — the actor unambiguously
+   * knows the request exists, because it is theirs, so there is nothing to conceal.
+   */
+  private assertNotSelfReview(row: LeaveRequestRow, actorId: string): void {
+    if (row.userId !== actorId) return;
+    throw new ForbiddenException({
+      code: "leave.self_review",
+      title: "You can't decide your own leave",
+      detail: "Your own request goes to your manager, or to HR. Ask them to look at it.",
     });
   }
 

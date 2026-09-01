@@ -8,6 +8,7 @@
 // becomes a notification, that is the moment to import NotificationsModule.)
 import { Module } from "@nestjs/common";
 
+import { OrgModule } from "../org/org.module";
 import { AuthModule } from "../auth/auth.module";
 
 import {
@@ -18,7 +19,7 @@ import { MarketingTargetsRepository } from "./marketing-targets.repository";
 import { MarketingTargetsService } from "./marketing-targets.service";
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, OrgModule],
   // MyMarketingTargetController is listed FIRST so its literal `me` route is matched before
   // the admin controller's parameterised routes on the same base path.
   controllers: [MyMarketingTargetController, MarketingTargetsAdminController],

@@ -358,6 +358,12 @@ const AUDITED_MODELS = new Set<string>([
   // never stored, so the only thing audited here is the goal itself. No PII (the person is
   // a foreign key) and no secrets.
   "MarketingTarget",
+  // Org hierarchy. Who reports to whom decides who signs off somebody's leave, so "when did
+  // Priya stop being this team's lead, and who changed it" is precisely what the trail is
+  // for. `User` is already audited, so a person MOVING between teams is captured on that
+  // side; this covers the team itself and its manager/lead pointers. No PII (people are
+  // foreign keys) and no secrets.
+  "Team",
 ]);
 
 // --- Secret redaction (Wave 6 security audit H-1/H-2) ----------------------------------

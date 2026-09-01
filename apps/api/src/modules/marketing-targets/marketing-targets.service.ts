@@ -22,6 +22,8 @@ import {
   toTargetMonth,
 } from "@repo/types";
 
+import { requireScopeContext } from "../auth/lib/scope-context";
+import { OrgService } from "../org/org.service";
 import {
   MarketingTargetsRepository,
   type MarketingTargetRow,
@@ -39,7 +41,28 @@ export const TARGETABLE_ROLE_KEYS = ["marketing"] as const;
 
 @Injectable()
 export class MarketingTargetsService {
-  constructor(private readonly repo: MarketingTargetsRepository) {}
+  constructor(
+    private readonly repo: MarketingTargetsRepository,
+    // The org chart decides whose numbers a manager may see and set (ADR-0069).
+    private readonly org: OrgService,
+  ) {}
+
+  /**
+   * Whose targets this actor may see and set.
+   *
+   * `null` means EVERYONE — company-wide authority (super_admin, HR), the behaviour that
+   * shipped before teams existed. An array means "these people and nobody else": a manager
+   * or team lead, narrowed to the people they actually lead.
+   *
+   * Same device as leave: the permission says you may act, the org chart says on whom. An
+   * empty array is a real answer — somebody who leads nobody gets an empty report with a
+   * named empty state, never a 403 on a screen the sidebar just offered them.
+   */
+  private async resolveVisibleUserIds(tenantId: string): Promise<string[] | null> {
+    const scope = requireScopeContext();
+    if (scope.scope === "all") return null;
+    return this.org.listSubordinateUserIds(tenantId, scope.actorId);
+  }
 
   /**
    * GET /crm/marketing-targets/me — the signed-in person's own card.
@@ -72,8 +95,15 @@ export class MarketingTargetsService {
    */
   async list(tenantId: string, month?: TargetMonth): Promise<MarketingTargetsListDto> {
     const targetMonth = month ?? toTargetMonth();
-    const users = await this.repo.findTargetableUsers(tenantId, [...TARGETABLE_ROLE_KEYS]);
-    const targets = await this.repo.findForMonth(tenantId, targetMonthToDate(targetMonth));
+    const visible = await this.resolveVisibleUserIds(tenantId);
+    const allTargetable = await this.repo.findTargetableUsers(tenantId, [...TARGETABLE_ROLE_KEYS]);
+
+    // A manager sees the INTERSECTION of "people I lead" and "people this feature measures".
+    // A manager whose team holds nobody targetable gets an empty report, which is honest —
+    // not everybody is measured on deals closed.
+    const users = visible === null ? allTargetable : allTargetable.filter((u) => visible.includes(u.id));
+    const allTargets = await this.repo.findForMonth(tenantId, targetMonthToDate(targetMonth));
+    const targets = visible === null ? allTargets : allTargets.filter((t) => visible.includes(t.userId));
 
     // A target may exist for somebody who has since lost the marketing role. They still
     // appear, because the number was set and their progress is still being measured — a row
@@ -123,6 +153,23 @@ export class MarketingTargetsService {
     };
   }
 
+  /**
+   * A manager may only set a number for somebody they lead.
+   *
+   * 404 rather than 403, matching the posture everywhere else: a 403 would confirm the
+   * person exists and is measured, which is exactly what must not leak to somebody with no
+   * standing over them.
+   */
+  private async assertMaySetFor(tenantId: string, userId: string): Promise<void> {
+    const visible = await this.resolveVisibleUserIds(tenantId);
+    if (visible === null || visible.includes(userId)) return;
+    throw new NotFoundException({
+      code: "marketing_targets.user_not_found",
+      title: "Not one of your people",
+      detail: "You can only set a target for somebody on a team you lead or manage.",
+    });
+  }
+
   /** PUT /crm/marketing-targets — set or replace one person's number for one month. */
   async upsert(
     tenantId: string,
@@ -133,6 +180,11 @@ export class MarketingTargetsService {
     // 404, not 403: a user id from another tenant must be indistinguishable from one that
     // does not exist, or this endpoint becomes a cross-tenant existence oracle.
     if (!user) throw new NotFoundException("User not found.");
+
+    // A manager may only set a number for somebody they lead. Checked BEFORE the write, and
+    // answering 404 for the same reason the check above does: a 403 here would confirm the
+    // person exists and is measured, to somebody with no standing over them.
+    await this.assertMaySetFor(tenantId, body.userId);
 
     const row = await this.repo.upsert({
       tenantId,
@@ -152,6 +204,10 @@ export class MarketingTargetsService {
   async remove(tenantId: string, id: string): Promise<void> {
     const existing = await this.repo.findById(tenantId, id);
     if (!existing) throw new NotFoundException("Target not found.");
+    // The same team gate as upsert. Without it a manager could DELETE a number they could
+    // never have set — a narrower write path guarded and a wider one left open is the exact
+    // shape of hole that gets found later.
+    await this.assertMaySetFor(tenantId, existing.userId);
     await this.repo.softDelete(id);
   }
 

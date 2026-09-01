@@ -14,6 +14,10 @@ import {
   computeLeaveDuration,
   formatLeaveDays,
   type LeaveDurationInput,
+  LEAVE_LIVE_STATUSES,
+  LEAVE_UNCOMMITTED_STATUSES,
+  LEAVE_TERMINAL_STATUSES,
+  leaveStatusSetsCoverEveryStatus,
 } from "./leave.schemas.js";
 
 /** Sunday off, no holidays, half-days permitted, the shape the seed ships. */
@@ -251,5 +255,38 @@ describe("formatLeaveDays", () => {
     [3.5, "3.5 days"],
   ])("formats %s as %s", (days, expected) => {
     expect(formatLeaveDays(days)).toBe(expected);
+  });
+});
+
+// ── Status sets (ADR-0070, two-step approval) ─────────────────────────────────────────
+//
+// These exist because the same question — "which requests are still live?" — used to be
+// answered by ten separate string literals across the leave service and repository. Missing
+// one when a third live status was added would not break a test: it would silently stop
+// counting somebody's days for the hours their request sat with the manager. The guard below
+// is what makes a future status impossible to add without classifying it.
+describe("leave status sets", () => {
+  it("classifies every status as either live or terminal", () => {
+    expect(leaveStatusSetsCoverEveryStatus()).toBe(true);
+  });
+
+  it("counts lead_approved as uncommitted — days are deducted only on final approval", () => {
+    // A request sitting with the manager must still block an overlap and still count against
+    // the balance, or two requests can both be approved against one allowance.
+    expect(LEAVE_UNCOMMITTED_STATUSES).toContain("lead_approved");
+    expect(LEAVE_LIVE_STATUSES).toContain("lead_approved");
+    expect(LEAVE_TERMINAL_STATUSES).not.toContain("lead_approved");
+  });
+
+  it("keeps approved out of the uncommitted set — it is already deducted", () => {
+    expect(LEAVE_UNCOMMITTED_STATUSES).not.toContain("approved");
+    expect(LEAVE_LIVE_STATUSES).toContain("approved");
+  });
+
+  it("treats rejected and cancelled as terminal, so they stop counting", () => {
+    expect([...LEAVE_TERMINAL_STATUSES].sort()).toEqual(["cancelled", "rejected"]);
+    for (const status of LEAVE_TERMINAL_STATUSES) {
+      expect(LEAVE_LIVE_STATUSES).not.toContain(status);
+    }
   });
 });

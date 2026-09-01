@@ -79,6 +79,7 @@ export {
 } from "./components/toast";
 
 export { Checkbox, type CheckboxProps } from "./components/checkbox";
+export { CheckboxField, type CheckboxFieldProps } from "./components/checkbox-field";
 
 export {
   DataTable,

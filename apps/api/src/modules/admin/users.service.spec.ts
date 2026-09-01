@@ -60,7 +60,11 @@ const STAFF_ROW: StaffUserRow = {
   status: "active",
   lastLoginAt: null,
   createdAt: new Date("2026-01-01T00:00:00Z"),
-  userRoles: [{ role: COUNSELLOR_ROLE }],
+  // Not on the org chart and not posted to a branch — the state every existing staff row
+  // was in on the day P17 shipped.
+  teamId: null,
+  team: null,
+  userRoles: [{ role: COUNSELLOR_ROLE, branchId: null }],
 };
 
 const TENANT = "tenant-1";
@@ -198,7 +202,7 @@ describe("UsersAdminService", () => {
     const SUPER_ADMIN_ROW: StaffUserRow = {
       ...STAFF_ROW,
       id: "user-super",
-      userRoles: [{ role: { id: "role-sa", key: "super_admin", name: "Super Admin" } }],
+      userRoles: [{ branchId: null, role: { id: "role-sa", key: "super_admin", name: "Super Admin" } }],
     };
 
     it("404s an unknown user", async () => {

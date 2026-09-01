@@ -236,6 +236,12 @@ db foundation). Then execute it, delegating each task to the named specialist su
   the student to contact support and deliberately omits the internal `reviewNotes`. If the
   money leg fails the student is still enrolled and emailed: access never depends on paperwork.
   Spec: `docs/specs/onboarding-form.md`, ADR-0064.
+  **DB setup on an existing/live database:** `prisma migrate deploy` (additive — two new
+  tables + three enums, nothing existing touched; plus `onboarding_default_hold`, which only
+  changes a column default and moves `pending` rows to `hold`) then `pnpm db:seed:onboarding`. Do NOT
+  run the full `pnpm db:seed` against a live DB — it upserts demo students/programs/
+  campaigns; `seed-onboarding.ts` writes only the permissions + the nine questions, and
+  skips any question a staff member has already edited.
 - **P13 Leave Management (DONE):** staff time off is in the product. Any member of staff
   applies from **CRM ▸ Leave Management ▸ My Leave**; the **super admin** — and nobody else,
   not even `admin` — approves or rejects, and authors the yearly allowances, the leave types,
@@ -253,21 +259,19 @@ db foundation). Then execute it, delegating each task to the named specialist su
   `prisma/seed.ts`, so the admin+super_admin catch-all cannot grant them. A permission-catalog
   spec and an integration test both guard it. Note `grant()` is an upsert that UPDATES scope —
   re-granting a key to `adminRole` in a staff loop silently downgrades admin from `all`.
-  **The calendar has its own key** (`leave.calendar.view`, `scope=all` for every staff role)
-  behind a projection that never fetches `reason`: the team sees WHEN somebody is out, never
-  WHY. `computeLeaveDuration` (`@repo/types`) is run identically by the apply form and the
+  **The calendar has its own key** (`leave.calendar.view`) behind a projection that never
+  fetches `reason`: the team sees WHEN somebody is out, never WHY. It shipped at `scope=all`
+  for every staff role, which P17 narrowed to `own` (see below). `computeLeaveDuration` (`@repo/types`) is run identically by the apply form and the
   API, the same way `buildOnboardingAnswerIssues` is.
   Spec: `docs/specs/leave-management.md`, ADR-0065.
+  **Amended by P17 (ADR-0070):** approval is no longer super-admin-only. It is two-step —
+  lead, then manager — routed by the team graph, and `leave.approve` is held at scope=own by
+  every staff role. Everything else above (half-day units, derived balances, the calendar
+  projection that never fetches `reason`) is unchanged and still in force.
   **DB setup on an existing/live database:** `prisma migrate deploy` (additive — five new
   tables, two enums, three NotificationType values) then `pnpm db:seed:leave`. Do NOT run the
   full `pnpm db:seed` against a live DB. No holidays are seeded on purpose: a wrong holiday
   fails silently in the direction nobody checks, by making leave across it cost a day less.
-  **DB setup on an existing/live database:** `prisma migrate deploy` (additive — two new
-  tables + three enums, nothing existing touched; plus `onboarding_default_hold`, which only
-  changes a column default and moves `pending` rows to `hold`) then `pnpm db:seed:onboarding`. Do NOT
-  run the full `pnpm db:seed` against a live DB — it upserts demo students/programs/
-  campaigns; `seed-onboarding.ts` writes only the permissions + the nine questions, and
-  skips any question a staff member has already edited.
 - **P14 Careers / Hiring (DONE):** the careers surface finally closes its loop. It was
   half-built: job openings were free text typed into the careers page's `job_openings`
   block, applications landed in `career_applications` with **no CRM screen at all**, and
@@ -378,6 +382,73 @@ db foundation). Then execute it, delegating each task to the named specialist su
   purpose** — which qualifications a company recruits for is a live business fact, and a
   plausible seeded list gets picked silently by whoever is in a hurry.
 
+- **P17 Org hierarchy — teams, managers, team leads, HR (DONE):** the company had
+  NO employee hierarchy of any kind. A grep of the schema for `team|manager|supervisor|reportsTo`
+  returned nothing; the only org-partitioning column was `user_roles.branch_id`, a flat
+  per-assignment tag, and `branch_manager` was a role key with no FK to the branch it managed and
+  no subordinates. The visible cost was leave: `listApprovers` hardcoded "every active
+  super_admin", so ONE PERSON signed off every absence in the company.
+  Now: **Manager → Team Lead → Members**, held as two nullable pointers ON THE TEAM rather than a
+  recursive `users.reports_to_id` — that gives a FIXED-DEPTH chain (member → lead → manager →
+  super_admin) which resolves in one read and **cannot form a cycle by construction**. Membership
+  is exactly one team per person, a nullable `users.team_id` rather than a join table, so the
+  wrong state is unrepresentable. **Branches are untouched**: a branch is a PLACE, a team is
+  PEOPLE. HR is a ROLE, not a node — its authority is company-wide by definition.
+  **Leave is now two-step**: `pending` → (lead approves) `lead_approved` → (manager confirms)
+  `approved`. A lead may REJECT outright but not APPROVE outright — a "no" should not wait for a
+  second signature. Days are deducted only on the FINAL step, but a `lead_approved` request still
+  blocks an overlap and still counts as pending. **The single riskiest thing in the phase was the
+  ten hardcoded status literals** across the leave service and repository: missing one would not
+  fail a test, it would silently stop counting somebody's days. They are now `LEAVE_LIVE_STATUSES`
+  / `LEAVE_UNCOMMITTED_STATUSES`, defined ONCE in `@repo/types`, with a coverage assertion so a
+  future status cannot ship unclassified.
+  **The permission is uniform; the org chart decides** — `leave.approve` at scope=own for every
+  staff role, and WHOSE requests you see comes from the team graph. A dedicated `team_lead` role
+  was rejected: a person's position would then live in two places that drift.
+  **`org.teams.manage` is seeded OUTSIDE the catalog** (same device as `leave.approve`) — because
+  the hierarchy is data and the rule is uniform, whoever can edit teams can make themselves
+  somebody's approver. `admin` holds neither. **Nobody decides their own request** (403
+  `leave.self_review`), which closed a hole the super admin's scope=all left open.
+  Day one nobody has a team, so every chain is single-step and routes to HR/super_admin — exactly
+  the prior behaviour, no backfill. Spec: `docs/specs/org-teams.md`, ADR-0069 + ADR-0070.
+  **DB setup on an existing/live database:** `prisma migrate deploy` (additive — one table, one
+  nullable column on `users`, one enum value in its own migration because Postgres will not use a
+  new value in the transaction that added it, three nullable leave columns) then `pnpm db:seed:org`.
+  Do NOT run the full `pnpm db:seed`. **No teams are seeded, nobody is put on one, and nobody is
+  given `hr`** — a seeded team is a live approval route for real people's absence.
+  **Known limitation:** a manager holding only `admin` cannot approve, since `admin` is
+  deliberately excluded from `leave.approve`; give them a staff role or `hr`.
+  **The uniform grant lives in BOTH seeds, and must stay in step.** `prisma/seed.ts` (fresh
+  database) and `prisma/seed-org.ts` (existing one) each grant `leave.approve` at scope=own to
+  the same seven staff roles. It was missing from `seed.ts` until 2026-09-01, which is the worst
+  shape this bug could take: on any environment seeded from scratch (CI, a new deployment, the
+  integration suite) appointing a team lead did nothing at all — the lead 403'd at the guard
+  before the org chart was consulted, leave kept routing to the owner, and that is exactly what a
+  working two-step rollout looks like on day one. If a database was seeded before that date, run
+  `pnpm db:seed:org` once. `org.permission-catalog.spec.ts` now pins the two role lists against
+  each other, and `org-teams.integration-spec.ts` checks the grants a live seed actually produced.
+  **The leave calendar is now a BOUNDARY for ordinary staff, not just a filter.** It shipped
+  in P13 with `leave.calendar.view` at `scope=all` for every staff role, so anyone could read
+  the whole company's absences and the team/company toggle sat on top of a view that showed
+  everything. `getCalendar` reads the scope now: `all` (super_admin/admin/HR) still sees the
+  company, `own` sees yourself PLUS the people you approve for, and no request widens it. The
+  visible consequence is that a rank-and-file member sees a calendar of THEMSELVES until they
+  lead a team, which is a real change in what the screen is for. `prisma/seed-org.ts` narrows
+  an existing database (the one grant in that script that takes something away); a database
+  seeded before P17 keeps the wider view and nothing on screen looks wrong.
+  **Three reporting surfaces are team-scoped by the same rule**: marketing targets, the
+  lead-performance report and the leave calendar. A manager sees their own people; the owner
+  still sees everyone. The marketing-target list EXCLUDES the actor (a manager must not set
+  their own number) while lead performance INCLUDES them (they are measured alongside their
+  team) — deliberate, not an inconsistency. The calendar filter is a CONVENIENCE, not a
+  privacy control: the projection never fetches `reason` at any setting.
+  **The staff form now writes team AND branch.** `user_roles.branch_id` had existed since
+  Phase 0 and nothing ever wrote it, so a `branch_manager` created through the CRM saw zero
+  rows and the role was unusable without a hand-edit. Both pickers landed together, because
+  a Team picker beside a Branch picker that silently did nothing is the `stats.headline` trap.
+  On edit the branch is read back BEFORE the role purge and re-applied, so editing a name no
+  longer empties somebody's territory.
+
 Do **not** jump ahead. Each phase ends with tests green + a demo path.
 
 ---
@@ -414,5 +485,6 @@ Do **not** jump ahead. Each phase ends with tests green + a demo path.
 | Careers/hiring spec (CRM openings, four-verb review, candidate emails) | `docs/specs/careers-hiring.md` |
 | Marketing targets spec (two numbers, derived progress, dashboard card) | `docs/specs/marketing-targets.md` |
 | Course types spec (CRM-managed option list, immutable keys, hide-not-delete) | `docs/specs/course-types.md` |
+| Org hierarchy spec (teams, two-step leave approval, HR) | `docs/specs/org-teams.md` |
 | Lead ownership + accountability (assignment notify, owner picker, per-rep report) | `docs/specs/lead-ownership-accountability.md` |
 | Agent roster & protocol | `.claude/agents/README.md` |

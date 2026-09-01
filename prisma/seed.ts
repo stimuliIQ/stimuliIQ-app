@@ -524,6 +524,26 @@ const COURSE_TYPE_PERMISSIONS: Array<{ key: string; label: string }> = [
   { key: "course_types.manage", label: "Manage Course Types" },
 ];
 
+/**
+ * Org hierarchy (docs/specs/org-teams.md, ADR-0069) — the READ key only.
+ *
+ * `org.teams.view` is IN the catalog, so admin and super_admin inherit it via the catch-all:
+ * knowing who your team lead is is information, not authority, and a key held outside the
+ * catalog would have to be remembered for every role that ever needs a team picker — the
+ * same reasoning that gave course types no dedicated view key at all.
+ *
+ * There is deliberately NO `org.teams.manage` here. That one is upserted in a dedicated
+ * block inside main(), OUTSIDE this catalog, because whoever can edit teams decides who
+ * signs off whose leave — see the block itself for the full argument.
+ */
+const ORG_PERMISSIONS: Array<{ key: string; label: string }> = [
+  { key: "org.teams.view", label: "View Teams & Reporting Lines" },
+];
+
+function buildOrgPermissionCatalog(): Array<{ key: string; label: string }> {
+  return ORG_PERMISSIONS;
+}
+
 function buildCourseTypePermissionCatalog(): Array<{ key: string; label: string }> {
   return COURSE_TYPE_PERMISSIONS;
 }
@@ -753,6 +773,7 @@ async function main(): Promise<void> {
     ...buildCareersPermissionCatalog(),
     ...buildLeavePermissionCatalog(),
     ...buildCourseTypePermissionCatalog(),
+    ...buildOrgPermissionCatalog(),
   ];
   const permissions = await Promise.all(
     permissionCatalog.map((perm) =>
@@ -788,6 +809,16 @@ async function main(): Promise<void> {
     // Phase-8: mentor — a real, human external hire, distinct from the internal
     // `faculty` role. Data-scope = their ASSIGNED batches (via `batch_mentors`).
     { key: "mentor", name: "Mentor", isSystem: false },
+    // P17 org hierarchy: HR. isSystem:false DELIBERATELY — `true` would make its permission
+    // matrix uneditable through the CRM (roles.service.ts refuses system roles outright),
+    // and HR's grant set is business policy that will change. The two roles that must never
+    // be editable are super_admin and admin, and HR is not one of them.
+    //
+    // HR is NOT a node in the hierarchy. Its authority is company-wide by definition, so
+    // putting it in the tree would mean every team needed an HR member and HR's power came
+    // from membership. HR staff still sit on an ordinary team like anyone else, so their own
+    // leave has a chain — it goes to the super admin.
+    { key: "hr", name: "HR", isSystem: false },
   ] as const;
 
   const roles = await Promise.all(
@@ -826,6 +857,7 @@ async function main(): Promise<void> {
   const contentEditorRole = roleByKey.get("content_editor");
   const studentRole = roleByKey.get("student");
   const mentorRole = roleByKey.get("mentor");
+  const hrRole = roleByKey.get("hr");
 
   if (
     !superAdminRole ||
@@ -1053,6 +1085,63 @@ async function main(): Promise<void> {
   await grant(marketingRole.id, marketingTargetViewPermission!.id, RolePermissionScope.own);
   await grant(superAdminRole.id, marketingTargetManagePermission!.id, RolePermissionScope.all);
 
+  // ── Org hierarchy: editing the chart is NOT in the catalog ──────────────────────────
+  //
+  // docs/specs/org-teams.md, ADR-0069. `org.teams.view` lives in the catalog (see
+  // ORG_PERMISSIONS above) because reading the chart is information. `org.teams.manage` is
+  // upserted HERE, outside it, and that omission is the security keystone of the phase.
+  //
+  // Because the hierarchy is DATA and the leave-approval rule is uniform — every staff role
+  // holds `leave.approve`, and WHOSE requests you see is decided by which team you lead —
+  // whoever can edit teams decides who signs off whose absence. Setting yourself as the lead
+  // of a team is exactly as powerful as being granted approval authority directly. So it is
+  // narrowed with the same device as `leave.approve` and `marketing_targets.manage`: a
+  // dedicated block outside the array the admin+super_admin catch-all loop iterates.
+  //
+  // HR holds it because maintaining the org chart is the HR job description. Admin does not.
+  const orgManagePermission = await prisma.permission.upsert({
+    where: { key: "org.teams.manage" },
+    update: { label: "Create & Edit Teams, Managers and Team Leads" },
+    create: { key: "org.teams.manage", label: "Create & Edit Teams, Managers and Team Leads" },
+  });
+  await grant(superAdminRole.id, orgManagePermission.id, RolePermissionScope.all);
+  if (hrRole) await grant(hrRole.id, orgManagePermission.id, RolePermissionScope.all);
+
+  // ── HR's grant set ─────────────────────────────────────────────────────────────────
+  //
+  // Company-wide PEOPLE authority, and deliberately nothing beyond it. Note what HR does
+  // NOT get, each for a stated reason:
+  //   users.create / users.delete   — creating and disabling login accounts is account
+  //                                   administration, not people administration.
+  //   users.remove / users.reset_password — already super_admin-only, because whoever holds
+  //                                   the reset can take over a stronger account (seed.ts
+  //                                   documents this above).
+  //   roles.edit                    — HR must not be able to grant itself more than this list.
+  //   audit_logs.view               — oversight authority, not people admin.
+  //   students / leads / commerce / content / settings — none of HR's business.
+  //
+  // `leave.view` is granted at `all`, NOT `own`, which is why HR is kept OUT of the staff
+  // leave loop further down: that loop grants `own`, and `grant()` is an upsert that UPDATES
+  // the scope, so including HR there would silently downgrade them and empty their queue.
+  if (hrRole) {
+    await Promise.all([
+      grant(hrRole.id, permId("org.teams.view"), RolePermissionScope.all),
+      grant(hrRole.id, permId("users.view"), RolePermissionScope.all),
+      grant(hrRole.id, permId(p1Key("roles", "view")), RolePermissionScope.all),
+      grant(hrRole.id, permId("leave.view"), RolePermissionScope.all),
+      grant(hrRole.id, permId("leave.request"), RolePermissionScope.own),
+      grant(hrRole.id, permId("leave.calendar.view"), RolePermissionScope.all),
+      // The two authority keys, both from the out-of-catalog block above. HR is the
+      // company-wide fallback approver — the person a request reaches when the applicant is
+      // not on the org chart yet, or their team has no lead.
+      grant(hrRole.id, leaveAdminPermissions[0]!.id, RolePermissionScope.all),
+      grant(hrRole.id, leaveAdminPermissions[1]!.id, RolePermissionScope.all),
+    ]);
+  }
+
+  // branch_manager reads the chart for their centre but may never rewrite reporting lines.
+  await grant(branchManagerRole.id, permId("org.teams.view"), RolePermissionScope.all);
+
   // branch_manager: docs/03 §9 row "BranchMgr" — students/faculty/batches = branch;
   // courses = view; payments(not in P1)/reports(not in P1) skipped; admin = none;
   // audit = none. roles/branches not in BranchMgr's §9 row -> no grant.
@@ -1250,11 +1339,22 @@ async function main(): Promise<void> {
 
   // ── Leave grants (staff HR) ──────────────────────────────────────────────────────
   //
-  // Every STAFF role gets `leave.view` + `leave.request` at scope=own — their own history,
-  // their own applications — and `leave.calendar.view` at scope=all, because the calendar is
-  // deliberately company-wide. The two "all"s are not the same "all": the calendar endpoint
-  // returns a projection with no reason field, so seeing that a colleague is out on Thursday
-  // never reveals why.
+  // Every STAFF role gets `leave.view`, `leave.request` and `leave.calendar.view` at
+  // scope=own, plus `leave.approve` (see below).
+  //
+  // NARROWED BY ADR-0069, and the comment that stood here described the posture BEFORE it:
+  // the calendar key used to be granted at scope=all "because the calendar is deliberately
+  // company-wide", which meant any member of staff could read every colleague's absences and
+  // the CRM's team/company toggle was a convenience sitting on top of a view that showed
+  // everything — not a boundary. `LeaveService.getCalendar` now reads the scope: `all`
+  // (super_admin / admin / HR) still sees the company, and `own` sees yourself PLUS the
+  // people you approve for, resolved from the org chart with no request that widens it.
+  // Granting `all` here again would silently reopen that, and nothing in the app would
+  // look different — the calendar would just quietly show more people.
+  //
+  // What did NOT change is why the split exists at all: the calendar endpoint returns a
+  // projection with no `reason` field, so seeing that a colleague is out on Thursday never
+  // reveals why.
   //
   // `student` and `mentor` are excluded. Neither is staff on the payroll this runs for —
   // mentors are external hires (docs/specs/phase-8-mentor.md), not employees with an
@@ -1278,7 +1378,34 @@ async function main(): Promise<void> {
     ].flatMap((role) => [
       grant(role.id, permId("leave.view"), RolePermissionScope.own),
       grant(role.id, permId("leave.request"), RolePermissionScope.own),
-      grant(role.id, permId("leave.calendar.view"), RolePermissionScope.all),
+      // scope=own, NOT all. The calendar shows WHO is away and when, and until 2026-09-01
+      // every staff role held this at `all` — so anyone could read the whole company's
+      // absence pattern. The service now resolves `own` against the org chart: a
+      // rank-and-file member sees strictly their own leave, a team lead or manager sees
+      // the people they approve for. Company-wide stays with super_admin / admin / HR,
+      // who hold it at `all` from the catch-all above.
+      grant(role.id, permId("leave.calendar.view"), RolePermissionScope.own),
+      // `leave.approve` at scope=own, UNIFORMLY (ADR-0070). Not a widening: the permission
+      // only says you may reach the approvals endpoint at all, and WHOSE requests you may
+      // act on comes entirely from the org chart (LeaveService.resolveApprovalStep). A staff
+      // member who leads no team resolves to an empty subordinate set — their queue holds
+      // only their own requests, and deciding one is refused twice over, 404 for a request
+      // they have no standing over and 403 `leave.self_review` for their own.
+      //
+      // This MUST stay in step with STAFF_APPROVER_ROLES in prisma/seed-org.ts, which does
+      // the same grant on an existing database. It was missing here until 2026-09-01: the
+      // out-of-catalog block above granted `leave.approve` to super_admin and hr only, so a
+      // FRESH `pnpm db:seed` produced a database where appointing a team lead did nothing
+      // and every request still needed the owner — P17's whole model, silently inert, on
+      // exactly the environments nobody re-seeds (CI, a new deployment, the integration
+      // suite). org.permission-catalog.spec.ts now pins the two lists against each other.
+      //
+      // `leaveAdminPermissions[0]` rather than `permId("leave.approve")`: the key is upserted
+      // in the dedicated out-of-catalog block, so it is deliberately absent from `permId`'s
+      // catalog map. Reaching for it here is what keeps admin's exclusion intact — this loop
+      // does not include adminRole, and `grant()` is an upsert that UPDATES scope, so adding
+      // it would DOWNGRADE super_admin/hr from `all`.
+      grant(role.id, leaveAdminPermissions[0]!.id, RolePermissionScope.own),
     ]),
   );
 

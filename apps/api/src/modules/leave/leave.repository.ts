@@ -24,6 +24,7 @@ import type {
   LeaveRequestStatus as PrismaLeaveRequestStatus,
 } from "@prisma/client";
 
+import { LEAVE_LIVE_STATUSES, LEAVE_UNCOMMITTED_STATUSES } from "@repo/types";
 import { PrismaService } from "../../prisma/prisma.service";
 
 export interface LeaveTypeRow {
@@ -69,12 +70,17 @@ export interface LeaveRequestRow {
   reviewedById: string | null;
   reviewedAt: Date | null;
   reviewNote: string | null;
+  /** Step one of a two-step chain. Null on a single-step one — honestly, not by omission. */
+  leadApprovedById: string | null;
+  leadApprovedAt: Date | null;
+  leadApprovalNote: string | null;
   cancelledAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   user: { name: string; email: string };
   leaveType: { name: string };
   reviewedBy: { name: string } | null;
+  leadApprovedBy: { name: string } | null;
 }
 
 const LEAVE_TYPE_SELECT = {
@@ -105,12 +111,18 @@ const LEAVE_REQUEST_SELECT = {
   reviewedById: true,
   reviewedAt: true,
   reviewNote: true,
+  // Step one of a two-step chain. Kept beside the reviewer trio rather than replacing it:
+  // `reviewedBy` still means "who made the FINAL decision" on every row, old and new.
+  leadApprovedById: true,
+  leadApprovedAt: true,
+  leadApprovalNote: true,
   cancelledAt: true,
   createdAt: true,
   updatedAt: true,
   user: { select: { name: true, email: true } },
   leaveType: { select: { name: true } },
   reviewedBy: { select: { name: true } },
+  leadApprovedBy: { select: { name: true } },
 } satisfies Prisma.LeaveRequestSelect;
 
 /**
@@ -145,6 +157,8 @@ export interface LeaveCalendarRow {
 }
 
 export interface ListLeaveRequestsFilters {
+  /** The people whose requests this caller may see, when it is more than just themselves. */
+  userIdIn?: string[];
   tenantId: string;
   page: number;
   pageSize: number;
@@ -402,6 +416,11 @@ export class LeaveRepository {
       tenantId: filters.tenantId,
       deletedAt: null,
       ...(filters.userId ? { userId: filters.userId } : {}),
+      // A team lead or manager sees their OWN requests plus everyone they approve for.
+      // An empty array would match nothing, so it is only applied when non-empty — but the
+      // caller never passes an empty one, because "no subordinates" means the plain
+      // own-scope filter above already answered the question.
+      ...(filters.userIdIn && filters.userIdIn.length > 0 ? { userId: { in: filters.userIdIn } } : {}),
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.leaveTypeId ? { leaveTypeId: filters.leaveTypeId } : {}),
       ...(filters.year
@@ -483,7 +502,7 @@ export class LeaveRepository {
         tenantId: data.tenantId,
         userId: data.userId,
         deletedAt: null,
-        status: { in: ["pending", "approved"] },
+        status: { in: [...LEAVE_LIVE_STATUSES] },
         // Two inclusive ranges overlap exactly when each starts on or before the other ends.
         startDate: { lte: data.endDate },
         endDate: { gte: data.startDate },
@@ -522,10 +541,26 @@ export class LeaveRepository {
     to: PrismaLeaveRequestStatus;
     actorId: string;
     note: string | null;
+    /**
+     * True when this is STEP ONE of a two-step chain (the team lead approving). Writes the
+     * lead trio rather than the reviewer trio, so `reviewed_by_id` keeps meaning "who made
+     * the FINAL decision" on every row, old and new alike.
+     */
+    leadStep?: boolean;
+    /**
+     * Set only on a DIRECT approval (straight from `pending`, no lead step): records this
+     * actor as the lead approver as well as the final one. Must stay false on a two-step
+     * confirmation, where the lead trio already names somebody else.
+     */
+    alsoRecordAsLead?: boolean;
     tx?: Prisma.TransactionClient;
   }): Promise<number> {
     const client = args.tx ?? this.txClient;
     const result = await client.leaveRequest.updateMany({
+      // The status guard IS the concurrency control. A zero-row result means somebody else
+      // moved this request first, which the service turns into a 409 rather than a second
+      // deduction — unchanged by the second step being added, because each step names the
+      // exact state it moves FROM.
       where: {
         id: args.id,
         tenantId: args.tenantId,
@@ -535,12 +570,26 @@ export class LeaveRepository {
       data:
         args.to === "cancelled"
           ? { status: args.to, cancelledAt: new Date() }
-          : {
-              status: args.to,
-              reviewedById: args.actorId,
-              reviewedAt: new Date(),
-              reviewNote: args.note,
-            },
+          : args.leadStep
+            ? {
+                status: args.to,
+                leadApprovedById: args.actorId,
+                leadApprovedAt: new Date(),
+                leadApprovalNote: args.note,
+              }
+            : {
+                status: args.to,
+                reviewedById: args.actorId,
+                reviewedAt: new Date(),
+                reviewNote: args.note,
+                // A single-step approval straight from `pending` records the same actor as
+                // the lead approver too, so the trail reads "one person did both" rather
+                // than implying a first step that never happened. NEVER set on a two-step
+                // confirmation — that would overwrite the real lead with the manager.
+                ...(args.alsoRecordAsLead
+                  ? { leadApprovedById: args.actorId, leadApprovedAt: new Date() }
+                  : {}),
+              },
     });
     return result.count;
   }
@@ -568,7 +617,7 @@ export class LeaveRepository {
         tenantId,
         userId,
         deletedAt: null,
-        status: { in: ["approved", "pending"] },
+        status: { in: [...LEAVE_LIVE_STATUSES] },
         startDate: { gte: new Date(Date.UTC(year, 0, 1)), lte: new Date(Date.UTC(year, 11, 31)) },
         ...(opts.excludeRequestId ? { id: { not: opts.excludeRequestId } } : {}),
       },
@@ -614,7 +663,7 @@ export class LeaveRepository {
         tenantId,
         userId,
         deletedAt: null,
-        status: { in: ["approved", "pending"] },
+        status: { in: [...LEAVE_LIVE_STATUSES] },
         startDate: { gte: new Date(Date.UTC(year, 0, 1)), lte: new Date(Date.UTC(year, 11, 31)) },
       },
       select: { leaveTypeId: true },
@@ -638,11 +687,17 @@ export class LeaveRepository {
    *
    * Reads through `LEAVE_CALENDAR_SELECT`, which does not fetch `reason` at all.
    */
-  async listCalendarWindow(
+    async listCalendarWindow(
     tenantId: string,
     from: Date,
     to: Date,
     actorId: string,
+    /**
+     * Restrict to these people (P17-5, the "My team" filter). `null` is the whole company,
+     * which is the default and what this calendar has always shown. The actor is always
+     * included by the caller, so "my team" never hides the viewer's own leave.
+     */
+    userIds: string[] | null = null,
   ): Promise<LeaveCalendarRow[]> {
     return this.prisma.client.leaveRequest.findMany({
       where: {
@@ -650,7 +705,13 @@ export class LeaveRepository {
         deletedAt: null,
         startDate: { lte: to },
         endDate: { gte: from },
-        OR: [{ status: "approved" }, { status: "pending", userId: actorId }],
+        ...(userIds ? { userId: { in: userIds } } : {}),
+        OR: [
+          { status: "approved" },
+          // The viewer's own requests that have not finished the chain — including one
+          // sitting with the manager, which is still an absence they have asked for.
+          { status: { in: [...LEAVE_UNCOMMITTED_STATUSES] }, userId: actorId },
+        ],
       },
       orderBy: [{ startDate: "asc" }],
       select: LEAVE_CALENDAR_SELECT,

@@ -7,9 +7,12 @@
 // real RBAC seed, the real guards and real database transactions:
 //
 //   - THE NARROWING (the headline): `admin` gets 403 on approve and on every setup write.
-//     "Only the super admin decides" is a product rule implemented by seeding two permission
+//     That admin cannot touch leave is a product rule implemented by seeding two permission
 //     keys outside the catch-all loop in prisma/seed.ts, and this is the only test that can
-//     tell whether that seeding actually held.
+//     tell whether that seeding actually held. ADR-0070 widened `leave.approve` to every
+//     staff role and left admin's exclusion exactly where it was — so an actor who is not
+//     the applicant's approver is now refused by the ORG CHART (404) rather than by the
+//     guard (403), while admin is still refused by the guard.
 //   - Own-scope isolation: staff A cannot read staff B's request (404, not 403) — yet both
 //     appear on the shared calendar, without a reason field on either.
 //   - The allowance really moves: apply leaves it alone, approving debits it, rejecting and
@@ -232,7 +235,17 @@ describeIfAvailable("Leave management — integration + RBAC narrowing (real Pos
     await prisma.notification.deleteMany({ where: { userId: { in: fixtureUserIds } } });
     await prisma.userRole.deleteMany({ where: { userId: { in: fixtureUserIds } } });
     await prisma.session.deleteMany({ where: { userId: { in: fixtureUserIds } } });
-    await prisma.user.deleteMany({ where: { id: { in: fixtureUserIds } } });
+
+    // Soft-deleted, not hard-deleted. These accounts act through the API, so `audit_logs`
+    // rows name them, and the append-only `audit_logs_guard` trigger (migration
+    // audit_logs_immutability) rejects the cascade a real DELETE performs — a 42501 that
+    // failed the whole suite in teardown even when every test passed. Hard-deleting somebody
+    // who has acted is precisely what an append-only trail exists to prevent. Run-unique
+    // emails keep the leftovers from colliding with a later run.
+    await prisma.user.updateMany({
+      where: { id: { in: fixtureUserIds } },
+      data: { deletedAt: new Date(), status: "deactivated" },
+    });
     await prisma.$disconnect();
     await app.close();
   }, 60_000);
@@ -242,8 +255,20 @@ describeIfAvailable("Leave management — integration + RBAC narrowing (real Pos
   // These are the tests the whole feature hangs on. `leave.approve` and `leave.manage` are
   // seeded OUTSIDE the catch-all in prisma/seed.ts so that `admin` does not inherit them,
   // and nothing but a real login against a real seed can prove that held.
+  //
+  // AMENDED BY ADR-0070. "Only the super admin decides" was P13's rule and is no longer the
+  // whole one: every staff role now holds `leave.approve`, and WHO may act on WHICH request
+  // comes from the org chart. What has NOT changed, and is what this block still pins, is
+  // `admin`'s exclusion — that is a placement in a seed file, and a later tidy-up moving the
+  // key into the catalog "for consistency" would hand every operational admin authority over
+  // everyone's leave with nothing failing.
+  //
+  // The fixtures here deliberately put NOBODY on a team, so every applicant resolves to the
+  // single-step owner fallback. That is not an omission: it is the regression test for the
+  // chain a teamless member of staff still gets, which on day one is everybody. The two-step
+  // chain has its own suite, leave-two-step-approval.integration-spec.ts.
 
-  describe("only the super admin decides", () => {
+  describe("who decides, with nobody on the org chart", () => {
     it("lets a super admin approve", async () => {
       const created = await applyAsStaffA({});
       expect(created.status).toBe(201);
@@ -270,7 +295,15 @@ describeIfAvailable("Leave management — integration + RBAC narrowing (real Pos
       expect(res.status).toBe(403);
     });
 
-    it("403s ordinary staff trying to approve", async () => {
+    // 404, NOT 403 — and the difference is the whole of ADR-0070's authorisation model.
+    //
+    // Under P13 this was a 403 from the guard: ordinary staff did not hold `leave.approve`
+    // at all. They do now, uniformly, because the permission only says you may reach the
+    // approvals endpoint; the org chart decides whose requests you may act on. staffB gets
+    // past the guard, resolves to no standing over staffA's request, and is answered 404 —
+    // the module's IDOR posture, since a 403 would confirm the request exists and its dates
+    // and applicant are exactly what must not be confirmed.
+    it("404s a colleague with no standing over the request — the permission is not the gate", async () => {
       const created = await applyAsStaffA({});
 
       const res = await request(httpServer)
@@ -279,7 +312,26 @@ describeIfAvailable("Leave management — integration + RBAC narrowing (real Pos
         .set("X-CSRF-Token", csrfStaffB)
         .send({});
 
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(404);
+
+      // And it really did not move. A 404 that had already written would be worse than a 200.
+      const row = await prisma.leaveRequest.findUnique({ where: { id: created.body.data.id } });
+      expect(row.status).toBe("pending");
+    });
+
+    // The counterpart, and the reason the test above is not simply a weakened assertion:
+    // staffB holding the key is not a widening of what they can DO.
+    it("still lets that colleague reach the endpoint at all, unlike admin", async () => {
+      const grant = await prisma.rolePermission.findFirst({
+        where: {
+          deletedAt: null,
+          permission: { key: "leave.approve" },
+          role: { tenantId, key: "counsellor", deletedAt: null },
+        },
+        select: { scope: true },
+      });
+      expect(grant).not.toBeNull();
+      expect(grant.scope).toBe("own");
     });
 
     it("403s an ADMIN trying to change the yearly allowance", async () => {
@@ -391,22 +443,52 @@ describeIfAvailable("Leave management — integration + RBAC narrowing (real Pos
   // ── The calendar ────────────────────────────────────────────────────────
 
   describe("the shared calendar", () => {
-    it("shows a colleague's approved leave to ordinary staff, WITHOUT the reason", async () => {
+    /** staffB books the same week off, and the owner signs it off. Returns nothing. */
+    async function bookAndApproveStaffB(reason: string): Promise<void> {
       const created = await request(httpServer)
         .post("/api/v1/crm/leave/requests")
         .set("Cookie", cookieHeader(staffBCookies))
         .set("X-CSRF-Token", csrfStaffB)
-        .send({ leaveTypeId, startDate: MON, endDate: FRI, reason: "A private medical matter" });
+        .send({ leaveTypeId, startDate: MON, endDate: FRI, reason });
 
       await request(httpServer)
         .post(`/api/v1/crm/leave/approvals/${created.body.data.id}/approve`)
         .set("Cookie", cookieHeader(superAdminCookies))
         .set("X-CSRF-Token", csrfSuperAdmin)
         .send({});
+    }
 
-      const res = await request(httpServer)
+    function calendarAs(cookies: string[]) {
+      return request(httpServer)
         .get(`/api/v1/crm/leave/calendar?from=${YEAR}-08-01&to=${YEAR}-08-31`)
-        .set("Cookie", cookieHeader(staffACookies));
+        .set("Cookie", cookieHeader(cookies));
+    }
+
+    // NARROWED BY ADR-0069. Until the org chart landed this asserted the opposite — every
+    // staff role held `leave.calendar.view` at scope=all, so anybody could read the whole
+    // company's absences and the "team" filter was a convenience sitting on top of a view
+    // that showed everything, which is not the same thing as a boundary.
+    //
+    // Now scope=own means yourself PLUS the people you approve for, and it is enforced
+    // server-side with no request that widens it. staffA leads nobody, so staffA sees
+    // strictly staffA. That is a deliberate tightening, and it is worth knowing that it
+    // makes the calendar much emptier for rank-and-file staff than it used to be.
+    it("does NOT show a colleague's leave to somebody who approves for nobody", async () => {
+      await bookAndApproveStaffB("A private medical matter");
+
+      const res = await calendarAs(staffACookies);
+
+      expect(res.status).toBe(200);
+      const entry = (res.body.data.entries as Array<Record<string, unknown>>).find(
+        (e) => e.userId === staffBUserId,
+      );
+      expect(entry).toBeUndefined();
+    });
+
+    it("shows it to somebody at scope=all, and still never carries the reason", async () => {
+      await bookAndApproveStaffB("A private medical matter");
+
+      const res = await calendarAs(superAdminCookies);
 
       expect(res.status).toBe(200);
       const entry = (res.body.data.entries as Array<Record<string, unknown>>).find(
@@ -414,9 +496,25 @@ describeIfAvailable("Leave management — integration + RBAC narrowing (real Pos
       );
       expect(entry).toBeDefined();
       expect(entry!.isSelf).toBe(false);
-      // The projection never fetches it, so it cannot appear here under any key.
+      // The projection never fetches it, so it cannot appear here under any key. This is the
+      // half that did NOT change: the team sees WHEN somebody is out, never WHY.
       expect(entry).not.toHaveProperty("reason");
       expect(JSON.stringify(res.body)).not.toContain("A private medical matter");
+    });
+
+    it("still shows a person their own leave", async () => {
+      await request(httpServer)
+        .post("/api/v1/crm/leave/requests")
+        .set("Cookie", cookieHeader(staffACookies))
+        .set("X-CSRF-Token", csrfStaffA)
+        .send({ leaveTypeId, startDate: MON, endDate: FRI, reason: "Family wedding" });
+
+      const res = await calendarAs(staffACookies);
+      const own = (res.body.data.entries as Array<Record<string, unknown>>).find(
+        (e) => e.userId === staffAUserId,
+      );
+      expect(own).toBeDefined();
+      expect(own!.isSelf).toBe(true);
     });
 
     it("carries the holidays and the working week", async () => {
@@ -453,8 +551,21 @@ describeIfAvailable("Leave management — integration + RBAC narrowing (real Pos
       expect(created.body.data.halfDays).toBe(8);
     });
 
-    it("ignores a duration the client tries to supply", async () => {
+    // The original of this test asserted the server IGNORED a client-supplied duration and
+    // read `data.halfDays` off the response. It could never have passed:
+    // `CreateLeaveRequestRequestSchema` is `.strict()`, so an unknown key is a 400 and
+    // `data` is null. Refusing is the stronger behaviour anyway — silently ignoring a field
+    // somebody sent leaves them believing it was honoured — so the assertion is corrected to
+    // the real contract rather than the schema loosened to fit the test.
+    it("REFUSES a duration the client tries to supply, rather than quietly ignoring it", async () => {
       const created = await applyAsStaffA({ halfDays: 2, days: 1 });
+      expect(created.status).toBe(400);
+      expect(created.body.data).toBeNull();
+    });
+
+    it("computes the duration itself when the client sends only the dates", async () => {
+      const created = await applyAsStaffA({});
+      expect(created.status).toBe(201);
       expect(created.body.data.halfDays).toBe(8);
     });
 
@@ -613,7 +724,10 @@ describeIfAvailable("Leave management — integration + RBAC narrowing (real Pos
     });
 
     expect(notification).not.toBeNull();
-    expect(notification.body).toContain("Leave staffA");
+    // `payload`, not `body`. The Notification model has no `body` column — it carries a
+    // typed per-type JSON blob — so the original `notification.body` was undefined and this
+    // assertion passed vacuously against `toContain` only because it threw first.
+    expect(notification.payload.applicantName).toBe("Leave staffA");
   });
 
   it("notifies the applicant of the decision", async () => {

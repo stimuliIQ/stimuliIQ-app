@@ -72,6 +72,7 @@ import { OnboardingModule } from "./modules/onboarding/onboarding.module";
 import { LeaveModule } from "./modules/leave/leave.module";
 import { MarketingTargetsModule } from "./modules/marketing-targets/marketing-targets.module";
 import { CourseTypesModule } from "./modules/course-types/course-types.module";
+import { OrgModule } from "./modules/org/org.module";
 
 @Module({
   imports: [
@@ -173,6 +174,7 @@ import { CourseTypesModule } from "./modules/course-types/course-types.module";
     LeaveModule,
     MarketingTargetsModule,
     CourseTypesModule,
+    OrgModule,
   ],
   providers: [
     AuditContextMiddleware,

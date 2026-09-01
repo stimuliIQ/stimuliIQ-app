@@ -28,6 +28,9 @@ const USER: StaffUser = {
   status: "active",
   roles: [],
   lastLoginAt: null,
+  teamId: null,
+  teamName: null,
+  branchId: null,
   createdAt: "2026-08-01T00:00:00.000Z",
 } as StaffUser;
 

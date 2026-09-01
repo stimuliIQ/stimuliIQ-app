@@ -1,0 +1,17 @@
+-- Two-step leave approval: the intermediate state (docs/specs/org-teams.md, ADR-0070).
+--
+-- THIS MIGRATION CONTAINS NOTHING ELSE, AND THAT IS DELIBERATE. Postgres refuses to USE a
+-- newly added enum value inside the transaction that added it, and Prisma wraps each
+-- migration in exactly one transaction. Folding the column additions in here would work on an
+-- empty database and fail on a real one the moment anything referenced the new value.
+--
+-- `lead_approved` means: the applicant's team lead has approved, and it is now waiting on the
+-- manager. It is NOT a committed absence — no allowance is deducted until the final approval —
+-- but it must still block an overlapping request and still count against the balance as
+-- pending, which is what LEAVE_UNCOMMITTED_STATUSES in @repo/types enforces on the read side.
+--
+-- `pending` is deliberately NOT renamed. It still means "not yet decided", every existing row
+-- already carries that meaning, and three indexes and the whole front-end filter enum are
+-- built on it. Not renaming it is what makes the existing-requests story a no-op: on the day
+-- this ships nobody is on a team, so every chain is single-step and behaves exactly as before.
+ALTER TYPE "LeaveRequestStatus" ADD VALUE IF NOT EXISTS 'lead_approved' AFTER 'pending';

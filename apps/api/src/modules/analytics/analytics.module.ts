@@ -17,6 +17,7 @@
 // RedisModule is @Global — RedisService is available without an explicit import.
 
 import { Module } from "@nestjs/common";
+import { OrgModule } from "../org/org.module";
 import { AuthModule } from "../auth/auth.module";
 import { CampaignsModule } from "../campaigns/campaigns.module";
 import { AnalyticsController } from "./analytics.controller";
@@ -25,7 +26,7 @@ import { AnalyticsRepository } from "./analytics.repository";
 import { AnalyticsMvRefreshScheduler } from "./mv-refresh.scheduler";
 
 @Module({
-  imports: [AuthModule, CampaignsModule],
+  imports: [AuthModule, CampaignsModule, OrgModule],
   controllers: [AnalyticsController],
   // AnalyticsMvRefreshScheduler (Wave 2 task #11) depends on `SchedulerRegistry`, provided
   // globally by `ScheduleModule.forRoot()` in app.module.ts — no explicit import needed

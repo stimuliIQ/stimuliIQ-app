@@ -26,11 +26,19 @@ import {
   Select,
   SelectItem,
 } from "@repo/ui";
-import type { LeaveCalendarResponse } from "@repo/types";
+import type { LeaveCalendarResponse, MeResponse } from "@repo/types";
+import { hasPermissionAtScope } from "../../lib/permissions";
+import { useMyOrgPosition } from "../../hooks/use-org";
 
 import { useLeaveCalendar } from "../../hooks/use-leave";
 
-type Audience = "everyone" | "me";
+/**
+ * "team" is resolved SERVER-SIDE (the API narrows the window to the viewer's team circle),
+ * unlike "me" which is a client-side filter over the same rows. The difference is
+ * deliberate: the server knows the org chart, the browser does not, and shipping a
+ * client-side approximation of it would drift the first time somebody changed teams.
+ */
+type Audience = "everyone" | "team" | "me";
 
 const MS_PER_DAY = 86_400_000;
 
@@ -65,6 +73,7 @@ export function expandLeaveEntries(
   const events: CalendarEvent[] = [];
 
   for (const entry of data.entries) {
+    // Only "me" filters client-side. "team" was already narrowed by the API.
     if (audience === "me" && !entry.isSelf) continue;
 
     const start = Date.parse(`${entry.startDate}T00:00:00.000Z`);
@@ -90,12 +99,26 @@ export function expandLeaveEntries(
   return events;
 }
 
-export function LeaveCalendarWorkspace(): React.JSX.Element {
+export function LeaveCalendarWorkspace({ me }: { me?: MeResponse }): React.JSX.Element {
+  // WHAT THIS VIEWER MAY SEE, decided the same way the server decides it.
+  //
+  // `all` is company-wide (super_admin / admin / HR). Everybody else sees themselves plus
+  // whoever they approve for, so the "Everyone" option would be a control that changes
+  // nothing — the server returns their allowed set whatever they ask for. Offering it
+  // anyway is the `stats.headline` trap: a picker that looks like it does something.
+  const seesCompanyWide = hasPermissionAtScope(me?.permissions, "leave.calendar.view", ["all"]);
+  const { data: position } = useMyOrgPosition();
+  const approvesForSomebody =
+    (position?.leadsTeamIds.length ?? 0) > 0 || (position?.managesTeamIds.length ?? 0) > 0;
+
   const [anchor, setAnchor] = React.useState(() => new Date());
-  const [audience, setAudience] = React.useState<Audience>("everyone");
+  const [audience, setAudience] = React.useState<Audience>(seesCompanyWide ? "everyone" : "team");
 
   const bounds = React.useMemo(() => monthBounds(anchor), [anchor]);
-  const query = useLeaveCalendar(bounds);
+  // "team" changes the REQUEST; "me" only filters what came back. Sending scope on every
+  // fetch keeps the query key honest, so switching back to Everyone refetches rather than
+  // showing a cached team-only month.
+  const query = useLeaveCalendar({ ...bounds, scope: audience === "team" ? "team" : "company" });
 
   const events = React.useMemo(() => expandLeaveEntries(query.data, audience), [query.data, audience]);
 
@@ -146,16 +169,27 @@ export function LeaveCalendarWorkspace(): React.JSX.Element {
       />
 
       <div className="flex flex-wrap items-end gap-3">
-        <Select
-          label="Show"
-          value={audience}
-          onValueChange={(value) => setAudience(value as Audience)}
-          wrapperClassName="w-48"
-          data-testid="leave-calendar-audience"
-        >
-          <SelectItem value="everyone">Everyone</SelectItem>
-          <SelectItem value="me">Just me</SelectItem>
-        </Select>
+        {seesCompanyWide || approvesForSomebody ? (
+          <Select
+            label="Show"
+            value={audience}
+            onValueChange={(value) => setAudience(value as Audience)}
+            wrapperClassName="w-48"
+            data-testid="leave-calendar-audience"
+          >
+            {/* "Everyone" only for somebody who can actually see everyone. */}
+            {seesCompanyWide ? <SelectItem value="everyone">Everyone</SelectItem> : null}
+            <SelectItem value="team">{seesCompanyWide ? "My team" : "My team"}</SelectItem>
+            <SelectItem value="me">Just me</SelectItem>
+          </Select>
+        ) : (
+          // No choice to offer: this person approves for nobody, so the calendar is their
+          // own leave and nothing else. Saying so beats an empty-looking month with a
+          // picker that does nothing.
+          <p className="text-sm text-fg-muted" data-testid="leave-calendar-own-only">
+            Your own leave, plus company holidays and weekly offs.
+          </p>
+        )}
       </div>
 
       {query.isError ? (

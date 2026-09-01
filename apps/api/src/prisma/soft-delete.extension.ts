@@ -140,6 +140,9 @@ const SOFT_DELETE_MODELS = new Set<string>([
   // (tenant, user, month) stays re-usable: remove a target set for the wrong person and set
   // the right one for the same month, without the tombstone blocking it forever.
   "MarketingTarget",
+  // Org hierarchy — soft-deleted so the partial unique on (tenant, name) stays reusable, and
+  // so a disbanded team's name can be taken again without the tombstone blocking it.
+  "Team",
 ]);
 
 function isSoftDeletable(model: string | undefined): boolean {

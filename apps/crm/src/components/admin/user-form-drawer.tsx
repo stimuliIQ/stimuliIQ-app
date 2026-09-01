@@ -30,6 +30,8 @@ import {
 
 import { useRolesList } from "../../hooks/use-roles";
 import { useCreateStaffUser, useUpdateStaffUser } from "../../hooks/use-staff-users";
+import { useTeamsList } from "../../hooks/use-org";
+import { useAllBranches } from "../../hooks/use-branches";
 import { surfaceError } from "../../lib/surface-error";
 import {
   optionalE164Phone,
@@ -90,6 +92,69 @@ interface UserFormDrawerProps {
   user?: StaffUser;
 }
 
+/**
+ * Where this person sits: their team, and the branch their role assignments are posted to.
+ *
+ * One component used by BOTH the create and edit forms, because the two drifting apart is
+ * how you get a field that can be set on creation and never changed again.
+ *
+ * BRANCH IS NOT COSMETIC. `user_roles.branch_id` has existed since Phase 0 and nothing ever
+ * wrote it, so a branch_manager created through this form had no branches and every
+ * branch-scoped query returned zero rows — the role was unusable without a hand-edit in the
+ * database. This picker is what finally writes it.
+ */
+function PlacementFields({
+  teamId,
+  branchId,
+  onTeamChange,
+  onBranchChange,
+}: {
+  teamId: string;
+  branchId: string;
+  onTeamChange: (value: string) => void;
+  onBranchChange: (value: string) => void;
+}): React.JSX.Element {
+  const { data: teams } = useTeamsList({ page: 1, pageSize: 100, active: true });
+  const { data: branches } = useAllBranches();
+
+  return (
+    <>
+      <Select
+        label="Team"
+        value={teamId}
+        onValueChange={onTeamChange}
+        helperText="Decides who approves their leave: their team lead, then their manager."
+        data-testid="user-form-team"
+      >
+        {/* A real option rather than a blank, so "not on the org chart yet" is a choice
+            somebody made instead of a field they skipped. Their leave goes to HR. */}
+        <SelectItem value={NO_PLACEMENT}>No team yet</SelectItem>
+        {(teams?.items ?? []).map((team) => (
+          <SelectItem key={team.id} value={team.id}>
+            {team.name}
+          </SelectItem>
+        ))}
+      </Select>
+      <Select
+        label="Branch"
+        value={branchId}
+        onValueChange={onBranchChange}
+        helperText="The centre their role applies to. Branch-scoped roles see only their own branch."
+        data-testid="user-form-branch"
+      >
+        <SelectItem value={NO_PLACEMENT}>All branches</SelectItem>
+        {(branches?.items ?? []).map((branch) => (
+          <SelectItem key={branch.id} value={branch.id}>
+            {branch.name}
+          </SelectItem>
+        ))}
+      </Select>
+    </>
+  );
+}
+
+/** The picker's "none" value. A real string, because a Select cannot hold null. */
+const NO_PLACEMENT = "__none__";
 export function UserFormDrawer({ open, onOpenChange, user }: UserFormDrawerProps): React.JSX.Element {
   const isEdit = Boolean(user);
   const { toast } = useToast();
@@ -112,6 +177,8 @@ export function UserFormDrawer({ open, onOpenChange, user }: UserFormDrawerProps
         phone: toLocalPhoneDigits(user.phone) || undefined,
         status: user.status,
         roleIds: user.roles.map((role) => role.id),
+        teamId: user.teamId ?? null,
+        branchId: user.branchId ?? null,
         password: undefined,
       });
     } else {
@@ -190,6 +257,16 @@ export function UserFormDrawer({ open, onOpenChange, user }: UserFormDrawerProps
                 }
                 error={errors.roleIds?.message as string | undefined}
               />
+              <PlacementFields
+                teamId={(watch("teamId") as string | null | undefined) ?? NO_PLACEMENT}
+                branchId={(watch("branchId") as string | null | undefined) ?? NO_PLACEMENT}
+                onTeamChange={(value) =>
+                  setValue("teamId", value === NO_PLACEMENT ? null : value, { shouldValidate: true })
+                }
+                onBranchChange={(value) =>
+                  setValue("branchId", value === NO_PLACEMENT ? null : value, { shouldValidate: true })
+                }
+              />
               <PasswordInput
                 label="Set new password"
                 placeholder="Leave empty to keep the current password"
@@ -249,6 +326,16 @@ export function UserFormDrawer({ open, onOpenChange, user }: UserFormDrawerProps
                 )
               }
               error={errors.roleIds?.message as string | undefined}
+            />
+            <PlacementFields
+              teamId={(watch("teamId") as string | null | undefined) ?? NO_PLACEMENT}
+              branchId={(watch("branchId") as string | null | undefined) ?? NO_PLACEMENT}
+              onTeamChange={(value) =>
+                setValue("teamId", value === NO_PLACEMENT ? null : value, { shouldValidate: true })
+              }
+              onBranchChange={(value) =>
+                setValue("branchId", value === NO_PLACEMENT ? null : value, { shouldValidate: true })
+              }
             />
           </DrawerBody>
           <DrawerFooter>

@@ -203,3 +203,9 @@ export * from "./crm/leave.schemas.js";
 // is one rule, and a dashboard card that computed it locally would eventually disagree with
 // the report the same person is reviewed against.
 export * from "./crm/marketing-targets.schemas.js";
+
+// Org hierarchy — teams, managers, team leads. `resolveLeaveApprovalChain` and
+// `validateTeamAssignment` ship alongside the schemas and are run on BOTH sides for the same
+// reason `computeLeaveDuration` is: who approves your leave is one rule, and an apply form
+// that guessed it locally would eventually disagree with the API that enforces it.
+export * from "./crm/org.schemas.js";

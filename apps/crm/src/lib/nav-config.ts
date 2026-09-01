@@ -73,6 +73,7 @@ import {
   Megaphone,
   MessagesSquare,
   MousePointerClick,
+  Network,
   Newspaper,
   Paperclip,
   School,
@@ -339,6 +340,22 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       { label: "Campaign Performance", icon: BarChart3, to: "/analytics/campaigns", permission: "reports.campaigns.view" },
       { label: "Exports", icon: Download, to: "/analytics/exports", permission: "reports.export" },
+    ],
+  },
+  {
+    // Organisation — the org chart (docs/specs/org-teams.md, ADR-0069). First entry under
+    // People, above Careers and Leave, because it is what those two now depend on: a team
+    // decides who approves whose leave.
+    //
+    // Gated on `org.teams.view`, which admin, hr and branch_manager all hold. The WRITE key
+    // (`org.teams.manage`) is narrower and is enforced by the server; the screen hides its
+    // buttons for anyone who lacks it. That split matters more than it looks — whoever can
+    // edit a team can make themselves somebody's leave approver.
+    group: "People",
+    label: "Organisation",
+    icon: Network,
+    children: [
+      { label: "Teams", icon: Users, to: "/org/teams", permission: "org.teams.view" },
     ],
   },
   {

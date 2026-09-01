@@ -16,6 +16,7 @@ import type { LeaveNotificationService } from "./leave-notification.service";
 import type { LeaveSetupService } from "./leave-setup.service";
 import type { LeaveRepository, LeaveRequestRow, LeaveTypeRow } from "./leave.repository";
 import { LeaveService } from "./leave.service";
+import type { OrgService } from "../org/org.service";
 
 type Mocked<T> = { [K in keyof T]: T[K] extends (...args: never[]) => unknown ? jest.Mock : T[K] };
 
@@ -57,6 +58,12 @@ function makeRequestRow(overrides: Partial<LeaveRequestRow> = {}): LeaveRequestR
     status: "pending",
     reviewedById: null,
     reviewedAt: null,
+    // Two-step chain (ADR-0070). Null on a single-step one, which is what these fixtures
+    // model unless a test says otherwise.
+    leadApprovedById: null,
+    leadApprovedAt: null,
+    leadApprovalNote: null,
+    leadApprovedBy: null,
     reviewNote: null,
     cancelledAt: null,
     createdAt: new Date("2026-08-01T00:00:00.000Z"),
@@ -101,6 +108,8 @@ function mockNotifications(): Mocked<LeaveNotificationService> {
   return {
     notifyRequested: jest.fn().mockResolvedValue(undefined),
     notifyDecision: jest.fn().mockResolvedValue(undefined),
+    // Step one of the two-step chain — tells the manager it is now waiting on them.
+    notifyLeadApproved: jest.fn().mockResolvedValue(undefined),
   } as unknown as Mocked<LeaveNotificationService>;
 }
 
@@ -113,16 +122,38 @@ describe("LeaveService", () => {
   let repo: Mocked<LeaveRepository>;
   let setup: Mocked<LeaveSetupService>;
   let notifications: Mocked<LeaveNotificationService>;
+  let org: Mocked<OrgService>;
   let service: LeaveService;
 
   beforeEach(() => {
     repo = mockRepository();
     setup = mockSetup();
     notifications = mockNotifications();
+    // No org chart by default — the state every tenant is in until somebody builds one.
+    // The chain therefore falls back to the owner, which is a SINGLE step, which is why
+    // every pre-existing test in this file keeps passing unchanged: that is exactly the
+    // behaviour that shipped before the hierarchy existed.
+    org = {
+      resolveApprovalChain: jest.fn().mockResolvedValue({
+        steps: ["owner"], firstApproverId: null, finalApproverId: null, fallbackToOwner: true,
+      }),
+      // The actor in these tests is the SUPER ADMIN — the only person who could approve
+      // anything before the hierarchy existed. `isOwner` is what carries that now, so every
+      // pre-existing test in this file keeps testing the behaviour it was written for.
+      getPosition: jest.fn().mockResolvedValue({
+        teamId: null, teamName: null, leadUserId: null, leadName: null,
+        managerUserId: null, managerName: null,
+        leadsTeamIds: [], managesTeamIds: [], isHr: false, isOwner: true,
+      }),
+      listFallbackApprovers: jest.fn().mockResolvedValue([]),
+      listSubordinateUserIds: jest.fn().mockResolvedValue([]),
+    } as unknown as Mocked<OrgService>;
+
     service = new LeaveService(
       repo as unknown as LeaveRepository,
       setup as unknown as LeaveSetupService,
       notifications as unknown as LeaveNotificationService,
+      org as unknown as OrgService,
     );
   });
 
@@ -166,10 +197,30 @@ describe("LeaveService", () => {
   });
 
   describe("getRequest", () => {
-    it("passes the actor down as a query filter at own scope, not a post-hoc check", async () => {
-      repo.findRequestById.mockResolvedValue(makeRequestRow());
-      await runWithScope("own", () => service.getRequest(TENANT, "req-1"));
-      expect(repo.findRequestById).toHaveBeenCalledWith(TENANT, "req-1", ACTOR);
+    it("lets somebody open their own request at own scope", async () => {
+      repo.findRequestById.mockResolvedValue(makeRequestRow({ userId: ACTOR }));
+      await expect(runWithScope("own", () => service.getRequest(TENANT, "req-1"))).resolves.toBeDefined();
+    });
+
+    // The scoping moved OUT of the WHERE clause when the org hierarchy landed, because
+    // "may I see this?" now has two answers — it is mine, or I approve for whoever filed
+    // it — and a single id in the WHERE cannot express the second. What matters is the
+    // OUTCOME, which is unchanged and asserted here and below: somebody else's request is
+    // NOT FOUND at own scope.
+    it("hides a colleague's request from somebody who does not approve for them", async () => {
+      repo.findRequestById.mockResolvedValue(makeRequestRow({ userId: "somebody-else" }));
+      org.listSubordinateUserIds.mockResolvedValue([]);
+
+      await expect(runWithScope("own", () => service.getRequest(TENANT, "req-1"))).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it("lets a team lead open a request filed by somebody they approve for", async () => {
+      repo.findRequestById.mockResolvedValue(makeRequestRow({ userId: "team-member-1" }));
+      org.listSubordinateUserIds.mockResolvedValue(["team-member-1"]);
+
+      await expect(runWithScope("own", () => service.getRequest(TENANT, "req-1"))).resolves.toBeDefined();
     });
 
     // A 403 would confirm the row exists, which is itself a disclosure.
@@ -399,7 +450,9 @@ describe("LeaveService", () => {
       repo.findRequestById.mockResolvedValue(makeRequestRow());
       await service.cancelRequest(TENANT, ACTOR, "req-1");
       expect(repo.transitionRequestStatus).toHaveBeenCalledWith(
-        expect.objectContaining({ to: "cancelled", from: ["pending", "approved"] }),
+        // Includes lead_approved: a request the team lead has approved but the manager has
+        // not yet confirmed is still the applicant's to withdraw.
+        expect.objectContaining({ to: "cancelled", from: ["pending", "lead_approved", "approved"] }),
       );
     });
 
@@ -521,7 +574,9 @@ describe("LeaveService", () => {
         },
       ]);
 
-      const result = await service.getCalendar(TENANT, ACTOR, { from: MONDAY, to: FRIDAY } as never);
+      const result = await runWithScope("all", () =>
+        service.getCalendar(TENANT, ACTOR, { from: MONDAY, to: FRIDAY } as never),
+      );
 
       expect(result.entries).toHaveLength(1);
       expect(result.entries[0]).toMatchObject({ userName: "Ravi", isSelf: false });
@@ -543,7 +598,9 @@ describe("LeaveService", () => {
           leaveType: { name: "Casual Leave" },
         },
       ]);
-      const result = await service.getCalendar(TENANT, ACTOR, { from: MONDAY, to: FRIDAY } as never);
+      const result = await runWithScope("all", () =>
+        service.getCalendar(TENANT, ACTOR, { from: MONDAY, to: FRIDAY } as never),
+      );
       expect(result.entries[0]?.isSelf).toBe(true);
     });
 
@@ -551,16 +608,26 @@ describe("LeaveService", () => {
       repo.listHolidaysBetween.mockResolvedValue([
         { id: "h1", date: new Date("2026-08-19T00:00:00.000Z"), name: "Holiday", description: null, optional: false },
       ]);
-      const result = await service.getCalendar(TENANT, ACTOR, { from: MONDAY, to: FRIDAY } as never);
+      const result = await runWithScope("all", () =>
+        service.getCalendar(TENANT, ACTOR, { from: MONDAY, to: FRIDAY } as never),
+      );
       expect(result.holidays[0]?.date).toBe("2026-08-19");
     });
 
-    // The calendar is deliberately not scope-filtered, it has its own permission, and
-    // "who is out" is the entire point of it.
-    it("does not require a scope context", async () => {
+    // REVERSED on 2026-09-01, deliberately.
+    //
+    // The calendar used to bypass scope entirely: it was company-wide for everybody, and
+    // privacy rested solely on the projection never fetching `reason`. That answered "can
+    // you read why somebody is off" but not "whose absences can you see at all", and the
+    // answer to the second was everyone's.
+    //
+    // WHO you see is now resolved from the scope context, so the calendar must have one.
+    // Failing closed here is the point: a missing context previously meant "show the whole
+    // company", which is the one outcome that must never happen by accident.
+    it("REFUSES to render without a scope context, rather than falling open to everybody", async () => {
       await expect(
         service.getCalendar(TENANT, ACTOR, { from: MONDAY, to: FRIDAY } as never),
-      ).resolves.toBeDefined();
+      ).rejects.toThrow();
     });
   });
 
@@ -580,5 +647,335 @@ describe("LeaveService", () => {
       expect(result.types).toHaveLength(1);
       expect(result.balances).toHaveLength(1);
     });
+  });
+});
+
+// ── Two-step approval (ADR-0070) ──────────────────────────────────────────────────────
+//
+// The chain is the whole point of the org hierarchy, and these are the cases that decide
+// real behaviour: who may act at which step, that the lead's step commits nothing, that the
+// manager's step is the one that deducts, and that nobody — not even the owner — decides
+// their own request.
+describe("LeaveService, two-step approval", () => {
+  const LEAD = "lead-1";
+  const MANAGER = "manager-1";
+  const APPLICANT = "applicant-1";
+
+  /** A repo/org pair modelling a real two-step chain rather than the empty-org default. */
+  function twoStepOrg(overrides: Record<string, unknown> = {}) {
+    return {
+      resolveApprovalChain: jest.fn().mockResolvedValue({
+        steps: ["lead", "manager"],
+        firstApproverId: LEAD,
+        finalApproverId: MANAGER,
+        fallbackToOwner: false,
+      }),
+      getPosition: jest.fn().mockResolvedValue({
+        teamId: "team-1", teamName: "Sales", leadUserId: LEAD, leadName: "Priya",
+        managerUserId: MANAGER, managerName: "Ravi",
+        leadsTeamIds: [], managesTeamIds: [], isHr: false, isOwner: false,
+      }),
+      listFallbackApprovers: jest.fn().mockResolvedValue([]),
+      listSubordinateUserIds: jest.fn().mockResolvedValue([APPLICANT]),
+      ...overrides,
+    };
+  }
+
+  function serviceWith(orgMock: Record<string, unknown>) {
+    const repo = mockRepository();
+    repo.findRequestById.mockResolvedValue(makeRequestRow({ userId: APPLICANT, status: "pending" }));
+    repo.transitionRequestStatus.mockResolvedValue(1);
+    const notifications = mockNotifications();
+    const svc = new LeaveService(
+      repo as unknown as LeaveRepository,
+      mockSetup() as unknown as LeaveSetupService,
+      notifications as unknown as LeaveNotificationService,
+      orgMock as unknown as OrgService,
+    );
+    return { svc, repo, notifications };
+  }
+
+  it("moves a request to lead_approved when the team lead approves — it does NOT go straight through", () => {
+    const { svc, repo } = serviceWith(twoStepOrg());
+
+    return svc.approveRequest(TENANT, LEAD, "req-1", {} as never).then(() => {
+      expect(repo.transitionRequestStatus).toHaveBeenCalledWith(
+        expect.objectContaining({ from: ["pending"], to: "lead_approved", leadStep: true }),
+      );
+    });
+  });
+
+  it("takes no lock and does no allowance arithmetic on the lead's step", async () => {
+    // The lead's approval commits nothing, so there is nothing to double-charge. Deducting
+    // here and again on confirmation is the bug this asymmetry exists to prevent.
+    const { svc, repo } = serviceWith(twoStepOrg());
+
+    await svc.approveRequest(TENANT, LEAD, "req-1", {} as never);
+
+    expect(repo.lockUser).not.toHaveBeenCalled();
+    expect(repo.runInTransaction).not.toHaveBeenCalled();
+  });
+
+  it("tells the manager once the lead has approved", async () => {
+    // Without this hop the two-step chain would be strictly worse than the one it replaced:
+    // the request would sit silently until somebody happened to open the queue.
+    const { svc, notifications } = serviceWith(twoStepOrg());
+
+    await svc.approveRequest(TENANT, LEAD, "req-1", {} as never);
+
+    expect(notifications.notifyLeadApproved).toHaveBeenCalled();
+  });
+
+  it("refuses to let the team lead confirm what they themselves approved", async () => {
+    const org = twoStepOrg();
+    const { svc, repo } = serviceWith(org);
+    repo.findRequestById.mockResolvedValue(
+      makeRequestRow({ userId: APPLICANT, status: "lead_approved" }),
+    );
+
+    // At `lead_approved` the lead is no longer the eligible actor, and has no other standing.
+    await expect(svc.approveRequest(TENANT, LEAD, "req-1", {} as never)).rejects.toMatchObject({
+      response: { code: "leave.request_not_found" },
+    });
+  });
+
+  it("404s somebody with no standing over the request, rather than 403ing", async () => {
+    // A 403 would confirm the request exists — and its dates and applicant are exactly what
+    // must not be confirmed to a stranger.
+    const { svc } = serviceWith(twoStepOrg());
+
+    await expect(
+      svc.approveRequest(TENANT, "somebody-else", "req-1", {} as never),
+    ).rejects.toMatchObject({ response: { code: "leave.request_not_found" } });
+  });
+
+  it("refuses to let anyone decide their own request, including the owner", async () => {
+    // Closes a hole that existed before the hierarchy: the super admin's scope=all covered
+    // their own row. Enforced here rather than by a permission, which cannot express it.
+    const org = twoStepOrg({
+      getPosition: jest.fn().mockResolvedValue({
+        teamId: null, teamName: null, leadUserId: null, leadName: null,
+        managerUserId: null, managerName: null,
+        leadsTeamIds: [], managesTeamIds: [], isHr: false, isOwner: true,
+      }),
+    });
+    const { svc, repo } = serviceWith(org);
+    repo.findRequestById.mockResolvedValue(makeRequestRow({ userId: "owner-1", status: "pending" }));
+
+    await expect(svc.approveRequest(TENANT, "owner-1", "req-1", {} as never)).rejects.toMatchObject({
+      response: { code: "leave.self_review" },
+    });
+  });
+
+  it("lets the team lead turn a request down outright, without waiting for the manager", async () => {
+    // Deliberately asymmetric with approval: a "no" should not need a second signature,
+    // because the applicant needs to re-plan. Same call P4 makes on grading.
+    const { svc, repo } = serviceWith(twoStepOrg());
+
+    await svc.rejectRequest(TENANT, LEAD, "req-1", { reason: "No cover that week" } as never);
+
+    expect(repo.transitionRequestStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ from: ["pending", "lead_approved"], to: "rejected" }),
+    );
+  });
+
+  it("narrows the final approval to the state it actually read, so a concurrent lead step 409s", async () => {
+    // Accepting both openings here would let the manager's id overwrite the lead trio and
+    // erase who performed step one.
+    const org = twoStepOrg();
+    const { svc, repo } = serviceWith(org);
+    repo.findRequestById.mockResolvedValue(
+      makeRequestRow({ userId: APPLICANT, status: "lead_approved" }),
+    );
+
+    await svc.approveRequest(TENANT, MANAGER, "req-1", {} as never);
+
+    expect(repo.transitionRequestStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ from: ["lead_approved"], to: "approved", alsoRecordAsLead: false }),
+    );
+  });
+
+  it("records a direct approval as both steps, so the trail says one person did both", async () => {
+    const org = twoStepOrg({
+      resolveApprovalChain: jest.fn().mockResolvedValue({
+        steps: ["owner"], firstApproverId: null, finalApproverId: null, fallbackToOwner: true,
+      }),
+      getPosition: jest.fn().mockResolvedValue({
+        teamId: null, teamName: null, leadUserId: null, leadName: null,
+        managerUserId: null, managerName: null,
+        leadsTeamIds: [], managesTeamIds: [], isHr: true, isOwner: false,
+      }),
+    });
+    const { svc, repo } = serviceWith(org);
+
+    await svc.approveRequest(TENANT, "hr-1", "req-1", {} as never);
+
+    expect(repo.transitionRequestStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ from: ["pending"], to: "approved", alsoRecordAsLead: true }),
+    );
+  });
+});
+
+// Regression: a manager must not be able to approve straight from `pending`.
+//
+// Caught by the Playwright journey (leave-two-step.e2e.spec.ts), not by a unit test — the
+// original rule matched on "are you the final approver?" without asking whether the request
+// had reached the final step, so the manager could skip the team lead entirely. It fails
+// invisibly: the row simply comes back approved, and nothing on screen says a step was
+// missed.
+describe("LeaveService, the manager cannot skip the lead's step", () => {
+  const LEAD = "lead-1";
+  const MANAGER = "manager-1";
+  const APPLICANT = "applicant-1";
+
+  function twoStepService(status: "pending" | "lead_approved") {
+    const repo = mockRepository();
+    repo.findRequestById.mockResolvedValue(makeRequestRow({ userId: APPLICANT, status }));
+    repo.transitionRequestStatus.mockResolvedValue(1);
+    const org = {
+      resolveApprovalChain: jest.fn().mockResolvedValue({
+        steps: ["lead", "manager"],
+        firstApproverId: LEAD,
+        finalApproverId: MANAGER,
+        fallbackToOwner: false,
+      }),
+      getPosition: jest.fn().mockResolvedValue({
+        teamId: "team-1", teamName: "Sales", leadUserId: LEAD, leadName: "Priya",
+        managerUserId: MANAGER, managerName: "Ravi",
+        leadsTeamIds: [], managesTeamIds: ["team-1"], isHr: false, isOwner: false,
+      }),
+      listFallbackApprovers: jest.fn().mockResolvedValue([]),
+      listSubordinateUserIds: jest.fn().mockResolvedValue([APPLICANT]),
+    };
+    const svc = new LeaveService(
+      repo as unknown as LeaveRepository,
+      mockSetup() as unknown as LeaveSetupService,
+      mockNotifications() as unknown as LeaveNotificationService,
+      org as unknown as OrgService,
+    );
+    return { svc, repo };
+  }
+
+  it("404s the manager on a request still awaiting the team lead", async () => {
+    const { svc } = twoStepService("pending");
+
+    await expect(svc.approveRequest(TENANT, MANAGER, "req-1", {} as never)).rejects.toMatchObject({
+      response: { code: "leave.request_not_found" },
+    });
+  });
+
+  it("lets the manager confirm once the lead has approved", async () => {
+    const { svc, repo } = twoStepService("lead_approved");
+
+    await svc.approveRequest(TENANT, MANAGER, "req-1", {} as never);
+
+    expect(repo.transitionRequestStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ from: ["lead_approved"], to: "approved" }),
+    );
+  });
+});
+
+// ── Calendar visibility is ENFORCED, not chosen (2026-09-01) ──────────────────────────
+//
+// The calendar used to be company-wide for every staff role, with a client-side filter on
+// top. A filter over a view that shows everything is not a boundary: anyone could switch
+// back to "Everyone" and read the whole company's absence pattern.
+//
+// It is now resolved server-side from the actor's scope and their place on the org chart,
+// and there is NO request a member can send that widens it. These tests are the pin.
+describe("LeaveService, who the calendar shows", () => {
+  const LEAD = "lead-1";
+  const MEMBER_A = "member-a";
+  const MEMBER_B = "member-b";
+
+  function calendarService(subordinates: string[], circle: string[] = []) {
+    const repo = mockRepository();
+    repo.listCalendarWindow.mockResolvedValue([]);
+    repo.listHolidaysBetween.mockResolvedValue([]);
+    const org = {
+      listSubordinateUserIds: jest.fn().mockResolvedValue(subordinates),
+      listTeamCircleUserIds: jest.fn().mockResolvedValue(circle),
+      resolveApprovalChain: jest.fn(),
+      getPosition: jest.fn(),
+      listFallbackApprovers: jest.fn(),
+    };
+    const svc = new LeaveService(
+      repo as unknown as LeaveRepository,
+      mockSetup() as unknown as LeaveSetupService,
+      mockNotifications() as unknown as LeaveNotificationService,
+      org as unknown as OrgService,
+    );
+    return { svc, repo, org };
+  }
+
+  /** The id set the repository was asked for — null means "the whole company". */
+  function windowUserIds(repo: ReturnType<typeof mockRepository>): string[] | null {
+    return repo.listCalendarWindow.mock.calls[0]![4] ?? null;
+  }
+
+  const range = { from: "2026-11-01", to: "2026-11-30", scope: "company" } as const;
+
+  it("shows a rank-and-file member STRICTLY their own leave", async () => {
+    // They approve for nobody, so there is nobody else on their calendar.
+    const { svc, repo } = calendarService([]);
+
+    await runWithScope("own", () => svc.getCalendar(TENANT, MEMBER_A, range as never), MEMBER_A);
+
+    expect(windowUserIds(repo)).toEqual([MEMBER_A]);
+  });
+
+  it("ignores a member asking for the company-wide view", async () => {
+    // THE LOAD-BEARING ASSERTION. The old filter was client-side, so this request would have
+    // been honoured. There must be no query a member can send that widens what they see.
+    const { svc, repo } = calendarService([]);
+
+    await runWithScope(
+      "own",
+      () => svc.getCalendar(TENANT, MEMBER_A, { ...range, scope: "company" } as never),
+      MEMBER_A,
+    );
+
+    expect(windowUserIds(repo)).toEqual([MEMBER_A]);
+  });
+
+  it("shows a team lead their own leave plus everyone they approve for", async () => {
+    const { svc, repo } = calendarService([MEMBER_A, MEMBER_B]);
+
+    await runWithScope("own", () => svc.getCalendar(TENANT, LEAD, range as never), LEAD);
+
+    expect(windowUserIds(repo)).toEqual([LEAD, MEMBER_A, MEMBER_B]);
+  });
+
+  it("resolves DOWN the chart, never sideways — a member must not see their team-mates", async () => {
+    // `listTeamCircleUserIds` looks sideways and up (team-mates AND the lead), which is the
+    // wrong question here. Reaching for it would quietly restore the old behaviour for
+    // everybody on a team.
+    const { svc, org } = calendarService([], [MEMBER_B, LEAD]);
+
+    await runWithScope("own", () => svc.getCalendar(TENANT, MEMBER_A, range as never), MEMBER_A);
+
+    expect(org.listSubordinateUserIds).toHaveBeenCalled();
+    expect(org.listTeamCircleUserIds).not.toHaveBeenCalled();
+  });
+
+  it("still shows the whole company to somebody holding it at scope=all", async () => {
+    const { svc, repo } = calendarService([]);
+
+    await runWithScope("all", () => svc.getCalendar(TENANT, "owner-1", range as never), "owner-1");
+
+    // null = no id filter = every absence in the window.
+    expect(windowUserIds(repo)).toBeNull();
+  });
+
+  it("lets a company-wide holder narrow to their own circle as a convenience", async () => {
+    const { svc, repo } = calendarService([], [MEMBER_A]);
+
+    await runWithScope(
+      "all",
+      () => svc.getCalendar(TENANT, LEAD, { ...range, scope: "team" } as never),
+      LEAD,
+    );
+
+    expect(windowUserIds(repo)).toEqual([LEAD, MEMBER_A]);
   });
 });

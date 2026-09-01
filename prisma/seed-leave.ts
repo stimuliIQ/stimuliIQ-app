@@ -44,9 +44,15 @@ const TENANT_SLUG = "stimuliiq";
  * and they go to super_admin ALONE — not to admin. Signing off on somebody's leave and
  * setting the yearly allowance are the owner's calls (docs/specs/leave-management.md).
  *
- * `leave.calendar.view` is separate from `leave.view` for a different reason: the calendar is
- * company-wide (everyone can see who is out) but its endpoint returns a projection with NO
- * reason field, so team visibility never becomes "everybody reads everybody's reason".
+ * `leave.calendar.view` is separate from `leave.view` for a different reason: its endpoint
+ * returns a projection with NO reason field, so seeing WHEN a colleague is out never becomes
+ * reading WHY.
+ *
+ * Its SCOPE changed on 2026-09-01. It was `all` for every staff role, which meant anyone
+ * could read the whole company's absence pattern. It is now `own` for staff and `all` only
+ * for super_admin / admin / hr; the service resolves `own` against the org chart, so a
+ * rank-and-file member sees strictly their own leave and a lead or manager sees the people
+ * they approve for.
  */
 const PERMISSIONS = [
   { key: "leave.view", label: "View Leave Requests" },
@@ -71,6 +77,9 @@ const ROLE_GRANTS: Record<string, ReadonlyArray<[PermissionKey, RolePermissionSc
   super_admin: [
     ["leave.view", RolePermissionScope.all],
     ["leave.request", RolePermissionScope.all],
+    // COMPANY-WIDE, unlike every staff role below. The owner and admin need the whole
+    // picture; everybody else sees only themselves plus whoever they approve for, which the
+    // service resolves from the org chart.
     ["leave.calendar.view", RolePermissionScope.all],
     ["leave.approve", RolePermissionScope.all],
     ["leave.manage", RolePermissionScope.all],
@@ -83,37 +92,37 @@ const ROLE_GRANTS: Record<string, ReadonlyArray<[PermissionKey, RolePermissionSc
   branch_manager: [
     ["leave.view", RolePermissionScope.own],
     ["leave.request", RolePermissionScope.own],
-    ["leave.calendar.view", RolePermissionScope.all],
+    ["leave.calendar.view", RolePermissionScope.own],
   ],
   counsellor: [
     ["leave.view", RolePermissionScope.own],
     ["leave.request", RolePermissionScope.own],
-    ["leave.calendar.view", RolePermissionScope.all],
+    ["leave.calendar.view", RolePermissionScope.own],
   ],
   faculty: [
     ["leave.view", RolePermissionScope.own],
     ["leave.request", RolePermissionScope.own],
-    ["leave.calendar.view", RolePermissionScope.all],
+    ["leave.calendar.view", RolePermissionScope.own],
   ],
   finance: [
     ["leave.view", RolePermissionScope.own],
     ["leave.request", RolePermissionScope.own],
-    ["leave.calendar.view", RolePermissionScope.all],
+    ["leave.calendar.view", RolePermissionScope.own],
   ],
   marketing: [
     ["leave.view", RolePermissionScope.own],
     ["leave.request", RolePermissionScope.own],
-    ["leave.calendar.view", RolePermissionScope.all],
+    ["leave.calendar.view", RolePermissionScope.own],
   ],
   support: [
     ["leave.view", RolePermissionScope.own],
     ["leave.request", RolePermissionScope.own],
-    ["leave.calendar.view", RolePermissionScope.all],
+    ["leave.calendar.view", RolePermissionScope.own],
   ],
   content_editor: [
     ["leave.view", RolePermissionScope.own],
     ["leave.request", RolePermissionScope.own],
-    ["leave.calendar.view", RolePermissionScope.all],
+    ["leave.calendar.view", RolePermissionScope.own],
   ],
 };
 

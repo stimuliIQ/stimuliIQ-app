@@ -122,6 +122,23 @@ admits no fixed DTO. It ships as ONE route on the existing marketing site
 dropped, since it needed DNS + a Vercel domain attachment and ran edge middleware on every
 request to the whole site to serve one page.
 
+ADR 0065 was decided/implemented for staff leave management
+(`docs/specs/leave-management.md`): any member of staff applies from CRM > Leave Management,
+and at the time only the super admin decided. Two storage calls define the feature. Durations
+are integer HALF-DAY units (`half_days = 7` means 3.5 days) rather than a Decimal, because 0.5
+is not representable in binary floating point and this schema has no Decimal column, the same
+discipline as money in paise. Balances are DERIVED on read (quota minus approved minus
+pending) rather than ledgered, because a stored balance drifts the first time a cancel path
+forgets to credit it back; pending counts against remaining, so nobody queues five ten-day
+requests against a twelve-day allowance. The super-admin narrowing is implemented by WHERE the
+permissions are seeded: `leave.approve` and `leave.manage` are upserted in a dedicated block
+OUTSIDE the catalog, so the admin+super_admin catch-all cannot grant them, guarded by a
+permission-catalog spec and an integration test. The calendar has its own key
+(`leave.calendar.view`) behind a projection that never fetches `reason`: the team sees WHEN
+somebody is out, never WHY. `computeLeaveDuration` (`@repo/types`) is run identically by the
+apply form and the API, the way `buildOnboardingAnswerIssues` is under ADR-0064. Amended by
+ADR-0070, which replaces the single super-admin step with a lead-then-manager chain.
+
 ADR 0066 was decided/implemented for careers/hiring (`docs/specs/careers-hiring.md`),
 closing a loop that had been half-built: job openings were free text typed into the careers
 page, applications landed in a table with NO CRM screen at all, and not one email was ever
@@ -138,6 +155,29 @@ rather than linked (the owner's call), which is why `MailProvider` gained `attac
 codebase. Careers also gets its own permission domain (`careers.view/review/openings.manage`)
 rather than reusing `content.*` like the colleges screen next door: an application carries a
 stranger's resume, and whoever may rewrite the homepage should not thereby read CVs.
+
+ADR 0067 was decided/implemented for marketing targets
+(`docs/specs/marketing-targets.md`): marketing had a scoreboard and no goal. One target row
+per person per month carries TWO numbers (deals and rupees in paise), because a marketing
+target is one sentence, "close N deals worth Rs X", and splitting it across rows lets somebody
+set one half and forget the other; either number may be 0 meaning "not measured on this", both
+zero is rejected, since that is what deleting the target is for. PROGRESS IS DERIVED, NEVER
+STORED: no `completed`/`pending` column exists, both are recomputed on read from
+`leads.converted_at` and `payments.paid_at`. That is the call ADR-0065 made for leave balances
+and for the same reason: a stored counter drifts the first time a lead is reassigned, a
+conversion is undone or a payment is refunded, and it drifts silently in the direction that
+flatters the number. `summariseTargetMetric` (`@repo/types`) is the ONE definition of
+completed/pending/percent, run identically by API and dashboard card. Revenue reuses
+`mv_revenue_daily`'s exact `captured`+`paid_at` pair so per-person sums reconcile with the
+revenue dashboard, and is therefore gross of refunds. A new `leads.converted_at` column
+records WHEN a lead closed (`converted_student_id` only ever recorded WHETHER, and the
+student's `created_at` is no substitute, since converting LINKS a lead to a StudentProfile
+that may already have existed); it is deliberately NOT backfilled, so old conversions count in
+no month. Both permissions are kept OUT of the catalog: `marketing_targets.view` is
+marketing-only at scope `own` (the `/me` endpoint takes no user id at all, so scope=own is the
+whole gate) and `marketing_targets.manage` is super_admin-only, the same device as
+`leave.approve`. super_admin holding `manage` but not `view` is intentional, not a missing
+grant: they have no target of their own and would otherwise carry a permanently empty card.
 
 ADR 0068 was decided/implemented for course types (`docs/specs/course-types.md`): the
 `StudentCourseType` enum (btech/degree/diploma/mca/mba/other) becomes a CRM-managed table
@@ -159,6 +199,51 @@ Read is gated on `students.view` (every picker needs it) and write on
 `course_types.manage`, which — unlike `leave.approve` and `marketing_targets.manage` —
 stays INSIDE the permission catalog so admin holds it too: maintaining a list of
 qualifications is configuration, not authority over a person.
+
+ADR 0069 was decided/implemented for the org hierarchy
+(`docs/specs/org-teams.md`): the company had no employee hierarchy of any kind, and the
+visible cost was leave, where `listApprovers` hardcoded "every active super_admin" so one
+person signed off every absence. The chain is Manager, Team Lead, Members, held as two
+nullable pointers ON THE TEAM (`manager_user_id`, `lead_user_id`) rather than a recursive
+`users.reports_to_id`. That gives a fixed-depth chain resolvable in one read which CANNOT form
+a cycle by construction: the cycle question is designed away rather than answered. A manager
+owning several teams is several rows pointing at the same user, which is also how "two team
+leads under one manager" is expressed. Membership is exactly one team per person, a nullable
+`users.team_id` rather than a join table, so the wrong state is unrepresentable, and `User` is
+already audited so every move between teams is logged for free. Branches are untouched: a
+branch is a PLACE, a team is PEOPLE, and nothing scopes on `Team.branchId`. HR is a ROLE, not
+a node, because its authority is company-wide by definition. No `team` value was added to
+`RolePermissionScope`: the CRM permission matrix hardcodes `GRANT_SCOPE = "all"` and saves by
+full replace, so a `team` grant would be invisible in the one screen that exists to explain
+narrowing and silently widened on the next toggle, the `stats.headline` trap. The team graph
+is resolved inside the modules that care instead. `org.teams.manage` is seeded OUTSIDE the
+catalog (the ADR-0065 device) because whoever can edit teams can make themselves somebody's
+approver; `org.teams.view` stays inside it, since reading the chart is information, not
+authority. Day one nobody has a team, so every chain is single-step and routes to the owner,
+exactly the prior behaviour, and no backfill is needed.
+
+ADR 0070 was decided/implemented alongside it, amending ADR-0065: leave becomes two-step,
+`pending` then (lead approves) `lead_approved` then (manager confirms) `approved`. `pending`
+is NOT renamed, since every existing row carries that meaning and three indexes plus the
+front-end filter enum are built on it, which is what makes the existing-requests story a
+no-op; the new enum value ships in its own migration, because Postgres refuses to use a newly
+added enum value inside the transaction that added it and Prisma wraps each migration in
+exactly one. A lead may REJECT outright but not APPROVE outright, asymmetric on purpose: a
+"no" should not wait for a second signature, the same reasoning as P4's grade/send-back and
+ADR-0066's four verbs. Days are deducted only on the FINAL step, so the lead's step takes no
+advisory lock and does no allowance arithmetic, while a `lead_approved` request still blocks
+an overlap and still counts as pending. The load-bearing decision is the status SETS: ten
+hardcoded status literals across the leave service and repository previously answered "which
+requests are still live?", and missing one when adding a status does not fail a test, it
+silently stops counting somebody's days and lets two requests be approved against one
+allowance. `LEAVE_LIVE_STATUSES` and `LEAVE_UNCOMMITTED_STATUSES` are defined ONCE in
+`@repo/types` with a coverage assertion, so a future status cannot ship unclassified. The
+permission stays uniform and the org chart decides: `leave.approve` at scope=own for every
+staff role, with WHOSE requests you see coming from the team graph. A dedicated `team_lead`
+role was rejected, since a person's position would then live in two places that drift. Nobody
+may decide their own request (403 `leave.self_review`), closing a hole the super admin's
+scope=all left open. Known limitation: a manager holding only `admin` cannot approve, because
+`admin` is deliberately excluded from `leave.approve`.
 
 Security follow-ups and deferred work from each phase's security review and build are
 tracked separately in the relevant followups file (`docs/phase-0-followups.md`,

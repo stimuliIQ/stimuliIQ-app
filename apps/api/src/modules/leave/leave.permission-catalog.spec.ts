@@ -32,9 +32,9 @@ const CONTROLLER_FILE = "./leave.controller.ts";
 const CATALOG_KEYS = ["leave.view", "leave.request", "leave.calendar.view"] as const;
 
 /** super_admin ALONE. Seeded outside the catalog precisely so admin does not inherit them. */
-const SUPER_ADMIN_ONLY_KEYS = ["leave.approve", "leave.manage"] as const;
+const AUTHORITY_KEYS = ["leave.approve", "leave.manage"] as const;
 
-const ALL_KNOWN_KEYS = [...CATALOG_KEYS, ...SUPER_ADMIN_ONLY_KEYS] as const;
+const ALL_KNOWN_KEYS = [...CATALOG_KEYS, ...AUTHORITY_KEYS] as const;
 
 const SEED_PATH = resolve(__dirname, "../../../../../prisma/seed.ts");
 const SEED_LEAVE_PATH = resolve(__dirname, "../../../../../prisma/seed-leave.ts");
@@ -130,7 +130,7 @@ describe("Leave module permission catalog", () => {
     });
   });
 
-  describe.each(SUPER_ADMIN_ONLY_KEYS)('authority permission "%s"', (key) => {
+  describe.each(AUTHORITY_KEYS)('authority permission "%s"', (key) => {
     const literal = key.replace(/\./g, "\\.");
 
     it("is seeded via the dedicated LEAVE_ADMIN_PERMISSIONS block", () => {
@@ -147,13 +147,37 @@ describe("Leave module permission catalog", () => {
       expect(block![0]).not.toMatch(new RegExp(`key:\\s*"${literal}"`));
     });
 
-    it("is granted to superAdminRole only", () => {
+    it("is granted to superAdminRole, and never to anyone the catch-all would reach", () => {
+      // WIDENED when the org hierarchy landed (ADR-0069/0070): `hr` now holds both keys as
+      // well, because HR is the company-wide fallback approver — whoever a request reaches
+      // when the applicant is not on the org chart yet, or their team has no lead. HR is
+      // granted in its own block further down, not in this one.
+      //
+      // What has NOT changed, and is the entire point of this assertion, is the exclusion of
+      // `adminRole`. These keys stay OUT of the catalog so the admin+super_admin catch-all
+      // cannot reach them. If somebody adds adminRole here, or moves the keys into the
+      // catalog "for consistency", every operational admin silently gains authority over
+      // everyone's leave.
       const block = seedSource.match(
         /const LEAVE_ADMIN_PERMISSIONS[\s\S]*?leaveAdminPermissions\.map\([\s\S]*?\);\s*\)?;?/,
       );
       expect(block).not.toBeNull();
       expect(block![0]).toMatch(/grant\(superAdminRole\.id/);
       expect(block![0]).not.toMatch(/adminRole/);
+    });
+
+    it("reaches hr through its own explicit block, never through the catalog", () => {
+      // Asserted so that removing HR's approval authority — which is what stops a request
+      // from a teamless person landing nowhere — is a deliberate act with a failing test
+      // behind it, rather than a silent edit.
+      // Anchored on the SECTION HEADER (the box-drawing rule), not on the phrase alone —
+      // the same words appear in a comment several hundred lines earlier, and matching that
+      // one made this assertion inspect the wrong block entirely.
+      const hrBlock = seedSource.match(/── HR's grant set[\s\S]*?\n {2}\}/);
+      expect(hrBlock).not.toBeNull();
+      expect(hrBlock![0]).toMatch(/leaveAdminPermissions\[0\]/);
+      expect(hrBlock![0]).toMatch(/leaveAdminPermissions\[1\]/);
+      expect(hrBlock![0]).not.toMatch(/adminRole/);
     });
   });
 
@@ -183,25 +207,40 @@ describe("Leave module permission catalog", () => {
       const block = roleGrantBlock("admin");
       // Guard against the assertion passing because the block was mis-parsed down to nothing.
       expect(block).toContain("leave.view");
-      for (const key of SUPER_ADMIN_ONLY_KEYS) expect(block).not.toContain(key);
+      for (const key of AUTHORITY_KEYS) expect(block).not.toContain(key);
     });
 
     it("grants the authority keys to super_admin", () => {
       const block = roleGrantBlock("super_admin");
-      for (const key of SUPER_ADMIN_ONLY_KEYS) expect(block).toContain(key);
+      for (const key of AUTHORITY_KEYS) expect(block).toContain(key);
     });
 
     it.each(["branch_manager", "counsellor", "faculty", "finance", "marketing", "support", "content_editor"])(
-      "gives %s leave.view at own scope but the calendar at all",
+      "gives %s all three read/apply keys at OWN scope, calendar included",
       (roleKey) => {
         const block = roleGrantBlock(roleKey);
         expect(block).toMatch(/\["leave\.view", RolePermissionScope\.own\]/);
         expect(block).toMatch(/\["leave\.request", RolePermissionScope\.own\]/);
-        // The calendar at `all` is the whole point of it being a separate key.
-        expect(block).toMatch(/\["leave\.calendar\.view", RolePermissionScope\.all\]/);
-        for (const key of SUPER_ADMIN_ONLY_KEYS) expect(block).not.toContain(key);
+        // CHANGED 2026-09-01. The calendar was `all` for every staff role, on the reasoning
+        // that its projection carries no `reason`, so company-wide visibility was harmless.
+        // That answered "can you read WHY somebody is off" but never "whose absences can you
+        // see at all" — and the answer to the second was everybody's.
+        //
+        // At `own` the service resolves visibility from the org chart: a rank-and-file member
+        // sees strictly their own leave, a team lead or manager sees the people they approve
+        // for. If this ever returns to `all`, every member can read the whole company's
+        // absence pattern again — which is exactly what this line exists to prevent.
+        expect(block).toMatch(/\["leave\.calendar\.view", RolePermissionScope\.own\]/);
+        for (const key of AUTHORITY_KEYS) expect(block).not.toContain(key);
       },
     );
+
+    it.each(["super_admin", "admin"])("keeps the company-wide calendar for %s", (roleKey) => {
+      // The counterpart to the assertion above. Somebody has to see the whole picture, or the
+      // calendar stops answering "who is out this week" for the business at all.
+      const block = roleGrantBlock(roleKey);
+      expect(block).toMatch(/\["leave\.calendar\.view", RolePermissionScope\.all\]/);
+    });
 
     it("grants nothing to student or mentor", () => {
       expect(seedLeaveSource).not.toMatch(/^ {2}student:/m);

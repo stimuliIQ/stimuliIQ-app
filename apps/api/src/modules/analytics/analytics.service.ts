@@ -39,6 +39,7 @@ import type {
   LeadPerformanceReportQuery,
   LeadPerformanceReportDto,
 } from "@repo/types";
+import { OrgService } from "../org/org.service";
 import { AnalyticsRepository } from "./analytics.repository";
 // A VALUE import, unlike everything above — safe here because it comes from a sibling
 // API module compiled by the same tsconfig, not from the pure-ESM @repo/types package
@@ -77,6 +78,9 @@ export class AnalyticsService {
     private readonly repo: AnalyticsRepository,
     private readonly campaignsService: CampaignsService,
     private readonly redis: RedisService,
+    // The org chart narrows the lead-performance report to a manager's own people (P17-4).
+    // Analytics depends on Org, never the reverse.
+    private readonly org: OrgService,
   ) {}
 
   // ─── Shared helpers ─────────────────────────────────────────────────────────
@@ -577,6 +581,9 @@ export class AnalyticsService {
     const scope = requireScopeContext();
 
     let branchIds: string[] | null;
+    // Team narrowing (P17-4). `null` = no team filter, which is every path that existed
+    // before the org chart did.
+    let teamUserIds: string[] | null = null;
     switch (scope.scope) {
       case "all":
         branchIds = this.resolveIdFilter(null, query.branchId);
@@ -584,6 +591,18 @@ export class AnalyticsService {
       case "branch": {
         const callerBranchIds = await this.repo.listCallerBranchIds(scope.actorId);
         branchIds = this.resolveIdFilter(callerBranchIds, query.branchId);
+        break;
+      }
+      case "own": {
+        // A TEAM LEAD OR MANAGER reading their own people (ADR-0069). Granted at scope=own
+        // rather than a new scope value — see ADR-0069 (c) for why the enum was left alone.
+        //
+        // The actor is included alongside the people they lead: a lead who owns leads of
+        // their own is measured on the same report, and omitting them would make the team
+        // total disagree with the sum of the company one.
+        const subordinates = await this.org.listSubordinateUserIds(tenantId, scope.actorId);
+        teamUserIds = [scope.actorId, ...subordinates];
+        branchIds = this.resolveIdFilter(null, query.branchId);
         break;
       }
       default:
@@ -597,7 +616,13 @@ export class AnalyticsService {
     const to = new Date(`${query.to}T23:59:59.999Z`);
     const now = new Date();
 
-    const staff = await this.repo.listLeadOwningStaff(tenantId, LEAD_OWNER_ROLE_KEYS, branchIds, query.userId);
+    const staff = await this.repo.listLeadOwningStaff(
+      tenantId,
+      LEAD_OWNER_ROLE_KEYS,
+      branchIds,
+      query.userId,
+      teamUserIds,
+    );
 
     // A requested userId that resolved to nobody is an out-of-scope or non-existent user:
     // 404, consistent with resolveIdFilter's posture for branch/batch ids.

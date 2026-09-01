@@ -481,8 +481,16 @@ export class AnalyticsRepository {
     roleKeys: readonly string[],
     branchIds: string[] | null,
     userId?: string,
+    /**
+     * The people a TEAM-scoped caller may see (P17-4). `null` means no team narrowing —
+     * the branch/all paths, unchanged. An EMPTY array means "leads nobody", which must
+     * return no rows rather than everybody: the empty-means-no-filter bug is how a report
+     * silently opens up.
+     */
+    teamUserIds?: string[] | null,
   ): Promise<Array<{ id: string; name: string; roleKeys: string[] }>> {
     if (branchIds !== null && branchIds.length === 0) return [];
+    if (teamUserIds !== null && teamUserIds !== undefined && teamUserIds.length === 0) return [];
 
     const rows = await this.prisma.client.userRole.findMany({
       where: {
@@ -492,6 +500,10 @@ export class AnalyticsRepository {
         // row with a NULL branchId is tenant-wide staff and is excluded from a branch
         // view — they are not that manager's team.
         ...(branchIds !== null ? { branchId: { in: branchIds } } : {}),
+        // Team narrowing (P17-4) applies to the USER id, not the user_role row: team
+        // membership is a property of the person (users.team_id), where branch is a
+        // property of one role assignment.
+        ...(teamUserIds ? { userId: { in: teamUserIds } } : {}),
       },
       select: { userId: true, user: { select: { name: true } }, role: { select: { key: true } } },
     });

@@ -194,6 +194,14 @@ export const StaffUserSchema = z.object({
   status: StaffUserStatusSchema,
   roles: z.array(z.object({ id: UuidSchema, key: z.string(), name: z.string() })),
   lastLoginAt: IsoDateTimeSchema.nullable(),
+  /**
+   * Where this person sits (P17). Returned so the edit form can SHOW what is currently set
+   * — a field that can be written but never read back is one that silently clears itself
+   * the next time somebody edits an unrelated detail.
+   */
+  teamId: UuidSchema.nullable(),
+  teamName: z.string().nullable(),
+  branchId: UuidSchema.nullable(),
   createdAt: IsoDateTimeSchema,
 });
 export type StaffUser = z.infer<typeof StaffUserSchema>;
@@ -222,6 +230,21 @@ export const CreateStaffUserRequestSchema = z
     phone: PhoneSchema.optional(),
     password: PasswordSchema,
     roleIds: z.array(UuidSchema).min(1).max(10),
+    /**
+     * The team this person reports into (P17). Nullable and optional: "not on the org
+     * chart yet" is an honest state, and it routes their leave to the HR fallback rather
+     * than stranding it.
+     */
+    teamId: UuidSchema.nullable().optional(),
+    /**
+     * The branch their role assignments are posted to.
+     *
+     * This field is new, but the COLUMN is not — `user_roles.branch_id` has existed since
+     * Phase 0 and nothing ever wrote it, so a `branch_manager` created through this form
+     * had no branches and every branch-scoped query returned zero rows. The role was
+     * effectively unusable unless somebody set the column by hand in the database.
+     */
+    branchId: UuidSchema.nullable().optional(),
   })
   .strict();
 export type CreateStaffUserRequest = z.infer<typeof CreateStaffUserRequestSchema>;
@@ -240,6 +263,8 @@ export const UpdateStaffUserRequestSchema = z
     status: StaffUserStatusSchema.optional(),
     password: PasswordSchema.optional(),
     roleIds: z.array(UuidSchema).min(1).max(10).optional(),
+    teamId: UuidSchema.nullable().optional(),
+    branchId: UuidSchema.nullable().optional(),
   })
   .strict();
 export type UpdateStaffUserRequest = z.infer<typeof UpdateStaffUserRequestSchema>;

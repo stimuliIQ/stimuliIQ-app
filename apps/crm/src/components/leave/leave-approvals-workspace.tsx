@@ -28,7 +28,11 @@ import { formatLeaveRange, leaveStatusLabel, leaveStatusTone } from "./leave-sta
 const PAGE_SIZE = 25;
 
 const STATUS_FILTERS: Array<{ value: LeaveRequestStatus | "all"; label: string }> = [
-  { value: "pending", label: "Awaiting my decision" },
+  { value: "pending", label: "Awaiting the team lead" },
+  // The middle of the two-step chain: the lead has approved and it is on the manager's desk.
+  // Its own filter rather than being folded into "pending", because these are two different
+  // people's to-do lists and merging them makes both harder to work.
+  { value: "lead_approved", label: "Awaiting the manager" },
   { value: "approved", label: "Approved" },
   { value: "rejected", label: "Not approved" },
   { value: "cancelled", label: "Withdrawn" },

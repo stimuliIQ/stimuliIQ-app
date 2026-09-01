@@ -9,6 +9,7 @@ import * as React from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
   Alert,
+  CheckboxField,
   Button,
   ConfirmDialog,
   DataTable,
@@ -43,7 +44,6 @@ import {
   useUpdateLeaveType,
 } from "../../hooks/use-leave";
 import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
-import { CheckboxField } from "./checkbox-field";
 
 const WEEKDAYS = [
   { value: 0, label: "Sunday" },

@@ -51,6 +51,12 @@ function toDto(row: StaffUserRow): StaffUser {
     status: row.status,
     roles: row.userRoles.map((ur) => ({ id: ur.role.id, key: ur.role.key, name: ur.role.name })),
     lastLoginAt: row.lastLoginAt ? row.lastLoginAt.toISOString() : null,
+    teamId: row.teamId,
+    teamName: row.team?.name ?? null,
+    // The branch is per role assignment, but the form offers ONE picker — so the first
+    // non-null one is reported. Every assignment gets the same value on write, so they only
+    // differ for rows seeded before this field was writable.
+    branchId: row.userRoles.find((ur) => ur.branchId !== null)?.branchId ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -123,6 +129,8 @@ export class UsersAdminService {
         phone: body.phone ?? null,
         passwordHash: passwordHashForNew,
         roleIds,
+        teamId: body.teamId ?? null,
+        branchId: body.branchId ?? null,
       });
       const restored = await this.repository.findById(tenantId, removed.id);
       if (!restored) throw new NotFoundException({ code: "users.not_found", title: "User not found" });
@@ -146,6 +154,8 @@ export class UsersAdminService {
       phone: body.phone ?? null,
       passwordHash,
       roleIds,
+      teamId: body.teamId ?? null,
+      branchId: body.branchId ?? null,
     });
 
     const created = await this.repository.findById(tenantId, userId);
@@ -184,6 +194,8 @@ export class UsersAdminService {
       status: body.status,
       passwordHash,
       roleIds,
+      teamId: body.teamId,
+      branchId: body.branchId,
     });
 
     // A rotated credential or a no-longer-active account must not keep riding an

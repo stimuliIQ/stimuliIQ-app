@@ -85,10 +85,13 @@ describe("AnalyticsService", () => {
     repo = mockRepo();
     campaigns = mockCampaignsService();
     redis = mockRedis();
+    // Nobody leads anybody by default: every existing test runs at scope=all or branch,
+    // where the org chart is never consulted, so they keep testing what they were written for.
     service = new AnalyticsService(
       repo as unknown as AnalyticsRepository,
       campaigns as unknown as CampaignsService,
       redis as unknown as never,
+      { listSubordinateUserIds: jest.fn().mockResolvedValue([]) } as unknown as never,
     );
   });
 

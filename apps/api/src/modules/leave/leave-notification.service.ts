@@ -17,6 +17,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { formatLeaveDays } from "@repo/types";
 
 import { NotificationsService } from "../notifications/notifications.service";
+import { OrgService } from "../org/org.service";
 import { LeaveRepository, type LeaveRequestRow } from "./leave.repository";
 import { halfDaysToDays, toIsoDate } from "./leave.util";
 
@@ -27,6 +28,9 @@ export class LeaveNotificationService {
   constructor(
     private readonly repo: LeaveRepository,
     private readonly notifications: NotificationsService,
+    // The org chart decides who a request has to reach. Before it existed this service could
+    // only shout at every super_admin.
+    private readonly org: OrgService,
   ) {}
 
   /** "17–21 Aug 2026", or "17 Aug 2026" when it is a single day. */
@@ -53,14 +57,25 @@ export class LeaveNotificationService {
     };
   }
 
-  /** Tells every active super_admin that somebody is waiting on a decision. */
+  /**
+   * Tells whoever actually has to decide that somebody is waiting.
+   *
+   * This used to fan out to every active super_admin unconditionally, which was the only
+   * option when there was no org chart. It now goes to the resolved FIRST approver — the
+   * applicant's team lead, or their manager on a single-step chain — and falls back to HR
+   * plus the owner when the chain names nobody.
+   *
+   * The fallback is not a nicety. A request that lands in a queue nobody watches is the
+   * exact failure `listApprovers` was written to prevent, and a half-built org chart is the
+   * normal state of one being built.
+   */
   async notifyRequested(tenantId: string, row: LeaveRequestRow): Promise<void> {
     try {
-      const approvers = await this.repo.listApprovers(tenantId);
+      const approvers = await this.resolveRecipients(tenantId, row.userId, "first");
       if (approvers.length === 0) {
         this.logger.warn(
-          `[LeaveNotificationService] tenant ${tenantId} has no active super_admin, ` +
-            `leave request ${row.id} was saved but nobody was notified.`,
+          `[LeaveNotificationService] tenant ${tenantId} has no resolvable approver and no ` +
+            `active HR or super_admin, leave request ${row.id} was saved but nobody was notified.`,
         );
         return;
       }
@@ -82,6 +97,68 @@ export class LeaveNotificationService {
       }
     } catch (err) {
       this.logger.warn(`[LeaveNotificationService] notifyRequested failed (non-fatal): ${String(err)}`);
+    }
+  }
+
+  /**
+   * Who to tell, for a given step of a given applicant's chain.
+   *
+   * `"first"` is whoever must act now on a fresh request; `"final"` is whoever must confirm
+   * once the lead has approved. Either resolves to a single named person when the org chart
+   * has one, and to HR + the owner when it does not. The owner is ALWAYS in the fallback,
+   * never merely "if there is no HR" — "we hired an HR person who then went on leave" is
+   * precisely when a queue stops being watched.
+   */
+  private async resolveRecipients(
+    tenantId: string,
+    applicantId: string,
+    step: "first" | "final",
+  ): Promise<Array<{ id: string; name: string; email: string }>> {
+    const chain = await this.org.resolveApprovalChain(tenantId, applicantId);
+    const targetId = step === "first" ? (chain.firstApproverId ?? chain.finalApproverId) : chain.finalApproverId;
+
+    if (targetId) {
+      const person = await this.repo.findUserName(tenantId, targetId);
+      if (person) return [{ id: targetId, ...person }];
+    }
+    return this.org.listFallbackApprovers(tenantId);
+  }
+
+  /**
+   * Step one is done — tell the MANAGER it is waiting on them.
+   *
+   * Without this hop a two-step chain would be strictly worse than the one-step one it
+   * replaced: the lead approves, and the request sits silently until somebody happens to
+   * open the queue.
+   */
+  async notifyLeadApproved(tenantId: string, row: LeaveRequestRow): Promise<void> {
+    try {
+      const recipients = await this.resolveRecipients(tenantId, row.userId, "final");
+      if (recipients.length === 0) {
+        this.logger.warn(
+          `[LeaveNotificationService] leave request ${row.id} was approved by the team lead ` +
+            "but has no resolvable final approver — nobody was notified.",
+        );
+        return;
+      }
+      const payload = {
+        ...this.basePayload(row),
+        reason: row.reason,
+        reviewerName: row.leadApprovedBy?.name ?? "the team lead",
+      };
+      for (const recipient of recipients) {
+        try {
+          await this.notifications.notify(recipient.id, tenantId, "leave_requested", payload, {
+            toEmail: recipient.email,
+          });
+        } catch (err) {
+          this.logger.warn(
+            `[LeaveNotificationService] notify lead-approved failed for ${recipient.id} (non-fatal): ${String(err)}`,
+          );
+        }
+      }
+    } catch (err) {
+      this.logger.warn(`[LeaveNotificationService] notifyLeadApproved failed (non-fatal): ${String(err)}`);
     }
   }
 

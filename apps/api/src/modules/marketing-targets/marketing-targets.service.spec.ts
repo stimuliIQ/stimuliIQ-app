@@ -16,6 +16,8 @@
 import { NotFoundException } from "@nestjs/common";
 
 import { MarketingTargetsService } from "./marketing-targets.service";
+import type { OrgService } from "../org/org.service";
+import { scopeContextStorage } from "../auth/lib/scope-context";
 import type { MarketingTargetsRepository } from "./marketing-targets.repository";
 
 const TENANT = "11111111-1111-1111-1111-111111111111";
@@ -56,13 +58,35 @@ function makeRepo() {
   } as unknown as jest.Mocked<MarketingTargetsRepository>;
 }
 
+/**
+ * Runs `fn` with a scope context published, the way ScopeInterceptor does per request.
+ * `all` is company-wide authority — what super_admin and HR hold, and what every test in
+ * this file assumed implicitly before the org chart existed.
+ */
+function withScope<T>(scope: "all" | "own", actorId: string, fn: () => Promise<T>): Promise<T> {
+  return scopeContextStorage.run(
+    { permissionKey: "marketing_targets.manage", scope, actorId, tenantId: TENANT },
+    fn,
+  );
+}
+
 describe("MarketingTargetsService", () => {
   let repo: jest.Mocked<MarketingTargetsRepository>;
+  let org: jest.Mocked<OrgService>;
   let service: MarketingTargetsService;
 
   beforeEach(() => {
     repo = makeRepo();
-    service = new MarketingTargetsService(repo);
+    // Nobody leads anybody by default. The existing tests all run at scope=all (company
+    // -wide authority), where the org chart is never consulted — so they keep testing
+    // exactly what they were written for.
+    org = {
+      listSubordinateUserIds: jest.fn().mockResolvedValue([]),
+      resolveApprovalChain: jest.fn(),
+      getPosition: jest.fn(),
+      listFallbackApprovers: jest.fn(),
+    } as unknown as jest.Mocked<OrgService>;
+    service = new MarketingTargetsService(repo, org as unknown as OrgService);
   });
 
   describe("getMine", () => {
@@ -134,7 +158,7 @@ describe("MarketingTargetsService", () => {
       repo.findForMonth.mockResolvedValue([target()]); // Rahul only
       repo.countConversionsByOwner.mockResolvedValue(new Map([[RAHUL, 23], [PRIYA, 9]]));
 
-      const result = await service.list(TENANT, "2026-03");
+      const result = await withScope("all", "admin-1", () => service.list(TENANT, "2026-03"));
 
       expect(result.rows).toHaveLength(2);
       const priya = result.rows.find((r) => r.userId === PRIYA)!;
@@ -148,7 +172,7 @@ describe("MarketingTargetsService", () => {
       repo.findForMonth.mockResolvedValue([target()]); // Rahul's, and Rahul is no longer returned
       repo.findUserById.mockResolvedValue({ ...user(RAHUL, "Rahul"), roleKeys: ["counsellor"] });
 
-      const result = await service.list(TENANT, "2026-03");
+      const result = await withScope("all", "admin-1", () => service.list(TENANT, "2026-03"));
 
       expect(result.rows.map((r) => r.userId).sort()).toEqual([PRIYA, RAHUL].sort());
     });
@@ -161,7 +185,7 @@ describe("MarketingTargetsService", () => {
       repo.countConversionsByOwner.mockResolvedValue(new Map([[RAHUL, 23], [PRIYA, 29]]));
       repo.sumRevenuePaiseByOwner.mockResolvedValue(new Map([[RAHUL, 100_00], [PRIYA, 200_00]]));
 
-      const result = await service.list(TENANT, "2026-03");
+      const result = await withScope("all", "admin-1", () => service.list(TENANT, "2026-03"));
 
       expect(result.totals.conversions.target).toBe(75);
       expect(result.totals.conversions.completed).toBe(52);
@@ -181,7 +205,7 @@ describe("MarketingTargetsService", () => {
       repo.countConversionsByOwner.mockResolvedValue(new Map([[PRIYA, 0]]));
       repo.sumRevenuePaiseByOwner.mockResolvedValue(new Map([[PRIYA, 250_00]]));
 
-      const result = await service.list(TENANT, "2026-03");
+      const result = await withScope("all", "admin-1", () => service.list(TENANT, "2026-03"));
 
       expect(result.totals.peopleMeetingTarget).toBe(1);
       expect(result.rows[0]!.revenuePaise.met).toBe(true);
@@ -190,7 +214,7 @@ describe("MarketingTargetsService", () => {
 
     it("does not count a person with no target at all as meeting one", async () => {
       repo.findForMonth.mockResolvedValue([]);
-      const result = await service.list(TENANT, "2026-03");
+      const result = await withScope("all", "admin-1", () => service.list(TENANT, "2026-03"));
       expect(result.totals.peopleWithTarget).toBe(0);
       expect(result.totals.peopleMeetingTarget).toBe(0);
     });
@@ -201,12 +225,14 @@ describe("MarketingTargetsService", () => {
       repo.findUserById.mockResolvedValue(user(RAHUL, "Rahul"));
       repo.upsert.mockResolvedValue(target());
 
-      await service.upsert(TENANT, OWNER, {
+      await withScope("all", OWNER, () =>
+        service.upsert(TENANT, OWNER, {
         userId: RAHUL,
         month: "2026-03",
         conversionsTarget: 40,
         revenueTargetPaise: 500_000_00,
-      });
+        }),
+      );
 
       expect(repo.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -223,13 +249,15 @@ describe("MarketingTargetsService", () => {
       repo.findUserById.mockResolvedValue(user(RAHUL, "Rahul"));
       repo.upsert.mockResolvedValue(target());
 
-      await service.upsert(TENANT, OWNER, {
+      await withScope("all", OWNER, () =>
+        service.upsert(TENANT, OWNER, {
         userId: RAHUL,
         month: "2026-03",
         conversionsTarget: 40,
         revenueTargetPaise: 0,
         note: "   ",
-      });
+        }),
+      );
 
       expect(repo.upsert).toHaveBeenCalledWith(expect.objectContaining({ note: null }));
     });
@@ -251,7 +279,7 @@ describe("MarketingTargetsService", () => {
   describe("remove", () => {
     it("soft-deletes an existing target", async () => {
       repo.findById.mockResolvedValue(target());
-      await service.remove(TENANT, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+      await withScope("all", OWNER, () => service.remove(TENANT, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
       expect(repo.softDelete).toHaveBeenCalledWith("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     });
 
@@ -262,5 +290,98 @@ describe("MarketingTargetsService", () => {
       );
       expect(repo.softDelete).not.toHaveBeenCalled();
     });
+  });
+});
+
+// ── Team-scoped targets (P17-3, ADR-0069) ─────────────────────────────────────────────
+//
+// A manager sets and reads targets for their own people. The permission is the same one the
+// owner holds; the ORG CHART decides whose numbers are in reach. These are the cases that
+// stop that widening from becoming a leak.
+describe("MarketingTargetsService, team scope", () => {
+  const MANAGER = "manager-1";
+  const MINE = "33333333-3333-4333-8333-333333333333";
+  const THEIRS = "44444444-4444-4444-8444-444444444444";
+
+  function repoWithTwoPeople() {
+    const repo = makeRepo();
+    repo.findTargetableUsers.mockResolvedValue([
+      { id: MINE, name: "Anil", email: "anil@x.test" },
+      { id: THEIRS, name: "Bela", email: "bela@x.test" },
+    ] as never);
+    return repo;
+  }
+
+  function serviceWith(repo: jest.Mocked<MarketingTargetsRepository>, subordinates: string[]) {
+    const org = {
+      listSubordinateUserIds: jest.fn().mockResolvedValue(subordinates),
+    } as unknown as jest.Mocked<OrgService>;
+    return { service: new MarketingTargetsService(repo, org as unknown as OrgService), org };
+  }
+
+  it("shows a company-wide holder everyone, exactly as before teams existed", async () => {
+    const { service, org } = serviceWith(repoWithTwoPeople(), []);
+
+    const result = await withScope("all", MANAGER, () => service.list(TENANT, "2026-03"));
+
+    // scope=all never consults the chart — a report that quietly narrowed for the owner
+    // would be a regression nobody would notice until a number went missing.
+    expect(org.listSubordinateUserIds).not.toHaveBeenCalled();
+    expect(result.rows.map((r) => r.userId).sort()).toEqual([MINE, THEIRS].sort());
+  });
+
+  it("narrows a manager to the people they actually lead", async () => {
+    const { service } = serviceWith(repoWithTwoPeople(), [MINE]);
+
+    const result = await withScope("own", MANAGER, () => service.list(TENANT, "2026-03"));
+
+    expect(result.rows.map((r) => r.userId)).toEqual([MINE]);
+  });
+
+  it("gives somebody who leads nobody an empty report, not a 403", async () => {
+    // A 403 on a screen the sidebar just offered is what gets reported as "the CRM is
+    // broken". An empty report with a named empty state says what is actually wrong.
+    const { service } = serviceWith(repoWithTwoPeople(), []);
+
+    const result = await withScope("own", MANAGER, () => service.list(TENANT, "2026-03"));
+
+    expect(result.rows).toEqual([]);
+    expect(result.totals.peopleWithTarget).toBe(0);
+  });
+
+  it("refuses to let a manager set a number for somebody outside their team", async () => {
+    // 404, not 403: a 403 confirms the person exists and is measured, which is exactly what
+    // must not leak to somebody with no standing over them.
+    const repo = repoWithTwoPeople();
+    repo.findUserById.mockResolvedValue({ id: THEIRS, name: "Bela", email: "bela@x.test" } as never);
+    const { service } = serviceWith(repo, [MINE]);
+
+    await expect(
+      withScope("own", MANAGER, () =>
+        service.upsert(TENANT, MANAGER, {
+          userId: THEIRS,
+          month: "2026-03",
+          conversionsTarget: 5,
+          revenueTargetPaise: 0,
+        } as never),
+      ),
+    ).rejects.toMatchObject({ response: { code: "marketing_targets.user_not_found" } });
+  });
+
+  it("lets a manager set a number for somebody they DO lead", async () => {
+    const repo = repoWithTwoPeople();
+    repo.findUserById.mockResolvedValue({ id: MINE, name: "Anil", email: "anil@x.test" } as never);
+    const { service } = serviceWith(repo, [MINE]);
+
+    await withScope("own", MANAGER, () =>
+      service.upsert(TENANT, MANAGER, {
+        userId: MINE,
+        month: "2026-03",
+        conversionsTarget: 5,
+        revenueTargetPaise: 0,
+      } as never),
+    );
+
+    expect(repo.upsert).toHaveBeenCalled();
   });
 });

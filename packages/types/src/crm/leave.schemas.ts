@@ -53,8 +53,53 @@ import { PageQuerySchema } from "../common/pagination.js";
 export const LeaveDayPartSchema = z.enum(["full", "first_half", "second_half"]);
 export type LeaveDayPart = z.infer<typeof LeaveDayPartSchema>;
 
-export const LeaveRequestStatusSchema = z.enum(["pending", "approved", "rejected", "cancelled"]);
+export const LeaveRequestStatusSchema = z.enum([
+  "pending",
+  // Two-step approval (ADR-0070): the applicant's team lead has approved and it is now
+  // waiting on their manager. `pending` is deliberately NOT renamed — it still means "not
+  // yet decided", every existing row carries that meaning, and a single-step chain (the
+  // applicant is a lead, a manager, HR, or on no team yet) still goes straight from
+  // `pending` to `approved`, exactly as it always did.
+  "lead_approved",
+  "approved",
+  "rejected",
+  "cancelled",
+]);
 export type LeaveRequestStatus = z.infer<typeof LeaveRequestStatusSchema>;
+
+/**
+ * THE TWO STATUS SETS, DEFINED ONCE.
+ *
+ * Before the two-step chain landed, every place that had to know "which requests are still
+ * live?" spelled the answer out as a string literal — ten of them across the leave service
+ * and repository. Adding a third live status that way is the kind of change where missing
+ * ONE site does not break a test: it silently stops counting somebody's days against their
+ * balance for the hours a request sits with the manager, and lets two requests be approved
+ * against one allowance. It fails in the direction nobody checks.
+ *
+ * So the sets live here and every call site imports them. `leaveStatusSetsCoverEveryStatus`
+ * below is asserted in the spec, so a future status added to the enum without being
+ * classified fails loudly rather than quietly.
+ */
+
+/** Not yet a committed absence, but real enough to block an overlap and count as pending. */
+export const LEAVE_UNCOMMITTED_STATUSES = ["pending", "lead_approved"] as const;
+
+/** Everything that is not finished with: uncommitted, plus the approved absences themselves. */
+export const LEAVE_LIVE_STATUSES = ["pending", "lead_approved", "approved"] as const;
+
+/** Terminal — deducts nothing, blocks nothing, and can never move again. */
+export const LEAVE_TERMINAL_STATUSES = ["rejected", "cancelled"] as const;
+
+/**
+ * Every status is either live or terminal. Asserted in leave.spec.ts so that adding a value
+ * to `LeaveRequestStatusSchema` without deciding which set it belongs to fails the build
+ * rather than quietly dropping out of the balance arithmetic.
+ */
+export function leaveStatusSetsCoverEveryStatus(): boolean {
+  const classified = new Set<string>([...LEAVE_LIVE_STATUSES, ...LEAVE_TERMINAL_STATUSES]);
+  return LeaveRequestStatusSchema.options.every((status) => classified.has(status));
+}
 
 /** Weekday index as used by `Date.getUTCDay()` — 0 = Sunday … 6 = Saturday. */
 export const WeekdaySchema = z.number().int().min(0).max(6);
@@ -476,10 +521,24 @@ export type LeaveRequestSummary = z.infer<typeof LeaveRequestSummarySchema>;
 export const LeaveRequestDetailSchema = LeaveRequestSummarySchema.extend({
   userEmail: z.string().nullable(),
   reason: z.string(),
+  /**
+   * The FINAL decision — who approved or turned it down. On a two-step chain this is the
+   * manager; the team lead who performed step one is the `leadApproved*` trio below.
+   */
   reviewedById: UuidSchema.nullable(),
   reviewedByName: z.string().nullable(),
   reviewedAt: IsoDateTimeSchema.nullable(),
   reviewNote: z.string().nullable(),
+  /**
+   * Step one of a two-step chain (ADR-0070). Null on a single-step one — honestly so:
+   * there was no first step, rather than one nobody performed. On a DIRECT approval by HR
+   * or the owner this names the same person as `reviewedBy`, which is the trail saying
+   * one person did both rather than implying a step that never happened.
+   */
+  leadApprovedById: UuidSchema.nullable(),
+  leadApprovedByName: z.string().nullable(),
+  leadApprovedAt: IsoDateTimeSchema.nullable(),
+  leadApprovalNote: z.string().nullable(),
   cancelledAt: IsoDateTimeSchema.nullable(),
   updatedAt: IsoDateTimeSchema,
 });
@@ -614,7 +673,20 @@ export const LeaveCalendarResponseSchema = z.object({
 export type LeaveCalendarResponse = z.infer<typeof LeaveCalendarResponseSchema>;
 
 export const GetLeaveCalendarQuerySchema = z
-  .object({ from: IsoDateSchema, to: IsoDateSchema })
+  .object({
+    from: IsoDateSchema,
+    to: IsoDateSchema,
+    /**
+     * `team` narrows the calendar to the viewer's own team (P17-5). Default is the whole
+     * company, which is what the calendar has always shown and what makes it useful for
+     * "who else is out that week".
+     *
+     * The narrowing is a CONVENIENCE, not a privacy control — the projection behind this
+     * endpoint never selects `reason` at any setting, so there is nothing here for a wider
+     * view to leak. See LEAVE_CALENDAR_SELECT.
+     */
+    scope: z.enum(["company", "team"]).default("company"),
+  })
   .strict()
   .refine((v) => v.from <= v.to, { message: "`from` must not be after `to`", path: ["from"] });
 export type GetLeaveCalendarQuery = z.infer<typeof GetLeaveCalendarQuerySchema>;

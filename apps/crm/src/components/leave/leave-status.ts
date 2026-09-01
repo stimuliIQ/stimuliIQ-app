@@ -12,6 +12,11 @@ export function leaveStatusTone(status: LeaveRequestStatus) {
       return statusTone("rejected");
     case "cancelled":
       return statusTone("cancelled");
+    // Part-way through the two-step chain. Deliberately NOT the approved tone: it is not an
+    // approved absence yet, and colouring it green would tell the applicant they can book
+    // flights.
+    case "lead_approved":
+      return statusTone("in-progress");
     default:
       return statusTone("in-progress");
   }
@@ -31,6 +36,11 @@ export function leaveStatusLabel(status: LeaveRequestStatus): string {
       return "Not approved";
     case "cancelled":
       return "Withdrawn";
+    // Names WHO it is waiting on, not which enum value it holds. "Lead approved" would read
+    // to the applicant as "approved", which it is not — the days are not committed until the
+    // manager confirms.
+    case "lead_approved":
+      return "With the manager";
     default:
       return "Awaiting approval";
   }

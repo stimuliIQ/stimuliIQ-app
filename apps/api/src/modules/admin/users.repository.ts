@@ -19,7 +19,9 @@ export interface StaffUserRow {
   status: UserStatus;
   lastLoginAt: Date | null;
   createdAt: Date;
-  userRoles: Array<{ role: { id: string; key: string; name: string } }>;
+  teamId: string | null;
+  team: { name: string } | null;
+  userRoles: Array<{ role: { id: string; key: string; name: string }; branchId: string | null }>;
 }
 
 const STAFF_ROLE_FILTER = {
@@ -29,8 +31,11 @@ const STAFF_ROLE_FILTER = {
 const ROLE_INCLUDE = {
   userRoles: {
     where: { deletedAt: null, role: { key: { not: "student" }, deletedAt: null } },
-    select: { role: { select: { id: true, key: true, name: true } } },
+    // `branchId` comes back so the edit form can show the branch a person is posted to.
+    // It lives on the assignment, not the user, so it is read from here.
+    select: { role: { select: { id: true, key: true, name: true } }, branchId: true },
   },
+  team: { select: { name: true } },
 } as const;
 
 @Injectable()
@@ -114,6 +119,8 @@ export class UsersAdminRepository {
     phone: string | null;
     passwordHash: string;
     roleIds: string[];
+    teamId?: string | null;
+    branchId?: string | null;
   }): Promise<void> {
     await this.prisma.client.$transaction(async (tx) => {
       await tx.user.update({
@@ -124,12 +131,18 @@ export class UsersAdminRepository {
           phone: args.phone,
           passwordHash: args.passwordHash,
           status: "active",
+          teamId: args.teamId ?? null,
           mustChangePassword: false,
         },
       });
       // eslint-disable-next-line no-restricted-syntax -- sanctioned join-table purge; see update()'s doc comment
       await tx.$executeRaw`DELETE FROM user_roles WHERE user_id = ${args.userId}::uuid`;
-      await tx.userRole.createMany({ data: args.roleIds.map((roleId) => ({ userId: args.userId, roleId })) });
+      // The restored account takes the team and branch chosen on the form, not the ones it
+      // had before it was removed — whoever is re-adding this person is deciding where they
+      // now sit, and silently resurrecting a stale reporting line would be worse than either.
+      await tx.userRole.createMany({
+        data: args.roleIds.map((roleId) => ({ userId: args.userId, roleId, branchId: args.branchId ?? null })),
+      });
     });
   }
 
@@ -179,6 +192,8 @@ export class UsersAdminRepository {
     phone: string | null;
     passwordHash: string;
     roleIds: string[];
+    teamId?: string | null;
+    branchId?: string | null;
   }): Promise<string> {
     return this.prisma.client.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -192,7 +207,12 @@ export class UsersAdminRepository {
         },
         select: { id: true },
       });
-      await tx.userRole.createMany({ data: args.roleIds.map((roleId) => ({ userId: user.id, roleId })) });
+      // `branchId` is written on the ROLE ASSIGNMENT, not the user, because that is where
+      // the column lives and what every branch-scoped query reads. Until this line existed
+      // it was always NULL, which is why a branch_manager created here saw nothing at all.
+      await tx.userRole.createMany({
+        data: args.roleIds.map((roleId) => ({ userId: user.id, roleId, branchId: args.branchId ?? null })),
+      });
       return user.id;
     });
   }
@@ -210,6 +230,8 @@ export class UsersAdminRepository {
     status?: UserStatus;
     passwordHash?: string;
     roleIds?: string[];
+    teamId?: string | null;
+    branchId?: string | null;
   }): Promise<void> {
     await this.prisma.client.$transaction(async (tx) => {
       await tx.user.update({
@@ -219,12 +241,26 @@ export class UsersAdminRepository {
           ...(args.phone !== undefined ? { phone: args.phone } : {}),
           ...(args.status !== undefined ? { status: args.status } : {}),
           ...(args.passwordHash !== undefined ? { passwordHash: args.passwordHash } : {}),
+          ...(args.teamId !== undefined ? { teamId: args.teamId } : {}),
         },
       });
       if (args.roleIds) {
+        // Read the branch BEFORE the purge: the roles are deleted and rebuilt, so whatever
+        // branch the old assignments carried is about to be lost unless it is carried over.
+        const previous = await tx.userRole.findFirst({
+          where: { userId: args.userId, branchId: { not: null } },
+          select: { branchId: true },
+        });
+        const existingBranchId = previous?.branchId ?? null;
         // eslint-disable-next-line no-restricted-syntax -- sanctioned join-table purge; see doc comment above
         await tx.$executeRaw`DELETE FROM user_roles WHERE user_id = ${args.userId}::uuid`;
-        await tx.userRole.createMany({ data: args.roleIds.map((roleId) => ({ userId: args.userId, roleId })) });
+        // The branch is re-applied to every new assignment. Because the roles are purged
+        // and rebuilt, omitting it here would silently CLEAR a branch that was already set
+        // — an edit to somebody's name would quietly empty a branch manager's territory.
+        const branchId = args.branchId !== undefined ? args.branchId : existingBranchId;
+        await tx.userRole.createMany({
+          data: args.roleIds.map((roleId) => ({ userId: args.userId, roleId, branchId })),
+        });
       }
     });
   }

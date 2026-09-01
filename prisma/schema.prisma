@@ -626,6 +626,7 @@ model Tenant {
   leaveSettings    LeaveSetting[]
   leaveRequests    LeaveRequest[]
   marketingTargets MarketingTarget[]
+  teams            Team[]
 
   @@map("tenants")
 }
@@ -646,6 +647,8 @@ model Branch {
   facultyProfiles FacultyProfile[]
   batches         Batch[]
   leads           Lead[]
+  // Informational only — a team may note which office it sits in. Nothing scopes on it.
+  teams           Team[]
 
   @@index([tenantId])
   @@index([tenantId, deletedAt])
@@ -669,6 +672,14 @@ model User {
   // is accessible; the change-password flow clears it. Default false so every
   // existing/staff account is unaffected.
   mustChangePassword Boolean    @default(false) @map("must_change_password")
+  // Org hierarchy (docs/specs/org-teams.md). A plain nullable FK rather than a TeamMember
+  // join table BECAUSE membership is exactly one team per person: one column makes the
+  // wrong state unrepresentable, where a join needs a partial-unique index to say the same
+  // thing and can drift. NULL is the normal state for anyone not yet placed on the org
+  // chart, and shortens their leave-approval chain to the HR/super-admin fallback rather
+  // than blocking them. `User` is already in AUDITED_MODELS, so every move between teams
+  // is audit-logged with no extra code.
+  teamId             String?    @map("team_id") @db.Uuid
   createdAt          DateTime   @default(now()) @map("created_at")
   updatedAt          DateTime   @updatedAt @map("updated_at")
   deletedAt          DateTime?  @map("deleted_at")
@@ -738,6 +749,8 @@ model User {
   // so the two sides need distinct relation names.
   leaveRequests         LeaveRequest[] @relation("LeaveRequester")
   reviewedLeaveRequests LeaveRequest[] @relation("LeaveReviewer")
+  // Step one of the two-step chain — the lead who approved before the manager confirmed.
+  leadApprovedLeaveRequests LeaveRequest[] @relation("LeaveLeadApprover")
 
   // Hiring — the staff member who last decided a career application (hold / next round /
   // offer / reject). Nullable on the application side: rows that predate the review surface,
@@ -749,9 +762,17 @@ model User {
   marketingTargets    MarketingTarget[] @relation("MarketingTargetUser")
   setMarketingTargets MarketingTarget[] @relation("MarketingTargetSetBy")
 
+  // Org hierarchy — the same user is a member of one team and may lead or manage others,
+  // so the three sides need distinct relation names.
+  team         Team?  @relation("TeamMember", fields: [teamId], references: [id])
+  ledTeams     Team[] @relation("TeamLead")
+  managedTeams Team[] @relation("TeamManager")
+
   @@unique([tenantId, email])
   @@index([phone])
   @@index([tenantId, deletedAt])
+  // Team roster reads ("everyone on this team") and the team-scoped report filters.
+  @@index([tenantId, teamId])
   @@map("users")
 }
 
@@ -4097,6 +4118,11 @@ enum LeaveDayPart {
 // There is no path back to `pending`: re-opening a decided request would erase who decided.
 enum LeaveRequestStatus {
   pending
+  /// The applicant's team LEAD has approved; awaiting the manager's confirmation.
+  /// NOT a committed absence — no allowance is deducted until `approved` — but it still
+  /// blocks an overlapping request and still counts against the balance as pending. See
+  /// LEAVE_UNCOMMITTED_STATUSES in @repo/types, the single definition of that set.
+  lead_approved
   approved
   rejected
   cancelled
@@ -4217,6 +4243,15 @@ model LeaveRequest {
   halfDays     Int                @map("half_days")
   reason       String
   status       LeaveRequestStatus @default(pending)
+  /// Step one of a two-step chain: the team lead who approved, and when. Null on a
+  /// single-step chain (the applicant is a lead, a manager, HR, or on no team yet) —
+  /// which is honest: there was no first step, rather than one nobody performed.
+  leadApprovedById String?          @map("lead_approved_by_id") @db.Uuid
+  leadApprovedAt   DateTime?        @map("lead_approved_at")
+  leadApprovalNote String?          @map("lead_approval_note")
+  /// The FINAL decision — or, on a step-one rejection, the lead who turned it down.
+  /// Deliberately NOT renamed when the two-step chain landed: every existing row already
+  /// carries a meaning under this name, and a rename would be a lie about history.
   reviewedById String?            @map("reviewed_by_id") @db.Uuid
   reviewedAt   DateTime?          @map("reviewed_at")
   // The approver's note, or — on a rejection — the mandatory reason shown to the applicant.
@@ -4228,7 +4263,8 @@ model LeaveRequest {
 
   tenant     Tenant    @relation(fields: [tenantId], references: [id])
   user       User      @relation("LeaveRequester", fields: [userId], references: [id])
-  reviewedBy User?     @relation("LeaveReviewer", fields: [reviewedById], references: [id])
+  reviewedBy     User?  @relation("LeaveReviewer", fields: [reviewedById], references: [id])
+  leadApprovedBy User?  @relation("LeaveLeadApprover", fields: [leadApprovedById], references: [id])
   leaveType  LeaveType @relation(fields: [leaveTypeId], references: [id])
 
   // (tenantId, status, startDate) drives the approval queue; (tenantId, userId, startDate)
@@ -4299,4 +4335,54 @@ model MarketingTarget {
   @@index([tenantId, userId, periodMonth])
   @@index([tenantId, deletedAt])
   @@map("marketing_targets")
+}
+
+// ── Org hierarchy: teams, managers, team leads (docs/specs/org-teams.md, ADR-0069) ──────
+//
+// Until this model landed the product had NO employee hierarchy of any kind. The only
+// org-partitioning column in the schema was `user_roles.branch_id` — a flat per-assignment
+// tag, not a tree — and `branch_manager` was a role key with no FK to the branch it managed
+// and no subordinates. The visible cost was leave: `LeaveRepository.listApprovers` hardcoded
+// "every active super_admin", so one person signed off every absence in the company.
+//
+// SHAPE: Manager → Team Lead → Members, held as TWO POINTERS ON THE TEAM rather than a
+// recursive `users.reports_to_id`. A recursive parent pointer needs cycle detection on every
+// write and an unbounded walk on every approval; two pointers give a FIXED-DEPTH chain
+// (member → lead → manager → super_admin, at most three hops) that resolves in one query and
+// cannot form a cycle by construction. A manager owning several teams is several rows
+// pointing at the same user.
+//
+// BRANCHES ARE UNTOUCHED. A branch is a PLACE (which centre a batch or a student belongs to);
+// a team is PEOPLE (who reports to whom). They answer different questions, so `Team.branchId`
+// is informational only and nothing scopes on it.
+model Team {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  name     String
+  // Both nullable, and deliberately so: a team is routinely created before its lead is
+  // hired or named. An unresolved pointer shortens the approval chain (see
+  // resolveLeaveApprovalChain in @repo/types) rather than stranding the request.
+  managerUserId String?   @map("manager_user_id") @db.Uuid
+  leadUserId    String?   @map("lead_user_id") @db.Uuid
+  // Informational only — which office this team mostly sits in. NOTHING scopes on it; the
+  // branch axis stays exactly where it was, on user_roles.branch_id.
+  branchId      String?   @map("branch_id") @db.Uuid
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  manager User?   @relation("TeamManager", fields: [managerUserId], references: [id])
+  lead    User?   @relation("TeamLead", fields: [leadUserId], references: [id])
+  branch  Branch? @relation(fields: [branchId], references: [id])
+  members User[]  @relation("TeamMember")
+
+  // Partial-unique `(tenant_id, name) WHERE deleted_at IS NULL` lives in raw migration SQL
+  // (Prisma cannot express partial uniques) — same pattern as CourseType.key.
+  @@index([tenantId, active])
+  @@index([tenantId, deletedAt])
+  @@index([managerUserId])
+  @@index([leadUserId])
+  @@map("teams")
 }

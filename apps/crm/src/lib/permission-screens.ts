@@ -192,6 +192,10 @@ const SCREEN_ACTIONS: Record<string, string[]> = {
   "reports.export": ["reports.schedule"],
   "careers.view": ["careers.review", "careers.openings.manage"],
   "leave.view": ["leave.request"],
+  // Editing the org chart is filed under the Teams screen it belongs to. It is far more
+  // powerful than it reads: because the approval rule is uniform and the hierarchy is data,
+  // whoever holds this can make themselves somebody's leave approver.
+  "org.teams.view": ["org.teams.manage"],
   "users.view": [
     "users.create",
     "users.edit",

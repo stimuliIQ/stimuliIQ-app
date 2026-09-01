@@ -49,6 +49,10 @@ import { OnboardingApi } from "./onboarding.api.js";
 import { LeaveApi } from "./leave.api.js";
 // CRM-managed course types (ADR-0068) — the list that replaced the StudentCourseType enum.
 import { CourseTypesApi } from "./course-types.api.js";
+// Org hierarchy (ADR-0069) — teams, managers, team leads. Its own key set (org.teams.*)
+// rather than admin.*: reading the chart is information every staff role may need, while
+// EDITING it decides who signs off whose leave.
+import { OrgApi } from "./org.api.js";
 
 /** Admin sub-namespace → `client.crm.admin.roles` / `.branches` / `.users`. */
 export class AdminApi {
@@ -133,6 +137,8 @@ export class CrmApi {
   // Course types — read by every course-type picker (students.view), written only under
   // `course_types.manage`.
   readonly courseTypes: CourseTypesApi;
+  // Teams + reporting lines, and `org.myPosition()` — where the signed-in person sits.
+  readonly org: OrgApi;
 
   constructor(client: ApiClient) {
     this.students = new StudentsApi(client);
@@ -171,6 +177,7 @@ export class CrmApi {
     this.onboarding = new OnboardingApi(client);
     this.leave = new LeaveApi(client);
     this.courseTypes = new CourseTypesApi(client);
+    this.org = new OrgApi(client);
   }
 }
 

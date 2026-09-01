@@ -500,9 +500,16 @@ const PERMISSION_HELP: Record<string, string> = {
   "leave.request": "Applies for your own leave and cancels a request you made.",
   "leave.calendar.view":
     "Opens the shared team calendar, which shows WHEN someone is away but never WHY. Reasons are deliberately left out.",
-  "leave.approve": "Approves or rejects staff leave. Held by the super admin only.",
+  "leave.approve":
+    "Approves or rejects staff leave. Held by the super admin and HR. Which requests somebody actually sees is decided by the org chart, not by this key — a team lead sees their own team.",
   "leave.manage":
-    "Sets up leave types, yearly allowances, the holiday list and the working week. Held by the super admin only.",
+    "Sets up leave types, yearly allowances, the holiday list and the working week. Held by the super admin and HR.",
+
+  // ── Organisation ──────────────────────────────────────────────────────────
+  "org.teams.view":
+    "Sees the teams, who manages them and who leads them. Reading the org chart only.",
+  "org.teams.manage":
+    "Creates and edits teams, and names their managers and team leads. More powerful than it sounds: because a team decides who approves its members' leave, whoever holds this can change who signs somebody's absence off — including their own. Held by the super admin and HR.",
 };
 
 /**

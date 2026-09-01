@@ -8,6 +8,7 @@
 
 import type { NotificationsService } from "../notifications/notifications.service";
 import { LeaveNotificationService } from "./leave-notification.service";
+import type { OrgService } from "../org/org.service";
 import type { LeaveRepository, LeaveRequestRow } from "./leave.repository";
 
 type Mocked<T> = { [K in keyof T]: T[K] extends (...args: never[]) => unknown ? jest.Mock : T[K] };
@@ -28,6 +29,12 @@ function makeRequestRow(overrides: Partial<LeaveRequestRow> = {}): LeaveRequestR
     status: "pending",
     reviewedById: null,
     reviewedAt: null,
+    // Two-step chain (ADR-0070). Null on a single-step one, which is what these fixtures
+    // model unless a test says otherwise.
+    leadApprovedById: null,
+    leadApprovedAt: null,
+    leadApprovalNote: null,
+    leadApprovedBy: null,
     reviewNote: null,
     cancelledAt: null,
     createdAt: new Date("2026-08-01T00:00:00.000Z"),
@@ -42,24 +49,40 @@ function makeRequestRow(overrides: Partial<LeaveRequestRow> = {}): LeaveRequestR
 describe("LeaveNotificationService", () => {
   let repo: Mocked<LeaveRepository>;
   let notifications: Mocked<NotificationsService>;
+  let org: Mocked<OrgService>;
   let service: LeaveNotificationService;
   let warn: jest.SpyInstance;
 
   beforeEach(() => {
     repo = {
-      listApprovers: jest.fn().mockResolvedValue([
-        { id: "admin-1", name: "Owner", email: "owner@example.com" },
-        { id: "admin-2", name: "Second Owner", email: "second@example.com" },
-      ]),
+      // Used when a chain names a specific approver; these tests exercise the FALLBACK,
+      // so it returns nothing and `org.listFallbackApprovers` below is what answers.
+      findUserName: jest.fn().mockResolvedValue(null),
     } as unknown as Mocked<LeaveRepository>;
 
     notifications = {
       notify: jest.fn().mockResolvedValue(undefined),
     } as unknown as Mocked<NotificationsService>;
 
+    // No org chart — every chain falls back to whoever holds company-wide leave authority.
+    // That is the state every tenant is in before anyone builds one, and it is exactly the
+    // behaviour that shipped before the hierarchy existed, which is why these tests still
+    // describe the same thing they always did.
+    org = {
+      resolveApprovalChain: jest.fn().mockResolvedValue({
+        steps: ["owner"], firstApproverId: null, finalApproverId: null, fallbackToOwner: true,
+      }),
+      listFallbackApprovers: jest.fn().mockResolvedValue([
+        { id: "admin-1", name: "Owner", email: "owner@example.com" },
+        { id: "admin-2", name: "Second Owner", email: "second@example.com" },
+      ]),
+      getPosition: jest.fn(),
+    } as unknown as Mocked<OrgService>;
+
     service = new LeaveNotificationService(
       repo as unknown as LeaveRepository,
       notifications as unknown as NotificationsService,
+      org as unknown as OrgService,
     );
     warn = jest.spyOn(service["logger"], "warn").mockImplementation(() => undefined);
   });
@@ -67,7 +90,7 @@ describe("LeaveNotificationService", () => {
   afterEach(() => warn.mockRestore());
 
   describe("notifyRequested", () => {
-    it("tells every active super admin", async () => {
+    it("tells everyone who can decide — the fallback, when no chain resolves", async () => {
       await service.notifyRequested(TENANT, makeRequestRow());
       expect(notifications.notify).toHaveBeenCalledTimes(2);
       expect(notifications.notify).toHaveBeenCalledWith(
@@ -114,15 +137,15 @@ describe("LeaveNotificationService", () => {
 
     // An unwatched approval queue is a problem to fix, not a reason to refuse somebody's
     // application, so this logs loudly and returns.
-    it("warns but does not throw when the tenant has no active super admin", async () => {
-      repo.listApprovers.mockResolvedValue([]);
+    it("warns but does not throw when nobody at all can decide", async () => {
+      org.listFallbackApprovers.mockResolvedValue([]);
       await expect(service.notifyRequested(TENANT, makeRequestRow())).resolves.toBeUndefined();
       expect(notifications.notify).not.toHaveBeenCalled();
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining("no active super_admin"));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("no resolvable approver"));
     });
 
     it("swallows a failure to even look up the approvers", async () => {
-      repo.listApprovers.mockRejectedValue(new Error("db down"));
+      org.listFallbackApprovers.mockRejectedValue(new Error("db down"));
       await expect(service.notifyRequested(TENANT, makeRequestRow())).resolves.toBeUndefined();
       expect(warn).toHaveBeenCalled();
     });

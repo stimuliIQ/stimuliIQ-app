@@ -10,6 +10,7 @@
 
 import { Module } from "@nestjs/common";
 
+import { OrgModule } from "../org/org.module";
 import { AuthModule } from "../auth/auth.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 
@@ -24,7 +25,7 @@ import { LeaveRepository } from "./leave.repository";
 import { LeaveService } from "./leave.service";
 
 @Module({
-  imports: [AuthModule, NotificationsModule],
+  imports: [AuthModule, NotificationsModule, OrgModule],
   controllers: [LeaveController, LeaveApprovalsController, LeaveSetupController],
   providers: [LeaveService, LeaveSetupService, LeaveNotificationService, LeaveRepository],
 })

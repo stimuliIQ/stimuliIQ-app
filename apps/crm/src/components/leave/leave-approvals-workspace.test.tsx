@@ -70,6 +70,12 @@ const DETAIL: LeaveRequestDetail = {
   reviewedById: null,
   reviewedByName: null,
   reviewedAt: null,
+  // Two-step chain (ADR-0070). Null here: these fixtures model a request nobody has looked
+  // at yet, which is what an approvals queue is mostly full of.
+  leadApprovedById: null,
+  leadApprovedByName: null,
+  leadApprovedAt: null,
+  leadApprovalNote: null,
   reviewNote: null,
   cancelledAt: null,
   updatedAt: "2026-08-01T00:00:00.000Z",

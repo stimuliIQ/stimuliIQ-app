@@ -113,6 +113,10 @@ export function toLeaveRequestDetailDto(row: LeaveRequestRow): LeaveRequestDetai
     reviewedByName: row.reviewedBy?.name ?? null,
     reviewedAt: row.reviewedAt?.toISOString() ?? null,
     reviewNote: row.reviewNote,
+    leadApprovedById: row.leadApprovedById,
+    leadApprovedByName: row.leadApprovedBy?.name ?? null,
+    leadApprovedAt: row.leadApprovedAt?.toISOString() ?? null,
+    leadApprovalNote: row.leadApprovalNote,
     cancelledAt: row.cancelledAt?.toISOString() ?? null,
     updatedAt: row.updatedAt.toISOString(),
   };
