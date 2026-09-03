@@ -327,9 +327,23 @@ decision or a build, not a patch.
 
   | Suite | Result |
   |-------|--------|
-  | `apps/crm` | **36 passed**, 0 failed, 8 skipped |
+  | `apps/crm` | **42 passed**, 0 failed, 2 skipped |
   | `apps/web` | **12 passed**, 0 failed, 1 skipped |
   | `apps/lms` | **2 passed**, 0 failed |
+
+  Run them with the fixtures the specs document, or a third of the CRM suite skips itself:
+
+  ```
+  pnpm dev:provision:e2e-org
+  QA_ADMIN_PASSWORD=Admin@12345 QA_LEAVE_PASSWORD=LeaveQa@12345 QA_ALLOW_DESTRUCTIVE=1 \
+    QA_OWNER_EMAIL=admin@stimuliiq.test QA_OWNER_PASSWORD=Admin@12345 \
+    DATABASE_URL=postgresql://postgres:postgres@localhost:55433/stimuliiq \
+    npx playwright test
+  ```
+
+  `DATABASE_URL` must be set explicitly: two specs write directly to the database to
+  provision a login, and their own guards correctly refuse when the ambient value is the
+  production Supabase URL from the repo-root `.env`.
 
   Getting there fixed three product defects (the batch picker, the popup over `/verify`,
   and the missing Attendance tab) and several stale or racy specs:
@@ -349,8 +363,18 @@ decision or a build, not a patch.
     (`permission-screens.ts` lists the module as removed, the LMS route no longer exists),
     so the spec was testing a 404. The backend leftovers are O9 above.
 
-  The 8 CRM skips are honest: four need org-chart fixture staff (a member, a lead and a
-  manager) that the seed does not create, one needs a headed browser (headless Chromium
-  has zero-width overlay scrollbars, so there is nothing to measure), and the rest
-  self-skip on absent optional state. The web skip needs an eligible, not-yet-issued
+  Six of the original eight CRM skips were not honest at all. `leave-two-step` and
+  `team-scoped-reports` both name the same three `matrix.*@probe.test` accounts as their
+  fixtures, and the seed creates those accounts `invited` with placeholder hashes and puts
+  nobody on a team — so the whole two-step approval chain and the three team narrowings
+  the P17 permission model rests on had never run on any machine. `pnpm
+  dev:provision:e2e-org` builds that chain (manager, lead, member; the manager is a
+  counsellor on purpose, because the lead-performance pool is counsellor+marketing and the
+  spec asserts the actor appears among their own team's rows). All six now pass.
+
+  The 2 that remain are genuine: one needs a headed browser (headless Chromium has
+  zero-width overlay scrollbars, so there is nothing to measure), and the leave calendar's
+  team filter needs approved leave that outlives the run — the same narrowing and the
+  never-fetch-`reason` projection are already covered against a real database in
+  `leave-management.integration-spec.ts`. The web skip needs an eligible, not-yet-issued
   enrollment to self-provision a certificate from.
