@@ -142,6 +142,15 @@ export function SiteShell({
   // newsletter band, a timed "book a slot" popup and a WhatsApp FAB are all invitations to
   // abandon a form they were asked to complete. Logo for trust, the form, nothing else.
   const isStandaloneForm = pathname?.startsWith("/onboarding") ?? false;
+  // CERTIFICATE VERIFICATION (/verify, /verify/:id): keep the nav and footer — the footer
+  // is where most people find this page — but NOT the timed lead popup. Whoever is here
+  // is usually an employer checking a credential, and a modal asking for their phone
+  // number interrupts a task that has nothing to do with buying a course. It also
+  // physically covers the ID-entry form: the popup opens ~4s after load, so a visitor who
+  // reads the page before typing finds their click on "Verify certificate" swallowed by
+  // the overlay. (Found by the e2e suite doing exactly that.) Same reasoning as the two
+  // exclusions above, applied to a page that is a utility rather than a funnel step.
+  const isCertificateVerification = pathname?.startsWith("/verify") ?? false;
   // Consent state — initialised from localStorage (SSR-safe: readStoredConsent returns null on server)
   const [analyticsConsent, setAnalyticsConsent] = React.useState<boolean>(false);
 
@@ -261,8 +270,9 @@ export function SiteShell({
 
       {/* Timed "book a slot" lead popup: a site-wide modal that opens once per
           session ~4s after the first page load and creates a CRM lead on submit.
-          Replaces the old exit-intent modal so only one lead popup is in play. */}
-      <TimedLeadPopupConnected />
+          Replaces the old exit-intent modal so only one lead popup is in play.
+          Suppressed on /verify — see isCertificateVerification above. */}
+      {isCertificateVerification ? null : <TimedLeadPopupConnected />}
     </>
   );
 }

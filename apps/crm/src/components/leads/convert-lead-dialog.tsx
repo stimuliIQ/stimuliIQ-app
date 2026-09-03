@@ -66,11 +66,24 @@ export function ConvertLeadDialog({ lead, open, onOpenChange, onConverted }: Con
 
   // Batches are scoped to the selected program — the order/enrollment the
   // backend creates on conversion requires a batch belonging to that program.
+  //
+  // `enrollable: true` because converting a lead PUTS SOMEBODY INTO the batch, and the
+  // server accepts only `planned` or `active` (commerce.service.ts: any other status is a
+  // 400 `commerce.batch_not_accepting`). Without it this dropdown offered every batch for
+  // the programme, finished ones included — a counsellor picked the only batch on the
+  // list, pressed Convert, and got "Batch is not accepting enrollments" with no way to
+  // tell which of the options would have worked.
+  //
+  // The flag exists precisely for this and says so in its own doc comment ("don't offer a
+  // finished batch is a correctness rule, not a display preference"). The two sibling
+  // pickers that also move a student into a batch — move-enrollment-dialog and
+  // add-program-dialog — already pass it; this one was missed.
   const { data: batchesData } = useBatchesList({
     page: 1,
     pageSize: 200,
     programId: programId || undefined,
     includeDeleted: false,
+    enrollable: true,
   });
 
   React.useEffect(() => {

@@ -126,10 +126,29 @@ test.describe("Certificate verify — public /verify page (B10)", () => {
   });
 
   test("the /verify landing page has a working certificate-ID entry form", async ({ page }) => {
+    // `networkidle`, then real keystrokes rather than `fill()`.
+    //
+    // The submit button is disabled off React state (`value.trim().length === 0`), and the
+    // server-rendered HTML ships it disabled too — so there is no DOM signal that says
+    // hydration has finished. Filling before it does sets the DOM value while React's
+    // state stays empty: the field LOOKS typed, the button stays disabled, and the click
+    // never lands. That passes against a warm dev server and fails against a cold first
+    // compile, which is the worst kind of flake. Keystrokes after networkidle are handled
+    // by React itself, so state and DOM cannot disagree.
     await page.goto("/verify");
-    await page.getByLabel("Certificate ID").fill("some-cert-id");
-    await page.getByRole("button", { name: /verify certificate/i }).click();
-    await expect(page).toHaveURL(/\/verify\/some-cert-id/);
+    await page.waitForLoadState("networkidle");
+    const field = page.getByLabel("Certificate ID");
+    await field.click();
+    await field.pressSequentially("some-cert-id");
+    const submit = page.getByRole("button", { name: /verify certificate/i });
+    await expect(submit).toBeEnabled();
+    await submit.click();
+    // 20s, not the 5s default. This is the first request for `/verify/[certId]` in the
+    // run, so the dev server compiles the route before it can answer — the RSC prefetch
+    // aborts and the client falls back to a full navigation. Measured at well over 5s
+    // cold and under a second warm; the assertion is "it navigates", and a compile budget
+    // is not what that assertion is about.
+    await expect(page).toHaveURL(/\/verify\/some-cert-id/, { timeout: 20_000 });
   });
 
   test("a freshly self-provisioned certificate renders the 'Valid' state with holder name + program (full mint -> verify round trip)", async ({ page, request }) => {

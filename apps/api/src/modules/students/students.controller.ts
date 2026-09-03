@@ -21,7 +21,7 @@ import {
   UseInterceptors,
   UsePipes,
 } from "@nestjs/common";
-import type { StudentDetail } from "@repo/types";
+import type { StudentAttendanceItem, StudentDetail } from "@repo/types";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
 import { AuthIpRateLimitGuard } from "../auth/guards/auth-ip-rate-limit.guard";
@@ -41,6 +41,8 @@ import {
   type ListStudentsQuery,
   type StudentSummary,
   type ResendCredentialsResponse,
+  ListStudentAttendanceQuerySchema,
+  type ListStudentAttendanceQuery,
 } from "./dto";
 
 @Controller("crm/students")
@@ -56,6 +58,27 @@ export class StudentsController {
     @Query(new ZodValidationPipe(ListStudentsQuerySchema)) query: ListStudentsQuery,
   ): Promise<PaginatedResult<StudentSummary>> {
     return this.studentsService.list(user.tenantId, query);
+  }
+
+  /**
+   * GET /api/v1/crm/students/:id/attendance — the Student 360 drawer's Attendance tab.
+   *
+   * Declared BEFORE `@Get(":id")` because Nest matches in declaration order and
+   * ":id" would otherwise swallow "/:id/attendance".
+   *
+   * Gated on `students.view` rather than a new key: it is the same record, on the same
+   * drawer, and a role that may open a student's file may see whether they turned up. A
+   * dedicated key would have to be granted to every counsellor role and would be
+   * forgotten (the P16 `course_types.view` argument).
+   */
+  @Get(":id/attendance")
+  @RequirePermission("students.view")
+  async listAttendance(
+    @CurrentUser() user: RequestUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Query(new ZodValidationPipe(ListStudentAttendanceQuerySchema)) query: ListStudentAttendanceQuery,
+  ): Promise<PaginatedResult<StudentAttendanceItem>> {
+    return this.studentsService.listAttendance(user.tenantId, id, query);
   }
 
   @Get(":id")

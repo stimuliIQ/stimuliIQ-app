@@ -92,6 +92,19 @@ export interface StudentRow {
   deletedAt: Date | null;
 }
 
+/** One attendance row, already resolved to display names. */
+export interface StudentAttendanceRow {
+  id: string;
+  enrollmentId: string;
+  programTitle: string;
+  batchName: string | null;
+  lessonTitle: string | null;
+  liveClassTitle: string | null;
+  status: "present" | "absent";
+  source: "live" | "recorded";
+  markedAt: Date;
+}
+
 @Injectable()
 export class StudentsRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -131,6 +144,62 @@ export class StudentsRepository {
     ]);
 
     return { rows: rows.map(toStudentRow), total };
+  }
+
+  /**
+   * Attendance for one student, newest first, across every one of their enrollments.
+   *
+   * The rows have been written since P3 (lesson completion, deduped per
+   * enrollment+lesson) and by the live-class sync, and nothing on the staff side could
+   * read them — there was no CRM endpoint at all. Joins out to programme/batch/lesson/
+   * live-class so the caller gets names rather than ids; a staff member reading a
+   * register does not want uuids.
+   */
+  async listAttendanceForStudent(
+    tenantId: string,
+    studentProfileId: string,
+    opts: { page: number; pageSize: number },
+  ): Promise<{ rows: StudentAttendanceRow[]; total: number }> {
+    const where = {
+      tenantId,
+      enrollment: { studentId: studentProfileId },
+    } satisfies Prisma.AttendanceWhereInput;
+
+    const [rows, total] = await Promise.all([
+      this.prisma.client.attendance.findMany({
+        where,
+        orderBy: { markedAt: "desc" },
+        skip: (opts.page - 1) * opts.pageSize,
+        take: opts.pageSize,
+        include: {
+          enrollment: {
+            select: {
+              id: true,
+              program: { select: { title: true } },
+              batch: { select: { name: true } },
+            },
+          },
+          lesson: { select: { title: true } },
+          liveClass: { select: { title: true } },
+        },
+      }),
+      this.prisma.client.attendance.count({ where }),
+    ]);
+
+    return {
+      rows: rows.map((row) => ({
+        id: row.id,
+        enrollmentId: row.enrollmentId,
+        programTitle: row.enrollment.program.title,
+        batchName: row.enrollment.batch?.name ?? null,
+        lessonTitle: row.lesson?.title ?? null,
+        liveClassTitle: row.liveClass?.title ?? null,
+        status: row.status,
+        source: row.source,
+        markedAt: row.markedAt,
+      })),
+      total,
+    };
   }
 
   async findById(tenantId: string, id: string, includeDeleted = false): Promise<StudentRow | null> {

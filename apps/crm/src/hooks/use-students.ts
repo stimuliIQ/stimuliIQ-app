@@ -46,6 +46,26 @@ export function useStudent(id: string | undefined) {
   });
 }
 
+export function studentAttendanceKey(id: string, page: number) {
+  return [...STUDENTS_QUERY_KEY, "attendance", id, page] as const;
+}
+
+/**
+ * The Student 360 drawer's Attendance tab.
+ *
+ * Same 4xx retry policy as `useStudent`: a 404 here means the student is outside the
+ * caller's scope, and no amount of retrying changes that.
+ */
+export function useStudentAttendance(id: string | undefined, page = 1) {
+  return useQuery({
+    queryKey: studentAttendanceKey(id ?? "", page),
+    queryFn: () => apiClient.crm.students.listAttendance(id as string, { page, pageSize: 20 }),
+    enabled: Boolean(id),
+    retry: (failureCount, error) =>
+      error instanceof ApiError && error.status >= 400 && error.status < 500 ? false : failureCount < 2,
+  });
+}
+
 function useInvalidateStudents() {
   const queryClient = useQueryClient();
   return () => {

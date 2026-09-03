@@ -26,6 +26,7 @@ function mockRepository(): Mocked<StudentsRepository> {
   return {
     list: jest.fn(),
     findById: jest.fn(),
+    listAttendanceForStudent: jest.fn().mockResolvedValue({ rows: [], total: 0 }),
     // Lifecycle-signals lookup (lifecycle-redesign P1): default to an empty Map so the
     // service's stage derivation falls back to the coarse `status`. Tests that assert on
     // a specific derived stage override this per-case.
@@ -262,6 +263,73 @@ describe("StudentsService", () => {
         runWithScope("branch", () => service.getById("tenant-1", ROW.id)),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(repo.findById).not.toHaveBeenCalled();
+    });
+  });
+
+  // The Student 360 drawer's Attendance tab. `attendance` rows have been written since
+  // P3 and had no staff-facing read surface at all — no endpoint, no SDK method, no
+  // screen — so the tab the PRD and the go-live checklist both describe was simply
+  // absent. What matters here is that the read is scoped like every other student read.
+  describe("listAttendance", () => {
+    const QUERY = { page: 1, pageSize: 20 };
+
+    it("maps rows to the DTO, ISO-formatting the timestamp", async () => {
+      repo.listAttendanceForStudent.mockResolvedValue({
+        rows: [
+          {
+            id: "att-1",
+            enrollmentId: "enrol-1",
+            programTitle: "Clinical Research",
+            batchName: "HYD-01",
+            lessonTitle: "Trial design",
+            liveClassTitle: null,
+            status: "present" as const,
+            source: "recorded" as const,
+            markedAt: new Date("2026-03-04T09:30:00.000Z"),
+          },
+        ],
+        total: 1,
+      });
+
+      const result = await runWithScope("all", () => service.listAttendance("tenant-1", ROW.id, QUERY));
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({
+        id: "att-1",
+        programTitle: "Clinical Research",
+        batchName: "HYD-01",
+        lessonTitle: "Trial design",
+        liveClassTitle: null,
+        status: "present",
+        source: "recorded",
+        markedAt: "2026-03-04T09:30:00.000Z",
+      });
+      expect(result.meta).toMatchObject({ page: 1, pageSize: 20, total: 1, hasMore: false });
+    });
+
+    // 404, not an empty list: an empty list would tell a branch manager that a student in
+    // another branch has no attendance, which is a different and false statement from
+    // "no such student here".
+    it("404s when the caller's scope excludes the student, without touching the table", async () => {
+      facultyRepository.listCallerBranchIds.mockResolvedValue(["branch-a"]);
+      enrollmentScope.resolveStudentIdsForBranches.mockResolvedValue(["some-other-student"]);
+
+      await expect(
+        runWithScope("branch", () => service.listAttendance("tenant-1", ROW.id, QUERY)),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(repo.listAttendanceForStudent).not.toHaveBeenCalled();
+    });
+
+    it("reads the table when the scope resolves to a set containing the student", async () => {
+      facultyRepository.listCallerBranchIds.mockResolvedValue(["branch-a"]);
+      enrollmentScope.resolveStudentIdsForBranches.mockResolvedValue([ROW.id]);
+
+      await runWithScope("branch", () => service.listAttendance("tenant-1", ROW.id, QUERY));
+
+      expect(repo.listAttendanceForStudent).toHaveBeenCalledWith("tenant-1", ROW.id, {
+        page: 1,
+        pageSize: 20,
+      });
     });
   });
 

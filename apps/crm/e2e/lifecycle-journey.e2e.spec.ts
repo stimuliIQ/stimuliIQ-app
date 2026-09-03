@@ -35,6 +35,42 @@ async function pickOption(page: Page, triggerTestId: string, option: RegExp | st
   await page.getByRole("option", { name: option }).click();
 }
 
+/**
+ * Chooses a programme in the convert drawer that has at least one enrollable batch, and
+ * selects the first such batch. Throws with a useful message when no programme in the
+ * tenant has one — that is a seed-data problem, and saying so beats a 90-second timeout
+ * on an empty dropdown.
+ */
+async function selectProgramWithAnOpenBatch(page: Page): Promise<void> {
+  await page.getByTestId("convert-lead-program").click();
+  // Skip the "No order" sentinel — it deliberately creates the student without an order.
+  const programOptions = page.getByRole("option").filter({ hasNotText: /no order/i });
+  const names: string[] = [];
+  for (let i = 0; i < (await programOptions.count()); i++) {
+    names.push((await programOptions.nth(i).innerText()).trim());
+  }
+  await page.keyboard.press("Escape");
+
+  for (const name of names) {
+    await pickOption(page, "convert-lead-program", name);
+    await page.getByTestId("convert-lead-batch").click();
+    const batchOptions = page.getByRole("option");
+    // A short wait: the batch list refetches when the programme changes, so "zero
+    // options" has to mean "settled with none", not "not back yet".
+    await page.waitForTimeout(500);
+    if ((await batchOptions.count()) > 0) {
+      await batchOptions.first().click();
+      return;
+    }
+    await page.keyboard.press("Escape");
+  }
+
+  throw new Error(
+    `No programme has an enrollable (planned/active) batch — tried: ${names.join(", ")}. ` +
+      "Seed one before running this journey; the conversion step cannot open an order without it.",
+  );
+}
+
 /** The stepper phase currently marked as "you are here". */
 function currentStep(page: Page, phase: string) {
   return page.locator(`[data-testid="lifecycle-step-${phase}"][data-state="current"]`);
@@ -88,11 +124,15 @@ test.describe("Lifecycle journey — one person along the Lead → Certified spi
       await expect(page.getByTestId("convert-lead-drawer")).toBeVisible();
       await expect(page.getByTestId("convert-lead-email")).toHaveValue(email);
       await pickOption(page, "convert-lead-course-type", /b\.?tech/i);
-      await page.getByTestId("convert-lead-program").click();
-      // First real program (skip the "No order" sentinel).
-      await page.getByRole("option").filter({ hasNotText: /no order/i }).first().click();
-      await page.getByTestId("convert-lead-batch").click();
-      await page.getByRole("option").first().click();
+      // Pick a programme that HAS an open batch, rather than assuming the first one does.
+      //
+      // The batch picker only offers batches a student can actually be put into
+      // (`enrollable: true` — the server rejects any other status with 400
+      // `commerce.batch_not_accepting`), so a programme whose batches have all finished
+      // correctly offers nothing. Taking the first programme blindly therefore depended on
+      // seed ordering: it used to "work" only because the picker also listed finished
+      // batches, and the conversion then failed at the API instead.
+      await selectProgramWithAnOpenBatch(page);
       await page.getByTestId("convert-lead-submit").click();
       await expect(page.getByTestId("convert-lead-drawer")).not.toBeVisible({ timeout: 15_000 });
 

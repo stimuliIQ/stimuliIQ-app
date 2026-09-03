@@ -24,6 +24,13 @@ test.describe("Support ticket — student create journey (own-scope)", () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto("/login");
+    // Wait for hydration before typing. Against a COLD dev server the SSR'd markup and
+    // the client render briefly coexist, so `#login-email` momentarily resolves to two
+    // elements and `fill` fails strict mode — and even when it resolves, a value filled
+    // before React takes over is discarded on hydration, leaving the form empty. Neither
+    // is a product defect; both are what interacting with a page that is still booting
+    // looks like.
+    await page.waitForLoadState("networkidle");
     // Target the inputs by id — getByLabel("Password") does a substring match and also
     // resolves the "Show password" toggle button (aria-label), tripping strict mode.
     await page.locator("#login-email").fill(STUDENT_EMAIL!);

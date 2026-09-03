@@ -77,7 +77,7 @@ test.describe("Certificates — public verify link", () => {
     const [publicPage] = await Promise.all([context.waitForEvent("page"), verify.click()]);
     await publicPage.waitForLoadState("domcontentloaded");
 
-    await expect(publicPage.getByText("Certificate Verified")).toBeVisible({ timeout: 20_000 });
+    await expect(publicPage.getByText("Verified Authentic")).toBeVisible({ timeout: 20_000 });
     // .first(): the programme name also appears in the page's JSON-LD SEO block, so a
     // bare getByText would strict-mode-violate on two matches.
     await expect(publicPage.getByText("Data Science & Machine Learning Internship").first()).toBeVisible();

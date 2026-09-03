@@ -231,6 +231,25 @@ claimed "bucketed per ROUTE". Now keyed on `Class.handler`.
   gallery events each rendered as a grey box containing the literal string
   `[Image: …]`. `careers-fallback.tsx` already records the rule they broke: *a fallback may
   degrade; it may not lie.*
+- **The Student 360 drawer had no Attendance tab.** `attendance` rows have been written
+  since P3 (one per completed lesson, deduped per enrollment+lesson) and by the live-class
+  sync, and nothing on the STAFF side could read them: no CRM endpoint, no SDK method, no
+  screen. `docs/03` §7 and the go-live checklist both describe the tab as done. Built as a
+  read-only surface — repository → service (scoped exactly like every other student read,
+  404 rather than an empty list when the student is out of scope) → `GET
+  /crm/students/:id/attendance` gated on `students.view` → SDK → hook → tab.
+- **Converting a lead offered batches the API would refuse.** The batch picker in the
+  convert drawer listed every batch for the programme, finished ones included, while the
+  server accepts only `planned` or `active` (400 `commerce.batch_not_accepting`). A
+  counsellor picked the only batch on the list and got an error naming a rule the dropdown
+  had just contradicted. The `enrollable: true` flag exists precisely for this and says so
+  in its own doc comment; the two sibling pickers that also move a student into a batch
+  already passed it, and this one was missed.
+- **A lead-capture modal covered the certificate-verification form.** The sitewide timed
+  "Have Questions?" popup opens ~4s after load and is suppressed on `/pay/:token` and
+  `/onboarding` for exactly this reason. It was not suppressed on `/verify`, where it
+  physically intercepted the click on "Verify certificate" — and where the visitor is
+  usually an employer checking a credential, not a lead.
 - **The forum's "Report post" button only called `console.info`.** No endpoint exists and
   `ForumPost.status` is only `visible | hidden`, so a student reporting abuse got silence.
   The control is removed rather than left lying — see §5.
@@ -294,5 +313,35 @@ decision or a build, not a patch.
   directly**: the repo-root `.env` points `DATABASE_URL` at production Supabase, and the
   suite creates hundreds of users. The wrapper refuses to run against a non-local database
   or one whose name does not end in `_test`.
-- Playwright end-to-end suites for `web`, `lms` and `crm` against a live API — see the
-  session report for results.
+- Playwright end-to-end suites for all three frontends, against a live API on :4000 and a
+  seeded local database:
+
+  | Suite | Result |
+  |-------|--------|
+  | `apps/crm` | **36 passed**, 0 failed, 8 skipped |
+  | `apps/web` | **12 passed**, 0 failed, 1 skipped |
+  | `apps/lms` | **2 passed**, 0 failed |
+
+  Getting there fixed three product defects (the batch picker, the popup over `/verify`,
+  and the missing Attendance tab) and several stale or racy specs:
+
+  - Both the CRM and LMS suites sign in as ONE shared account, and Playwright runs spec
+    FILES in parallel even with `fullyParallel: false`. In the CRM two specs enable 2FA on
+    that account mid-run, so every other file's login 401'd and six specs failed with the
+    same "login card still visible" symptom. Both configs are `workers: 1` now, with the
+    constraint written down; the real fix is a throwaway staff user per spec.
+  - Three specs asserted copy or structure that had since changed: the verify panel's
+    heading ("Verified Authentic", 9e0f74d), the CSRF cookie name (audience-scoped
+    `crm_csrf_token` since the dual-login fix), and "Students" being a nav GROUP rather
+    than a link.
+  - Two interacted with a page before React had hydrated, which passes against a warm dev
+    server and fails against a cold one — the worst kind of flake.
+  - `live-class-list-join.e2e.spec.ts` was deleted: live classes are a RETIRED feature
+    (`permission-screens.ts` lists the module as removed, the LMS route no longer exists),
+    so the spec was testing a 404. The backend leftovers are O9 above.
+
+  The 8 CRM skips are honest: four need org-chart fixture staff (a member, a lead and a
+  manager) that the seed does not create, one needs a headed browser (headless Chromium
+  has zero-width overlay scrollbars, so there is nothing to measure), and the rest
+  self-skip on absent optional state. The web skip needs an eligible, not-yet-issued
+  enrollment to self-provision a certificate from.

@@ -16,7 +16,12 @@ const BASE_URL = process.env.LMS_BASE_URL ?? `http://localhost:${PORT}`;
 export default defineConfig({
   testDir: "./e2e",
   testMatch: /.*\.e2e\.spec\.ts/,
-  fullyParallel: true,
+  // Serial. Every spec signs in as the SAME student account, and ten workers all
+  // logging in at once both race each other's session and hammer a cold Next dev
+  // server — which is how a login form got caught mid-hydration with the SSR'd and
+  // client-rendered inputs both in the DOM. The suite is small; serial costs seconds.
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: [["list"]],

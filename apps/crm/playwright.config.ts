@@ -16,7 +16,22 @@ const BASE_URL = process.env.CRM_BASE_URL ?? `http://localhost:${PORT}`;
 export default defineConfig({
   testDir: "./e2e",
   testMatch: /.*\.e2e\.spec\.ts/,
-  fullyParallel: false, // 2FA enroll/verify is stateful per-account; keep serial for this small suite.
+  // Serial, and it has to be BOTH of these.
+  //
+  // `fullyParallel: false` only serialises tests WITHIN a file — Playwright still runs
+  // files concurrently, one worker each. That is not survivable here: every spec signs in
+  // as the same `admin@stimuliiq.test`, and `two-factor-enroll` / `two-factor-login-live`
+  // ENABLE 2FA on that account for the length of their run. While either holds it, every
+  // other file's login gets 401 `auth.2fa_required` and sits on the login card until the
+  // test times out — which is exactly how six specs failed, all with the same
+  // "login-card still visible" symptom and nothing wrong with the code they were testing.
+  // Repeated failed logins then burn the per-email rate-limit budget and the tail of the
+  // run 400s instead.
+  //
+  // `workers: 1` is what makes the shared account safe. Fix it properly by giving each
+  // spec its own throwaway staff user; until then this is the honest constraint.
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: [["list"]],

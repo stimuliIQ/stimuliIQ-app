@@ -28,6 +28,7 @@ import { StudentFormDrawer } from "./student-form-drawer";
 import { RegisterStudentDialog } from "./register-student-dialog";
 import { StudentEnrollmentsTab } from "./student-enrollments-tab";
 import { StudentPaymentsTab } from "./student-payments-tab";
+import { StudentAttendanceTab } from "./student-attendance-tab";
 import { StudentCertificatesTab } from "./student-certificates-tab";
 import { StudentTicketsTab } from "./student-tickets-tab";
 import { StudentTimelineTab } from "./student-timeline-tab";
@@ -204,6 +205,13 @@ export function StudentDetailDrawer({ studentId, onOpenChange, me }: StudentDeta
                       value: "payments",
                       label: "Payments",
                       content: <StudentPaymentsTab studentId={student.id} me={me} />,
+                    },
+                    {
+                      // Between Payments and Certificates because that is the order of
+                      // the journey: they paid, they turned up, they were certified.
+                      value: "attendance",
+                      label: "Attendance",
+                      content: <StudentAttendanceTab studentId={student.id} />,
                     },
                     {
                       value: "certificates",

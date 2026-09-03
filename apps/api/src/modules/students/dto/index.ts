@@ -16,4 +16,7 @@ export {
   type StudentSummary,
   type StudentDetail,
   type ResendCredentialsResponse,
+  ListStudentAttendanceQuerySchema,
+  type ListStudentAttendanceQuery,
+  type StudentAttendanceItem,
 } from "@repo/types";

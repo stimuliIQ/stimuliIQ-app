@@ -34,6 +34,18 @@ async function login(page: Page): Promise<void> {
   await expect(page.getByTestId("login-card")).not.toBeVisible({ timeout: 15_000 });
 }
 
+/**
+ * The CRM's CSRF cookie. Audience-scoped (`crm_csrf_token`) since the dual-login fix,
+ * with the legacy unprefixed name accepted as a fallback exactly as the API's own
+ * `csrfCookieCandidates` does.
+ */
+function readCsrfCookie(cookies: Array<{ name: string; value: string }>): string | undefined {
+  return (
+    cookies.find((c) => c.name === "crm_csrf_token")?.value ??
+    cookies.find((c) => c.name === "csrf_token")?.value
+  );
+}
+
 test.describe("CSRF — cookie rotated by another tab", () => {
   test.skip(!ADMIN_PASSWORD, "Requires QA_ADMIN_PASSWORD env var.");
 
@@ -52,10 +64,18 @@ test.describe("CSRF — cookie rotated by another tab", () => {
 
     // Navigate through the SPA — NOT page.goto(). A full reload would construct a fresh
     // ApiClient with no in-memory token, which is precisely the state that hides this bug.
-    await page.getByRole("link", { name: "Students" }).click();
+    // "Students" is a nav GROUP now (Directory / Import), not a link — clicking the
+    // group opens it, and the leaf is what navigates. This spec still looked for a
+    // top-level "Students" link and waited 30s for one that no longer exists.
+    await page.getByRole("button", { name: "Students" }).click();
+    await page.getByRole("link", { name: "Directory" }).click();
     await expect(page.getByTestId("students-directory")).toBeVisible({ timeout: 15_000 });
 
-    const before = (await context.cookies()).find((c) => c.name === "csrf_token")?.value;
+    // `crm_csrf_token`, not `csrf_token`. Cookie slots became audience-scoped when the
+    // dual-login fix landed (auth/lib/cookies.ts: crm_ / lms_ prefixes) so a CRM tab and
+    // an LMS tab can share a browser without overwriting each other's session. This spec
+    // still read the legacy unprefixed name and therefore found nothing at all.
+    const before = readCsrfCookie(await context.cookies());
     expect(before).toBeTruthy();
 
     // Rotate the shared cookie behind this tab's back (what a refresh in any other tab
@@ -64,10 +84,11 @@ test.describe("CSRF — cookie rotated by another tab", () => {
     const other = await context.newPage();
     await other.goto("/");
     const refreshStatus = await other.evaluate(async (apiUrl) => {
-      const csrf = document.cookie
-        .split("; ")
-        .find((c) => c.startsWith("csrf_token="))
-        ?.split("=")[1];
+      // Same audience-scoped name as above; the legacy fallback mirrors the API's own
+      // `csrfCookieCandidates`, which still accepts an unprefixed cookie.
+      const cookies = document.cookie.split("; ");
+      const csrf = (cookies.find((c) => c.startsWith("crm_csrf_token=")) ??
+        cookies.find((c) => c.startsWith("csrf_token=")))?.split("=")[1];
       const res = await fetch(`${apiUrl}/api/v1/auth/refresh`, {
         method: "POST",
         credentials: "include",
@@ -78,7 +99,7 @@ test.describe("CSRF — cookie rotated by another tab", () => {
     await other.close();
     expect(refreshStatus).toBe(200);
 
-    const after = (await context.cookies()).find((c) => c.name === "csrf_token")?.value;
+    const after = readCsrfCookie(await context.cookies());
     expect(after).not.toBe(before); // the cookie really did rotate — the setup is valid
 
     // The original tab's in-memory token is now stale. Its next unsafe request must still

@@ -9,6 +9,8 @@ import type {
   CreateStudentRequest,
   UpdateStudentRequest,
   ResendCredentialsResponse,
+  ListStudentAttendanceQuery,
+  StudentAttendanceItem,
 } from "@repo/types";
 import type { ApiClient } from "../http/client.js";
 import { toQueryString } from "../http/query.js";
@@ -27,6 +29,19 @@ export class StudentsApi {
   /** GET /api/v1/crm/students/:id */
   async get(id: string): Promise<StudentDetail> {
     return this.client.request<StudentDetail>("GET", `/api/v1/crm/students/${id}`);
+  }
+
+  /**
+   * GET /api/v1/crm/students/:id/attendance — the Student 360 drawer's Attendance tab.
+   *
+   * Read-only. `attendance` rows have been written since P3 (lesson completion) and by
+   * the live-class sync, and had no staff-facing read surface at all until this method.
+   */
+  async listAttendance(id: string, query: ListStudentAttendanceQuery) {
+    return this.client.requestPaginated<StudentAttendanceItem>(
+      "GET",
+      `/api/v1/crm/students/${id}/attendance${toQueryString(query)}`,
+    );
   }
 
   /** POST /api/v1/crm/students — creates the backing user + the student profile in one transaction. */

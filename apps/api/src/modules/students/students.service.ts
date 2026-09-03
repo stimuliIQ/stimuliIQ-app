@@ -42,7 +42,14 @@ import { EnrollmentScopeRepository } from "../common-scope/enrollment-scope.repo
 import { FacultyRepository } from "../faculty/faculty.repository";
 import { LmsAccountProvisioningService } from "./lms-account-provisioning.service";
 import { CourseTypesService } from "../course-types/course-types.service";
-import type { CreateStudentRequest, ListStudentsQuery, ResendCredentialsResponse, UpdateStudentRequest } from "./dto";
+import type {
+  CreateStudentRequest,
+  ListStudentAttendanceQuery,
+  ListStudentsQuery,
+  ResendCredentialsResponse,
+  UpdateStudentRequest,
+} from "./dto";
+import type { StudentAttendanceItem } from "@repo/types";
 
 @Injectable()
 export class StudentsService {
@@ -182,6 +189,47 @@ export class StudentsService {
       throw new NotFoundException({ code: "students.not_found", title: "Student not found" });
     }
     return this.detailWithStage(tenantId, row);
+  }
+
+  /**
+   * GET /api/v1/crm/students/:id/attendance — the Student 360 drawer's Attendance tab.
+   *
+   * Same scope gate as `getById`: if the caller's scope resolves to a set of student ids
+   * and this student is not in it, the answer is 404, not an empty list — an empty list
+   * would tell a branch manager that a student in another branch has no attendance, which
+   * is a different (and false) statement from "no such student here".
+   */
+  async listAttendance(
+    tenantId: string,
+    studentProfileId: string,
+    query: ListStudentAttendanceQuery,
+  ): Promise<PaginatedResult<StudentAttendanceItem>> {
+    const restrictToIds = await this.resolveStudentIdRestriction(tenantId);
+    if (restrictToIds && !restrictToIds.includes(studentProfileId)) {
+      throw new NotFoundException({ code: "students.not_found", title: "Student not found" });
+    }
+
+    const page = query.page;
+    const pageSize = query.pageSize;
+    const { rows, total } = await this.repository.listAttendanceForStudent(tenantId, studentProfileId, {
+      page,
+      pageSize,
+    });
+
+    return new PaginatedResult<StudentAttendanceItem>(
+      rows.map((row) => ({
+        id: row.id,
+        enrollmentId: row.enrollmentId,
+        programTitle: row.programTitle,
+        batchName: row.batchName,
+        lessonTitle: row.lessonTitle,
+        liveClassTitle: row.liveClassTitle,
+        status: row.status,
+        source: row.source,
+        markedAt: row.markedAt.toISOString(),
+      })),
+      { page, pageSize, total, hasMore: page * pageSize < total },
+    );
   }
 
   async create(tenantId: string, body: CreateStudentRequest): Promise<StudentDetail> {

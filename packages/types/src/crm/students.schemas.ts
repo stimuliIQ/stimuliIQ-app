@@ -164,3 +164,44 @@ export const ResendCredentialsResponseSchema = z.object({
   email: z.string().email().describe("The address the reissued temporary-password email was sent to."),
 });
 export type ResendCredentialsResponse = z.infer<typeof ResendCredentialsResponseSchema>;
+
+// ─────────────────────────────────────────────────────────────────────────
+// Student 360 — Attendance tab
+//
+// `attendance` rows have existed since P3 and are written on every lesson
+// completion (source=recorded, deduped per enrollment+lesson) and by the
+// live-class sync (source=live). Nothing on the STAFF side could ever read
+// them: there was no CRM endpoint, no SDK method and no screen, so the
+// Student 360 drawer shipped without the Attendance tab its own PRD section
+// and the go-live checklist both describe. This is that read surface.
+//
+// Read-only by design. Editing attendance is a separate act with its own
+// audit story; this answers "did they turn up", nothing more.
+// ─────────────────────────────────────────────────────────────────────────
+
+export const AttendanceStatusSchema = z.enum(["present", "absent"]);
+export type AttendanceStatus = z.infer<typeof AttendanceStatusSchema>;
+
+/** How the row was generated: joining a live class, or completing a recorded lesson. */
+export const AttendanceSourceSchema = z.enum(["live", "recorded"]);
+export type AttendanceSource = z.infer<typeof AttendanceSourceSchema>;
+
+/** One attendance row, resolved to the names a staff member can read. */
+export const StudentAttendanceItemSchema = z.object({
+  id: UuidSchema,
+  enrollmentId: UuidSchema,
+  programTitle: z.string(),
+  batchName: z.string().nullable().describe("Null when the enrollment is not yet in a batch."),
+  /** The lesson attended. Null for a live-class row, which records a session rather than a lesson. */
+  lessonTitle: z.string().nullable(),
+  /** The live session attended. Null for a recorded-completion row. */
+  liveClassTitle: z.string().nullable(),
+  status: AttendanceStatusSchema,
+  source: AttendanceSourceSchema,
+  markedAt: IsoDateTimeSchema,
+});
+export type StudentAttendanceItem = z.infer<typeof StudentAttendanceItemSchema>;
+
+/** GET /api/v1/crm/students/:id/attendance */
+export const ListStudentAttendanceQuerySchema = z.object({}).merge(PageQuerySchema).strict();
+export type ListStudentAttendanceQuery = z.infer<typeof ListStudentAttendanceQuerySchema>;
