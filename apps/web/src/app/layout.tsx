@@ -34,7 +34,7 @@ import { SiteShell } from "../components/shell/site-shell";
 import { buildNavItems, buildFooterColumns } from "../components/shell/nav-config";
 import { getProgramsNav } from "../lib/nav-programs";
 import { getSiteSettings, interpolateCopyrightTemplate } from "../lib/site-settings";
-import { buildMetadata, SITE_URL } from "../lib/seo/metadata";
+import { buildMetadata, GOOGLE_SITE_VERIFICATION, SITE_URL } from "../lib/seo/metadata";
 import { buildOrganizationJsonLd } from "../lib/seo/json-ld";
 import { ADDRESS, PHONE_HREF } from "../lib/contact";
 // Vercel Web Analytics. Deliberately NOT behind the AnalyticsLoader consent gate that
@@ -56,10 +56,22 @@ import { Analytics } from "@vercel/analytics/next";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSiteSettings();
-  return buildMetadata({
-    canonicalPath: "/",
-    siteDefaults: settings?.["seo.defaults"],
-  });
+  return {
+    ...buildMetadata({
+      canonicalPath: "/",
+      siteDefaults: settings?.["seo.defaults"],
+    }),
+    // Search Console verification is set HERE and not in buildMetadata, because Next merges
+    // metadata from layout down to page: a field a page does not set is inherited from this
+    // layout. Setting it once therefore puts the tag on every page without every page
+    // re-rendering it, and a page overriding its own title can never accidentally drop it.
+    // Omitted entirely when the env var is unset, rather than rendered empty — an empty
+    // content attribute is a verification failure Google reports as "tag not found", which
+    // is a slower thing to debug than no tag at all.
+    ...(GOOGLE_SITE_VERIFICATION
+      ? { verification: { google: GOOGLE_SITE_VERIFICATION } }
+      : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------

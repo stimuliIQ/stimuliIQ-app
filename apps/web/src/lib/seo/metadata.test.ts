@@ -7,8 +7,9 @@
  *   - Canonical URL construction
  *   - OG/Twitter metadata
  *   - noIndex flag
+ *   - Search Console verification token (env-driven, absent by default)
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildMetadata, SITE_NAME } from "./metadata";
 
 describe("buildMetadata", () => {
@@ -86,5 +87,50 @@ describe("buildMetadata", () => {
     });
     const og = meta.openGraph as Record<string, unknown>;
     expect(og.publishedTime).toBe("2026-01-15");
+  });
+});
+
+/**
+ * GOOGLE_SITE_VERIFICATION is read from the environment at MODULE LOAD, not per call, so each
+ * case has to set the var and then re-import the module. `vi.resetModules()` is what makes the
+ * re-import actually re-evaluate rather than hand back the cached first evaluation.
+ */
+describe("GOOGLE_SITE_VERIFICATION", () => {
+  const original = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
+
+  afterEach(() => {
+    if (original === undefined) delete process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
+    else process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION = original;
+    vi.resetModules();
+  });
+
+  async function loadWith(value: string | undefined) {
+    if (value === undefined) delete process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
+    else process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION = value;
+    vi.resetModules();
+    return (await import("./metadata")).GOOGLE_SITE_VERIFICATION;
+  }
+
+  it("is undefined when the env var is unset, so no meta tag is rendered", async () => {
+    expect(await loadWith(undefined)).toBeUndefined();
+  });
+
+  it("exposes the token when the env var is set", async () => {
+    expect(await loadWith("abc123token")).toBe("abc123token");
+  });
+
+  it("trims whitespace pasted around the token", async () => {
+    // The Vercel dashboard has previously had a trailing newline pasted into
+    // NEXT_PUBLIC_SITE_URL; the same paste mistake here would make Google report the
+    // verification tag as malformed rather than missing.
+    expect(await loadWith("  abc123token" + String.fromCharCode(10))).toBe(
+      "abc123token",
+    );
+  });
+
+  it("treats a blank value as unset rather than rendering an empty tag", async () => {
+    // An empty content attribute fails verification with "tag not found", which is a
+    // meaningfully slower thing to debug than the tag simply being absent.
+    expect(await loadWith("   ")).toBeUndefined();
   });
 });

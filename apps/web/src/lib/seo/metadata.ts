@@ -62,6 +62,30 @@ export const DEFAULT_DESCRIPTION =
   "Healthcare training and internships for students in India. Structured programmes in psychology, clinical practice and allied health, with mentors who work in the field and a real internship at the end.";
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
 
+/**
+ * Google Search Console site-verification token, rendered as
+ * `<meta name="google-site-verification" content="...">` by the root layout.
+ *
+ * This is the ONLY way to ask Google to recrawl a page. When a URL was indexed while
+ * something was wrong with it (a canonical pointing at a redirecting host, in this site's
+ * case), fixing the code does not update the search result: Google keeps showing the stale
+ * entry until it chooses to recrawl on its own, which can take weeks. A verified Search
+ * Console property turns that wait into a request, and is also the only place "why is this
+ * URL not indexed" is answerable at all. Unverified, both are guesswork.
+ *
+ * The token is not a secret. It only proves control of the domain to Google, is visible in
+ * the HTML of every page by design, and is safe in a NEXT_PUBLIC_* var.
+ *
+ * Unset (the default) renders no tag. That is why this is env-driven rather than hardcoded:
+ * a token belongs to one Search Console property, and a preview deployment carrying the
+ * production token would be able to verify itself as production.
+ *
+ * A DNS TXT record on the domain is an equally valid way to verify and covers every
+ * subdomain at once. If that route is taken, leave this unset.
+ */
+export const GOOGLE_SITE_VERIFICATION =
+  process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim() || undefined;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
