@@ -15,6 +15,18 @@ reported but turned out to be wrong or already handled, it is not listed.
 These are not code changes. The API now **refuses to boot** without the first two, which
 is deliberate — a green boot with either of them wrong is worse than no boot at all.
 
+> **CHECKED AGAINST THE LIVE VPS, 2026-09-03.** D1 and D2 were **already satisfied** in
+> `/srv/stimuliiq/.env`: `COOKIE_SECURE=true`, `COOKIE_DOMAIN=.stimuliiq.com`, and
+> `STORAGE_PUBLIC_BUCKET=stimuliiq-prod-public` genuinely distinct from
+> `STORAGE_BUCKET=stimuliiq-prod`, with `PUBLIC_ASSET_BASE_URL` pointed at the public one.
+> So the new boot guards pin a configuration production was already in, rather than
+> demanding a change. D3 needs no API value (the API never reads it) and its fallback
+> already equals the live `LMS_APP_URL`; set it in Vercel for `apps/web` when convenient.
+> What is NOT verifiable from the server and still worth one look in the Cloudflare
+> dashboard: that `stimuliiq-prod` itself has no r2.dev public URL enabled. The bucket
+> split is correct; the remaining question is whether the private half was ever also
+> exposed.
+
 | # | Action | Why it blocks |
 |---|--------|---------------|
 | **D1** | Set `COOKIE_SECURE=true` and a real `COOKIE_DOMAIN` in the production environment. | Both default to their LOCAL values (`false` / `"localhost"`). A deployment that forgot them booted green and issued every session cookie without `Secure`. `.env.production.template` has always had them right; nothing made it mandatory. Now `validateEnv` refuses. |
@@ -290,10 +302,19 @@ claimed "bucketed per ROUTE". Now keyed on `Class.handler`.
 
 ---
 
-## 5. Still open
+## 5. Still open — DEFERRED TO v2 (owner's call, 2026-09-03)
+
+**Status: this review is CLOSED.** Everything in sections 1 through 4 shipped. The owner
+scoped every item below into **version 2**, so none of them blocks the v1 release.
 
 Nothing below is a regression from this pass; each is a gap that predates it and needs a
-decision or a build, not a patch.
+decision or a build, not a patch. Two carry a live consequence somebody should know about
+while v1 is running, rather than discovering it from a customer:
+
+- **O2** — WhatsApp campaigns fail at Meta. Email campaigns work. Until v2, send campaigns
+  by email and do not rely on the WhatsApp channel.
+- **O7** — a lead cannot be edited. A typo'd phone number on a lead has no fix in the
+  product until v2; correct it by deleting and re-adding the lead.
 
 | # | Item | Notes |
 |---|------|-------|
