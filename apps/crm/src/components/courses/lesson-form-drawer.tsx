@@ -30,6 +30,7 @@ import {
 import type { LessonNode, LessonType } from "@repo/types";
 
 import { useLesson, useUpdateLesson } from "../../hooks/use-courses";
+import { surfaceError } from "../../lib/surface-error";
 
 const LESSON_TYPES: { value: LessonType; label: string }[] = [
   { value: "video", label: "Video" },
@@ -85,11 +86,7 @@ export function LessonFormDrawer({ programId, moduleId, lesson, open, onOpenChan
       toast({ title: "Lesson updated", variant: "success" });
       onOpenChange(false);
     } catch (error) {
-      toast({
-        title: "Couldn't update lesson",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't update lesson");
     }
   };
 

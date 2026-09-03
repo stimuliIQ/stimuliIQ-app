@@ -44,7 +44,7 @@ import { BatchFormDrawer } from "./batch-form-drawer";
 import { MoveEnrollmentDialog } from "./move-enrollment-dialog";
 import { BatchMentorsPanel } from "./batch-mentors-panel";
 import { BatchCompletionPanel } from "./batch-completion-panel";
-import { queryErrorMessage } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 
 const ROSTER_STATUS_TONE: Record<BatchRosterEntry["status"], "info" | "success" | "neutral" | "warning" | "danger"> = {
   active: "success",
@@ -104,11 +104,7 @@ export function BatchDetailDrawer({ batchId, onOpenChange, me }: BatchDetailDraw
       setConfirmDeleteOpen(false);
       onOpenChange(false);
     } catch (error) {
-      toast({
-        title: "Couldn't remove batch",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't remove batch");
     }
   };
 
@@ -118,11 +114,7 @@ export function BatchDetailDrawer({ batchId, onOpenChange, me }: BatchDetailDraw
       await restoreBatch.mutateAsync(batch.id);
       toast({ title: "Batch restored", variant: "success" });
     } catch (error) {
-      toast({
-        title: "Couldn't restore batch",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't restore batch");
     }
   };
 
@@ -132,11 +124,7 @@ export function BatchDetailDrawer({ batchId, onOpenChange, me }: BatchDetailDraw
       await assignFaculty.mutateAsync({ id: batch.id, body: { facultyId: facultyId ?? null } });
       toast({ title: "Faculty updated", variant: "success" });
     } catch (error) {
-      toast({
-        title: "Couldn't assign faculty",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't assign faculty");
     }
   };
 
@@ -147,11 +135,7 @@ export function BatchDetailDrawer({ batchId, onOpenChange, me }: BatchDetailDraw
       toast({ title: "Enrollment withdrawn", variant: "success" });
       setWithdrawTarget(null);
     } catch (error) {
-      toast({
-        title: "Couldn't withdraw enrollment",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't withdraw enrollment");
     }
   };
 

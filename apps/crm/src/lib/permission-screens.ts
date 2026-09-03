@@ -302,7 +302,7 @@ const GATE_HOME_SECTION: Record<string, string> = {
 const OFF_MENU_SCREENS: Record<string, Array<{ gate: string; label: string; path: string }>> = {
   Analytics: [
     { gate: "reports.engagement.view", label: "Course Engagement", path: "/analytics/engagement" },
-    { gate: "reports.forum.view", label: "Forum Health", path: "/analytics/forum" },
+    { gate: "reports.forum.view", label: "Forum Health", path: "/analytics/forum-health" },
     { gate: "reports.gamification.view", label: "Gamification", path: "/analytics/gamification" },
   ],
 };

@@ -16,6 +16,7 @@ import {
   Percent,
   Megaphone,
   Receipt,
+  CalendarClock,
   Trophy,
   UserPlus,
   Users,
@@ -50,6 +51,12 @@ const TILES: DashboardTile[] = [
   { key: "branch-comparison", to: "/analytics/branch-comparison", title: "Branch comparison", description: "Revenue and enrollments per branch.", icon: <GitCompare />, permission: "reports.revenue.view" },
   { key: "faculty-performance", to: "/analytics/faculty-performance", title: "Faculty performance", description: "Batch load and fill-rate per faculty.", icon: <UserPlus />, permission: "faculty.view" },
   { key: "refunds", to: "/analytics/refunds", title: "Refund report", description: "Refund volume and reasons.", icon: <Receipt />, permission: "refunds.view" },
+  // Scheduled reports was the ONE analytics screen with no door: not a nav leaf, not a
+  // tile, not linked from anywhere — reachable only by typing /analytics/schedules. The
+  // whole feature sat behind it (5 CRUD endpoints, a dispatch scheduler, the
+  // `reports.schedule` permission granted to branch_manager and counsellor, and four
+  // components), so nobody could set a report to email itself.
+  { key: "schedules", to: "/analytics/schedules", title: "Scheduled reports", description: "Reports emailed on a recurring schedule.", icon: <CalendarClock />, permission: "reports.schedule" },
 ];
 
 export function AnalyticsOverview({ me }: AnalyticsOverviewProps): React.JSX.Element {

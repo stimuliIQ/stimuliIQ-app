@@ -31,7 +31,7 @@ import { StudentPaymentsTab } from "./student-payments-tab";
 import { StudentCertificatesTab } from "./student-certificates-tab";
 import { StudentTicketsTab } from "./student-tickets-tab";
 import { StudentTimelineTab } from "./student-timeline-tab";
-import { queryErrorMessage } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 
 interface StudentDetailDrawerProps {
   studentId: string | null;
@@ -73,11 +73,7 @@ export function StudentDetailDrawer({ studentId, onOpenChange, me }: StudentDeta
       setConfirmDeleteOpen(false);
       onOpenChange(false);
     } catch (error) {
-      toast({
-        title: "Couldn't remove student",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't remove student");
     }
   };
 
@@ -87,11 +83,7 @@ export function StudentDetailDrawer({ studentId, onOpenChange, me }: StudentDeta
       await restoreStudent.mutateAsync(student.id);
       toast({ title: "Student restored", variant: "success" });
     } catch (error) {
-      toast({
-        title: "Couldn't restore student",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't restore student");
     }
   };
 
@@ -102,11 +94,7 @@ export function StudentDetailDrawer({ studentId, onOpenChange, me }: StudentDeta
       toast({ title: "Reset link sent", description: `A single-use password reset link was emailed to ${result.email}.`, variant: "success" });
       setConfirmResendOpen(false);
     } catch (error) {
-      toast({
-        title: "Couldn't send the reset link",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't send the reset link");
     }
   };
 

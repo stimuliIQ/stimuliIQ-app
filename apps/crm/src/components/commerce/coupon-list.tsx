@@ -23,7 +23,7 @@ import { getModulePermissions } from "../../lib/permissions";
 import { CouponStatusChip } from "./coupon-status-chip";
 import { CouponFormDrawer } from "./coupon-form-drawer";
 import { ValidateCouponTool } from "./validate-coupon-tool";
-import { queryErrorMessage } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 
 const STATUS_OPTIONS: { value: CouponStatus; label: string }[] = [
   { value: "active", label: "Active" },
@@ -73,7 +73,7 @@ export function CouponList({ me }: CouponListProps): React.JSX.Element {
         setDeleteId(null);
       },
       onError: (err) => {
-        toast({ title: "Failed to delete coupon", description: (err as Error).message, variant: "destructive" });
+        surfaceError(toast, err, "Failed to delete coupon");
         setDeleteId(null);
       },
     });

@@ -13,7 +13,6 @@
 // explicitly in the copy below so nobody assumes a schedule "locks in"
 // today's access.
 import * as React from "react";
-import { ZodError } from "zod";
 import {
   Button,
   Checkbox,
@@ -119,15 +118,8 @@ export function ReportScheduleFormDrawer({ open, onOpenChange, schedule }: Repor
       }
       onOpenChange(false);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const first = error.issues[0];
-        toast({
-          title: isEdit ? "Couldn't update schedule" : "Couldn't create schedule",
-          description: first ? `${first.path.join(".") || "value"}: ${first.message}` : "Check the required fields.",
-          variant: "destructive",
-        });
-        return;
-      }
+      // No ZodError branch: surfaceError renders a client-side parse failure with the
+      // same "field: reason" shape it uses for the API's own errors[], up to four of them.
       surfaceError(toast, error, isEdit ? "Couldn't update schedule" : "Couldn't create schedule");
     }
   };

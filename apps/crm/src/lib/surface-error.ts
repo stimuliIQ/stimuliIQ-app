@@ -19,6 +19,7 @@
 //
 // The `code` is the stable machine-readable handle (see `errorCode`); `detail`/`title` are
 // prose and may change, so never branch on them.
+import { ZodError } from "zod";
 import type { ProblemDetails } from "@repo/types";
 import type { useToast } from "@repo/ui";
 
@@ -132,6 +133,23 @@ export function queryErrorMessage(error: unknown, fallback = "Something went wro
     }
 
     if (parts.length > 0) return parts.join(" ");
+  }
+
+  // A CLIENT-SIDE validation failure, before any request was made. This must be handled
+  // ahead of the generic `Error` branch below, because a ZodError IS an Error and its
+  // `message` getter is `JSON.stringify(this.issues, null, 2)` — so seven CRM forms that
+  // call `Schema.parse()` inside their submit try/catch were toasting a raw JSON array of
+  // zod issues at whoever pressed Save. Rendered the same way as the server's own
+  // `errors[]`, so a field rejected here reads identically to one rejected there.
+  if (error instanceof ZodError) {
+    const shown = error.issues.slice(0, MAX_FIELD_ERRORS).map((issue) => {
+      const label = humanisePath(issue.path.join("."));
+      return label ? `${label}: ${issue.message}` : issue.message;
+    });
+    const remaining = error.issues.length - shown.length;
+    if (shown.length > 0) {
+      return remaining > 0 ? `${shown.join("; ")} (+${remaining} more)` : shown.join("; ");
+    }
   }
 
   if (error instanceof Error && error.message) return error.message;

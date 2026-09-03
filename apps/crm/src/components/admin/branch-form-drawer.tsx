@@ -17,6 +17,7 @@ type CreateBranchFormValues = z.input<typeof CreateBranchRequestSchema>;
 type UpdateBranchFormValues = z.input<typeof UpdateBranchRequestSchema>;
 
 import { useCreateBranch, useUpdateBranch } from "../../hooks/use-branches";
+import { surfaceError } from "../../lib/surface-error";
 
 const STATUSES: { value: BranchStatus; label: string }[] = [
   { value: "active", label: "Active" },
@@ -67,11 +68,7 @@ export function BranchFormDrawer({ open, onOpenChange, branch }: BranchFormDrawe
       toast({ title: "Branch created", variant: "success" });
       onOpenChange(false);
     } catch (error) {
-      toast({
-        title: "Couldn't create branch",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't create branch");
     }
   });
 
@@ -83,11 +80,7 @@ export function BranchFormDrawer({ open, onOpenChange, branch }: BranchFormDrawe
       toast({ title: "Branch updated", variant: "success" });
       onOpenChange(false);
     } catch (error) {
-      toast({
-        title: "Couldn't update branch",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't update branch");
     }
   });
 

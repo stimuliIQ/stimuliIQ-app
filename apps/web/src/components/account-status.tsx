@@ -7,6 +7,7 @@
 import { Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@repo/ui";
 
 import { useMe } from "../hooks/use-me";
+import { lmsLoginUrl } from "../lib/lms-url";
 
 /** RBAC-aware demo: presentation-only permission check. The server (NestJS
  * guard + ScopeInterceptor) is the only real enforcement point — this only
@@ -47,7 +48,10 @@ export function AccountStatus() {
         </CardHeader>
         <CardFooter>
           <Button asChild data-testid="account-sign-in-cta">
-            <a href="/enroll">Sign in</a>
+            {/* The LMS, not "/enroll" — that route does not exist (app/enroll/ holds only
+                [slug]/), so this CTA was a hard 404 on the one page a signed-out student
+                lands on. */}
+            <a href={lmsLoginUrl()}>Sign in</a>
           </Button>
         </CardFooter>
       </Card>

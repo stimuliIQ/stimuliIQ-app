@@ -36,6 +36,7 @@ import type {
 } from "@repo/types";
 
 import { useCampaignTemplatesList, useCreateCampaign } from "../../hooks/use-campaigns";
+import { surfaceError } from "../../lib/surface-error";
 
 // ── Segment field definitions ─────────────────────────────────────────────────
 
@@ -239,11 +240,7 @@ export function CampaignBuilderDrawer({
         setCurrentStep(0);
       },
       onError: (err) => {
-        toast({
-          title: "Failed to create campaign",
-          description: (err as Error).message,
-          variant: "destructive",
-        });
+        surfaceError(toast, err, "Failed to create campaign");
       },
     });
   }

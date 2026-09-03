@@ -372,12 +372,18 @@ export function ForumThreadDetailContent({
         onResolve={(postId) =>
           void resolveThread({ action: "resolve", resolvedPostId: postId })
         }
-        onReport={(postId) => {
-          // P6: report is acknowledged; actual report endpoint is wired in CRM.
-          // For the student, a toast/confirmation is sufficient.
-          // We suppress the unchecked return warning since this is a fire-and-forget.
-          console.info("[forum] report requested for post:", postId);
-        }}
+        // No `onReport`. PostThread hides the Report menu item when the prop is absent,
+        // which is the honest state of this feature: there is no report endpoint, and
+        // `ForumPost.status` is only `visible | hidden` — a student report has nowhere to
+        // be recorded. The handler here used to be a bare `console.info`, so a student
+        // reporting abuse got a menu that closed and nothing else: no request, no
+        // confirmation, no queue entry, and no way for anyone to find out. A control that
+        // looks like it acts and does not is worse than its absence (the same call this
+        // codebase made on `stats.headline` and on the `job_openings` role editor).
+        //
+        // Building it properly needs somewhere to put a report — a `forum_post_reports`
+        // table, or a route into the existing ticket queue — plus a CRM surface to work
+        // it. Recorded in docs/phase-9-followups.md rather than faked here.
         onReply={(parentId) => {
           // parentId = null means top-level reply
           setReplyTarget(parentId);

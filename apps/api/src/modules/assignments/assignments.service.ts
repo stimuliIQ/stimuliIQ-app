@@ -554,6 +554,7 @@ export class AssignmentsService {
           tenantId,
           {
             submissionId,
+            assignmentId: row.assignmentId,
             assignmentTitle: row.assignmentTitle,
             score: body.score,
             studentName: student.name,

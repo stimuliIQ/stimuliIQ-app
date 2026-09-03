@@ -9,6 +9,7 @@ import { useDeleteKbArticle, useKbArticlesList } from "../../hooks/use-tickets";
 import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { hasPermission } from "../../lib/permissions";
 import { KbArticleFormDrawer } from "./kb-article-form-drawer";
+import { surfaceError } from "../../lib/surface-error";
 
 export function KbArticleDirectory({ me }: { me: MeResponse | undefined }): React.JSX.Element {
   // Backend only has kb.view/kb.edit (no separate kb.create) — see
@@ -42,7 +43,7 @@ export function KbArticleDirectory({ me }: { me: MeResponse | undefined }): Reac
         setDeleteId(null);
       },
       onError: (err) => {
-        toast({ title: "Failed to delete", description: (err as Error).message, variant: "destructive" });
+        surfaceError(toast, err, "Failed to delete");
         setDeleteId(null);
       },
     });

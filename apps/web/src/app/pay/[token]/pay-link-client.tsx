@@ -17,6 +17,9 @@ import { apiClient } from "../../../lib/api-client";
 import type { PublicPayLinkOrder, PublicVerifyPaymentResponse } from "@repo/types";
 
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+// How long to wait on a checkout.js tag somebody else already inserted before giving
+// up and telling the user, rather than waiting forever.
+const RAZORPAY_SCRIPT_TIMEOUT_MS = 15_000;
 
 // window.Razorpay's ambient type is declared once in hooks/use-enroll-funnel.ts
 // (same script, same option shape) — this page reuses that declaration.
@@ -26,12 +29,29 @@ async function loadRazorpayScript(): Promise<void> {
     if (window.Razorpay) return resolve();
     const existing = document.querySelector<HTMLScriptElement>(`script[src="${RAZORPAY_SCRIPT_SRC}"]`);
     if (existing) {
+      // A tag is already in the document, so this promise waits on ITS load rather than
+      // adding a second one. It used to poll every 100ms with no exit: if that earlier
+      // insertion had failed (blocked, offline, CSP), `window.Razorpay` never appeared and
+      // the promise never settled — no resolve, no reject — leaving the Pay button
+      // disabled forever with nothing on screen to explain it. Listening to the tag's own
+      // events settles on failure too, and the timeout covers a tag that is somehow
+      // already past both.
+      if (window.Razorpay) return resolve();
+      const settled = { done: false };
+      const finish = (fn: () => void) => {
+        if (settled.done) return;
+        settled.done = true;
+        clearInterval(poll);
+        clearTimeout(timeout);
+        fn();
+      };
+      const fail = () => finish(() => reject(new Error("Failed to load Razorpay checkout.js")));
+      existing.addEventListener("load", () => finish(resolve), { once: true });
+      existing.addEventListener("error", fail, { once: true });
       const poll = setInterval(() => {
-        if (window.Razorpay) {
-          clearInterval(poll);
-          resolve();
-        }
+        if (window.Razorpay) finish(resolve);
       }, 100);
+      const timeout = setTimeout(fail, RAZORPAY_SCRIPT_TIMEOUT_MS);
       return;
     }
     const script = document.createElement("script");

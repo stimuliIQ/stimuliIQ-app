@@ -18,6 +18,7 @@ import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { hasPermission } from "../../lib/permissions";
 import { landingPageUrl } from "../../lib/public-urls";
 import { LandingPageFormDrawer } from "./landing-page-form-drawer";
+import { surfaceError } from "../../lib/surface-error";
 
 const STATUS_TONE = { draft: "neutral", published: "success", archived: "danger" } as const;
 
@@ -59,7 +60,7 @@ export function LandingPageDirectory({ me }: { me: MeResponse | undefined }): Re
         setDeleteId(null);
       },
       onError: (err) => {
-        toast({ title: "Failed to delete landing page", description: (err as Error).message, variant: "destructive" });
+        surfaceError(toast, err, "Failed to delete landing page");
         setDeleteId(null);
       },
     });

@@ -26,6 +26,7 @@ import {
   requireLocalPhones,
   toLocalPhoneDigits,
 } from "../../lib/phone-field";
+import { surfaceError } from "../../lib/surface-error";
 
 const PHONE_FIELDS = ["phone"] as const;
 
@@ -93,11 +94,7 @@ export function FacultyFormDrawer({ open, onOpenChange, faculty }: FacultyFormDr
       toast({ title: "Faculty member created", variant: "success" });
       onOpenChange(false);
     } catch (error) {
-      toast({
-        title: "Couldn't create faculty member",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't create faculty member");
     }
   });
 
@@ -113,11 +110,7 @@ export function FacultyFormDrawer({ open, onOpenChange, faculty }: FacultyFormDr
       toast({ title: "Faculty member updated", variant: "success" });
       onOpenChange(false);
     } catch (error) {
-      toast({
-        title: "Couldn't update faculty member",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't update faculty member");
     }
   });
 

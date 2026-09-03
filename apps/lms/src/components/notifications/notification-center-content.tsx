@@ -111,8 +111,10 @@ function getAction(
 ): { label: string; href: string } | null {
   switch (type) {
     case "grade_ready":
-      return payload.submissionId
-        ? { label: "View submission", href: `/assignments/${String(payload.submissionId)}` }
+      // /assignments/:id resolves against GET /me/assignments/:id — an ASSIGNMENT id.
+      // This used to pass `submissionId`, so "View submission" always landed on a 404.
+      return payload.assignmentId
+        ? { label: "View submission", href: `/assignments/${String(payload.assignmentId)}` }
         : null;
     case "certificate_ready":
       return { label: "View certificate", href: "/certificates" };

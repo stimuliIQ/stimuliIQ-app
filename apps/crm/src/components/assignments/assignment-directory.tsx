@@ -24,7 +24,7 @@ import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { getModulePermissions, hasPermission } from "../../lib/permissions";
 import { AssignmentFormDrawer } from "./assignment-form-drawer";
 import { GradeSubmissionDrawer } from "./grade-submission-drawer";
-import { queryErrorMessage } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 
 const KIND_OPTIONS: { value: AssignmentKind; label: string }[] = [
   { value: "assignment", label: "Assignment" },
@@ -93,7 +93,7 @@ export function AssignmentDirectory({
         if (selectedAssignmentId === deleteId) setSelectedAssignmentId(null);
       },
       onError: (err) => {
-        toast({ title: "Failed to delete assignment", description: (err as Error).message, variant: "destructive" });
+        surfaceError(toast, err, "Failed to delete assignment");
         setDeleteId(null);
       },
     });

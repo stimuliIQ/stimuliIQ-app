@@ -45,7 +45,7 @@ import {
 } from "../../hooks/use-forum-moderation";
 import { hasPermission } from "../../lib/permissions";
 import { sanitizeHtml } from "../../lib/sanitize";
-import { queryErrorMessage } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 
 // ── Status filter options ─────────────────────────────────────────────────────
 
@@ -122,11 +122,7 @@ export function ForumModerationDirectory({
           setHideConfirmOpen(false);
         },
         onError: (err) => {
-          toast({
-            title: "Moderation action failed",
-            description: (err as Error).message,
-            variant: "destructive",
-          });
+          surfaceError(toast, err, "Moderation action failed");
           setHideConfirmOpen(false);
         },
       },

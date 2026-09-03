@@ -73,7 +73,7 @@ import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { getModulePermissions, hasPermission } from "../../lib/permissions";
 import { AssignmentFormDrawer } from "./assignment-form-drawer";
 import { GradeSubmissionDrawer } from "./grade-submission-drawer";
-import { queryErrorMessage } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 
 /** One submission's state, in the shared CRM vocabulary. */
 const SUBMISSION_TONE: Record<SubmissionStatus, "info" | "success" | "warning"> = {
@@ -198,7 +198,7 @@ export function ProjectDirectory({ me }: ProjectDirectoryProps): React.JSX.Eleme
         if (expandedProjectId === deleteId) setOpenProject(null);
       },
       onError: (err) => {
-        toast({ title: "Failed to delete project", description: (err as Error).message, variant: "destructive" });
+        surfaceError(toast, err, "Failed to delete project");
         setDeleteId(null);
       },
     });

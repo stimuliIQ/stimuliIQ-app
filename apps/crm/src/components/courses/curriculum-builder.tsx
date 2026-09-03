@@ -24,7 +24,7 @@ import { useVideoLibraryList } from "../../hooks/use-video-library";
 import { VideoIngestDrawer } from "../video-library/video-ingest-drawer";
 import { LessonResourcesDrawer } from "./lesson-resources-drawer";
 import { LessonFormDrawer } from "./lesson-form-drawer";
-import { queryErrorMessage } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 
 // Video status → StatusChip tone + author-facing label. `errored` is surfaced
 // (not hidden) so a stuck transcode is visible right where the author works.
@@ -117,11 +117,11 @@ export function CurriculumBuilder({
       }
       setDeleteTarget(null);
     } catch (error) {
-      toast({
-        title: deleteTarget.kind === "lesson" ? "Couldn't delete lesson" : "Couldn't delete module",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(
+        toast,
+        error,
+        deleteTarget.kind === "lesson" ? "Couldn't delete lesson" : "Couldn't delete module",
+      );
     }
   };
 
@@ -169,7 +169,7 @@ export function CurriculumBuilder({
       setNewModuleTitle("");
       toast({ title: "Module added", variant: "success" });
     } catch (error) {
-      toast({ title: "Couldn't add module", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+      surfaceError(toast, error, "Couldn't add module");
     }
   };
 
@@ -180,7 +180,7 @@ export function CurriculumBuilder({
       setEditingModuleId(null);
       toast({ title: "Module updated", variant: "success" });
     } catch (error) {
-      toast({ title: "Couldn't update module", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+      surfaceError(toast, error, "Couldn't update module");
     }
   };
 
@@ -190,7 +190,7 @@ export function CurriculumBuilder({
     try {
       await reorderModules.mutateAsync({ moduleIds: reordered.map((m) => m.id) });
     } catch (error) {
-      toast({ title: "Couldn't reorder modules", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+      surfaceError(toast, error, "Couldn't reorder modules");
     }
   };
 
@@ -205,7 +205,7 @@ export function CurriculumBuilder({
       setAddingLessonForModule(null);
       toast({ title: "Lesson added", variant: "success" });
     } catch (error) {
-      toast({ title: "Couldn't add lesson", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+      surfaceError(toast, error, "Couldn't add lesson");
     }
   };
 
@@ -225,11 +225,7 @@ export function CurriculumBuilder({
         variant: "success",
       });
     } catch (error) {
-      toast({
-        title: "Couldn't update the preview setting",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't update the preview setting");
     }
   };
 
@@ -239,7 +235,7 @@ export function CurriculumBuilder({
     try {
       await reorderLessons.mutateAsync({ moduleId: moduleNode.id, body: { lessonIds: reordered.map((l) => l.id) } });
     } catch (error) {
-      toast({ title: "Couldn't reorder lessons", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+      surfaceError(toast, error, "Couldn't reorder lessons");
     }
   };
 

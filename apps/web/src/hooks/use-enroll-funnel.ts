@@ -72,6 +72,9 @@ interface RazorpayInstance {
 // ---------------------------------------------------------------------------
 
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+// How long to wait on a checkout.js tag somebody else already inserted before giving
+// up and telling the user, rather than waiting forever.
+const RAZORPAY_SCRIPT_TIMEOUT_MS = 15_000;
 
 async function loadRazorpayScript(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -84,13 +87,28 @@ async function loadRazorpayScript(): Promise<void> {
       `script[src="${RAZORPAY_SCRIPT_SRC}"]`,
     );
     if (existingScript) {
-      // Already loading — poll until ready
+      // Already loading — wait on THAT tag rather than adding a second one. The bare
+      // poll this replaces had no exit condition: a failed earlier insertion left the
+      // promise pending forever, so the checkout button stayed disabled with no error.
+      if (window.Razorpay) {
+        resolve();
+        return;
+      }
+      const settled = { done: false };
+      const finish = (fn: () => void) => {
+        if (settled.done) return;
+        settled.done = true;
+        clearInterval(poll);
+        clearTimeout(timeout);
+        fn();
+      };
+      const fail = () => finish(() => reject(new Error("Failed to load Razorpay checkout.js")));
+      existingScript.addEventListener("load", () => finish(resolve), { once: true });
+      existingScript.addEventListener("error", fail, { once: true });
       const poll = setInterval(() => {
-        if (window.Razorpay) {
-          clearInterval(poll);
-          resolve();
-        }
+        if (window.Razorpay) finish(resolve);
       }, 100);
+      const timeout = setTimeout(fail, RAZORPAY_SCRIPT_TIMEOUT_MS);
       return;
     }
 
@@ -177,7 +195,15 @@ export interface UseEnrollFunnelReturn {
 
   /** Step actions */
   submitRegister: () => Promise<void>;
-  requestOtp: (phone: string) => Promise<void>;
+  /**
+   * Requests an OTP. Resolves `true` when the code was actually sent.
+   *
+   * It returns a result rather than throwing because the failure is already reported
+   * through `funnelState` — but the CALLER still needs to know, and previously could
+   * not: this resolved void either way, so the register step flipped its "OTP sent"
+   * confirmation on unconditionally and rendered it next to the error banner.
+   */
+  requestOtp: (phone: string) => Promise<boolean>;
   submitOrder: () => Promise<void>;
   submitPayment: () => Promise<void>;
   retryPayment: () => Promise<void>;
@@ -255,17 +281,19 @@ export function useEnrollFunnel(programId: string): UseEnrollFunnelReturn {
   // OTP request (uses existing auth API)
   // ---------------------------------------------------------------------------
 
-  const requestOtp = useCallback(async (phone: string) => {
+  const requestOtp = useCallback(async (phone: string): Promise<boolean> => {
     setFunnelState({ kind: "loading", message: "Sending OTP…" });
     try {
       // Normalised here (not in the component) so the OTP is minted against the
       // exact same E.164 value `register` later verifies against.
       await apiClient.auth.otpRequest({ phone: toE164Phone(phone) });
       setFunnelState({ kind: "idle" });
+      return true;
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to send OTP. Try again.";
       setFunnelState({ kind: "error", message });
+      return false;
     }
   }, []);
 
@@ -463,12 +491,25 @@ export function useEnrollFunnel(programId: string): UseEnrollFunnelReturn {
   // ---------------------------------------------------------------------------
 
   const retryPayment = useCallback(async () => {
-    if (!order || !checkout) {
+    // Without an order there is nothing to retry. The guard used to be
+    // `if (!order || !checkout)` and then dereferenced `order!.orderId` INSIDE that same
+    // branch — so the one case it was written to catch, a genuinely missing order, threw
+    // a TypeError out of an async callback with nothing to catch it: no error state, no
+    // message, a dead button. Only a missing CHECKOUT is retryable here.
+    if (!order) {
+      setFunnelState({
+        kind: "error",
+        message: "This enrolment has no payment to retry. Start again from the top.",
+      });
+      return;
+    }
+
+    if (!checkout) {
       // Re-checkout with the existing order (same idempotency key → existing order)
       setFunnelState({ kind: "loading", message: "Re-opening payment…" });
       try {
         const checkoutResponse = await apiClient.public.enroll.checkout(
-          { orderId: order!.orderId },
+          { orderId: order.orderId },
           idempotencyKeyRef.current, // SAME key → no new Razorpay order if already exists
         );
         setCheckout(checkoutResponse);

@@ -27,6 +27,7 @@ import {
 } from "@repo/ui";
 import type { RegisterFormData } from "../../../../hooks/use-enroll-funnel";
 import { TurnstileWidget } from "../../../../components/captcha/turnstile-widget";
+import { lmsLoginUrl } from "../../../../lib/lms-url";
 
 const TOS_VERSION =
   typeof process !== "undefined"
@@ -37,7 +38,8 @@ interface EnrollRegisterStepProps {
   data: RegisterFormData;
   onChange: (data: Partial<RegisterFormData>) => void;
   errors: Record<string, string>;
-  onRequestOtp: (phone: string) => Promise<void>;
+  /** Resolves true only when the code was actually sent. */
+  onRequestOtp: (phone: string) => Promise<boolean>;
   isLoading: boolean;
   globalError?: string;
 }
@@ -74,16 +76,22 @@ export function EnrollRegisterStep({
   async function handleRequestOtp() {
     if (!canRequestOtp) return;
     setSendingOtp(true);
-    await onRequestOtp(data.phone);
+    // Only claim the code went out if it did. This used to set `otpSent` unconditionally,
+    // so a failed send rendered the red error banner and the green "OTP sent, check your
+    // phone" confirmation at the same time — and the student waited for a code that was
+    // never sent.
+    const sent = await onRequestOtp(data.phone);
     setSendingOtp(false);
-    setOtpSent(true);
+    setOtpSent(sent);
   }
 
   return (
     <div className="flex flex-col gap-4" data-testid="enroll-register-step">
       <p className="text-sm text-fg-muted">
         Create your account to proceed with enrollment. Already have an account?{" "}
-        <a href="/account" className="text-brand-500 underline hover:text-brand-600">
+        {/* The LMS sign-in page. This used to point at /account, which IS the signed-out
+            page — the link led back to where the visitor already was. */}
+        <a href={lmsLoginUrl()} className="text-brand-500 underline hover:text-brand-600">
           Log in
         </a>
       </p>

@@ -12,7 +12,6 @@
 // @repo/types, reused FE+BE") — the schema is the single source of truth for
 // what's valid, react-hook-form is just not part of that path here.
 import * as React from "react";
-import { ZodError } from "zod";
 import {
   Button,
   Drawer,
@@ -85,15 +84,8 @@ export function ExportCreateDrawer({ open, onOpenChange }: ExportCreateDrawerPro
       });
       onOpenChange(false);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const first = error.issues[0];
-        toast({
-          title: "Couldn't start export",
-          description: first ? `${first.path.join(".") || "value"}: ${first.message}` : "Check the required fields.",
-          variant: "destructive",
-        });
-        return;
-      }
+      // No ZodError branch: surfaceError renders a client-side parse failure with the
+      // same "field: reason" shape it uses for the API's own errors[], up to four of them.
       surfaceError(toast, error, "Couldn't start export");
     }
   };

@@ -29,6 +29,7 @@ import {
   useUpdateCampaignTemplate,
   useCampaignTemplate,
 } from "../../hooks/use-campaigns";
+import { surfaceError } from "../../lib/surface-error";
 
 const CHANNEL_OPTIONS: { value: CampaignChannel; label: string }[] = [
   { value: "email", label: "Email" },
@@ -229,11 +230,7 @@ export function CampaignTemplateFormDrawer({
             reset();
           },
           onError: (err) => {
-            toast({
-              title: "Failed to update template",
-              description: (err as Error).message,
-              variant: "destructive",
-            });
+            surfaceError(toast, err, "Failed to update template");
           },
         },
       );
@@ -245,11 +242,7 @@ export function CampaignTemplateFormDrawer({
           reset();
         },
         onError: (err) => {
-          toast({
-            title: "Failed to create template",
-            description: (err as Error).message,
-            variant: "destructive",
-          });
+          surfaceError(toast, err, "Failed to create template");
         },
       });
     }

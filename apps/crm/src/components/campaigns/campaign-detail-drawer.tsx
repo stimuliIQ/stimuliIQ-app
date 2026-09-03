@@ -33,6 +33,7 @@ import {
 } from "../../hooks/use-campaigns";
 import { hasPermission } from "../../lib/permissions";
 import { CampaignStatusChip } from "./campaign-status-chip";
+import { surfaceError } from "../../lib/surface-error";
 
 const RECIPIENT_STATUS_MAP: Record<RecipientStatus, { tone: "neutral" | "info" | "success" | "warning" | "danger"; label: string }> = {
   queued:    { tone: "neutral", label: "Queued" },
@@ -99,7 +100,7 @@ export function CampaignDetailDrawer({
         toast({ title: "Campaign paused", variant: "success" });
       },
       onError: (err) => {
-        toast({ title: "Failed to pause", description: (err as Error).message, variant: "destructive" });
+        surfaceError(toast, err, "Failed to pause");
       },
     });
   }
@@ -112,7 +113,7 @@ export function CampaignDetailDrawer({
         setConfirmCancel(false);
       },
       onError: (err) => {
-        toast({ title: "Failed to cancel", description: (err as Error).message, variant: "destructive" });
+        surfaceError(toast, err, "Failed to cancel");
         setConfirmCancel(false);
       },
     });

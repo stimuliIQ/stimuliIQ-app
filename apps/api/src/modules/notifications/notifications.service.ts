@@ -607,7 +607,19 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
   async notifyGradeReady(
     userId: string,
     tenantId: string,
-    payload: { submissionId: string; assignmentTitle: string; score: string | number; studentName?: string },
+    payload: {
+      submissionId: string;
+      /**
+       * The ASSIGNMENT, not the submission. The LMS's notification action opens
+       * /assignments/:id, which resolves against `GET /me/assignments/:id` — handed a
+       * submission id it 404s every time, which is what it did. `submissionId` stays in
+       * the payload because the email template quotes it.
+       */
+      assignmentId: string;
+      assignmentTitle: string;
+      score: string | number;
+      studentName?: string;
+    },
     contactOpts?: { toEmail?: string; toPhone?: string },
   ): Promise<void> {
     await this.notify(userId, tenantId, "grade_ready", {

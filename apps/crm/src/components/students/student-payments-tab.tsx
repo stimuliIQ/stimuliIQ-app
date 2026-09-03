@@ -16,6 +16,7 @@ import { hasPermission } from "../../lib/permissions";
 import { PaymentStatusChip } from "../commerce/payment-status-chip";
 import { OrderStatusChip } from "../commerce/order-status-chip";
 import { ManualPaymentFormDrawer } from "../commerce/manual-payment-form-drawer";
+import { surfaceError } from "../../lib/surface-error";
 
 function ReceiptButton({ paymentId }: { paymentId: string }): React.JSX.Element {
   const [requested, setRequested] = React.useState(false);
@@ -102,11 +103,7 @@ export function StudentPaymentsTab({
         variant: "success",
       });
     } catch (error) {
-      toast({
-        title: "Couldn't create payment link",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't create payment link");
     }
   };
 
@@ -121,11 +118,7 @@ export function StudentPaymentsTab({
         variant: "success",
       });
     } catch (error) {
-      toast({
-        title: "Couldn't email the payment link",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't email the payment link");
     }
   };
 

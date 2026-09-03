@@ -12,7 +12,7 @@ import { formatPaiseAsInr } from "../../lib/money";
 import { ProgramStatusChip } from "./program-status-chip";
 import { ProgramFormDrawer } from "./program-form-drawer";
 import { CurriculumBuilder } from "./curriculum-builder";
-import { queryErrorMessage } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 
 interface ProgramDetailDrawerProps {
   programId: string | null;
@@ -47,7 +47,7 @@ export function ProgramDetailDrawer({ programId, onOpenChange, me }: ProgramDeta
       toast({ title: "Program published", variant: "success" });
       setConfirmPublishOpen(false);
     } catch (error) {
-      toast({ title: "Couldn't publish program", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+      surfaceError(toast, error, "Couldn't publish program");
     }
   };
 
@@ -58,7 +58,7 @@ export function ProgramDetailDrawer({ programId, onOpenChange, me }: ProgramDeta
       toast({ title: "Program unpublished", variant: "success" });
       setConfirmUnpublishOpen(false);
     } catch (error) {
-      toast({ title: "Couldn't unpublish program", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+      surfaceError(toast, error, "Couldn't unpublish program");
     }
   };
 
@@ -68,7 +68,7 @@ export function ProgramDetailDrawer({ programId, onOpenChange, me }: ProgramDeta
       await setVisibility.mutateAsync({ id: program.id, isPublic: next });
       toast({ title: next ? "Now visible on the website" : "Hidden from the website", variant: "success" });
     } catch (error) {
-      toast({ title: "Couldn't update visibility", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+      surfaceError(toast, error, "Couldn't update visibility");
     }
   };
 
@@ -110,7 +110,7 @@ export function ProgramDetailDrawer({ programId, onOpenChange, me }: ProgramDeta
         variant: "success",
       });
     } catch (error) {
-      toast({ title: "Couldn't save payment link", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+      surfaceError(toast, error, "Couldn't save payment link");
     }
   };
 
@@ -126,7 +126,7 @@ export function ProgramDetailDrawer({ programId, onOpenChange, me }: ProgramDeta
         variant: "success",
       });
     } catch (error) {
-      toast({ title: "Couldn't update enrollment", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+      surfaceError(toast, error, "Couldn't update enrollment");
     }
   };
 

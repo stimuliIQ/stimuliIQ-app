@@ -40,7 +40,7 @@ import {
 } from "../../hooks/use-campaigns";
 import { getModulePermissions } from "../../lib/permissions";
 import { CampaignTemplateFormDrawer } from "./campaign-template-form-drawer";
-import { queryErrorMessage } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 
 const CHANNEL_OPTIONS: Array<{ value: CampaignChannel | ""; label: string }> = [
   { value: "",          label: "All channels" },
@@ -106,7 +106,7 @@ export function NotificationAdmin({ me }: NotificationAdminProps): React.JSX.Ele
         setDeleteTemplateId(null);
       },
       onError: (err) => {
-        toast({ title: "Failed to delete template", description: (err as Error).message, variant: "destructive" });
+        surfaceError(toast, err, "Failed to delete template");
         setDeleteTemplateId(null);
       },
     });

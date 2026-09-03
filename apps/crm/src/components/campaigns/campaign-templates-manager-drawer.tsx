@@ -21,7 +21,7 @@ import type { CampaignChannel, CampaignTemplateDto } from "@repo/types";
 
 import { useCampaignTemplatesList, useDeleteCampaignTemplate } from "../../hooks/use-campaigns";
 import { CampaignTemplateFormDrawer } from "./campaign-template-form-drawer";
-import { queryErrorMessage } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 
 interface CampaignTemplatesManagerDrawerProps {
   open: boolean;
@@ -76,11 +76,7 @@ export function CampaignTemplatesManagerDrawer({
         setDeleteTarget(null);
       },
       onError: (err) => {
-        toast({
-          title: "Failed to delete template",
-          description: (err as Error).message,
-          variant: "destructive",
-        });
+        surfaceError(toast, err, "Failed to delete template");
       },
     });
   }

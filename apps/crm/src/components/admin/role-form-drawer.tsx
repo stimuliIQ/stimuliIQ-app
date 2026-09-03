@@ -14,6 +14,7 @@ type CreateRoleFormValues = z.input<typeof CreateRoleRequestSchema>;
 type UpdateRoleFormValues = z.input<typeof UpdateRoleRequestSchema>;
 
 import { useCreateRole, useUpdateRole } from "../../hooks/use-roles";
+import { surfaceError } from "../../lib/surface-error";
 
 interface RoleFormDrawerProps {
   open: boolean;
@@ -56,11 +57,7 @@ export function RoleFormDrawer({ open, onOpenChange, role, onCreated }: RoleForm
       onOpenChange(false);
       onCreated?.(created);
     } catch (error) {
-      toast({
-        title: "Couldn't create role",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't create role");
     }
   });
 
@@ -72,11 +69,7 @@ export function RoleFormDrawer({ open, onOpenChange, role, onCreated }: RoleForm
       toast({ title: "Role updated", variant: "success" });
       onOpenChange(false);
     } catch (error) {
-      toast({
-        title: "Couldn't update role",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't update role");
     }
   });
 

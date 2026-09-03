@@ -72,7 +72,7 @@ export function CannedResponseManagerDrawer({ open, onOpenChange, me }: CannedRe
         setDeleteId(null);
       },
       onError: (err) => {
-        toast({ title: "Failed to delete", description: (err as Error).message, variant: "destructive" });
+        surfaceError(toast, err, "Failed to delete");
         setDeleteId(null);
       },
     });

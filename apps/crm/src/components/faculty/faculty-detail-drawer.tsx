@@ -24,7 +24,7 @@ import {
 import { getModulePermissions } from "../../lib/permissions";
 import { BatchStatusChip } from "../shared/batch-status-chip";
 import { FacultyFormDrawer } from "./faculty-form-drawer";
-import { queryErrorMessage } from "../../lib/surface-error";
+import { queryErrorMessage, surfaceError } from "../../lib/surface-error";
 
 interface FacultyDetailDrawerProps {
   facultyId: string | null;
@@ -53,11 +53,7 @@ export function FacultyDetailDrawer({ facultyId, onOpenChange, me }: FacultyDeta
       setConfirmDeleteOpen(false);
       onOpenChange(false);
     } catch (error) {
-      toast({
-        title: "Couldn't remove faculty member",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't remove faculty member");
     }
   };
 
@@ -67,11 +63,7 @@ export function FacultyDetailDrawer({ facultyId, onOpenChange, me }: FacultyDeta
       await restoreFaculty.mutateAsync(faculty.id);
       toast({ title: "Faculty member restored", variant: "success" });
     } catch (error) {
-      toast({
-        title: "Couldn't restore faculty member",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't restore faculty member");
     }
   };
 
@@ -82,11 +74,7 @@ export function FacultyDetailDrawer({ facultyId, onOpenChange, me }: FacultyDeta
       toast({ title: "Password reset", description: `New password sent to ${result.email}`, variant: "success" });
       setConfirmResetPasswordOpen(false);
     } catch (error) {
-      toast({
-        title: "Couldn't reset password",
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      surfaceError(toast, error, "Couldn't reset password");
     }
   };
 
