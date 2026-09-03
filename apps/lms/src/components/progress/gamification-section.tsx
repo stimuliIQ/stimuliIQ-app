@@ -44,13 +44,10 @@ import { useGamificationSummary, useLeaderboard } from "../../hooks/use-gamifica
 interface GamificationSectionProps {
   /** The batch ID to scope the leaderboard to. Required for leaderboard. */
   batchId?: string | null;
-  /** The current user's ID, used to highlight "me" in the leaderboard. */
-  currentUserId?: string;
 }
 
 export function GamificationSection({
   batchId,
-  currentUserId,
 }: GamificationSectionProps): React.JSX.Element {
   const gamification = useGamificationSummary();
 
@@ -134,9 +131,13 @@ export function GamificationSection({
     earned: true,
   }));
 
-  // Map LeaderboardEntryDto[] → LeaderboardEntry[] (PII-safe by type)
+  // Map LeaderboardEntryDto[] → LeaderboardEntry[] (PII-safe by type).
+  // `isMe` comes from the server, which is the only place that knows: the DTO carries no
+  // user id for anyone. This used to stamp `currentUserId` onto every row, which made the
+  // table's "is this me?" comparison true for all of them — the whole leaderboard rendered
+  // highlighted, every name labelled "(you)".
   const leaderboardEntries: LeaderboardEntry[] = leaderboard.entries.map((e) => ({
-    userId: currentUserId ?? "", // The LeaderboardEntryDto has no userId — use a placeholder for non-self rows
+    isMe: e.isMe,
     displayName: e.displayName,
     points: e.totalPoints,
     rank: e.rank,
@@ -238,7 +239,6 @@ export function GamificationSection({
         ) : (
           <LeaderboardTable
             entries={leaderboardEntries}
-            currentUserId={currentUserId}
             loading={leaderboard.isLoading}
             heading={undefined}
             data-testid="gamification-leaderboard"

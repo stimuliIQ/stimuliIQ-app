@@ -23,6 +23,7 @@ import type {
   ProjectDetail,
   OffsetPaginationMeta,
 } from "@repo/types";
+import { SubmissionContentTypeSchema } from "@repo/types";
 
 import { apiClient } from "../lib/api-client";
 
@@ -272,9 +273,23 @@ export function useSubmitMilestone(): UseSubmitMilestoneResult {
 
 export function useRequestUploadUrl() {
   return async (file: File): Promise<{ url: string; storageKey: string }> => {
+    // The server allow-lists the MIME type (SubmissionContentTypeSchema) because the value
+    // is locked into the signed PUT and replayed when a reviewer opens the file — an
+    // uploaded text/html or image/svg+xml would otherwise render on the storage origin.
+    // Parse here so the student gets a named, immediate reason instead of a 422 from the
+    // mint call after they have already picked the file.
+    const parsedContentType = SubmissionContentTypeSchema.safeParse(file.type);
+    if (!parsedContentType.success) {
+      throw new Error(
+        `"${file.name}" is a ${file.type || "file of unknown type"}, which can't be submitted. ` +
+          "Upload a PDF, Word or PowerPoint document, a spreadsheet, a zip, a plain-text or CSV " +
+          "file, or a PNG/JPEG/WebP image.",
+      );
+    }
+
     const response = await apiClient.learning.storage.getUploadUrl({
       fileName: file.name,
-      contentType: file.type || "application/octet-stream",
+      contentType: parsedContentType.data,
       sizeBytes: file.size,
       purpose: "submission",
     });

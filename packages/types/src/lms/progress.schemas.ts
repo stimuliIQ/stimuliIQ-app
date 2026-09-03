@@ -143,6 +143,17 @@ export type ModuleProgress = z.infer<typeof ModuleProgressSchema>;
 /** Per-program progress rollup including module breakdowns. */
 export const ProgramProgressDetailSchema = z.object({
   enrollmentId: UuidSchema,
+  /**
+   * The cohort this enrollment belongs to. Nullable because an enrollment can exist
+   * before it is placed in a batch.
+   *
+   * Added because the Progress page's leaderboard is scoped by BATCH and this payload
+   * carried no batch id, so the client passed `enrollmentId` to
+   * `GET /batches/:id/leaderboard` instead. That endpoint 404s on an id that is not a
+   * batch, and the LMS renders the 404 as "Leaderboard is not available for this batch" —
+   * so an opted-in student saw a permanent, plausible-looking unavailable message.
+   */
+  batchId: UuidSchema.nullable(),
   programId: UuidSchema,
   programTitle: z.string(),
   programSlug: z.string(),

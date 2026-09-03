@@ -189,6 +189,16 @@ export const LeaderboardEntryDtoSchema = z
     totalPoints: z.number().int().describe("Total XP points for ranking."),
     /** Number of badges earned — a summary count (NOT the badge list with IDs). */
     badgeCount: z.number().int().min(0).describe("Count of earned badges (summary only)."),
+    /**
+     * True on the CALLER's own row, so the client can highlight it.
+     *
+     * This is the only way to identify "me" in a list that deliberately carries no user
+     * id, and it discloses nothing: it is a fact about the person already holding the
+     * session, never about anyone else. Without it the LMS had no honest option — it
+     * stamped the current user's id onto EVERY row and the table highlighted the whole
+     * leaderboard as "you".
+     */
+    isMe: z.boolean().describe("True for the requesting student's own row. Never reveals anyone else's identity."),
   })
   .strict();
 export type LeaderboardEntryDto = z.infer<typeof LeaderboardEntryDtoSchema>;

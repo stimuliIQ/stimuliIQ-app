@@ -109,12 +109,22 @@ describeIfDb("CertificatesService integration", () => {
     // tests + notifications.service.spec.ts).
     const notifSvcStub = { notifyCertificateReady: jest.fn().mockResolvedValue(undefined) } as unknown as NotificationsService;
     const studentsRepository = new StudentsRepository(prismaService);
+    // GamificationService stub — the award calls are fire-and-forget and non-fatal, so a
+    // resolving stub is enough here; the awards themselves are covered by the unit specs.
+    const gamificationStub = {
+      awardForLessonCompleted: jest.fn().mockResolvedValue(undefined),
+      awardForAssignmentOnTime: jest.fn().mockResolvedValue(undefined),
+      awardForAssessmentPassed: jest.fn().mockResolvedValue(undefined),
+      awardForProjectApproved: jest.fn().mockResolvedValue(undefined),
+      awardForCertificateIssued: jest.fn().mockResolvedValue(undefined),
+    } as never;
     service = new CertificatesService(
       repo,
       new NoopCertificatePdfAdapter(),
       new NoopStorageProvider(),
       notifSvcStub,
       studentsRepository,
+      gamificationStub,
     );
 
     const s = suffix();

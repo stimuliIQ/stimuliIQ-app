@@ -320,10 +320,43 @@ export class AuthService {
       });
     }
 
-    // App/role boundary gate — same as login(). A freshly OTP-created account is a
-    // `student` (assignDefaultRole above), so OTP naturally belongs to the LMS; an
-    // existing staff account attempting OTP login into the CRM is rejected here.
     const { roleKeys } = await this.authRepository.getRbacProfile(user.id);
+
+    // OTP is a STUDENT self-service path, and only that.
+    //
+    // The gate here used to be `assertAudienceAllowed(roleKeys, audience)` with a comment
+    // claiming it rejected staff. It did the opposite: that helper's non-LMS branch is
+    // `roleKeys.some(r => r !== "student")`, which a staff account satisfies — so it
+    // ADMITTED them — and `audience` is optional, so a caller that simply omitted the
+    // header skipped the check altogether. The result was a full CRM session for any
+    // staff member with a phone number on file: no password, and no TOTP step, because
+    // POST /auth/login's 2FA gate lives on the password route and this one never
+    // consulted `two_fa_enabled`. A ported or swapped SIM was enough to reduce a
+    // 2FA-protected admin account to one factor.
+    //
+    // Checking the ROLE rather than the requested audience is what makes this closed: it
+    // does not depend on the client telling the truth about which app it is.
+    const isStudentOnly = roleKeys.length > 0 && roleKeys.every((role) => role === LMS_ROLE);
+    if (!isStudentOnly) {
+      throw new ForbiddenException({
+        code: "auth.otp_not_available",
+        title: "Sign in with your password",
+        detail: "One-time-code sign-in is for student accounts. Staff sign in with an email and password.",
+      });
+    }
+
+    // Belt and braces: a student who has enrolled in 2FA must still complete it. OTP must
+    // not become the way around a second factor for anyone.
+    if (user.twoFaEnabled) {
+      throw new UnauthorizedException({
+        code: "auth.2fa_required",
+        title: "Two-factor authentication required",
+        detail: "This account has two-factor authentication enabled. Sign in with your password, then your code.",
+      });
+    }
+
+    // Still enforced, so an LMS-audience request from a non-student is refused with the
+    // "this is the student portal" wording rather than the generic OTP message.
     this.assertAudienceAllowed(roleKeys, audience);
 
     await this.authRepository.updateLastLoginAt(user.id);

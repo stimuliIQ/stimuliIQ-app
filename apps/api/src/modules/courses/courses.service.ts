@@ -17,6 +17,7 @@
 // PATCH .../modules/:moduleId 404s if moduleId doesn't belong to :programId, even if the
 // module exists under a different (or no) program the caller can't see.
 
+import { mintCdnUrl } from "../content/content.util";
 import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type {
   CreateLessonRequest,
@@ -47,7 +48,6 @@ import { PaginatedResult } from "../../common/dto/paginated-result";
 import { requireScopeContext } from "../auth/lib/scope-context";
 import { STORAGE_PROVIDER, type StorageProvider } from "../storage/providers/storage/storage-provider.interface";
 import { S3StorageProvider } from "../storage/providers/storage/s3-storage.provider";
-import { validateEnv } from "../../config/env";
 import { LmsProgressService } from "../lms/lms-progress.service";
 
 @Injectable()
@@ -715,16 +715,6 @@ function toDetail(row: ProgramRow): ProgramDetail {
   };
 }
 
-/**
- * Convert a raw S3/R2 object key to a public asset URL — the raw key is NEVER returned to
- * clients. Base is `PUBLIC_ASSET_BASE_URL` (default the prod CDN; `.../api/v1/assets` in
- * local dev). Same convention as content.util.ts's / mentors.service.ts's `mintCdnUrl`.
- */
-function mintCdnUrl(key: string | null): string | null {
-  if (!key) return null;
-  const base = (validateEnv().PUBLIC_ASSET_BASE_URL ?? "https://cdn.stimuliiq.com").replace(/\/+$/, "");
-  return `${base}/${key}`;
-}
 
 function toModuleNode(mod: ModuleRow & { lessons: LessonRow[] }): ModuleNode {
   return {

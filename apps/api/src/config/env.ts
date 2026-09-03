@@ -558,6 +558,56 @@ const envSchema = rawEnvSchema.superRefine((data, ctx) => {
       });
     }
   }
+
+  // ─── Session cookies must actually be secure in production ───────────────────
+  // Both of these default to their LOCAL values (`false` / "localhost") so a developer
+  // needs no config, which means a production deployment that simply forgets them boots
+  // green and then issues every session cookie without `Secure` and scoped to the wrong
+  // host. `.env.production.template` sets them correctly; nothing made that mandatory.
+  if (!data.COOKIE_SECURE) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["COOKIE_SECURE"],
+      message:
+        "COOKIE_SECURE must be true in production — otherwise the access, refresh and CSRF " +
+        "cookies are issued without the Secure attribute and will travel over plain HTTP.",
+    });
+  }
+  if (data.COOKIE_DOMAIN === "localhost") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["COOKIE_DOMAIN"],
+      message:
+        'COOKIE_DOMAIN is still the local default "localhost" in production. Set it to the ' +
+        'real cookie domain (e.g. ".stimuliiq.com") or sessions will not be shared with the apps.',
+    });
+  }
+
+  // ─── A CDN over the private bucket is a public bucket ────────────────────────
+  // `PUBLIC_ASSET_BASE_URL` is the origin public image keys are minted against. Pointing
+  // it at object storage only returns 200 if that bucket allows anonymous reads — and R2
+  // and S3 grant public access per BUCKET, not per prefix. So with one bucket, turning on
+  // the CDN also publishes `submissions/`, `exports/` (PII CSVs), `invoices/`,
+  // `receipts/`, `certificates/` and `careers/` resumes to anyone who knows a key. Several
+  // of those keys are deterministic (`receipts/{tenantId}/{paymentId}.pdf`), and tenant ids
+  // are visible in pay-link tokens, so they are not even guess-resistant.
+  //
+  // STORAGE_PUBLIC_BUCKET exists precisely to separate the two. This refuses the
+  // combination that quietly voids every signed URL in the product.
+  const usesCloudStorage = data.STORAGE_PROVIDER === "s3" || data.STORAGE_PROVIDER === "r2";
+  if (usesCloudStorage && data.PUBLIC_ASSET_BASE_URL && !data.STORAGE_PUBLIC_BUCKET) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["STORAGE_PUBLIC_BUCKET"],
+      message:
+        "PUBLIC_ASSET_BASE_URL is set without STORAGE_PUBLIC_BUCKET. Serving assets from a CDN " +
+        "requires the bucket behind it to be publicly readable, and object storage grants that " +
+        "per bucket — so this configuration also exposes submissions/, exports/, invoices/, " +
+        "receipts/, certificates/ and careers/ resumes to anyone with a key. Create a second, " +
+        "public bucket for the image namespaces, set STORAGE_PUBLIC_BUCKET to it, point " +
+        "PUBLIC_ASSET_BASE_URL at THAT bucket, and turn public access off on STORAGE_BUCKET.",
+    });
+  }
 });
 
 export type Env = z.infer<typeof rawEnvSchema>;

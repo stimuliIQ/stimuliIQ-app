@@ -37,16 +37,47 @@ import { IsoDateTimeSchema } from "../common/primitives.js";
  *
  * Permission: submissions.create (scope: own) for student file uploads.
  */
+
+/**
+ * Allow-list of MIME types a student may upload as assignment work.
+ *
+ * `contentType` is not advisory: it is locked into the signed PUT and is the
+ * Content-Type S3/R2 replays when a faculty member later opens the file through a
+ * signed download URL. Accepted as a free string, a student could store `text/html`
+ * or `image/svg+xml` under `submissions/` and have the storage origin render their
+ * markup in the reviewer's browser. The careers and lesson-resource upload paths
+ * already pin their own enums (`ResumeContentTypeSchema`,
+ * `LessonResourceContentTypeSchema`); this is the same guard for the one upload path
+ * that was still open.
+ *
+ * The list mirrors what the LMS submission form actually offers
+ * (`assignment-detail-content.tsx` — PDF, images, zip, plain text) plus the Office
+ * document formats a written assignment is normally handed in as.
+ */
+export const SubmissionContentTypeSchema = z.enum([
+  "application/pdf",
+  "application/msword", // .doc
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+  "application/vnd.ms-powerpoint", // .ppt
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation", // .pptx
+  "application/vnd.ms-excel", // .xls
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+  "application/zip",
+  "text/plain",
+  "text/csv",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+]);
+export type SubmissionContentType = z.infer<typeof SubmissionContentTypeSchema>;
+
 export const GetUploadUrlRequestSchema = z
   .object({
-    contentType: z
-      .string()
-      .min(1)
-      .max(200)
-      .describe(
-        "MIME type of the file being uploaded (e.g. 'application/pdf', 'image/jpeg'). " +
-          "The signed URL policy enforces this content-type on the S3/R2 PUT.",
-      ),
+    contentType: SubmissionContentTypeSchema.describe(
+      "MIME type of the file being uploaded. Allow-listed — the value is locked into the " +
+        "signed PUT and replayed on download, so renderable types (text/html, image/svg+xml) " +
+        "are refused.",
+    ),
     fileName: z
       .string()
       .min(1)
@@ -58,19 +89,28 @@ export const GetUploadUrlRequestSchema = z
       .min(1)
       .max(104_857_600) // 100 MB max per upload
       .describe("Exact file size in bytes. Used to set the content-length constraint on the signed URL."),
+    // ONE value on purpose. This endpoint mints exactly one kind of key —
+    // submissions/{tenantId}/{enrollmentId}/… — and the ONLY branch that verifies the
+    // caller owns that enrollment is the `submission` branch. The enum previously also
+    // advertised 'resource' and 'career_resume'; neither was ever sent by any client,
+    // and both walked straight past the ownership check:
+    //   - 'career_resume' fell through to the submissions key builder with a
+    //     CLIENT-SUPPLIED, unverified enrollmentId — i.e. any student could mint a
+    //     signed PUT into another student's submission prefix.
+    //   - 'resource' skipped the check too and then threw (the resources namespace
+    //     needs a lessonId scope this endpoint never passes), surfacing as a 500.
+    // Lesson resources have their own authenticated endpoint
+    // (CoursesService.getResourceUploadUrl) and anonymous resumes have their own public,
+    // captcha-gated one (POST /public/careers/resume-upload-url) which forces its own
+    // namespace server-side. Neither belongs here.
     purpose: z
-      .enum(["submission", "resource", "career_resume"])
+      .literal("submission")
       .default("submission")
       .describe(
-        "Upload purpose determines the storage key prefix: " +
-          "'submission' → submissions/{tenantId}/{enrollmentId}/... " +
-          "'resource' → resources/{tenantId}/... (faculty/admin only) " +
-          "'career_resume' → careers/{tenantId}/.... NOT served by this authenticated " +
-          "endpoint (POST /storage/upload-url requires JwtAuthGuard); anonymous site " +
-          "visitors use the dedicated PUBLIC endpoint instead: " +
-          "POST /public/careers/resume-upload-url (client.public.careers." +
-          "getResumeUploadUrl()), which is captcha-gated + rate-limited and always " +
-          "forces this purpose server-side.",
+        "Upload purpose. Only 'submission' is served by this endpoint — the key is always " +
+          "submissions/{tenantId}/{enrollmentId}/…, and the server verifies the caller owns " +
+          "that enrollment. Lesson resources use POST /crm/lessons/:id/resource-upload-url; " +
+          "anonymous career resumes use POST /public/careers/resume-upload-url.",
       ),
     enrollmentId: z
       .string()

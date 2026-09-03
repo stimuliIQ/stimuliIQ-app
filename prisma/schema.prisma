@@ -2355,7 +2355,13 @@ model Certificate {
   template   CertificateTemplate @relation(fields: [templateId], references: [id])
   // issuedBy: named relation — User has both issuedCertificates and revokedCertificates.
   // Nullable: a null issuedById (system/auto issuance) has no issuedBy row.
-  issuedBy   User?               @relation("CertificateIssuedBy", fields: [issuedById], references: [id])
+  // `onDelete: Restrict` is stated explicitly because the column only BECAME nullable in
+  // `20260722110000_certificate_issued_by_nullable`, which altered the column and left the
+  // original `ON DELETE RESTRICT` foreign key from `20260702065749_learning_depth` in place.
+  // Prisma's implicit action for an OPTIONAL relation is SetNull, so without this the model
+  // disagrees with the live constraint and a migrate diff would rewrite the FK — turning
+  // "you cannot erase who issued this certificate" into "erasing them blanks the issuer".
+  issuedBy   User?               @relation("CertificateIssuedBy", fields: [issuedById], references: [id], onDelete: Restrict)
   // revokedBy: nullable; set only on revocation.
   revokedBy  User?               @relation("CertificateRevokedBy", fields: [revokedById], references: [id])
 
@@ -2993,10 +2999,17 @@ model ForumPostVote {
 // dashboard response's `asOf`/`stale` freshness fields (ReportFreshnessSchema,
 // @repo/types crm/reports.schemas.ts). Global table (no tenant_id / soft-delete): MV
 // freshness is a platform-wide operational fact, not a per-tenant business record.
+// `@db.Timestamptz(6)` is not decoration: migration `20260704060400_analytics_refresh_log`
+// creates these two columns as TIMESTAMPTZ (hand-written raw SQL, the only table in this
+// schema that does). Left as a bare `DateTime?`, Prisma believes the column is
+// `timestamp(3)` — WITHOUT time zone — so a `prisma migrate dev` diff would emit an ALTER
+// converting them, silently reinterpreting every stored instant as local time and
+// shifting the `asOf` freshness the analytics dashboards render. Pinning the real type
+// here costs nothing at runtime and removes that trap.
 model AnalyticsRefreshLog {
   mvName        String    @id @map("mv_name")
-  lastSuccessAt DateTime? @map("last_success_at")
-  lastAttemptAt DateTime? @map("last_attempt_at")
+  lastSuccessAt DateTime? @map("last_success_at") @db.Timestamptz(6)
+  lastAttemptAt DateTime? @map("last_attempt_at") @db.Timestamptz(6)
   lastError     String?   @map("last_error")
 
   @@map("analytics_mv_refresh_log")
@@ -4106,6 +4119,9 @@ model OnboardingSubmission {
   @@index([tenantId, programId])
   @@index([tenantId, email])
   @@index([tenantId, deletedAt])
+  // Created by `20260807140000_onboarding_approval_workflow` and never declared here —
+  // an index the DB has but the model does not is one a migrate diff proposes to DROP.
+  @@index([studentProfileId])
   @@map("onboarding_submissions")
 }
 
@@ -4333,10 +4349,13 @@ model MarketingTarget {
   periodMonth DateTime @map("period_month") @db.Date
 
   /// How many leads this person should close in the month. 0 = not measured on volume.
-  conversionsTarget  Int @map("conversions_target")
+  /// `@default(0)` mirrors the live column default from migration `20260821100000_marketing_targets`;
+  /// every write path supplies both numbers explicitly (MarketingTargetsRepository types
+  /// them as required), so the default is here to keep the model honest, not to be used.
+  conversionsTarget  Int @default(0) @map("conversions_target")
   /// Rupee target in PAISE — integer minor units, never a float (CLAUDE.md §3.6).
   /// 0 = not measured on revenue.
-  revenueTargetPaise Int @map("revenue_target_paise")
+  revenueTargetPaise Int @default(0) @map("revenue_target_paise")
 
   /// Optional context from whoever set it ("Q1 push", "pro-rated, joined on the 12th").
   note String?

@@ -38,6 +38,87 @@ describe("validateEnv", () => {
     const { DATABASE_URL: _omit, ...incomplete } = REQUIRED_ENV;
     expect(() => validateEnv(incomplete as NodeJS.ProcessEnv)).toThrow();
   });
+
+  // Everything below defaults to a value that is right for a laptop and wrong for a
+  // server. A production deployment that simply forgets one of them used to boot green.
+  describe("production-only refinements", () => {
+    const PROD_SECRETS = {
+      TWO_FACTOR_ENC_KEY: "c".repeat(64),
+      CERT_SIGNING_SECRET: "d".repeat(64),
+      NOTIFICATION_SIGNING_SECRET: "e".repeat(64),
+    };
+    const PROD_BASE = {
+      ...REQUIRED_ENV,
+      ...PROD_SECRETS,
+      NODE_ENV: "production",
+      COOKIE_SECURE: "true",
+      COOKIE_DOMAIN: ".stimuliiq.com",
+    };
+
+    it("accepts a complete production environment", () => {
+      expect(() => validateEnv({ ...PROD_BASE } as NodeJS.ProcessEnv)).not.toThrow();
+    });
+
+    it("refuses production with COOKIE_SECURE off — session cookies would go over plain HTTP", () => {
+      expect(() =>
+        validateEnv({ ...PROD_BASE, COOKIE_SECURE: "false" } as NodeJS.ProcessEnv),
+      ).toThrow(/Invalid environment configuration/);
+    });
+
+    it("refuses production with COOKIE_DOMAIN left at the localhost default", () => {
+      expect(() =>
+        validateEnv({ ...PROD_BASE, COOKIE_DOMAIN: "localhost" } as NodeJS.ProcessEnv),
+      ).toThrow(/Invalid environment configuration/);
+    });
+
+    // A CDN can only read a bucket that allows anonymous reads, and object storage grants
+    // that per bucket. One bucket + a CDN = submissions, PII exports, invoices, receipts
+    // and resumes are all world-readable by key.
+    it("refuses a CDN base URL over cloud storage with no separate public bucket", () => {
+      expect(() =>
+        validateEnv({
+          ...PROD_BASE,
+          STORAGE_PROVIDER: "r2",
+          STORAGE_BUCKET: "stimuliiq-private",
+          PUBLIC_ASSET_BASE_URL: "https://cdn.stimuliiq.com",
+        } as NodeJS.ProcessEnv),
+      ).toThrow(/Invalid environment configuration/);
+    });
+
+    it("accepts the same configuration once the public bucket is split out", () => {
+      expect(() =>
+        validateEnv({
+          ...PROD_BASE,
+          STORAGE_PROVIDER: "r2",
+          STORAGE_BUCKET: "stimuliiq-private",
+          STORAGE_PUBLIC_BUCKET: "stimuliiq-public",
+          PUBLIC_ASSET_BASE_URL: "https://cdn.stimuliiq.com",
+        } as NodeJS.ProcessEnv),
+      ).not.toThrow();
+    });
+
+    it("leaves the local-storage dev setup alone — no cloud bucket to split", () => {
+      expect(() =>
+        validateEnv({
+          ...PROD_BASE,
+          STORAGE_PROVIDER: "local",
+          PUBLIC_ASSET_BASE_URL: "http://localhost:4000/api/v1/assets",
+        } as NodeJS.ProcessEnv),
+      ).not.toThrow();
+    });
+
+    it("applies none of this outside production", () => {
+      expect(() =>
+        validateEnv({
+          ...REQUIRED_ENV,
+          NODE_ENV: "development",
+          APP_ENV: "local",
+          STORAGE_PROVIDER: "r2",
+          PUBLIC_ASSET_BASE_URL: "https://cdn.stimuliiq.com",
+        } as NodeJS.ProcessEnv),
+      ).not.toThrow();
+    });
+  });
 });
 
 describe("isProductionEnv", () => {

@@ -277,6 +277,38 @@ describe("AuthService", () => {
       repo.getRbacProfile.mockResolvedValue({ roleKeys: ["admin"], permissions: [] });
       await expect(service.verifyOtp("+919999999999", "123456", {}, "lms")).rejects.toThrow(ForbiddenException);
     });
+
+    // The hole this closes: `assertAudienceAllowed`'s non-LMS branch is
+    // "holds any role that isn't student", which a staff account SATISFIES — so asking
+    // for the CRM used to be granted, and omitting the audience skipped the gate
+    // entirely. Either way a staff member with a phone on file got a full CRM session
+    // with no password and no second factor.
+    it("verifyOtp refuses a staff account signing in to the CRM by one-time code", async () => {
+      otpStore.verify.mockResolvedValue(true);
+      repo.findUserByPhone.mockResolvedValue({ ...ACTIVE_USER, phone: "+919999999999" });
+      repo.getRbacProfile.mockResolvedValue({ roleKeys: ["admin"], permissions: [] });
+      await expect(service.verifyOtp("+919999999999", "123456", {}, "crm")).rejects.toMatchObject({
+        response: { code: "auth.otp_not_available" },
+      });
+    });
+
+    it("verifyOtp refuses a staff account even when the audience header is omitted", async () => {
+      otpStore.verify.mockResolvedValue(true);
+      repo.findUserByPhone.mockResolvedValue({ ...ACTIVE_USER, phone: "+919999999999" });
+      repo.getRbacProfile.mockResolvedValue({ roleKeys: ["counsellor"], permissions: [] });
+      await expect(service.verifyOtp("+919999999999", "123456", {})).rejects.toMatchObject({
+        response: { code: "auth.otp_not_available" },
+      });
+    });
+
+    it("verifyOtp refuses a student who has enrolled in 2FA — OTP is not a way around it", async () => {
+      otpStore.verify.mockResolvedValue(true);
+      repo.findUserByPhone.mockResolvedValue({ ...ACTIVE_USER, phone: "+919999999999", twoFaEnabled: true });
+      repo.getRbacProfile.mockResolvedValue({ roleKeys: ["student"], permissions: [] });
+      await expect(service.verifyOtp("+919999999999", "123456", {})).rejects.toMatchObject({
+        response: { code: "auth.2fa_required" },
+      });
+    });
   });
 
   // ─── verifyCredentialsOnly(), T28 2FA login gate (docs/plans/phase-9-completion.md) ──

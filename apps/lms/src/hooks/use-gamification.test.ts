@@ -63,8 +63,10 @@ describe("display floor for negative XP (AC-49)", () => {
 // ---------------------------------------------------------------------------
 // Leaderboard PII-minimal type contract (LOCK-D5, AC-50/51)
 // The LeaderboardEntryDto returned from the API contains only:
-//   rank, displayName, totalPoints, badgeCount
-// It MUST NOT contain email, phone, userId.
+//   rank, displayName, totalPoints, badgeCount, isMe
+// It MUST NOT contain email, phone, userId. `isMe` is a boolean about the CALLER, not an
+// identifier for anyone on the board — it is how the client highlights its own row in a
+// payload that carries no user id.
 // ---------------------------------------------------------------------------
 
 describe("LeaderboardEntryDto PII-minimal contract (LOCK-D5)", () => {
@@ -77,6 +79,7 @@ describe("LeaderboardEntryDto PII-minimal contract (LOCK-D5)", () => {
       displayName: "Ravi K",
       totalPoints: 500,
       badgeCount: 3,
+      isMe: false,
     };
 
     const parsed = LeaderboardEntryDtoSchema.safeParse(validEntry);
@@ -98,6 +101,7 @@ describe("LeaderboardEntryDto PII-minimal contract (LOCK-D5)", () => {
       displayName: "Priya S",
       totalPoints: 350,
       badgeCount: 2,
+      isMe: false,
       email: "priya@example.com", // ROGUE, should be stripped or cause failure
     };
 

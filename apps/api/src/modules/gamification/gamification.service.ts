@@ -140,6 +140,9 @@ export class GamificationService {
         displayName: s.leaderboardDisplayName ?? s.firstName,
         totalPoints: pointsMap.get(s.userId) ?? 0,
         badgeCount: badgeMap.get(s.userId) ?? 0,
+        // Resolved HERE, where the caller's identity is known, and reduced to a boolean
+        // before it leaves the service — the DTO still carries no user id for anyone.
+        isMe: s.userId === userId,
       }))
       .sort((a, b) => b.totalPoints - a.totalPoints)
       .map((entry, i): LeaderboardEntryDto => ({
@@ -147,6 +150,7 @@ export class GamificationService {
         displayName: entry.displayName,
         totalPoints: entry.totalPoints,
         badgeCount: entry.badgeCount,
+        isMe: entry.isMe,
       }));
 
     return ranked;

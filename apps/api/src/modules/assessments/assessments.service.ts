@@ -47,6 +47,8 @@ import type {
   QuestionResult,
 } from "@repo/types";
 import { AssessmentsRepository } from "./assessments.repository";
+import type { AuthoringScope } from "../common-scope/authoring-scope";
+import { GamificationService } from "../gamification/gamification.service";
 import type { AssessmentRow, AttemptRow, QuestionPublicRow, QuestionWithAnswerKeyRow } from "./assessments.repository";
 import { PaginatedResult } from "../../common/dto/paginated-result";
 import type { AssessmentType, QuestionType } from "@prisma/client";
@@ -117,7 +119,10 @@ export function computeAttemptWave(
 export class AssessmentsService {
   private readonly logger = new Logger(AssessmentsService.name);
 
-  constructor(private readonly repo: AssessmentsRepository) {}
+  constructor(
+    private readonly repo: AssessmentsRepository,
+    private readonly gamification: GamificationService,
+  ) {}
 
   // ─── Faculty scope helpers ────────────────────────────────────────────────
 
@@ -175,7 +180,7 @@ export class AssessmentsService {
     actorId: string,
     tenantId: string,
     body: CreateAssessmentRequest,
-    scope: "all" | "assigned" | "branch" | null,
+    scope: AuthoringScope | null,
   ): Promise<AssessmentDetailAuthor> {
     if (scope === "assigned") {
       const facultyProfileId = await this.repo.findFacultyProfileId(tenantId, actorId);
@@ -236,7 +241,7 @@ export class AssessmentsService {
   async listAssessments(
     tenantId: string,
     query: ListAssessmentsQuery,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
     actorId: string,
   ): Promise<PaginatedResult<AssessmentSummary>> {
     let programIds: string[] | undefined = undefined;
@@ -283,7 +288,7 @@ export class AssessmentsService {
   async getAssessmentAuthor(
     tenantId: string,
     assessmentId: string,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
     actorId: string,
   ): Promise<AssessmentDetailAuthor> {
     const row = await this.repo.findAssessmentById(tenantId, assessmentId);
@@ -305,7 +310,7 @@ export class AssessmentsService {
     tenantId: string,
     assessmentId: string,
     body: UpdateAssessmentRequest,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
     actorId: string,
   ): Promise<AssessmentDetailAuthor> {
     const existing = await this.repo.findAssessmentById(tenantId, assessmentId);
@@ -344,7 +349,7 @@ export class AssessmentsService {
     tenantId: string,
     attemptId: string,
     body: GradeAttemptRequest,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
   ): Promise<AttemptResult> {
     const attempt = await this.repo.findAttemptById(tenantId, attemptId);
     if (!attempt) throw new NotFoundException("Attempt not found.");
@@ -427,6 +432,17 @@ export class AssessmentsService {
       0,
       updatedAttempt.assessmentAttemptsAllowed - submittedAttemptCount,
     );
+
+    // A quiz containing a written question only becomes "passed" here, after a human has
+    // read it — so this is the award site for those. The actor is the GRADER, so the
+    // student's own user id is resolved from the attempt rather than taken from the
+    // request. Idempotent by attempt id: re-grading the same attempt awards once.
+    if (body.passed === true && beforePassed !== true) {
+      const studentUserId = await this.repo.findStudentUserIdForAttempt(tenantId, attemptId);
+      if (studentUserId) {
+        await this.awardAssessmentPass(studentUserId, tenantId, attemptId);
+      }
+    }
 
     return toAttemptResultDto(updatedAttempt, updatedQResults, attemptsRemaining);
   }
@@ -838,7 +854,31 @@ export class AssessmentsService {
       `[AssessmentsService] Attempt submitted: id=${attemptId} score=${totalAutoGradePoints} passed=${passed} hasPendingManualGrade=${hasPendingManualGrade}`,
     );
 
+    // Points for passing. Only when `passed === true`: it is null while a descriptive
+    // question still awaits manual grading, and awarding on null would credit an attempt
+    // that may yet fail (the grading path below awards it instead). Idempotent by
+    // `(user_id, "assessment_passed", attemptId)` and non-fatal — a scoring failure must
+    // not cost the student the attempt they just submitted.
+    if (passed === true) {
+      await this.awardAssessmentPass(userId, tenantId, attemptId);
+    }
+
     return toAttemptResultDto(updated, questionResults, attemptsRemaining);
+  }
+
+  /**
+   * Shared award call for a passed attempt — used by both the auto-scored submit path
+   * and the manual descriptive-grading path, so a quiz containing a written question
+   * earns the same XP as one that does not.
+   */
+  private async awardAssessmentPass(userId: string, tenantId: string, attemptId: string): Promise<void> {
+    try {
+      await this.gamification.awardForAssessmentPassed(userId, tenantId, attemptId);
+    } catch (err) {
+      this.logger.warn(
+        `[AssessmentsService] gamification award failed (non-fatal) attemptId=${attemptId}: ${String(err)}`,
+      );
+    }
   }
 
   // ─── LMS: GET ATTEMPT RESULT ─────────────────────────────────────────────

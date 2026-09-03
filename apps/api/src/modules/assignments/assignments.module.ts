@@ -26,6 +26,7 @@ import { AuthModule } from "../auth/auth.module";
 import { StorageProviderModule } from "../storage/providers/storage/storage-provider.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { StudentsModule } from "../students/students.module";
+import { GamificationModule } from "../gamification/gamification.module";
 import { AssignmentsRepository } from "./assignments.repository";
 import { AssignmentsService } from "./assignments.service";
 import { AssignmentsCrmController } from "./assignments-crm.controller";
@@ -43,6 +44,9 @@ import { DeadlineRemindersScheduler } from "./deadline-reminders.scheduler";
     // Resolves a submission's/enrollment's student_profiles.id -> {userId, email,
     // phone, name} for both notifyGradeReady and DeadlineRemindersScheduler.
     StudentsModule,
+    // XP for an on-time submission and for an approved project (AssignmentsService).
+    // GamificationModule imports only AuthModule, so there is no cycle.
+    GamificationModule,
   ],
   controllers: [
     AssignmentsCrmController,

@@ -21,13 +21,16 @@
 
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
+import { GamificationModule } from "../gamification/gamification.module";
 import { AssessmentsRepository } from "./assessments.repository";
 import { AssessmentsService } from "./assessments.service";
 import { AssessmentsCrmController } from "./assessments-crm.controller";
 import { AssessmentsLmsController } from "./assessments-lms.controller";
 
 @Module({
-  imports: [AuthModule],
+  // GamificationModule: XP for a passed attempt (AssessmentsService.submitAttempt and
+  // the descriptive-grading path). It imports only AuthModule, so there is no cycle.
+  imports: [AuthModule, GamificationModule],
   controllers: [AssessmentsCrmController, AssessmentsLmsController],
   providers: [AssessmentsService, AssessmentsRepository],
   exports: [AssessmentsService, AssessmentsRepository],

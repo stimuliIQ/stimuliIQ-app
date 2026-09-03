@@ -132,7 +132,7 @@ describe("EmiService", () => {
 
   describe("createPlan()", () => {
     it("422s when an active plan already exists for the order", async () => {
-      repo.findOrderForPlan.mockResolvedValue({ id: "order-1", studentId: "student-1", currency: "INR", studentEmail: "a@b.test", studentName: "Asha" });
+      repo.findOrderForPlan.mockResolvedValue({ id: "order-1", studentId: "student-1", amountPaise: 100_000, currency: "INR", studentEmail: "a@b.test", studentName: "Asha" });
       repo.findActivePlanByOrderId.mockResolvedValue(PLAN_ROW as never);
 
       await expect(
@@ -152,7 +152,7 @@ describe("EmiService", () => {
     });
 
     it("creates the plan with a server-computed schedule", async () => {
-      repo.findOrderForPlan.mockResolvedValue({ id: "order-1", studentId: "student-1", currency: "INR", studentEmail: "a@b.test", studentName: "Asha" });
+      repo.findOrderForPlan.mockResolvedValue({ id: "order-1", studentId: "student-1", amountPaise: 100_000, currency: "INR", studentEmail: "a@b.test", studentName: "Asha" });
       repo.findActivePlanByOrderId.mockResolvedValue(null);
       repo.createPlanWithInstallments.mockResolvedValue("plan-1");
       repo.findById.mockResolvedValue(PLAN_ROW as never);
@@ -165,6 +165,100 @@ describe("EmiService", () => {
         "tenant-1",
         expect.objectContaining({ orderId: "order-1", numInstallments: 4 }),
       );
+    });
+
+    // The schedule this builds is what `markInstallmentPaid` later hands the payment
+    // provider as a real charge, so the total cannot come from the request body.
+    it("422s when the requested total does not match the order, rather than charging it", async () => {
+      repo.findOrderForPlan.mockResolvedValue({
+        id: "order-1",
+        studentId: "student-1",
+        amountPaise: 100_000,
+        currency: "INR",
+        studentEmail: "a@b.test",
+        studentName: "Asha",
+      });
+      repo.findActivePlanByOrderId.mockResolvedValue(null);
+
+      await expect(
+        runWithScope("all", () =>
+          service.createPlan("tenant-1", {
+            orderId: "order-1",
+            totalAmountPaise: 1_000, // a hundredth of what the order says
+            currency: "INR",
+            numInstallments: 4,
+            startDate: "2026-01-01",
+          }),
+        ),
+      ).rejects.toMatchObject({ response: { code: "EMI_TOTAL_MISMATCH" } });
+      expect(repo.createPlanWithInstallments).not.toHaveBeenCalled();
+    });
+
+    it("splits the ORDER's total, not the body's, when they agree", async () => {
+      repo.findOrderForPlan.mockResolvedValue({
+        id: "order-1",
+        studentId: "student-1",
+        amountPaise: 100_000,
+        currency: "INR",
+        studentEmail: "a@b.test",
+        studentName: "Asha",
+      });
+      repo.findActivePlanByOrderId.mockResolvedValue(null);
+      repo.createPlanWithInstallments.mockResolvedValue("plan-1");
+      repo.findById.mockResolvedValue(PLAN_ROW as never);
+
+      await runWithScope("all", () =>
+        service.createPlan("tenant-1", {
+          orderId: "order-1",
+          totalAmountPaise: 100_000,
+          currency: "INR",
+          numInstallments: 4,
+          startDate: "2026-01-01",
+        }),
+      );
+      expect(repo.createPlanWithInstallments).toHaveBeenCalledWith(
+        "tenant-1",
+        expect.objectContaining({ totalAmountPaise: 100_000, currency: "INR" }),
+      );
+    });
+  });
+
+  // `emi.view` is seeded at scope `own` to counsellor AND to student, so the detail route
+  // has to narrow the same way the list does — otherwise a plan uuid is enough to read
+  // somebody else's schedule.
+  describe("getById() scope", () => {
+    it("restricts an own-scope read to the caller's own leads and orders", async () => {
+      repo.findById.mockResolvedValue(PLAN_ROW as never);
+
+      await runWithScope("own", () => service.getById("tenant-1", "actor-1", "plan-1"));
+
+      expect(repo.findById).toHaveBeenCalledWith("tenant-1", "plan-1", {
+        leadOwnerId: "actor-1",
+        studentUserId: "actor-1",
+      });
+    });
+
+    it("404s (never 403) when the plan exists but is outside the caller's scope", async () => {
+      repo.findById.mockResolvedValue(null);
+
+      await expect(
+        runWithScope("own", () => service.getById("tenant-1", "actor-1", "someone-elses-plan")),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("applies no restriction at scope all", async () => {
+      repo.findById.mockResolvedValue(PLAN_ROW as never);
+
+      await runWithScope("all", () => service.getById("tenant-1", "actor-1", "plan-1"));
+
+      expect(repo.findById).toHaveBeenCalledWith("tenant-1", "plan-1", undefined);
+    });
+
+    it("refuses branch scope rather than silently reading every branch", async () => {
+      await expect(
+        runWithScope("branch", () => service.getById("tenant-1", "actor-1", "plan-1")),
+      ).rejects.toMatchObject({ response: { code: "emi.scope_unresolvable" } });
+      expect(repo.findById).not.toHaveBeenCalled();
     });
   });
 

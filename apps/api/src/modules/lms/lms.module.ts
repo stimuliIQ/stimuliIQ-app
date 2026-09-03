@@ -36,6 +36,7 @@ import { AuthModule } from "../auth/auth.module";
 import { CommonScopeModule } from "../common-scope/common-scope.module";
 import { StorageProviderModule } from "../storage/providers/storage/storage-provider.module";
 import { CertificatesModule } from "../certificates/certificates.module";
+import { GamificationModule } from "../gamification/gamification.module";
 import { VideoProviderModule } from "./providers/video/video-provider.module";
 import { LmsController } from "./lms.controller";
 import { LessonsController } from "./lessons.controller";
@@ -81,6 +82,10 @@ function createVideoWebhookProcessorPort(sync: SyncVideoWebhookProcessorAdapter)
     // StorageProviderModule/NotificationsModule/StudentsModule — none of which import
     // LmsModule.
     CertificatesModule,
+    // Points/badges/streaks on lesson completion (LmsProgressService.markComplete ->
+    // GamificationService.awardForLessonCompleted). GamificationModule imports only
+    // AuthModule, so there is no cycle.
+    GamificationModule,
   ],
   controllers: [
     LmsController,

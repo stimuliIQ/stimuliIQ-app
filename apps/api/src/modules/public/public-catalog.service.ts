@@ -17,6 +17,7 @@
 //
 // TENANT: resolved server-side via TENANT_SLUG constant (single-tenant P5).
 
+import { mintCdnUrl } from "../content/content.util";
 import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type {
   PublicProgramSummary,
@@ -32,7 +33,6 @@ import type {
 } from "@repo/types";
 import { PublicRepository, type PublicProgramListRow, type PublicProgramDetailRow } from "./public.repository";
 import { VIDEO_PROVIDER, type VideoProvider } from "../lms/providers/video/video-provider.interface";
-import { validateEnv } from "../../config/env";
 
 const TENANT_SLUG = "stimuliiq"; // Single-tenant P5 (multi-tenant subdomain resolution = future phase)
 
@@ -58,13 +58,6 @@ function toSocialLinks(value: unknown): MentorSocialLinks | null {
   return Object.keys(links).length > 0 ? links : null;
 }
 
-/** Convert raw S3/R2 key to a public asset URL. Returns null if key absent. Base is
- *  `PUBLIC_ASSET_BASE_URL` (default the prod CDN; `.../api/v1/assets` in local dev). */
-function mintCdnUrl(key: string | null | undefined): string | null {
-  if (!key) return null;
-  const base = (validateEnv().PUBLIC_ASSET_BASE_URL ?? "https://cdn.stimuliiq.com").replace(/\/+$/, "");
-  return `${base}/${key}`;
-}
 
 /** Derive a human-readable EMI display string from the emi JSON field. */
 function deriveEmiDisplay(emi: unknown): string | null {

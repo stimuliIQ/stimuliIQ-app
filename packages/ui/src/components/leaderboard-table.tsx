@@ -28,7 +28,6 @@ import { Skeleton } from "./skeleton";
  * Usage:
  *   <LeaderboardTable
  *     entries={leaderboard}   // no email/phone in this type!
- *     currentUserId="user-42"
  *     loading={isFetching}
  *   />
  */
@@ -38,8 +37,14 @@ import { Skeleton } from "./skeleton";
  * Intentional: this type is the enforcement mechanism.
  */
 export interface LeaderboardEntry {
-  /** Opaque user id — used only for React key + "is me" highlight. NOT displayed. */
-  userId: string;
+  /**
+   * True on the viewer's own row. Resolved server-side, because the leaderboard payload
+   * deliberately carries no user id for anybody — see LeaderboardEntryDto in
+   * `@repo/types`. This replaced a `userId` field the caller had to match against
+   * `currentUserId`: the API never returns one, so the LMS filled it with the current
+   * user's id on EVERY row and the table highlighted the entire leaderboard as "you".
+   */
+  isMe: boolean;
   /** Display name / alias. Never email or phone. */
   displayName: string;
   /** Aggregate points. */
@@ -62,8 +67,6 @@ void _assertNoPII;
 
 export interface LeaderboardTableProps {
   entries: LeaderboardEntry[];
-  /** The current user's userId, used to highlight "my" row. */
-  currentUserId?: string;
   loading?: boolean;
   loadingRowCount?: number;
   /** Optional heading for the section. */
@@ -96,7 +99,6 @@ function RankCell({ rank }: { rank: number }): React.JSX.Element {
 
 export function LeaderboardTable({
   entries,
-  currentUserId,
   loading = false,
   loadingRowCount = 10,
   heading,
@@ -169,10 +171,10 @@ export function LeaderboardTable({
             </thead>
             <tbody>
               {entries.map((entry, index) => {
-                const isMe = entry.userId === currentUserId;
+                const isMe = entry.isMe;
                 return (
                   <tr
-                    key={entry.userId}
+                    key={entry.rank}
                     aria-rowindex={index + 2} // +2 because header row is 1
                     data-testid="leaderboard-row"
                     data-current-user={isMe || undefined}

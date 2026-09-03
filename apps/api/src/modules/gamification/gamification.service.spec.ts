@@ -348,8 +348,10 @@ describe("GamificationService", () => {
       const entry = entries[0]!;
       const entryKeys = Object.keys(entry);
 
-      // MUST have exactly these four keys (response-key scan test)
-      expect(entryKeys.sort()).toEqual(["badgeCount", "displayName", "rank", "totalPoints"]);
+      // MUST have exactly these keys (response-key scan test). `isMe` is a boolean about
+      // the CALLER — the one person who already knows who they are — and is what lets the
+      // client highlight its own row in a payload that carries no user id for anybody.
+      expect(entryKeys.sort()).toEqual(["badgeCount", "displayName", "isMe", "rank", "totalPoints"]);
 
       // MUST NOT contain PII fields
       expect(entry).not.toHaveProperty("email");
@@ -364,6 +366,48 @@ describe("GamificationService", () => {
       expect(entry.displayName).toBe("Alice");
       expect(entry.totalPoints).toBe(50);
       expect(entry.badgeCount).toBe(1);
+    });
+
+    it("marks isMe on the caller's own row and on no other", async () => {
+      const repo = makeRepo({
+        findEnrollmentForBatch: jest.fn().mockResolvedValue({ id: "enroll-1" }),
+        findEnrolledStudentsForLeaderboard: jest.fn().mockResolvedValue([
+          { userId: "u1", leaderboardOptIn: true, leaderboardDisplayName: "Alice", firstName: "Alice" },
+          { userId: USER_ID, leaderboardOptIn: true, leaderboardDisplayName: "Me", firstName: "Me" },
+          { userId: "u3", leaderboardOptIn: true, leaderboardDisplayName: "Chen", firstName: "Chen" },
+        ]),
+        sumPointsForUsers: jest.fn().mockResolvedValue(
+          new Map([
+            ["u1", 90],
+            [USER_ID, 50],
+            ["u3", 10],
+          ]),
+        ),
+        countBadgesForUsers: jest.fn().mockResolvedValue(new Map()),
+      });
+      const service = new GamificationService(repo as unknown as GamificationRepository);
+
+      const entries = await service.getLeaderboard(TENANT_ID, USER_ID, "batch-b");
+
+      expect(entries.filter((e) => e.isMe)).toHaveLength(1);
+      // Survives the sort: the flag is attached before ranking, not by position.
+      expect(entries.find((e) => e.isMe)?.displayName).toBe("Me");
+      expect(entries.find((e) => e.isMe)?.rank).toBe(2);
+    });
+
+    it("marks no row when the caller is not on the board", async () => {
+      const repo = makeRepo({
+        findEnrollmentForBatch: jest.fn().mockResolvedValue({ id: "enroll-1" }),
+        findEnrolledStudentsForLeaderboard: jest.fn().mockResolvedValue([
+          { userId: "u1", leaderboardOptIn: true, leaderboardDisplayName: "Alice", firstName: "Alice" },
+        ]),
+        sumPointsForUsers: jest.fn().mockResolvedValue(new Map([["u1", 50]])),
+        countBadgesForUsers: jest.fn().mockResolvedValue(new Map()),
+      });
+      const service = new GamificationService(repo as unknown as GamificationRepository);
+
+      const entries = await service.getLeaderboard(TENANT_ID, USER_ID, "batch-b");
+      expect(entries.every((e) => e.isMe === false)).toBe(true);
     });
 
     it("AC-51: opted-out student is excluded from leaderboard immediately", async () => {

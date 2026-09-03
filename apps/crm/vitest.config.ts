@@ -11,6 +11,15 @@ export default defineConfig({
     globals: false,
     css: false,
     setupFiles: ["./src/test/setup.ts"],
+    // Vitest's 5s default is a wall-clock budget, and this suite spends most of its time
+    // inside `userEvent` (which types character-by-character through jsdom) across 40+
+    // test files on parallel workers. The four assessment-form-drawer submit cases pass
+    // in ~2s each when that file runs alone and time out at 5s when the whole suite
+    // contends for the CPU — a scheduling race reported as a functional failure, which
+    // is the worst kind of merge gate: red on a loaded CI box, green on a laptop. The
+    // budget below is generous enough that only a genuine hang trips it.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     include: ["src/**/*.test.{ts,tsx}"],
     // Playwright e2e specs live under e2e/ and use @playwright/test's own runner
     // (`pnpm e2e`) — exclude them from the vitest run explicitly so `pnpm test`

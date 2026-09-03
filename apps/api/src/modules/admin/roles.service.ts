@@ -23,11 +23,11 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import type { PermissionMatrix, Role, RolePermissions } from "@repo/types";
 import type { RolePermissionScope } from "@prisma/client";
 import { RolesRepository, type RoleRow } from "./roles.repository";
+import { SCOPE_RANK } from "./scope-rank";
 import { AuthRepository } from "../auth/auth.repository";
 import { PaginatedResult } from "../../common/dto/paginated-result";
 import type { CloneRoleRequest, CreateRoleRequest, ListRolesQuery, UpdateRolePermissionsRequest, UpdateRoleRequest } from "./dto";
 
-const SCOPE_RANK: Record<RolePermissionScope, number> = { all: 4, branch: 3, assigned: 2, own: 1 };
 
 /**
  * Roles that application code resolves BY KEY at runtime, and therefore cannot be deleted

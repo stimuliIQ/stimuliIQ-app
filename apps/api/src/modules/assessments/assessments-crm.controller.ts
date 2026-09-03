@@ -56,7 +56,8 @@ import { ScopeInterceptor } from "../auth/interceptors/scope.interceptor";
 import { RequirePermission } from "../auth/decorators/require-permission.decorator";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { RequestUser } from "../auth/lib/request-user";
-import { getScopeContext } from "../auth/lib/scope-context";
+import { requireScopeContext } from "../auth/lib/scope-context";
+import { assertAuthoringScope } from "../common-scope/authoring-scope";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { PaginatedResult } from "../../common/dto/paginated-result";
 import { AssessmentsService } from "./assessments.service";
@@ -81,8 +82,7 @@ export class AssessmentsCrmController {
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(ListAssessmentsQuerySchema)) query: ListAssessmentsQuery,
   ): Promise<PaginatedResult<AssessmentSummary>> {
-    const ctx = getScopeContext();
-    const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
+    const scope = assertAuthoringScope("assessments", requireScopeContext().scope);
     return this.service.listAssessments(user.tenantId, query, scope, user.id);
   }
 
@@ -100,8 +100,7 @@ export class AssessmentsCrmController {
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(CreateAssessmentRequestSchema)) body: CreateAssessmentRequest,
   ): Promise<AssessmentDetailAuthor> {
-    const ctx = getScopeContext();
-    const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
+    const scope = assertAuthoringScope("assessments", requireScopeContext().scope);
     return this.service.createAssessment(user.id, user.tenantId, body, scope);
   }
 
@@ -117,8 +116,7 @@ export class AssessmentsCrmController {
     @CurrentUser() user: RequestUser,
     @Param("id", new ParseUUIDPipe()) id: string,
   ): Promise<AssessmentDetailAuthor> {
-    const ctx = getScopeContext();
-    const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
+    const scope = assertAuthoringScope("assessments", requireScopeContext().scope);
     return this.service.getAssessmentAuthor(user.tenantId, id, scope, user.id);
   }
 
@@ -134,8 +132,7 @@ export class AssessmentsCrmController {
     @Param("id", new ParseUUIDPipe()) id: string,
     @Body(new ZodValidationPipe(UpdateAssessmentRequestSchema)) body: UpdateAssessmentRequest,
   ): Promise<AssessmentDetailAuthor> {
-    const ctx = getScopeContext();
-    const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
+    const scope = assertAuthoringScope("assessments", requireScopeContext().scope);
     return this.service.updateAssessment(user.tenantId, id, body, scope, user.id);
   }
 
@@ -156,8 +153,7 @@ export class AssessmentsCrmController {
     @Param("id", new ParseUUIDPipe()) attemptId: string,
     @Body(new ZodValidationPipe(GradeAttemptRequestSchema)) body: GradeAttemptRequest,
   ): Promise<AttemptResult> {
-    const ctx = getScopeContext();
-    const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
+    const scope = assertAuthoringScope("assessments", requireScopeContext().scope);
     return this.service.gradeAttempt(user.id, user.tenantId, attemptId, body, scope);
   }
 }

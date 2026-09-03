@@ -516,6 +516,22 @@ export class AssessmentsRepository {
    * Find an attempt by id.
    * Returns null if not found (IDOR → 404 in service).
    */
+  /**
+   * The `users.id` of the student who owns an attempt, via
+   * attempt → enrollment → student_profile → user.
+   *
+   * Needed because the descriptive-grading path is driven by a FACULTY member: the actor
+   * on that request is the grader, and the points belong to the candidate. Returns null
+   * for an attempt whose student has no linked login (possible for an imported profile).
+   */
+  async findStudentUserIdForAttempt(tenantId: string, attemptId: string): Promise<string | null> {
+    const row = await this.prisma.client.attempt.findFirst({
+      where: { id: attemptId, tenantId },
+      select: { enrollment: { select: { student: { select: { userId: true } } } } },
+    });
+    return row?.enrollment?.student?.userId ?? null;
+  }
+
   async findAttemptById(tenantId: string, attemptId: string): Promise<AttemptRow | null> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma include returns complex generic
     const row: any = await this.prisma.client.attempt.findFirst({

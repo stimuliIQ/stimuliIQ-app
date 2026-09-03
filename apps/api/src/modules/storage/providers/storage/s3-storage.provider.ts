@@ -218,6 +218,27 @@ export function isPublicAssetKey(key: string): boolean {
   return PUBLIC_ASSET_PREFIXES.some((prefix) => key.startsWith(prefix));
 }
 
+/**
+ * True when `key` names an object this system creates and protects — i.e. it sits in one
+ * of the namespaces `buildStorageKey` mints, and that namespace is NOT one of the
+ * publicly-served ones. Student submissions, exports, invoices, receipts, certificates,
+ * lesson resources, career resumes, offer letters, onboarding files and source video all
+ * qualify; every one of them is delivered exclusively through a short-lived signed URL.
+ *
+ * Derived from the two lists rather than written out, so a namespace added to
+ * `ALLOWED_KEY_PREFIXES` and not to `PUBLIC_ASSET_PREFIXES` becomes private automatically
+ * — the safe direction to be wrong in.
+ *
+ * A key matching NEITHER list (say `partners/acme-logo.png`, typed into the CRM by hand
+ * for a file an operator put in the bucket themselves) is not private: nothing here
+ * created it, so nothing here is claiming to protect it. That is why this is a deny
+ * check on the managed namespaces rather than an allow check on the public ones — the
+ * latter would break every hand-managed marketing asset while adding no safety.
+ */
+export function isPrivateStorageKey(key: string): boolean {
+  return ALLOWED_KEY_PREFIXES.some((prefix) => key.startsWith(prefix) && !isPublicAssetKey(key));
+}
+
 /** Maximum length of the sanitised filename component. */
 const MAX_FILENAME_LENGTH = 200;
 

@@ -229,6 +229,9 @@ describe("CommerceService", () => {
       findRefundById: jest.fn(),
       listRefunds: jest.fn(),
       createRefund: jest.fn(),
+      // Default: no other refund has any claim on the payment, so the aggregate ceiling
+      // is just the payment amount and the pre-existing cases behave as they always did.
+      sumLiveRefundsForPayment: jest.fn().mockResolvedValue(0),
       updateRefundApprove: jest.fn(),
       updateRefundStatus: jest.fn(),
       findCouponById: jest.fn(),
@@ -878,6 +881,62 @@ describe("CommerceService", () => {
 
   // Maker-checker: refund requested by a DIFFERENT user than ACTOR_ID (the approver).
   const REQUESTER_ID = "11111111-aaaa-aaaa-aaaa-111111111111";
+
+  // A payment can be refunded more than once (partial refunds), so the ceiling has to be
+  // the aggregate, not this one row. Checking only the single request let two full-amount
+  // refunds both be raised and both be approved — maker-checker is satisfied as long as a
+  // different person signs each, and nothing else compared them.
+  describe("refund over-refund ceiling", () => {
+    it("refuses a request that would exceed the payment once open refunds are counted", async () => {
+      repository.findPaymentById.mockResolvedValue(makeMockPaymentRow({ status: "captured", amountPaise: 50000 }));
+      repository.sumLiveRefundsForPayment.mockResolvedValue(40000);
+
+      await expect(
+        withScope("all", () =>
+          service.requestRefund(TENANT_ID, ACTOR_ID, "idem-1", {
+            paymentId: PAYMENT_ID,
+            amountPaise: 20000, // 40000 already claimed + 20000 > 50000
+            reason: "Course cancelled",
+          }),
+        ),
+      ).rejects.toMatchObject({ response: { code: "commerce.refund_exceeds_payment" } });
+      expect(repository.createRefund).not.toHaveBeenCalled();
+    });
+
+    it("allows a request for exactly the remaining balance", async () => {
+      repository.findPaymentById.mockResolvedValue(makeMockPaymentRow({ status: "captured", amountPaise: 50000 }));
+      repository.sumLiveRefundsForPayment.mockResolvedValue(40000);
+      repository.createRefund.mockResolvedValue({ id: REFUND_ID });
+      repository.findRefundById.mockResolvedValue(makeMockRefundRow({ amountPaise: 10000 }));
+
+      await expect(
+        withScope("all", () =>
+          service.requestRefund(TENANT_ID, ACTOR_ID, "idem-2", {
+            paymentId: PAYMENT_ID,
+            amountPaise: 10000,
+            reason: "Partial cancellation",
+          }),
+        ),
+      ).resolves.toBeDefined();
+      expect(repository.createRefund).toHaveBeenCalled();
+    });
+
+    it("refuses at APPROVAL time too, when a concurrent request slipped past the first check", async () => {
+      repository.findRefundById.mockResolvedValue(
+        makeMockRefundRow({ requestedById: REQUESTER_ID, amountPaise: 50000 }),
+      );
+      repository.findPaymentById.mockResolvedValue(
+        makeMockPaymentRow({ status: "captured", amountPaise: 50000, providerPaymentId: "pay_rzp123" }),
+      );
+      // Another refund for the full amount was approved in between.
+      repository.sumLiveRefundsForPayment.mockResolvedValue(50000);
+
+      await expect(
+        withScope("all", () => service.approveRefund(TENANT_ID, ACTOR_ID, REFUND_ID, { notes: "Approved" })),
+      ).rejects.toMatchObject({ response: { code: "commerce.refund_exceeds_payment" } });
+      expect(paymentProvider.refund).not.toHaveBeenCalled();
+    });
+  });
 
   describe("refund approval", () => {
     it("approves a requested refund, calls provider.refund, marks processed (via transaction)", async () => {

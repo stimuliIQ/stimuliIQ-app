@@ -25,6 +25,13 @@ const BASE_ENV = {
   JWT_PUBLIC_KEY_PATH: "./keys/jwt-public.pem",
   COOKIE_SECRET: "a".repeat(32),
   CSRF_SECRET: "b".repeat(32),
+  // Coherent PRODUCTION values. `validateEnv` requires these once NODE_ENV/APP_ENV is
+  // "production" (a session cookie without Secure, or scoped to localhost, is a real
+  // misconfiguration) — and every case below that exercises a production boot guard
+  // sets exactly that. Without them the spec would fail on env validation before ever
+  // reaching the guard it is testing.
+  COOKIE_SECURE: "true",
+  COOKIE_DOMAIN: ".stimuliiq.test",
 };
 
 async function bootWith(env: Record<string, string | undefined>): Promise<unknown> {

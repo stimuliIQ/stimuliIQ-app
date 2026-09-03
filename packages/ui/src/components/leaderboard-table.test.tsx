@@ -4,10 +4,10 @@ import { render, screen } from "@testing-library/react";
 import { LeaderboardTable, type LeaderboardEntry } from "./leaderboard-table";
 
 const ENTRIES: LeaderboardEntry[] = [
-  { userId: "u1", displayName: "Priya S.", points: 4500, rank: 1 },
-  { userId: "u2", displayName: "Rahul M.", points: 4200, rank: 2 },
-  { userId: "u3", displayName: "Aarav K.", points: 3900, rank: 3 },
-  { userId: "u4", displayName: "Vikram D.", points: 3500, rank: 4 },
+  { isMe: false, displayName: "Priya S.", points: 4500, rank: 1 },
+  { isMe: true, displayName: "Rahul M.", points: 4200, rank: 2 },
+  { isMe: false, displayName: "Aarav K.", points: 3900, rank: 3 },
+  { isMe: false, displayName: "Vikram D.", points: 3500, rank: 4 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -38,10 +38,21 @@ describe("LeaderboardTable, rendering", () => {
     expect(screen.getByRole("heading", { name: "Class Leaderboard" })).toBeInTheDocument();
   });
 
-  it("highlights the current user's row", () => {
-    render(<LeaderboardTable entries={ENTRIES} currentUserId="u2" />);
-    // "(you)" should appear next to the current user
-    expect(screen.getByText("(you)")).toBeInTheDocument();
+  it("highlights the viewer's own row, and only that one", () => {
+    render(<LeaderboardTable entries={ENTRIES} />);
+    // Exactly one "(you)" — this used to be every row, because the LMS had no user id to
+    // compare against and stamped the current user's onto all of them.
+    expect(screen.getAllByText("(you)")).toHaveLength(1);
+    const marked = screen
+      .getAllByTestId("leaderboard-row")
+      .filter((row) => row.getAttribute("data-current-user") === "true");
+    expect(marked).toHaveLength(1);
+    expect(marked[0]!.textContent).toContain("Rahul M.");
+  });
+
+  it("marks no row when the viewer is not on the board", () => {
+    render(<LeaderboardTable entries={ENTRIES.map((e) => ({ ...e, isMe: false }))} />);
+    expect(screen.queryByText("(you)")).not.toBeInTheDocument();
   });
 });
 

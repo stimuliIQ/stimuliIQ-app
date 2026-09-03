@@ -82,7 +82,16 @@ describeIfDb("AssessmentsService integration tests", () => {
     await prismaService.onModuleInit();
 
     repo = new AssessmentsRepository(prismaService);
-    service = new AssessmentsService(repo);
+    // GamificationService stub — the award calls are fire-and-forget and non-fatal, so a
+    // resolving stub is enough here; the awards themselves are covered by the unit specs.
+    const gamificationStub = {
+      awardForLessonCompleted: jest.fn().mockResolvedValue(undefined),
+      awardForAssignmentOnTime: jest.fn().mockResolvedValue(undefined),
+      awardForAssessmentPassed: jest.fn().mockResolvedValue(undefined),
+      awardForProjectApproved: jest.fn().mockResolvedValue(undefined),
+      awardForCertificateIssued: jest.fn().mockResolvedValue(undefined),
+    } as never;
+    service = new AssessmentsService(repo, gamificationStub);
 
     const suffix = uniqueSuffix();
 

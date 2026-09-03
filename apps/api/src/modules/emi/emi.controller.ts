@@ -55,7 +55,7 @@ export class CrmEmiController {
   @Get(":id")
   @RequirePermission("emi.view")
   async getById(@CurrentUser() user: RequestUser, @Param("id", new ParseUUIDPipe()) id: string): Promise<EmiPlanDetail> {
-    return this.service.getById(user.tenantId, id);
+    return this.service.getById(user.tenantId, user.id, id);
   }
 
   @Post(":id/installments/:installmentId/mark-paid")

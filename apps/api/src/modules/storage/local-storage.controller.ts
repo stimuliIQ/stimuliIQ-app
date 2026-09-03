@@ -29,6 +29,7 @@ import {
   resolveLocalStorageDir,
 } from "./providers/storage/local-storage.lib";
 import { sanitizeDownloadFilename } from "./providers/storage/storage-provider.interface";
+import { isPrivateStorageKey } from "./providers/storage/s3-storage.provider";
 
 const STORAGE_LOCAL_PREFIX = "/api/v1/storage/local/";
 const ASSETS_PREFIX = "/api/v1/assets/";
@@ -153,11 +154,25 @@ export class LocalStorageController {
     await this.serve(key, res, filename, req.header("range"));
   }
 
-  /** Public asset serve (mentor/faculty photos, blog covers) — no signature. */
+  /**
+   * Public asset serve (mentor photos, programme images, college logos) — no signature.
+   *
+   * The namespace check is what makes "no signature" acceptable. This route reads the
+   * SAME `baseDir` through the SAME `resolveObjectPath` as the signed download above,
+   * and it verifies nothing — so without it, any key at all was fetchable by anyone who
+   * knew or guessed one: `submissions/…` (student work), `careers/…` (resumes),
+   * `onboarding/…` (payment receipts), `invoices/…`, `receipts/…`, `exports/…` (PII
+   * CSVs). Path traversal was already blocked; the namespace was not.
+   *
+   * `isPrivateStorageKey` is the same predicate `mintCdnUrl` uses to decide what may be
+   * published, so the two surfaces cannot drift: if a URL would not be minted for a key,
+   * this will not serve it either.
+   */
   @Get("assets/*")
   async asset(@Req() req: Request, @Res() res: Response): Promise<void> {
     const key = keyFromPath(req.path, ASSETS_PREFIX);
-    if (!key) {
+    if (!key || isPrivateStorageKey(key)) {
+      // 404, not 403: an unsigned caller must not learn that the object exists.
       res.status(404).end();
       return;
     }
@@ -174,6 +189,17 @@ export class LocalStorageController {
       const buf = await readFile(resolveObjectPath(this.baseDir, key));
       const contentType = contentTypeForKey(key);
       res.setHeader("Content-Type", contentType);
+      // The declared type is the type. Without nosniff a browser may sniff an uploaded
+      // file's bytes and execute what it decides is HTML, which turns any upload
+      // namespace into a script-hosting origin.
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      // SVG is a document, not just a picture: opened directly it can carry <script> and
+      // run it on THIS origin. `default-src 'none'` leaves it renderable inside an
+      // <img>/<object> (which is how logos are used) while stripping its ability to
+      // execute anything, so college and partner logos keep working.
+      if (contentType === "image/svg+xml") {
+        res.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+      }
       res.setHeader("Cache-Control", "public, max-age=3600");
       if (downloadFilename) {
         res.setHeader("Content-Disposition", `attachment; filename="${downloadFilename}"`);

@@ -822,6 +822,29 @@ export class CommerceRepository {
     return { rows: rows.map(toRefundRow), total };
   }
 
+  /**
+   * Paise already committed against a payment by refunds that are live — `requested`,
+   * `approved` or `processed`. `rejected` and `failed` release their claim; `requested`
+   * holds one, because two open requests can each be approved by a different person and
+   * the maker-checker rule is satisfied by both.
+   *
+   * `excludeRefundId` lets the approval path re-check the total without counting the row
+   * it is about to approve.
+   */
+  async sumLiveRefundsForPayment(tenantId: string, paymentId: string, excludeRefundId?: string): Promise<number> {
+    const result = await this.prisma.client.refund.aggregate({
+      where: {
+        tenantId,
+        paymentId,
+        deletedAt: null,
+        status: { in: ["requested", "approved", "processed"] },
+        ...(excludeRefundId ? { id: { not: excludeRefundId } } : {}),
+      },
+      _sum: { amountPaise: true },
+    });
+    return result._sum.amountPaise ?? 0;
+  }
+
   async createRefund(data: {
     tenantId: string;
     paymentId: string;

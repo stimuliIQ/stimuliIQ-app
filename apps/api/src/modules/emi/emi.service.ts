@@ -115,9 +115,18 @@ export class EmiService {
     private readonly redis: RedisService,
   ) {}
 
-  private assertCrmScope(): "all" | "branch" | "own" {
+  /**
+   * Resolved scope for a CRM **read**.
+   *
+   * `branch` is refused rather than accepted-and-ignored. It used to be in the accepted
+   * set while nothing in this module ever consulted it, so a branch-scoped holder of
+   * `emi.view` read every plan in the tenant — the fail-open shape this codebase
+   * otherwise rejects (see `scope-context.ts`'s FAIL-CLOSED CONTRACT). Implement a real
+   * branch filter and add the case back if branch managers need this screen.
+   */
+  private assertCrmReadScope(): "all" | "own" {
     const scope = requireScopeContext();
-    if (scope.scope !== "all" && scope.scope !== "branch" && scope.scope !== "own") {
+    if (scope.scope !== "all" && scope.scope !== "own") {
       throw new ForbiddenException({
         code: "emi.scope_unresolvable",
         title: "Scope not supported",
@@ -127,10 +136,38 @@ export class EmiService {
     return scope.scope;
   }
 
+  /**
+   * Resolved scope for a CRM **write** — creating a plan, recording a payment against an
+   * installment, or firing a dunning message at a customer. All three require `all`.
+   *
+   * These previously shared the read gate, which accepts `own` — and then ignored it, so
+   * the check amounted to "are you authenticated with any scope". `emi.view` is seeded at
+   * scope `own` to counsellor and to student; `emi.edit`/`emi.manage` are the keys that
+   * actually gate these routes, but the scope check must still be honest about what it
+   * enforces rather than accepting a value it cannot act on.
+   */
+  private assertCrmWriteScope(): void {
+    const scope = requireScopeContext();
+    if (scope.scope !== "all") {
+      throw new ForbiddenException({
+        code: "emi.scope_unresolvable",
+        title: "Scope not supported",
+        detail: `Recording EMI payments and dunning requires the "all" data-scope; yours is "${scope.scope}".`,
+      });
+    }
+  }
+
+  /** The `findById` restriction implied by the caller's read scope. */
+  private readRestriction(scope: "all" | "own", actorId: string): { leadOwnerId?: string; studentUserId?: string } | undefined {
+    // "own" covers both people it is seeded for: the counsellor who owns the converting
+    // lead, and the student the order belongs to.
+    return scope === "own" ? { leadOwnerId: actorId, studentUserId: actorId } : undefined;
+  }
+
   // ── CRM ───────────────────────────────────────────────────────────────────
 
   async createPlan(tenantId: string, body: CreateEmiPlanRequest): Promise<EmiPlanDetail> {
-    this.assertCrmScope();
+    this.assertCrmWriteScope();
 
     const order = await this.repository.findOrderForPlan(tenantId, body.orderId);
     if (!order) throw new NotFoundException({ code: "emi.order_not_found", title: "Order not found" });
@@ -144,13 +181,31 @@ export class EmiService {
       });
     }
 
+    // The amount the customer will be charged comes from the ORDER, never from the
+    // request body. `body.totalAmountPaise`/`body.currency` used to be written straight
+    // through — `order` was fetched only to prove it existed — and the schedule those
+    // numbers produce is what `markInstallmentPaid` later hands to the payment provider
+    // as a real charge. A client that lowered the total paid less than the order says it
+    // owes, and one that raised it overcharged, with the order row still reading
+    // correctly either way. CLAUDE.md §3.6: money is derived server-side.
+    if (body.totalAmountPaise !== order.amountPaise || body.currency !== order.currency) {
+      throw new UnprocessableEntityException({
+        code: "EMI_TOTAL_MISMATCH",
+        title: "The plan total must match the order",
+        detail:
+          `This order is for ${order.amountPaise} ${order.currency} (minor units); ` +
+          `the request asked for ${body.totalAmountPaise} ${body.currency}. ` +
+          "An EMI plan splits the order's own total — it cannot change it.",
+      });
+    }
+
     const startDate = new Date(`${body.startDate}T00:00:00.000Z`);
-    const installments = buildInstallmentSchedule(body.totalAmountPaise, body.numInstallments, startDate);
+    const installments = buildInstallmentSchedule(order.amountPaise, body.numInstallments, startDate);
 
     const planId = await this.repository.createPlanWithInstallments(tenantId, {
       orderId: body.orderId,
-      totalAmountPaise: body.totalAmountPaise,
-      currency: body.currency,
+      totalAmountPaise: order.amountPaise,
+      currency: order.currency,
       numInstallments: body.numInstallments,
       startDate,
       installments,
@@ -161,7 +216,7 @@ export class EmiService {
   }
 
   async listCrm(tenantId: string, actorId: string, query: ListEmiPlansQuery): Promise<PaginatedResult<EmiPlanSummary>> {
-    const scope = this.assertCrmScope();
+    const scope = this.assertCrmReadScope();
     const { rows, total } = await this.repository.list({
       tenantId,
       orderId: query.orderId,
@@ -179,9 +234,9 @@ export class EmiService {
     });
   }
 
-  async getById(tenantId: string, id: string): Promise<EmiPlanDetail> {
-    this.assertCrmScope();
-    const row = await this.repository.findById(tenantId, id);
+  async getById(tenantId: string, actorId: string, id: string): Promise<EmiPlanDetail> {
+    const scope = this.assertCrmReadScope();
+    const row = await this.repository.findById(tenantId, id, this.readRestriction(scope, actorId));
     if (!row) throw new NotFoundException({ code: "emi.not_found", title: "EMI plan not found" });
     return toDetail(row);
   }
@@ -214,7 +269,7 @@ export class EmiService {
     body: MarkEmiInstallmentPaidRequest,
     idempotencyKey: string,
   ): Promise<EmiPlanDetail> {
-    this.assertCrmScope();
+    this.assertCrmWriteScope();
 
     const plan = await this.repository.findById(tenantId, planId);
     if (!plan) throw new NotFoundException({ code: "emi.not_found", title: "EMI plan not found" });
@@ -301,7 +356,7 @@ export class EmiService {
   // ── Dunning ───────────────────────────────────────────────────────────────
 
   async triggerDunning(tenantId: string, planId: string, installmentId: string): Promise<EmiPlanDetail> {
-    this.assertCrmScope();
+    this.assertCrmWriteScope();
 
     const plan = await this.repository.findById(tenantId, planId);
     if (!plan) throw new NotFoundException({ code: "emi.not_found", title: "EMI plan not found" });

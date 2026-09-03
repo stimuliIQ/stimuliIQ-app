@@ -56,7 +56,15 @@ export class EmiRepository {
   findOrderForPlan(
     tenantId: string,
     orderId: string,
-  ): Promise<{ id: string; studentId: string; currency: string; studentEmail: string; studentName: string } | null> {
+  ): Promise<{
+    id: string;
+    studentId: string;
+    /** The order's own total. The plan's schedule is derived from THIS, never from the request body. */
+    amountPaise: number;
+    currency: string;
+    studentEmail: string;
+    studentName: string;
+  } | null> {
     return this.prisma.client.order
       .findFirst({
         where: { id: orderId, tenantId },
@@ -67,6 +75,7 @@ export class EmiRepository {
           ? {
               id: row.id,
               studentId: row.studentId,
+              amountPaise: row.amountPaise,
               currency: row.currency,
               studentEmail: row.student.user.email,
               studentName: row.student.user.name,
@@ -143,8 +152,37 @@ export class EmiRepository {
     return { rows, total };
   }
 
-  findById(tenantId: string, id: string): Promise<EmiPlanWithInstallments | null> {
-    return this.prisma.client.emiPlan.findFirst({ where: { id, tenantId }, include: PLAN_INCLUDE_FULL });
+  /**
+   * `restrictTo` narrows a single-plan read the same way `list()`'s `leadOwnerId` /
+   * `studentUserId` narrow the list. Without it the detail route was wider than the list
+   * route it is reached from: `emi.view` is seeded at scope `own` for counsellor AND for
+   * student, so anyone holding a plan uuid could read a plan the list would never have
+   * shown them — the customer's name, the order total and the whole installment schedule.
+   * A row outside the restriction comes back null, which the service turns into a 404
+   * (never a 403 — that would confirm the id exists).
+   */
+  findById(
+    tenantId: string,
+    id: string,
+    restrictTo?: { leadOwnerId?: string; studentUserId?: string },
+  ): Promise<EmiPlanWithInstallments | null> {
+    const ownership =
+      restrictTo?.leadOwnerId || restrictTo?.studentUserId
+        ? {
+            order: {
+              student: {
+                OR: [
+                  ...(restrictTo.leadOwnerId ? [{ convertedFromLead: { ownerId: restrictTo.leadOwnerId } }] : []),
+                  ...(restrictTo.studentUserId ? [{ userId: restrictTo.studentUserId }] : []),
+                ],
+              },
+            },
+          }
+        : {};
+    return this.prisma.client.emiPlan.findFirst({
+      where: { id, tenantId, ...ownership },
+      include: PLAN_INCLUDE_FULL,
+    });
   }
 
   findInstallment(tenantId: string, planId: string, installmentId: string): Promise<EmiInstallmentRow | null> {

@@ -27,6 +27,7 @@ import {
   StatusChip,
 } from "@repo/ui";
 import type { SubmitAssignmentRequest } from "@repo/types";
+import { SubmissionContentTypeSchema } from "@repo/types";
 
 import {
   useAssignmentDetail,
@@ -253,7 +254,10 @@ function SubmissionForm({
           onRemoved={(key) => handleFileRemoved(key)}
           multiple
           maxBytes={50 * 1024 * 1024} // 50 MB client hint
-          acceptedTypes={["application/pdf", "image/*", "application/zip", "text/plain"]}
+          // The exact server allow-list, not a looser hint. `image/*` used to be offered
+          // here, which let the picker accept an SVG the API now refuses — a file the
+          // student had already chosen, rejected after the fact.
+          acceptedTypes={[...SubmissionContentTypeSchema.options]}
           disabled={isDisabled || isSubmitting}
           label="Upload assignment files"
           data-testid="assignment-file-upload"
@@ -338,6 +342,18 @@ export function AssignmentDetailContent({
   const { submission, isLoading: submissionLoading } = useMySubmission(assignmentId);
   const [showResubmitForm, setShowResubmitForm] = React.useState(false);
 
+  // Sanitize instructions (faculty-authored HTML — safe to render, but still sanitize
+  // defensively). MUST stay above the early returns below: this used to sit just before
+  // the final `return`, after four of them, so the first render (isLoading = true) bailed
+  // out having run three hooks and the render where the data arrived ran four. React
+  // counts hooks per instance and throws "Rendered more hooks than during the previous
+  // render" on that transition — which is every cold load of this page. `assignment` is
+  // undefined until the query resolves, hence the `?? ""`.
+  const sanitizedInstructions = React.useMemo(
+    () => sanitizeHtml(assignment?.instructions ?? ""),
+    [assignment?.instructions],
+  );
+
   if (isLoading || submissionLoading) return <AssignmentDetailSkeleton />;
 
   if (isSignedOut) {
@@ -409,12 +425,6 @@ export function AssignmentDetailContent({
         minute: "2-digit",
       })
     : null;
-
-  // Sanitize instructions (faculty-authored HTML — safe to render, but still sanitize defensively)
-  const sanitizedInstructions = React.useMemo(
-    () => sanitizeHtml(assignment.instructions),
-    [assignment.instructions],
-  );
 
   return (
     <div data-testid="assignment-detail-content">

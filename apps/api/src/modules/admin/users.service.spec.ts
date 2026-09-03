@@ -8,10 +8,18 @@
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { UsersAdminService } from "./users.service";
 import { UsersAdminRepository, type StaffUserRow } from "./users.repository";
+import { RolesRepository } from "./roles.repository";
 import { AuthRepository } from "../auth/auth.repository";
 import { TwoFactorStore } from "../auth/lib/two-factor-store";
 
 type Mocked<T> = { [K in keyof T]: T[K] extends (...args: never[]) => unknown ? jest.Mock : T[K] };
+
+/** What a super admin's resolved profile looks like to the privilege-escalation guard. */
+const SUPER_ADMIN_GRANTS = [
+  { key: "users.edit", scope: "all" as const },
+  { key: "users.reset_password", scope: "all" as const },
+  { key: "leads.view", scope: "all" as const },
+];
 
 function mockRepository(): Mocked<UsersAdminRepository> {
   return {
@@ -37,7 +45,19 @@ function mockAuthRepository(): Mocked<AuthRepository> {
     findUserById: jest.fn(),
     setTwoFaEnabled: jest.fn(),
     recordTwoFactorAudit: jest.fn(),
+    // The default actor is a super admin: holds every key the fixtures' roles hold,
+    // at the widest scope, so the privilege-escalation guard in resolveStaffRoleIds
+    // passes and these cases keep testing what they were written to test. The guard
+    // itself has its own describe block below.
+    getRbacProfile: jest.fn().mockResolvedValue({ roleKeys: ["super_admin"], permissions: SUPER_ADMIN_GRANTS }),
   } as unknown as Mocked<AuthRepository>;
+}
+
+function mockRolesRepository(): Mocked<RolesRepository> {
+  return {
+    // No grants on the assigned role → nothing for the escalation guard to object to.
+    getRoleGrantsWithIds: jest.fn().mockResolvedValue([]),
+  } as unknown as Mocked<RolesRepository>;
 }
 
 function mockTwoFactorStore(): Mocked<TwoFactorStore> {
@@ -73,6 +93,7 @@ const ACTOR = "actor-1";
 describe("UsersAdminService", () => {
   let service: UsersAdminService;
   let repo: Mocked<UsersAdminRepository>;
+  let rolesRepo: Mocked<RolesRepository>;
   let authRepo: Mocked<AuthRepository>;
   let twoFactorStore: Mocked<TwoFactorStore>;
   let mail: { send: jest.Mock };
@@ -82,8 +103,10 @@ describe("UsersAdminService", () => {
     authRepo = mockAuthRepository();
     twoFactorStore = mockTwoFactorStore();
     mail = mockMailProvider();
+    rolesRepo = mockRolesRepository();
     service = new UsersAdminService(
       repo as unknown as UsersAdminRepository,
+      rolesRepo as unknown as RolesRepository,
       authRepo as unknown as AuthRepository,
       twoFactorStore as unknown as TwoFactorStore,
       mail as never,
@@ -434,6 +457,86 @@ describe("UsersAdminService", () => {
         email: "priya@stimuliiq.com",
       });
       expect(repo.setPassword).toHaveBeenCalled();
+    });
+  });
+
+  // The staff-user editor is the second door into the same room as the role editor, and
+  // it was unlocked: `users.edit` is seeded for admin as well as super_admin, so an admin
+  // could hand themselves the `super_admin` role, or simply overwrite a super admin's
+  // password with one they chose. Both are one PATCH. These pin them shut.
+  describe("update — privilege escalation", () => {
+    /** An admin: holds users.edit, but NOT users.reset_password (super_admin only). */
+    const ADMIN_GRANTS = [{ key: "users.edit", scope: "all" as const }];
+
+    beforeEach(() => {
+      repo.findById.mockResolvedValue(STAFF_ROW);
+      authRepo.getRbacProfile.mockResolvedValue({ roleKeys: ["admin"], permissions: ADMIN_GRANTS });
+    });
+
+    it("refuses to assign a role holding a permission the actor does not hold", async () => {
+      const superAdminRole = { id: "role-super", key: "super_admin", name: "Super Admin" };
+      repo.findRolesByIds.mockResolvedValue([superAdminRole]);
+      rolesRepo.getRoleGrantsWithIds.mockResolvedValue([
+        { permissionId: "p1", permissionKey: "users.reset_password", scope: "all" },
+      ]);
+
+      await expect(
+        service.update(TENANT, ACTOR, "user-1", { roleIds: [superAdminRole.id] }),
+      ).rejects.toMatchObject({ response: { code: "users.privilege_escalation" } });
+      expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    it("refuses to assign a role holding a WIDER scope of a permission the actor has", async () => {
+      const wideRole = { id: "role-wide", key: "regional", name: "Regional" };
+      authRepo.getRbacProfile.mockResolvedValue({
+        roleKeys: ["counsellor"],
+        permissions: [{ key: "leads.view", scope: "own" }],
+      });
+      repo.findRolesByIds.mockResolvedValue([wideRole]);
+      rolesRepo.getRoleGrantsWithIds.mockResolvedValue([
+        { permissionId: "p2", permissionKey: "leads.view", scope: "all" },
+      ]);
+
+      await expect(
+        service.update(TENANT, ACTOR, "user-1", { roleIds: [wideRole.id] }),
+      ).rejects.toMatchObject({ response: { code: "users.privilege_escalation" } });
+    });
+
+    it("allows a role whose grants the actor already holds at the same or a wider scope", async () => {
+      repo.findRolesByIds.mockResolvedValue([COUNSELLOR_ROLE]);
+      rolesRepo.getRoleGrantsWithIds.mockResolvedValue([
+        { permissionId: "p3", permissionKey: "users.edit", scope: "all" },
+      ]);
+
+      await expect(
+        service.update(TENANT, ACTOR, "user-1", { roleIds: [COUNSELLOR_ROLE.id] }),
+      ).resolves.toBeDefined();
+      expect(repo.update).toHaveBeenCalledWith(
+        expect.objectContaining({ roleIds: [COUNSELLOR_ROLE.id] }),
+      );
+    });
+
+    it("refuses to set a password without users.reset_password", async () => {
+      await expect(
+        service.update(TENANT, ACTOR, "user-1", { password: "Att4ckerChosen!" }),
+      ).rejects.toMatchObject({ response: { code: "users.password_change_not_permitted" } });
+      expect(repo.update).not.toHaveBeenCalled();
+      expect(authRepo.revokeAllSessionsForUser).not.toHaveBeenCalled();
+    });
+
+    it("allows a password change for an actor who holds users.reset_password", async () => {
+      authRepo.getRbacProfile.mockResolvedValue({
+        roleKeys: ["super_admin"],
+        permissions: SUPER_ADMIN_GRANTS,
+      });
+
+      await expect(
+        service.update(TENANT, ACTOR, "user-1", { password: "Sup3rSecret!x" }),
+      ).resolves.toBeDefined();
+      expect(repo.update).toHaveBeenCalledWith(
+        expect.objectContaining({ passwordHash: expect.any(String) }),
+      );
+      expect(authRepo.revokeAllSessionsForUser).toHaveBeenCalledWith("user-1");
     });
   });
 

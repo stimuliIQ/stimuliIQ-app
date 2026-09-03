@@ -74,7 +74,8 @@ import { ScopeInterceptor } from "../auth/interceptors/scope.interceptor";
 import { RequirePermission } from "../auth/decorators/require-permission.decorator";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { RequestUser } from "../auth/lib/request-user";
-import { getScopeContext } from "../auth/lib/scope-context";
+import { requireScopeContext } from "../auth/lib/scope-context";
+import { assertAuthoringScope } from "../common-scope/authoring-scope";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { PaginatedResult } from "../../common/dto/paginated-result";
 import { CertificatesService } from "./certificates.service";
@@ -100,8 +101,7 @@ export class CertificatesCrmController {
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(ListEligibilityQuerySchema)) query: ListEligibilityQuery,
   ): Promise<PaginatedResult<EligibilityListItem>> {
-    const ctx = getScopeContext();
-    const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
+    const scope = assertAuthoringScope("certificates", requireScopeContext().scope);
     return this.service.listEligibility(user.tenantId, query, scope, user.id);
   }
 
@@ -122,8 +122,7 @@ export class CertificatesCrmController {
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(ListEligibilityBatchesQuerySchema)) query: ListEligibilityBatchesQuery,
   ): Promise<PaginatedResult<EligibilityBatchSummary>> {
-    const ctx = getScopeContext();
-    const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
+    const scope = assertAuthoringScope("certificates", requireScopeContext().scope);
     return this.service.listEligibilityBatches(user.tenantId, query, scope, user.id);
   }
 
@@ -139,8 +138,7 @@ export class CertificatesCrmController {
     @CurrentUser() user: RequestUser,
     @Param("enrollmentId", new ParseUUIDPipe()) enrollmentId: string,
   ): Promise<EligibilityResult> {
-    const ctx = getScopeContext();
-    const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
+    const scope = assertAuthoringScope("certificates", requireScopeContext().scope);
     return this.service.getEligibilityDetail(user.tenantId, enrollmentId, scope, user.id);
   }
 
@@ -157,8 +155,7 @@ export class CertificatesCrmController {
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(ListCertificatesQuerySchema)) query: ListCertificatesQuery,
   ): Promise<PaginatedResult<CertificateCrmDetail>> {
-    const ctx = getScopeContext();
-    const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
+    const scope = assertAuthoringScope("certificates", requireScopeContext().scope);
     return this.service.listCertificates(user.tenantId, query, scope, user.id);
   }
 
@@ -173,8 +170,7 @@ export class CertificatesCrmController {
     @CurrentUser() user: RequestUser,
     @Param("id", new ParseUUIDPipe()) id: string,
   ): Promise<CertificateCrmDetail> {
-    const ctx = getScopeContext();
-    const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
+    const scope = assertAuthoringScope("certificates", requireScopeContext().scope);
     return this.service.getCertificate(user.tenantId, id, scope, user.id);
   }
 
@@ -194,8 +190,7 @@ export class CertificatesCrmController {
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(IssueCertificateRequestSchema)) body: IssueCertificateRequest,
   ): Promise<CertificateCrmDetail> {
-    const ctx = getScopeContext();
-    const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
+    const scope = assertAuthoringScope("certificates", requireScopeContext().scope);
     return this.service.issueCertificate(user.id, user.tenantId, body, scope);
   }
 
@@ -214,8 +209,7 @@ export class CertificatesCrmController {
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(BulkIssueCertificatesRequestSchema)) body: BulkIssueCertificatesRequest,
   ): Promise<BulkIssueCertificatesResponse> {
-    const ctx = getScopeContext();
-    const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
+    const scope = assertAuthoringScope("certificates", requireScopeContext().scope);
     return this.service.bulkIssueCertificates(user.id, user.tenantId, body, scope);
   }
 
@@ -235,8 +229,7 @@ export class CertificatesCrmController {
     @Param("enrollmentId", new ParseUUIDPipe()) enrollmentId: string,
     @Body(new ZodValidationPipe(RecommendCertificateRequestSchema)) body: RecommendCertificateRequest,
   ): Promise<EligibilityResult> {
-    const ctx = getScopeContext();
-    const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
+    const scope = assertAuthoringScope("certificates", requireScopeContext().scope);
     return this.service.recommendCertificate(user.id, user.tenantId, enrollmentId, body, scope);
   }
 
@@ -274,8 +267,7 @@ export class CertificatesCrmController {
     @Param("enrollmentId", new ParseUUIDPipe()) enrollmentId: string,
     @Body(new ZodValidationPipe(ReissueCertificateRequestSchema)) body: ReissueCertificateRequest,
   ): Promise<CertificateCrmDetail> {
-    const ctx = getScopeContext();
-    const scope = (ctx?.scope ?? "all") as "all" | "assigned" | "branch";
+    const scope = assertAuthoringScope("certificates", requireScopeContext().scope);
     return this.service.reissueCertificate(user.id, user.tenantId, enrollmentId, body, scope);
   }
 

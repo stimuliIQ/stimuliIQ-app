@@ -64,6 +64,8 @@ type MockRepo = jest.Mocked<
 >;
 
 interface MockRepoWithPrisma extends MockRepo {
+  /** Resolves the STUDENT behind an attempt — the grading path's actor is the faculty member. */
+  findStudentUserIdForAttempt: jest.Mock;
   prisma: {
     client: {
       module: { findFirst: jest.Mock };
@@ -97,6 +99,9 @@ function makeRepo(): MockRepoWithPrisma {
     submitAttempt: jest.fn(),
     incrementTabSwitchFlag: jest.fn(),
     gradeAttempt: jest.fn(),
+    // The grader is a faculty member, so the XP has to be resolved back to the student
+    // who owns the attempt.
+    findStudentUserIdForAttempt: jest.fn().mockResolvedValue("student-user-1"),
     listAttempts: jest.fn(),
     writeAttemptGradeAuditLog: jest.fn(),
     writeAttemptStartAuditLog: jest.fn(),
@@ -214,6 +219,18 @@ function makePublicQuestion(id: string): QuestionPublicRow {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+// GamificationService stub — the award calls are fire-and-forget side effects the
+// service treats as non-fatal, so every entry point simply resolves.
+function makeGamificationStub() {
+  return {
+    awardForLessonCompleted: jest.fn().mockResolvedValue(undefined),
+    awardForAssignmentOnTime: jest.fn().mockResolvedValue(undefined),
+    awardForAssessmentPassed: jest.fn().mockResolvedValue(undefined),
+    awardForProjectApproved: jest.fn().mockResolvedValue(undefined),
+    awardForCertificateIssued: jest.fn().mockResolvedValue(undefined),
+  };
+}
+
 describe("gradeMcqQuestion (unit, pure function)", () => {
   it("correct single answer → full points + isCorrect=true", () => {
     const q = makeMcqQuestion("q1", "opt-a", 5);
@@ -264,7 +281,7 @@ describe("AssessmentsService.submitAttempt", () => {
 
   beforeEach(() => {
     repo = makeRepo();
-    service = new AssessmentsService(repo as unknown as AssessmentsRepository);
+    service = new AssessmentsService(repo as unknown as AssessmentsRepository, makeGamificationStub() as never);
   });
 
   it("ATTEMPT_EXPIRED: rejects submission after time_expires_at (AC-D4)", async () => {
@@ -445,7 +462,7 @@ describe("AssessmentsService.startAttempt", () => {
 
   beforeEach(() => {
     repo = makeRepo();
-    service = new AssessmentsService(repo as unknown as AssessmentsRepository);
+    service = new AssessmentsService(repo as unknown as AssessmentsRepository, makeGamificationStub() as never);
   });
 
   it("ATTEMPTS_EXHAUSTED: start when limit reached → 422 (AC-D5)", async () => {
@@ -557,7 +574,7 @@ describe("AssessmentsService.gradeAttempt (faculty manual grade)", () => {
 
   beforeEach(() => {
     repo = makeRepo();
-    service = new AssessmentsService(repo as unknown as AssessmentsRepository);
+    service = new AssessmentsService(repo as unknown as AssessmentsRepository, makeGamificationStub() as never);
   });
 
   it("Faculty in unassigned batch → NotFoundException (IDOR→404, AC-B2 analog)", async () => {

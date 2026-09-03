@@ -314,12 +314,16 @@ export function ProgressContent(): React.JSX.Element {
           Learning Achievements
         </h2>
         <GamificationSection
-          currentUserId={me?.user.id}
-          // batchId: derive from the student's first enrolled program's batch.
-          // If the student is in multiple programs, the progress page shows
-          // the leaderboard for the first active enrollment's batch.
-          // In a future improvement this could be selectable by the student.
-          batchId={progress.data?.programs[0]?.enrollmentId ?? null}
+          // The leaderboard is per BATCH. This used to pass `enrollmentId` — a different
+          // id entirely — so `GET /batches/:id/leaderboard` 404'd every time and the LMS
+          // rendered that as "Leaderboard is not available for this batch", which reads
+          // like a deliberate product state rather than a broken call.
+          //
+          // The first enrolled program's batch is shown. A student in several programs
+          // sees the first one's cohort; making that selectable is a product decision, not
+          // a defect. `batchId` is null until an enrollment is placed in a batch, and the
+          // section already renders its own "open a course" state for that.
+          batchId={progress.data?.programs[0]?.batchId ?? null}
         />
       </section>
     </div>

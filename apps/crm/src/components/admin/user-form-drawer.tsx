@@ -33,6 +33,8 @@ import { useCreateStaffUser, useUpdateStaffUser } from "../../hooks/use-staff-us
 import { useTeamsList } from "../../hooks/use-org";
 import { useAllBranches } from "../../hooks/use-branches";
 import { surfaceError } from "../../lib/surface-error";
+import { useMe } from "../../hooks/use-me";
+import { hasPermission } from "../../lib/permissions";
 import {
   optionalE164Phone,
   phoneFieldProps,
@@ -160,6 +162,8 @@ export function UserFormDrawer({ open, onOpenChange, user }: UserFormDrawerProps
   const { toast } = useToast();
   const createUser = useCreateStaffUser();
   const updateUser = useUpdateStaffUser();
+  const { me } = useMe();
+  const canSetPassword = hasPermission(me?.permissions, "users.reset_password");
 
   const createForm = useForm<CreateFormValues>({
     resolver: zodResolver(requireLocalPhones(CreateStaffUserRequestSchema, PHONE_FIELDS)),
@@ -267,15 +271,22 @@ export function UserFormDrawer({ open, onOpenChange, user }: UserFormDrawerProps
                   setValue("branchId", value === NO_PLACEMENT ? null : value, { shouldValidate: true })
                 }
               />
-              <PasswordInput
-                label="Set new password"
-                placeholder="Leave empty to keep the current password"
-                autoComplete="new-password"
-                helperText="Min 10 characters. Setting a new password signs the user out everywhere."
-                {...register("password")}
-                error={errors.password?.message}
-                data-testid="user-form-password"
-              />
+              {/* Only rendered for whoever holds `users.reset_password`. Setting a
+                  colleague's credential is the same authority as the dedicated reset
+                  route, which is seeded for super_admin alone — the API refuses a
+                  `password` on this PATCH without that key, so showing the field to an
+                  admin would be an affordance that can only 403. */}
+              {canSetPassword ? (
+                <PasswordInput
+                  label="Set new password"
+                  placeholder="Leave empty to keep the current password"
+                  autoComplete="new-password"
+                  helperText="Min 10 characters. Setting a new password signs the user out everywhere."
+                  {...register("password")}
+                  error={errors.password?.message}
+                  data-testid="user-form-password"
+                />
+              ) : null}
             </DrawerBody>
             <DrawerFooter>
               <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} data-testid="user-form-cancel">

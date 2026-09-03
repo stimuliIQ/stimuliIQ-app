@@ -46,11 +46,13 @@ import { STORAGE_PROVIDER } from "../storage/providers/storage/storage-provider.
 import { S3StorageProvider, type BuildKeyOptions } from "../storage/providers/storage/s3-storage.provider";
 import type { StorageProvider } from "../storage/providers/storage/storage-provider.interface";
 import { AssignmentsRepository } from "./assignments.repository";
+import type { AuthoringScope } from "../common-scope/authoring-scope";
 import type { AssignmentRow, SubmissionRow, MilestoneRow } from "./assignments.repository";
 import { PaginatedResult } from "../../common/dto/paginated-result";
 import type { AssignmentKind } from "@prisma/client";
 import { NotificationsService } from "../notifications/notifications.service";
 import { StudentsRepository } from "../students/students.repository";
+import { GamificationService } from "../gamification/gamification.service";
 
 @Injectable()
 export class AssignmentsService {
@@ -61,6 +63,7 @@ export class AssignmentsService {
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
     private readonly notifSvc: NotificationsService,
     private readonly studentsRepository: StudentsRepository,
+    private readonly gamification: GamificationService,
   ) {}
 
   // ─── SIGNED UPLOAD URL (storage endpoint) ────────────────────────────────
@@ -76,45 +79,40 @@ export class AssignmentsService {
     tenantId: string,
     body: GetUploadUrlRequest,
   ): Promise<SignedUploadResponse> {
-    // Validate enrollment ownership for submission purpose.
-    if (body.purpose === "submission" || body.purpose === undefined) {
-      if (!body.enrollmentId) {
-        throw new UnprocessableEntityException({
-          code: "ENROLLMENT_ID_REQUIRED",
-          title: "enrollmentId is required for purpose=submission",
-          detail: "Provide the enrollmentId of the enrollment you are submitting for.",
-        });
-      }
+    // Ownership is checked UNCONDITIONALLY, not per-purpose. The previous shape gated the
+    // check on `purpose === "submission" || undefined` and then built a submissions key in
+    // the `else`, so any purpose the enum allowed but the `if` did not name reached the key
+    // builder with a client-supplied `enrollmentId` that nobody had verified. The schema now
+    // admits only "submission", and this ordering means a future value added to the enum
+    // fails closed instead of inheriting that hole.
+    if (!body.enrollmentId) {
+      throw new UnprocessableEntityException({
+        code: "ENROLLMENT_ID_REQUIRED",
+        title: "enrollmentId is required for purpose=submission",
+        detail: "Provide the enrollmentId of the enrollment you are submitting for.",
+      });
+    }
 
-      const studentId = await this.repo.findStudentProfileId(tenantId, userId);
-      if (!studentId) {
-        throw new NotFoundException("Student profile not found.");
-      }
+    const studentId = await this.repo.findStudentProfileId(tenantId, userId);
+    if (!studentId) {
+      throw new NotFoundException("Student profile not found.");
+    }
 
-      const enrollment = await this.repo.findEnrollmentById(tenantId, body.enrollmentId);
-      if (!enrollment || enrollment.studentId !== studentId) {
-        // IDOR → 404
-        throw new NotFoundException("Enrollment not found.");
-      }
+    const enrollment = await this.repo.findEnrollmentById(tenantId, body.enrollmentId);
+    if (!enrollment || enrollment.studentId !== studentId) {
+      // IDOR → 404
+      throw new NotFoundException("Enrollment not found.");
     }
 
     // Build a scoped key to prevent path traversal.
     const { randomUUID } = await import("node:crypto");
-    const buildKeyOpts: BuildKeyOptions =
-      body.purpose === "resource"
-        ? {
-            namespace: "resources",
-            tenantId,
-            uniqueId: randomUUID(),
-            filename: body.fileName,
-          }
-        : {
-            namespace: "submissions",
-            tenantId,
-            uniqueId: randomUUID(),
-            scopeId: body.enrollmentId,
-            filename: body.fileName,
-          };
+    const buildKeyOpts: BuildKeyOptions = {
+      namespace: "submissions",
+      tenantId,
+      uniqueId: randomUUID(),
+      scopeId: body.enrollmentId,
+      filename: body.fileName,
+    };
 
     const key = S3StorageProvider.buildKey(buildKeyOpts);
 
@@ -146,7 +144,7 @@ export class AssignmentsService {
     actorId: string,
     tenantId: string,
     body: CreateAssignmentRequest,
-    scope: "all" | "assigned" | "branch" | null,
+    scope: AuthoringScope | null,
   ): Promise<AssignmentDetail> {
     // Validate faculty scope if assigned.
     if (scope === "assigned") {
@@ -210,7 +208,7 @@ export class AssignmentsService {
   async listAssignments(
     tenantId: string,
     query: ListAssignmentsQuery,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
     actorId: string,
   ): Promise<PaginatedResult<AssignmentSummary>> {
     let programIds: string[] | undefined = undefined;
@@ -253,7 +251,7 @@ export class AssignmentsService {
   async getAssignment(
     tenantId: string,
     assignmentId: string,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
     actorId: string,
   ): Promise<AssignmentDetail> {
     const row = await this.repo.findAssignmentById(tenantId, assignmentId);
@@ -273,7 +271,7 @@ export class AssignmentsService {
     tenantId: string,
     assignmentId: string,
     body: UpdateAssignmentRequest,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
     actorId: string,
   ): Promise<AssignmentDetail> {
     const existing = await this.repo.findAssignmentById(tenantId, assignmentId);
@@ -304,7 +302,7 @@ export class AssignmentsService {
   async softDeleteAssignment(
     tenantId: string,
     assignmentId: string,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
     actorId: string,
   ): Promise<AssignmentDetail> {
     const existing = await this.repo.findAssignmentById(tenantId, assignmentId);
@@ -328,7 +326,7 @@ export class AssignmentsService {
     tenantId: string,
     assignmentId: string,
     query: ListSubmissionsQuery,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
     actorId: string,
   ): Promise<PaginatedResult<SubmissionSummary>> {
     let allowedBatchIds: string[] | undefined = undefined;
@@ -372,7 +370,7 @@ export class AssignmentsService {
   async getSubmission(
     tenantId: string,
     submissionId: string,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
     actorId: string,
   ): Promise<SubmissionDetail> {
     const row = await this.repo.findSubmissionById(tenantId, submissionId);
@@ -419,7 +417,7 @@ export class AssignmentsService {
     tenantId: string,
     submissionId: string,
     body: ReturnSubmissionRequest,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
   ): Promise<SubmissionDetail> {
     const row = await this.repo.findSubmissionById(tenantId, submissionId);
     if (!row) throw new NotFoundException("Submission not found.");
@@ -504,7 +502,7 @@ export class AssignmentsService {
     tenantId: string,
     submissionId: string,
     body: GradeSubmissionRequest,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
   ): Promise<SubmissionDetail> {
     const row = await this.repo.findSubmissionById(tenantId, submissionId);
     if (!row) throw new NotFoundException("Submission not found.");
@@ -562,6 +560,20 @@ export class AssignmentsService {
           },
           { toEmail: student.email, toPhone: student.phone ?? undefined },
         );
+
+        // Project XP, and the "first approved project" badge with it. "Approved" here
+        // means graded, which is the same definition the certificate eligibility engine
+        // uses (`finalProjectApproved` = the milestones have been graded) — assignments
+        // carry no pass mark of their own, so introducing a second, stricter meaning
+        // here would put the badge and the certificate out of step. Only fires when
+        // grading actually transitions the row, so a corrected grade does not re-award
+        // (the ledger's dedupe key would catch it anyway).
+        if (beforeStatus !== "graded") {
+          const assignment = await this.repo.findAssignmentById(tenantId, row.assignmentId);
+          if (assignment?.kind === "project") {
+            await this.gamification.awardForProjectApproved(student.userId, tenantId, submissionId);
+          }
+        }
       }
     } catch (err) {
       this.logger.warn(`[AssignmentsService] notifyGradeReady failed (non-fatal): ${String(err)}`);
@@ -581,7 +593,7 @@ export class AssignmentsService {
   async getProjectCrm(
     tenantId: string,
     assignmentId: string,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
     actorId: string,
   ): Promise<ProjectDetail> {
     const assignment = await this.repo.findAssignmentById(tenantId, assignmentId);
@@ -706,7 +718,7 @@ export class AssignmentsService {
     const assignment = await this.repo.findAssignmentById(tenantId, assignmentId);
     if (!assignment) throw new NotFoundException("Assignment not found.");
 
-    return this.doSubmit(tenantId, enrollmentId, assignment, body, undefined);
+    return this.doSubmit(userId, tenantId, enrollmentId, assignment, body, undefined);
   }
 
   /**
@@ -734,7 +746,7 @@ export class AssignmentsService {
     const milestone = await this.repo.findMilestone(tenantId, assignmentId, milestoneId);
     if (!milestone) throw new NotFoundException("Milestone not found.");
 
-    return this.doSubmit(tenantId, enrollmentId, assignment, body, milestoneId);
+    return this.doSubmit(userId, tenantId, enrollmentId, assignment, body, milestoneId);
   }
 
   /**
@@ -790,6 +802,7 @@ export class AssignmentsService {
    * Enforces: due-date, resubmit policy, attempt_no.
    */
   private async doSubmit(
+    userId: string,
     tenantId: string,
     enrollmentId: string,
     assignment: AssignmentRow,
@@ -854,6 +867,19 @@ export class AssignmentsService {
     this.logger.log(
       `[AssignmentsService] Submission created: id=${submissionId} assignment=${assignment.id} enrollment=${enrollmentId} attempt=${attemptNo}`,
     );
+
+    // On-time XP. No date comparison is needed here: the due-date guard at the top of
+    // this method rejects a late submission with 422, so every submission that reaches
+    // this line is by definition on time. Idempotent by submission id (a resubmit is a
+    // new row, and earns its own award), and non-fatal — a scoring failure must never
+    // cost the student the work they just handed in.
+    try {
+      await this.gamification.awardForAssignmentOnTime(userId, tenantId, submissionId);
+    } catch (err) {
+      this.logger.warn(
+        `[AssignmentsService] gamification award failed (non-fatal) submissionId=${submissionId}: ${String(err)}`,
+      );
+    }
 
     const sub = await this.repo.findSubmissionById(tenantId, submissionId);
     if (!sub) throw new NotFoundException("Submission not found after creation.");

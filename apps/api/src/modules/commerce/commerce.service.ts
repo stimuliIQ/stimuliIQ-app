@@ -1316,11 +1316,24 @@ export class CommerceService {
       });
     }
 
-    if (body.amountPaise > payment.amountPaise) {
+    // The ceiling is the payment total MINUS what other live refunds have already claimed,
+    // not the payment total on its own. Checking only this one request let two refunds of
+    // the full amount both be raised and both be approved — the maker-checker rule at
+    // `approveRefund` is satisfied as long as a different person signs each one, so
+    // nothing downstream noticed. Razorpay would reject the second, but as a provider
+    // error after the row said "approved", not as a clean refusal here.
+    const alreadyClaimedPaise = await this.repository.sumLiveRefundsForPayment(tenantId, body.paymentId);
+    const refundablePaise = payment.amountPaise - alreadyClaimedPaise;
+    if (body.amountPaise > refundablePaise) {
       throw new BadRequestException({
         code: "commerce.refund_exceeds_payment",
-        title: "Refund amount exceeds the captured payment amount",
-        detail: `Payment amount is ${payment.amountPaise} paise; requested refund is ${body.amountPaise} paise.`,
+        title: "Refund amount exceeds the refundable balance",
+        detail:
+          alreadyClaimedPaise > 0
+            ? `Payment amount is ${payment.amountPaise} paise, of which ${alreadyClaimedPaise} paise is already ` +
+              `covered by an open or completed refund. At most ${refundablePaise} paise can still be refunded; ` +
+              `${body.amountPaise} paise was requested.`
+            : `Payment amount is ${payment.amountPaise} paise; requested refund is ${body.amountPaise} paise.`,
       });
     }
 
@@ -1392,6 +1405,24 @@ export class CommerceService {
         code: "commerce.payment_no_provider_id",
         title: "Cannot process refund. Payment has no provider payment id",
         detail: "Manual payments may need to be refunded offline.",
+      });
+    }
+
+    // Re-check the aggregate ceiling immediately before money moves. `requestRefund` already
+    // counts open requests, but two of them can be raised concurrently and each pass that
+    // check against a stale total; this is the last point at which refusing is free.
+    const otherLiveRefundsPaise = await this.repository.sumLiveRefundsForPayment(
+      tenantId,
+      refund.paymentId,
+      refundId,
+    );
+    if (otherLiveRefundsPaise + refund.amountPaise > payment.amountPaise) {
+      throw new ConflictException({
+        code: "commerce.refund_exceeds_payment",
+        title: "Refund amount exceeds the refundable balance",
+        detail:
+          `Other refunds on this payment already account for ${otherLiveRefundsPaise} of ${payment.amountPaise} paise, ` +
+          `so this ${refund.amountPaise}-paise refund would over-refund it. Reject this request and raise one for the remainder.`,
       });
     }
 

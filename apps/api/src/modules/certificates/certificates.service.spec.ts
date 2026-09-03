@@ -126,6 +126,19 @@ function makeStudentRow(overrides: Partial<StudentRow> = {}): StudentRow {
 
 // ─── Test suite ───────────────────────────────────────────────────────────────
 
+// GamificationService stub — the award calls are fire-and-forget side effects the
+// service treats as non-fatal, so every entry point simply resolves. Cases that assert
+// an award happened spy on this object directly.
+function makeGamificationStub() {
+  return {
+    awardForLessonCompleted: jest.fn().mockResolvedValue(undefined),
+    awardForAssignmentOnTime: jest.fn().mockResolvedValue(undefined),
+    awardForAssessmentPassed: jest.fn().mockResolvedValue(undefined),
+    awardForProjectApproved: jest.fn().mockResolvedValue(undefined),
+    awardForCertificateIssued: jest.fn().mockResolvedValue(undefined),
+  };
+}
+
 describe("CertificatesService", () => {
   let service: CertificatesService;
   let repo: jest.Mocked<CertificatesRepository>;
@@ -165,6 +178,7 @@ describe("CertificatesService", () => {
       storage,
       notifSvc as unknown as NotificationsService,
       studentsRepository as unknown as StudentsRepository,
+      makeGamificationStub() as never,
     );
   });
 

@@ -35,6 +35,7 @@ import { CertificatePdfModule } from "./providers/pdf/certificate-pdf.module";
 import { StorageProviderModule } from "../storage/providers/storage/storage-provider.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { StudentsModule } from "../students/students.module";
+import { GamificationModule } from "../gamification/gamification.module";
 import { CertificatesRepository } from "./certificates.repository";
 import { CertificatesService } from "./certificates.service";
 import { CertificatesCrmController } from "./certificates-crm.controller";
@@ -51,6 +52,9 @@ import { VerifyRateLimiter } from "./lib/verify-rate-limiter";
     NotificationsModule,
     // Resolves enrollment.studentId -> {userId, email, phone, name}.
     StudentsModule,
+    // XP for an issued certificate (CertificatesService.issue). GamificationModule imports
+    // only AuthModule, so there is no cycle.
+    GamificationModule,
   ],
   controllers: [
     CertificatesCrmController,

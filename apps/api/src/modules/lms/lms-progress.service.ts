@@ -56,6 +56,7 @@ import { LmsRepository } from "./lms.repository";
 import { PrismaService } from "../../prisma/prisma.service";
 import { EnrollmentScopeRepository } from "../common-scope/enrollment-scope.repository";
 import { CertificatesService } from "../certificates/certificates.service";
+import { GamificationService } from "../gamification/gamification.service";
 import type { UpdateProgressRequest } from "./dto";
 
 @Injectable()
@@ -67,6 +68,7 @@ export class LmsProgressService {
     private readonly prisma: PrismaService,
     private readonly enrollmentScope: EnrollmentScopeRepository,
     private readonly certificatesService: CertificatesService,
+    private readonly gamification: GamificationService,
   ) {}
 
   // ─── POSITION PING ────────────────────────────────────────────────────────
@@ -228,6 +230,23 @@ export class LmsProgressService {
     // re-enter auto-issue every time (security review Low-2). autoIssueOnCompletion is
     // itself idempotent (existing-cert guard), so this is defense-in-depth + an eligibility-
     // recompute saver, not the sole correctness guard.
+    // Points for the lesson. Idempotent by `(user_id, reason, ref)` — the ledger's partial
+    // unique makes a replay a no-op — and non-fatal, exactly like the certificate call
+    // below: a scoring failure must never cost the student the lesson they just finished.
+    //
+    // This call site is why the gamification module existed but did nothing. Awards were
+    // built, tested and idempotent, and the only references to them anywhere in the API
+    // were the TODO comments naming the call sites nobody added, so `points_ledger` and
+    // `user_badges` were never written. The LMS renders XP, badges, a streak and a
+    // leaderboard on the Progress page; every student saw zeroes forever.
+    try {
+      await this.gamification.awardForLessonCompleted(userId, tenantId, progress.id);
+    } catch (err) {
+      this.logger.warn(
+        `[progress.complete] gamification award failed (non-fatal) lessonProgressId=${progress.id}: ${String(err)}`,
+      );
+    }
+
     if (justCompleted) {
       try {
         const outcome = await this.certificatesService.autoIssueOnCompletion(tenantId, enrollment.id);
@@ -288,6 +307,7 @@ export class LmsProgressService {
       overallCompleted += row.lessonsCompleted;
       return {
         enrollmentId: row.enrollmentId,
+        batchId: row.batchId,
         programId: row.programId,
         programTitle: row.programTitle,
         programSlug: row.programSlug,

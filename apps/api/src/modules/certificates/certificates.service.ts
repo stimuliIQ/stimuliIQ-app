@@ -74,6 +74,7 @@ import type {
 } from "@repo/types";
 import type { Prisma } from "@prisma/client";
 import { CertificatesRepository } from "./certificates.repository";
+import type { AuthoringScope } from "../common-scope/authoring-scope";
 import type { CertificateTemplateDetailRow, EnrollmentForEligibility } from "./certificates.repository";
 import { signCertUid, verifyCertUid } from "./cert-uid.util";
 import {
@@ -96,6 +97,7 @@ import {
 import { PaginatedResult } from "../../common/dto/paginated-result";
 import { NotificationsService } from "../notifications/notifications.service";
 import { StudentsRepository } from "../students/students.repository";
+import { GamificationService } from "../gamification/gamification.service";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -142,6 +144,7 @@ export class CertificatesService {
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
     private readonly notifSvc: NotificationsService,
     private readonly studentsRepository: StudentsRepository,
+    private readonly gamification: GamificationService,
   ) {}
 
   // ─── ELIGIBILITY ENGINE ───────────────────────────────────────────────────
@@ -252,7 +255,7 @@ export class CertificatesService {
   async listEligibility(
     tenantId: string,
     query: ListEligibilityQuery,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
     actorId: string,
   ): Promise<PaginatedResult<EligibilityListItem>> {
     let batchIds: string[] | undefined = undefined;
@@ -373,7 +376,7 @@ export class CertificatesService {
   async listEligibilityBatches(
     tenantId: string,
     query: ListEligibilityBatchesQuery,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
     actorId: string,
   ): Promise<PaginatedResult<EligibilityBatchSummary>> {
     const page = query.page ?? 1;
@@ -417,7 +420,7 @@ export class CertificatesService {
   async getEligibilityDetail(
     tenantId: string,
     enrollmentId: string,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
     actorId: string,
   ): Promise<EligibilityResult> {
     const enrollment = await this.repo.findEnrollmentById(tenantId, enrollmentId);
@@ -456,7 +459,7 @@ export class CertificatesService {
     actorId: string,
     tenantId: string,
     body: IssueCertificateRequest,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
   ): Promise<CertificateCrmDetail> {
     const enrollment = await this.repo.findEnrollmentById(tenantId, body.enrollmentId);
     if (!enrollment) {
@@ -621,6 +624,10 @@ export class CertificatesService {
           { certificateId: certId, programTitle, studentName: student.name },
           { toEmail: student.email, toPhone: student.phone ?? undefined },
         );
+        // XP for the certificate, alongside the notification and on the same terms:
+        // after the row is durably written, and never allowed to fail the issuance.
+        // Idempotent by certificate id, so a re-issue awards once.
+        await this.gamification.awardForCertificateIssued(student.userId, tenantId, certId);
       }
     } catch (err) {
       this.logger.warn(`[CertificatesService] notifyCertificateReady failed (non-fatal): ${String(err)}`);
@@ -725,7 +732,7 @@ export class CertificatesService {
     tenantId: string,
     enrollmentId: string,
     body: RecommendCertificateRequest,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
   ): Promise<EligibilityResult> {
     const enrollment = await this.repo.findEnrollmentById(tenantId, enrollmentId);
     if (!enrollment) {
@@ -778,7 +785,7 @@ export class CertificatesService {
   async getCertificate(
     tenantId: string,
     id: string,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
     actorId: string,
   ): Promise<CertificateCrmDetail> {
     const row = await this.repo.findById(tenantId, id);
@@ -796,7 +803,7 @@ export class CertificatesService {
   async listCertificates(
     tenantId: string,
     query: ListCertificatesQuery,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
     actorId: string,
   ): Promise<PaginatedResult<CertificateCrmDetail>> {
     let batchIds: string[] | undefined = undefined;
@@ -908,7 +915,7 @@ export class CertificatesService {
     tenantId: string,
     enrollmentId: string,
     body: ReissueCertificateRequest,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
   ): Promise<CertificateCrmDetail> {
     const existing = await this.repo.findByEnrollmentId(tenantId, enrollmentId);
     if (!existing) {
@@ -1106,7 +1113,7 @@ export class CertificatesService {
     actorId: string,
     tenantId: string,
     body: BulkIssueCertificatesRequest,
-    scope: "all" | "assigned" | "branch",
+    scope: AuthoringScope,
   ): Promise<BulkIssueCertificatesResponse> {
     const results: BulkIssueCertificatesResponse["results"] = [];
 

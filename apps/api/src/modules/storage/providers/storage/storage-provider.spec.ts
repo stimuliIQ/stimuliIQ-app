@@ -127,6 +127,13 @@ const REQUIRED_ENV: Record<string, string> = {
   JWT_PUBLIC_KEY_PATH: "./keys/jwt-public.pem",
   COOKIE_SECRET: "test-cookie-secret-at-least-32-chars-long!!",
   CSRF_SECRET: "test-csrf-secret-at-least-32-chars-long!!!",
+  // Coherent PRODUCTION values. `validateEnv` requires these once NODE_ENV/APP_ENV is
+  // "production" — a session cookie issued without Secure, or scoped to localhost, is a
+  // real misconfiguration, so the boot refuses it. Cases below that exercise a
+  // production boot guard would otherwise fail on env validation before reaching the
+  // guard under test.
+  COOKIE_SECURE: "true",
+  COOKIE_DOMAIN: ".stimuliiq.test",
 };
 
 const STORAGE_ENV: Record<string, string> = {

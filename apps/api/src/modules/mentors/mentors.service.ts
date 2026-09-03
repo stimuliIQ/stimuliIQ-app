@@ -15,6 +15,7 @@
 //   409 MENTOR_HAS_ACTIVE_ASSIGNMENTS  — soft-delete blocked while assigned (AC-12), with
 //                                         ProblemDetails.errors[] = [{path:"batchMentorId", message:batchName}, ...].
 
+import { mintCdnUrl } from "../content/content.util";
 import { ConflictException, ForbiddenException, Inject, Injectable, UnprocessableEntityException, NotFoundException } from "@nestjs/common";
 import type {
   CreateMentorRequest,
@@ -30,7 +31,6 @@ import { PaginatedResult } from "../../common/dto/paginated-result";
 import { requireScopeContext } from "../auth/lib/scope-context";
 import { STORAGE_PROVIDER, type StorageProvider } from "../storage/providers/storage/storage-provider.interface";
 import { S3StorageProvider } from "../storage/providers/storage/s3-storage.provider";
-import { validateEnv } from "../../config/env";
 
 @Injectable()
 export class MentorsService {
@@ -220,16 +220,6 @@ export class MentorsService {
   }
 }
 
-/**
- * Convert a raw S3/R2 object key to a public asset URL — the raw key is NEVER returned to
- * clients. Base is `PUBLIC_ASSET_BASE_URL` (default the prod CDN; `.../api/v1/assets` in
- * local dev). Same convention as content.util.ts's `mintCdnUrl`.
- */
-function mintCdnUrl(key: string | null): string | null {
-  if (!key) return null;
-  const base = (validateEnv().PUBLIC_ASSET_BASE_URL ?? "https://cdn.stimuliiq.com").replace(/\/+$/, "");
-  return `${base}/${key}`;
-}
 
 function toSummary(row: MentorRow): MentorSummary {
   return {

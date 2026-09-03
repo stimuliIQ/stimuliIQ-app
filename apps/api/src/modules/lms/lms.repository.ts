@@ -938,6 +938,9 @@ export class LmsRepository {
       where: { tenantId, studentId },
       select: {
         id: true,
+        // The cohort. Carried through to the rollup DTO because the Progress page's
+        // leaderboard is scoped by batch and had no batch id to scope with.
+        batchId: true,
         programId: true,
         status: true,
         progressPct: true,
@@ -997,6 +1000,7 @@ export class LmsRepository {
 
       result.push({
         enrollmentId: enrollment.id,
+        batchId: enrollment.batchId,
         programId: enrollment.programId,
         programTitle: enrollment.program.title,
         programSlug: enrollment.program.slug,
@@ -1071,6 +1075,7 @@ interface NextLessonRow {
 
 export interface ProgressRollupRow {
   enrollmentId: string;
+  batchId: string | null;
   programId: string;
   programTitle: string;
   programSlug: string;

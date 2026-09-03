@@ -33,6 +33,8 @@ import type {
   ResetStaffUserPasswordResponse,
 } from "@repo/types";
 import { UsersAdminRepository, type StaffUserRow } from "./users.repository";
+import { RolesRepository } from "./roles.repository";
+import { SCOPE_RANK } from "./scope-rank";
 import { AuthRepository } from "../auth/auth.repository";
 import { TwoFactorStore } from "../auth/lib/two-factor-store";
 import { ARGON2_HASH_OPTIONS } from "../auth/lib/argon2-params";
@@ -78,6 +80,7 @@ export class UsersAdminService {
 
   constructor(
     private readonly repository: UsersAdminRepository,
+    private readonly rolesRepository: RolesRepository,
     private readonly authRepository: AuthRepository,
     private readonly twoFactorStore: TwoFactorStore,
     @Inject(MAIL_PROVIDER) private readonly mail: MailProvider,
@@ -113,7 +116,7 @@ export class UsersAdminService {
         detail: `A user with email "${body.email}" already exists.`,
       });
     }
-    const roleIds = await this.resolveStaffRoleIds(tenantId, body.roleIds);
+    const roleIds = await this.resolveStaffRoleIds(tenantId, actorId, body.roleIds);
     const passwordHashForNew = await argon2.hash(body.password, ARGON2_HASH_OPTIONS);
 
     // Re-adding someone who was REMOVED. `users` has a full unique on (tenant, email), so
@@ -184,7 +187,27 @@ export class UsersAdminService {
       });
     }
 
-    const roleIds = body.roleIds ? await this.resolveStaffRoleIds(tenantId, body.roleIds) : undefined;
+    // Setting somebody's password from the edit form is the SAME power as
+    // `POST :id/reset-password`, which is seeded for super_admin alone precisely so an
+    // admin cannot mint a colleague's credentials (see the docstring on
+    // ResetStaffUserPasswordResponseSchema). This field rode in under `users.edit`, which
+    // admin also holds — and it is the stronger of the two, because the actor CHOOSES the
+    // password here instead of a random one being mailed to the account holder. Gate it on
+    // the same key the dedicated route uses.
+    if (body.password) {
+      const actorProfile = await this.authRepository.getRbacProfile(actorId);
+      if (!actorProfile.permissions.some((p) => p.key === "users.reset_password")) {
+        throw new ForbiddenException({
+          code: "users.password_change_not_permitted",
+          title: "You cannot set another user's password",
+          detail:
+            "Changing a staff member's credential requires the \"Reset Staff Passwords\" permission. " +
+            "Ask a super admin to reset it — they can send the account holder a one-time password.",
+        });
+      }
+    }
+
+    const roleIds = body.roleIds ? await this.resolveStaffRoleIds(tenantId, actorId, body.roleIds) : undefined;
     const passwordHash = body.password ? await argon2.hash(body.password, ARGON2_HASH_OPTIONS) : undefined;
 
     await this.repository.update({
@@ -492,8 +515,22 @@ export class UsersAdminService {
     return { cleared: true };
   }
 
-  /** Every requested roleId must exist in this tenant and must not be the student role. */
-  private async resolveStaffRoleIds(tenantId: string, requested: string[]): Promise<string[]> {
+  /**
+   * Every requested roleId must exist in this tenant, must not be the student role, and
+   * must not carry more authority than the ACTOR already holds.
+   *
+   * That last clause is the same privilege-escalation rule `RolesService.clone()` and
+   * `RolesService.updatePermissions()` enforce on the role editor, applied here because
+   * the user editor is the other door into the same room. `users.edit` is seeded for
+   * super_admin AND admin, and this function previously rejected only `student` — so an
+   * admin could `PATCH /crm/admin/users/<own-id>` with the `super_admin` role id (readable
+   * straight off `GET /crm/admin/users`) and hold, one request later, every key the seed
+   * deliberately kept out of the catalog for them: `users.remove`, `users.reset_password`,
+   * `leave.approve`, `leave.manage`, `org.teams.manage`, `marketing_targets.manage`,
+   * `content.builder`. Assigning a role you could not have built is the same act as
+   * building it, and it now fails the same way.
+   */
+  private async resolveStaffRoleIds(tenantId: string, actorId: string, requested: string[]): Promise<string[]> {
     const unique = [...new Set(requested)];
     const roles = await this.repository.findRolesByIds(tenantId, unique);
     if (roles.length !== unique.length) {
@@ -507,6 +544,34 @@ export class UsersAdminService {
         detail: "Student logins are provisioned by the enrollment flow, assign staff roles only.",
       });
     }
+
+    const actorProfile = await this.authRepository.getRbacProfile(actorId);
+    const actorScopeByKey = new Map(actorProfile.permissions.map((p) => [p.key, p.scope]));
+
+    for (const role of roles) {
+      const grants = await this.rolesRepository.getRoleGrantsWithIds(role.id);
+      for (const grant of grants) {
+        const actorScope = actorScopeByKey.get(grant.permissionKey);
+        if (!actorScope) {
+          throw new ForbiddenException({
+            code: "users.privilege_escalation",
+            title: "Cannot assign a role that holds a permission you do not",
+            detail:
+              `"${role.name}" holds "${grant.permissionKey}", which you do not. ` +
+              "Assigning it would hand out more authority than you have. Ask somebody who holds it to make the change.",
+          });
+        }
+        if (SCOPE_RANK[grant.scope] > SCOPE_RANK[actorScope]) {
+          throw new ForbiddenException({
+            code: "users.privilege_escalation",
+            title: "Cannot assign a broader scope than your own",
+            detail:
+              `"${role.name}" holds "${grant.permissionKey}" at scope "${grant.scope}" and you hold it at "${actorScope}".`,
+          });
+        }
+      }
+    }
+
     return unique;
   }
 }

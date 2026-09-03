@@ -183,15 +183,21 @@ export function CouponValidator({ programId }: CouponValidatorProps) {
         </div>
       ) : null}
 
-      {/* Turnstile captcha widget — hidden, fires token automatically (AC-44) */}
-      <div aria-hidden="true" style={{ display: "none" }}>
-        <TurnstileWidget
-          onToken={setToken}
-          onExpire={resetToken}
-          onError={resetToken}
-          data-testid="coupon-captcha"
-        />
-      </div>
+      {/* Turnstile captcha widget. `appearance="interaction-only"` keeps it out of the
+          way until Cloudflare actually needs the visitor to do something — which is what
+          this form wanted. It was previously wrapped in a `display:none` div, and a
+          Turnstile widget that is never laid out never runs its challenge, so no token
+          was ever minted and POST /public/coupons/validate fail-closed on every real
+          apply. (It passed in dev only because the noop captcha provider accepts
+          anything.) See the `appearance` prop's own doc comment in turnstile-widget.tsx,
+          which names this exact mistake. */}
+      <TurnstileWidget
+        appearance="interaction-only"
+        onToken={setToken}
+        onExpire={resetToken}
+        onError={resetToken}
+        data-testid="coupon-captcha"
+      />
       <p className="text-xs text-fg-subtle">
         Coupon validation is rate-limited and captcha-protected to prevent abuse.
       </p>

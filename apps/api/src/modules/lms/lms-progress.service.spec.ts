@@ -47,6 +47,9 @@ const LESSON_ID = "lesson-aaa";
 const MODULE_ID = "module-aaa";
 const PROGRAM_ID = "program-aaa";
 const ENROLLMENT_ID = "enrollment-aaa";
+// Distinct from ENROLLMENT_ID on purpose: the rollup used to carry no batch id, so the
+// Progress page passed the enrollment id to the batch-scoped leaderboard endpoint.
+const BATCH_ID = "batch-aaa";
 
 // ─── Mock helpers ─────────────────────────────────────────────────────────────
 
@@ -174,6 +177,19 @@ function makeGate(enrollment: EnrollmentRow | null = makeEnrollment(), isPreview
 // 1. Progress ping upsert tests
 // ─────────────────────────────────────────────────────────────────────────────
 
+// GamificationService stub — the award calls are fire-and-forget side effects the
+// service treats as non-fatal, so every entry point simply resolves. Cases that assert
+// an award happened spy on this object directly.
+function makeGamificationStub() {
+  return {
+    awardForLessonCompleted: jest.fn().mockResolvedValue(undefined),
+    awardForAssignmentOnTime: jest.fn().mockResolvedValue(undefined),
+    awardForAssessmentPassed: jest.fn().mockResolvedValue(undefined),
+    awardForProjectApproved: jest.fn().mockResolvedValue(undefined),
+    awardForCertificateIssued: jest.fn().mockResolvedValue(undefined),
+  };
+}
+
 describe("LmsProgressService.pingProgress (position ping)", () => {
   let repo: MockRepo;
   let prisma: ReturnType<typeof makePrisma>;
@@ -188,6 +204,7 @@ describe("LmsProgressService.pingProgress (position ping)", () => {
       prisma as unknown as PrismaService,
       makeEnrollmentScope() as unknown as EnrollmentScopeRepository,
       makeCertificatesService() as unknown as CertificatesService,
+      makeGamificationStub() as never,
     );
     // Spy on the gate to control its output in each test.
     gateSpy = jest.spyOn(enrollmentGate, "resolveEnrollmentForLesson");
@@ -304,6 +321,7 @@ describe("LmsProgressService.markComplete (completion flow)", () => {
   let repo: MockRepo;
   let prisma: ReturnType<typeof makePrisma>;
   let certificatesService: MockCertificatesService;
+  let gamification: ReturnType<typeof makeGamificationStub>;
   let service: LmsProgressService;
   let gateSpy: jest.SpyInstance;
 
@@ -311,11 +329,13 @@ describe("LmsProgressService.markComplete (completion flow)", () => {
     repo = makeRepo();
     prisma = makePrisma();
     certificatesService = makeCertificatesService();
+    gamification = makeGamificationStub();
     service = new LmsProgressService(
       repo as unknown as LmsRepository,
       prisma as unknown as PrismaService,
       makeEnrollmentScope() as unknown as EnrollmentScopeRepository,
       certificatesService as unknown as CertificatesService,
+      gamification as never,
     );
     gateSpy = jest.spyOn(enrollmentGate, "resolveEnrollmentForLesson");
   });
@@ -411,6 +431,38 @@ describe("LmsProgressService.markComplete (completion flow)", () => {
     // prisma.client.$transaction (audited) must be called.
     expect(prisma.client.$transaction).toHaveBeenCalledTimes(1);
   });
+
+  // Gamification was built, tested and idempotent, and had ZERO call sites — the only
+  // references in the whole API were TODO comments naming the sites nobody added. So
+  // `points_ledger` was never written and every student's Progress page showed 0 XP,
+  // 0 badges and an empty leaderboard, permanently. These pin the call site.
+  it("awards lesson XP after the transaction commits", async () => {
+    const enrollment = makeEnrollment({ progressPct: 10 });
+    gateSpy.mockResolvedValue(makeGate(enrollment));
+    repo.markLessonCompleted.mockResolvedValue(
+      makeProgressRow({ id: "progress-1", status: "completed", completedAt: new Date("2026-02-01") }),
+    );
+    repo.recalcEnrollmentProgressPct.mockResolvedValue({ progressPct: 50, justCompleted: false });
+
+    await service.markComplete(USER_ID, TENANT_ID, LESSON_ID);
+
+    // Keyed by the lesson_progress row id, which is what makes a replay a ledger no-op.
+    expect(gamification.awardForLessonCompleted).toHaveBeenCalledWith(USER_ID, TENANT_ID, "progress-1");
+  });
+
+  it("still completes the lesson when the award throws — scoring must never cost the student their progress", async () => {
+    const enrollment = makeEnrollment({ progressPct: 10 });
+    gateSpy.mockResolvedValue(makeGate(enrollment));
+    repo.markLessonCompleted.mockResolvedValue(
+      makeProgressRow({ status: "completed", completedAt: new Date("2026-02-01") }),
+    );
+    repo.recalcEnrollmentProgressPct.mockResolvedValue({ progressPct: 50, justCompleted: false });
+    gamification.awardForLessonCompleted.mockRejectedValue(new Error("ledger unavailable"));
+
+    await expect(service.markComplete(USER_ID, TENANT_ID, LESSON_ID)).resolves.toMatchObject({
+      status: "completed",
+    });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -433,6 +485,7 @@ describe("LmsProgressService.markComplete, idempotency", () => {
       prisma as unknown as PrismaService,
       makeEnrollmentScope() as unknown as EnrollmentScopeRepository,
       certificatesService as unknown as CertificatesService,
+      makeGamificationStub() as never,
     );
     gateSpy = jest.spyOn(enrollmentGate, "resolveEnrollmentForLesson");
   });
@@ -501,12 +554,14 @@ describe("LmsProgressService.getProgressRollup, rollup math", () => {
       prisma as unknown as PrismaService,
       makeEnrollmentScope() as unknown as EnrollmentScopeRepository,
       makeCertificatesService() as unknown as CertificatesService,
+      makeGamificationStub() as never,
     );
   });
 
   function makeRollupRow(completedLessons: number, totalLessons: number): ProgressRollupRow {
     return {
       enrollmentId: ENROLLMENT_ID,
+      batchId: BATCH_ID,
       programId: PROGRAM_ID,
       programTitle: "Full-Stack Program",
       programSlug: "fullstack",
