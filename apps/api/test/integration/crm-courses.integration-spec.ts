@@ -262,7 +262,20 @@ describeIfAvailable("CRM courses (programs/modules/lessons) — CRUD + KNOWN-GAP
         .query({ pageSize: 100 })
         .set(authHeaders(accessToken, csrfToken))
         .expect(200);
-      expect(after.body.data.map((p: { id: string }) => p.id)).toEqual(reversedFirst);
+      // Compare only the ids this test actually reordered, in their new relative order.
+      //
+      // A plain `toEqual(reversedFirst)` assumed one 100-row page held every programme in
+      // the tenant, which is true of a freshly seeded database and stops being true the
+      // moment anything leaks — the tenant here is the SHARED "stimuliiq" one, and a
+      // suite whose teardown failed leaves programmes behind. Past 100 rows the second
+      // page shifts and this failed with an id it had never seen, which reads like a
+      // reorder bug and is not one. Filtering to the ids under test makes the assertion
+      // about `reorder`, which is what it is for.
+      const reorderedSet = new Set(reversedFirst);
+      const afterIds: string[] = after.body.data
+        .map((p: { id: string }) => p.id)
+        .filter((id: string) => reorderedSet.has(id));
+      expect(afterIds).toEqual(reversedFirst);
       expect(after.body.data[0].order).toBe(0);
     });
 

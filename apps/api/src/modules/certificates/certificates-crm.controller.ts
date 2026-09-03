@@ -281,6 +281,13 @@ export class CertificatesCrmController {
   @Get("certificate-templates")
   @RequirePermission("certificates.view")
   async listTemplates(@CurrentUser() user: RequestUser): Promise<CertificateTemplateSummary[]> {
+    // These two template reads were the only certificates routes that took no scope at
+    // all, and `certificates.view` is seeded to the STUDENT role (at scope own, for
+    // /me/certificates). So a student's session listed and read the certificate-template
+    // designs — a staff configuration surface — simply because the two routes share a
+    // permission key with the student's own certificate list. Narrowing here refuses
+    // "own" exactly as the rest of the module does.
+    assertAuthoringScope("certificates", requireScopeContext().scope);
     return this.service.listTemplates(user.tenantId);
   }
 
@@ -295,6 +302,7 @@ export class CertificatesCrmController {
     @CurrentUser() user: RequestUser,
     @Param("id", new ParseUUIDPipe()) id: string,
   ): Promise<CertificateTemplateDetail> {
+    assertAuthoringScope("certificates", requireScopeContext().scope);
     return this.service.getTemplateDetail(user.tenantId, id);
   }
 

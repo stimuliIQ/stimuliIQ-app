@@ -15,12 +15,14 @@ import { AuthRepository } from "../auth.repository";
 import { TokenService } from "../lib/token.service";
 import { resolveRequestUser } from "../lib/resolve-request-user";
 import { readAudienceHeader } from "../lib/cookies";
+import { AccessTokenRevocationStore } from "../lib/access-token-revocation";
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly tokenService: TokenService,
     private readonly authRepository: AuthRepository,
+    private readonly accessTokenRevocation: AccessTokenRevocationStore,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -28,7 +30,13 @@ export class JwtAuthGuard implements CanActivate {
 
     const user =
       req.user ??
-      (await resolveRequestUser(req.cookies, this.tokenService, this.authRepository, readAudienceHeader(req)));
+      (await resolveRequestUser(
+        req.cookies,
+        this.tokenService,
+        this.authRepository,
+        this.accessTokenRevocation,
+        readAudienceHeader(req),
+      ));
     if (!user) {
       throw new UnauthorizedException({
         code: "auth.unauthenticated",

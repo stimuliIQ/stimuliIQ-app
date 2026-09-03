@@ -373,6 +373,12 @@ describeIfAvailable("RBAC matrix — generated from the live Nest router", () =>
         "POST /api/v1/public/enroll/orders",
         "POST /api/v1/public/enroll/checkout",
         "POST /api/v1/public/enroll/verify",
+        // Structurally own-scoped, exactly like GET /me above: it takes NO user id and
+        // answers only about the caller (their team, lead and manager), so there is
+        // nothing to tamper with and no permission worth minting. Same shape as
+        // /crm/marketing-targets/me. Added to the router in P17 and never listed here,
+        // which is why this assertion was failing.
+        "GET /api/v1/crm/org/me/position",
       ]);
 
       const undeclared = routes
@@ -481,6 +487,58 @@ describeIfAvailable("RBAC matrix — generated from the live Nest router", () =>
       // is exactly the breach this must prevent, and it does. Listed here because the assertion
       // measures the permission layer; the scope layer is proven in the *-scope specs.
       "GET /api/v1/crm/enrollments",
+      // The three courses routes below are the same F-2 family as the PATCH entries above
+      // and were simply added to the router after this list was written.
+      "GET /api/v1/crm/courses/:id/modules/:moduleId/lessons/:lessonId",
+      "DELETE /api/v1/crm/courses/:id/modules/:moduleId/lessons/:lessonId",
+      "DELETE /api/v1/crm/courses/:id/modules/:moduleId",
+
+      // ── P4 authoring/grading: the scope layer, now that there IS one ──────────────
+      //
+      // These are the /crm/enrollments case, multiplied. `prisma/seed.ts` grants the
+      // STUDENT role assessments.view / assignments.view / submissions.view /
+      // certificates.view at scope `own`, and branch_manager the same keys (plus
+      // certificates.issue) at scope `branch`. The permission layer this matrix measures
+      // therefore lets both roles through, and until now so did the modules: their
+      // controllers resolved scope as `(getScopeContext()?.scope ?? "all")` cast to a
+      // union that excluded "own", and their services branched only on "assigned" — so
+      // "own" and "branch" fell through to the UNFILTERED all-scope path.
+      //
+      // That was live. A student's LMS session reaches /crm/* (the audience gate runs at
+      // login only) and `GET /crm/assessments/:id` returned the ANSWER KEY;
+      // `GET /crm/submissions/:id` returned another student's work and its signed file
+      // URLs. `assertAuthoringScope` now narrows at the controller boundary and 403s
+      // anything that is not all|assigned, which is why these appear here.
+      //
+      // `branch` is refused rather than filtered: it was never implemented in these three
+      // modules, and for assessments it is not even well defined (an assessment hangs off a
+      // module → programme, and a programme belongs to no branch). Remove an entry from
+      // this list only by implementing a real filter for the scope behind it — never by
+      // widening the default. The student half of these is additionally pinned, positively,
+      // by the dedicated test below.
+      "GET /api/v1/crm/assessments",
+      "GET /api/v1/crm/assessments/:id",
+      "GET /api/v1/crm/assignments",
+      "GET /api/v1/crm/assignments/:id",
+      "GET /api/v1/crm/assignments/:id/submissions",
+      "GET /api/v1/crm/submissions/:id",
+      "GET /api/v1/crm/certificates",
+      "GET /api/v1/crm/certificates/:id",
+      "GET /api/v1/crm/certificates/eligibility",
+      "GET /api/v1/crm/certificates/eligibility-batches",
+      "GET /api/v1/crm/certificates/eligibility/:enrollmentId",
+      "POST /api/v1/crm/certificates/:enrollmentId/reissue",
+      // EMI: emi.view is seeded at scope `own` to counsellor AND student, and `branch` to
+      // branch_manager. The list route narrows on `own`; the detail route now does too, and
+      // `branch` is refused rather than silently reading every branch.
+      "GET /api/v1/crm/emi-plans",
+      "GET /api/v1/crm/emi-plans/:id",
+      // The two certificate-TEMPLATE reads were the only certificates routes taking no
+      // scope at all, so a student's own-scoped `certificates.view` (which exists for
+      // /me/certificates) let them list and read the template designs — a staff
+      // configuration surface. Now narrowed like the rest of the module.
+      "GET /api/v1/crm/certificate-templates",
+      "GET /api/v1/crm/certificate-templates/:id",
     ]);
 
     function protectedRoutes(): RouteEntry[] {
@@ -536,6 +594,55 @@ describeIfAvailable("RBAC matrix — generated from the live Nest router", () =>
       }
 
       expect({ shouldHaveBeenDenied, wronglyDenied }).toEqual({ shouldHaveBeenDenied: [], wronglyDenied: [] });
+    }, 600_000);
+
+    // The matrix above measures the PERMISSION layer, so a role that holds a key at a
+    // scope it cannot use shows up on SECOND_LAYER_AUTHZ rather than as a failure. That
+    // makes the list load-bearing, and an allow-list is a weak place to keep a security
+    // guarantee: adding a line to it is how this breach would come back.
+    //
+    // So the student case is asserted positively and separately. A student's session is a
+    // real, ordinary session that reaches /crm/* — the app/role audience gate runs at
+    // LOGIN, not per request — and the only thing standing between it and the staff
+    // surface is each module's scope resolution. Every /crm/* route must refuse it.
+    // The handful of /crm/* routes a student may legitimately reach, each because the
+    // module resolves `own` to THAT STUDENT'S OWN ROWS — the CRM path returns exactly what
+    // the LMS path would. Verified individually; anything not on this list must be refused.
+    //
+    //   /crm/tickets      — TicketsService resolves own -> restrictToUserId = the caller,
+    //                       so a student sees their own support tickets and nobody else's.
+    //   /crm/live-classes — LiveClassesService resolves own -> the caller's own batch ids.
+    //   /crm/kb-articles  — `kb.view` is seeded at scope ALL to every role including
+    //                       student, deliberately: the knowledge base is reference material
+    //                       written to be read by the people asking the questions.
+    //   /crm/emi-plans    — own -> the caller's own orders (and, for a counsellor, their
+    //                       own leads'). Same restriction as the detail route.
+    const STUDENT_REACHABLE_CRM_ROUTES = new Set<string>([
+      "GET /api/v1/crm/tickets",
+      "GET /api/v1/crm/live-classes",
+      "GET /api/v1/crm/kb-articles",
+      "GET /api/v1/crm/emi-plans",
+    ]);
+
+    it("a STUDENT session is refused every /crm/* route it has no own-scoped business on", async () => {
+      const session = sessions.get("student");
+      expect(session).toBeDefined();
+
+      const admitted: string[] = [];
+      for (const route of protectedRoutes()) {
+        if (!route.path.startsWith("/api/v1/crm/")) continue;
+        const sig = `${route.method} ${route.path}`;
+        if (STUDENT_REACHABLE_CRM_ROUTES.has(sig)) continue;
+        const res = await probe(route, session!);
+        // 403 is the intended answer; 404 is acceptable where a module answers an
+        // out-of-scope row with "no such thing" (the IDOR→404 convention, ADR-0022), and
+        // 422 where the probe's empty body is rejected before authorization runs at all.
+        if (res.status !== 403 && res.status !== 404 && res.status !== 422) {
+          admitted.push(`${sig} -> ${res.status}`);
+        }
+      }
+
+      expect(admitted).toEqual([]);
     }, 600_000);
   });
 });

@@ -64,7 +64,15 @@ export class AuthIpRateLimitGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
     const ip = req.ip ?? "unknown";
-    const bucket = context.getHandler().name; // e.g. "login" | "requestOtp" | "verifyOtp"
+    // Class name AND handler name. The handler name alone is not unique across the app:
+    // `PasswordResetController.request/confirm` and
+    // `TwoFactorRecoveryController.request/confirm` share the method names `request` and
+    // `confirm`, so they were sharing one another's budget — two unrelated flows counting
+    // against a single `auth:ip-rl:request:<ip>` bucket. That fails tight rather than
+    // loose, so it was never a bypass, but the header's "bucketed per ROUTE" claim was
+    // simply untrue, and a future handler named `login` anywhere else would have started
+    // eating the login budget.
+    const bucket = `${context.getClass().name}.${context.getHandler().name}`;
     const env = validateEnv();
 
     const { limited, retryAfterSeconds } = await hitRedisWindow(

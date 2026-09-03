@@ -4,7 +4,7 @@
 import * as React from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Button, Drawer, DrawerContent, DrawerBody, DrawerFooter, Input, MoneyInput, Select, SelectItem, useToast } from "@repo/ui";
+import { Button, Drawer, DrawerContent, DrawerBody, DrawerFooter, Input, Select, SelectItem, formatPaise, useToast } from "@repo/ui";
 import { CreateEmiPlanRequestSchema, type CreateEmiPlanRequest } from "@repo/types";
 import type { z } from "zod";
 
@@ -18,9 +18,6 @@ interface EmiPlanFormDrawerProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Use the zod input type so zodResolver doesn't cause a resolver mismatch —
-// `currency` has `.default("INR")`, making it optional in the input shape
-// (mirrors issue-certificate-dialog.tsx's `overrideEligibility` pattern).
 type EmiPlanFormValues = z.input<typeof CreateEmiPlanRequestSchema>;
 
 export function EmiPlanFormDrawer({ open, onOpenChange }: EmiPlanFormDrawerProps): React.JSX.Element {
@@ -35,15 +32,19 @@ export function EmiPlanFormDrawer({ open, onOpenChange }: EmiPlanFormDrawerProps
     reset,
     register,
     control,
+    watch,
     formState: { errors },
   } = useForm<EmiPlanFormValues>({
     resolver: zodResolver(CreateEmiPlanRequestSchema),
-    defaultValues: { orderId: "", totalAmountPaise: 0, currency: "INR", numInstallments: 3, startDate: "" },
+    defaultValues: { orderId: "", numInstallments: 3, startDate: "" },
   });
 
   React.useEffect(() => {
-    if (open) reset({ orderId: "", totalAmountPaise: 0, currency: "INR", numInstallments: 3, startDate: "" });
+    if (open) reset({ orderId: "", numInstallments: 3, startDate: "" });
   }, [open, reset]);
+
+  const selectedOrderId = watch("orderId");
+  const selectedOrder = (orders?.items ?? []).find((order) => order.id === selectedOrderId);
 
   const onSubmit = handleSubmit(async (values) => {
     try {
@@ -89,20 +90,22 @@ export function EmiPlanFormDrawer({ open, onOpenChange }: EmiPlanFormDrawerProps
               )}
             />
 
-            <Controller
-              control={control}
-              name="totalAmountPaise"
-              render={({ field }) => (
-                <MoneyInput
-                  label="Total amount"
-                  required
-                  value={field.value}
-                  onChange={field.onChange}
-                  error={errors.totalAmountPaise?.message}
-                  data-testid="emi-plan-amount-input"
-                />
-              )}
-            />
+            {/* The total is the ORDER's, shown rather than asked for. This was a
+                free-text MoneyInput a staff member typed, and whatever they typed became
+                the schedule the payment provider actually charges — a slip of the
+                keyboard collected the wrong amount while the order row still read
+                correctly. The API no longer accepts the field at all. */}
+            <div data-testid="emi-plan-amount">
+              <span className="block text-sm font-medium text-fg">Total to split</span>
+              <p className="mt-1 text-lg font-semibold tabular-nums text-fg">
+                {selectedOrder ? formatPaise(selectedOrder.amountPaise) : "—"}
+              </p>
+              <p className="mt-1 text-xs text-fg-muted">
+                {selectedOrder
+                  ? "Taken from the order. An EMI plan splits what is owed, it cannot change it."
+                  : "Select an order to see the amount."}
+              </p>
+            </div>
 
             <Input
               label="Number of installments"

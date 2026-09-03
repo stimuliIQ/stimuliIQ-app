@@ -108,6 +108,9 @@ describeIfAvailable("Gap-closing pass — server-side must-change-password gate 
     if (prisma) {
       await prisma.session.deleteMany({ where: { userId } }).catch(() => {});
       await prisma.userRole.deleteMany({ where: { userId } }).catch(() => {});
+      // Gamification rows FK to `users`, and lesson completion now writes them.
+      await prisma.pointsLedger.deleteMany({ where: { userId: userId } }).catch(() => {});
+      await prisma.userBadge.deleteMany({ where: { userId: userId } }).catch(() => {});
       await prisma.user.deleteMany({ where: { id: userId } }).catch(() => {});
       await prisma.$disconnect();
     }

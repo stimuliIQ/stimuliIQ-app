@@ -564,6 +564,9 @@ describeIfAvailable(
         if (fixtureUserIds.length) {
           await prisma.session.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
           await prisma.userRole.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
+          // Gamification rows FK to `users`, and lesson completion now writes them.
+          await prisma.pointsLedger.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
+          await prisma.userBadge.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
           await prisma.user.deleteMany({ where: { id: { in: fixtureUserIds } } }).catch(() => {});
         }
         await prisma.batch.deleteMany({ where: { tenantId, name: { startsWith: "P4 Batch" } } }).catch(() => {});
@@ -922,7 +925,9 @@ describeIfAvailable(
         // entityId (issuedCertId, asserted in the `where` above) links to the certificates
         // row, which holds the real cert_uid. Forensic coverage is via enrollmentId + issuedAt.
         const after = log?.after as Record<string, unknown>;
-        expect(after?.certUid).toBe("[REDACTED — stored in DB]");
+        // The em dash in this sentinel was replaced with a comma by the sitewide em-dash
+        // sweep (ba687bd); the assertion kept the old string and has been failing since.
+        expect(after?.certUid).toBe("[REDACTED, stored in DB]");
         expect(after?.enrollmentId).toBe(enrollmentAId);
         expect(after?.issuedAt).toBeDefined();
         // The real cert_uid lives on the certificate row, keyed by the audited entityId.

@@ -4,25 +4,24 @@
 // No Prisma here (CLAUDE.md §3.3) — all persistence goes through EmiRepository.
 //
 // MONEY: every amount is integer paise + an explicit currency (CLAUDE.md §3.6). The
-// installment schedule is computed HERE, server-side — the client never sends
-// per-installment amounts/dates (CreateEmiPlanRequest carries only totalAmountPaise +
-// numInstallments + startDate).
+// installment schedule is computed HERE, server-side, from the ORDER's own total —
+// `CreateEmiPlanRequest` carries only orderId + numInstallments + startDate. It used to
+// carry the total and the currency too, and wrote them straight through; see that
+// schema's doc comment for what that cost.
 //
 // SCOPE:
-//   `/crm/emi-plans*` (CRM): all (finance/admin, no restriction) | branch (branch_manager
-//     — documented gap, no branch_id column on emi_plans/orders/student_profiles, so
-//     "branch" resolves to "no restriction", mirrors MentorsService/SettingsService
-//     precedent) | own (counsellor — "their own LEADS' EMI plans", traced via
-//     order -> student -> convertedFromLead.ownerId, per prisma/seed.ts's grant comment).
+//   `/crm/emi-plans*` READS: `all` (finance/admin, no restriction) or `own`. `own` is
+//     seeded to counsellor (their own LEADS' plans, via order -> student ->
+//     convertedFromLead.ownerId) AND to student (their own orders, via
+//     order -> student.userId); `readRestriction` covers both, and the list and the
+//     detail route apply the SAME one so they cannot disagree.
+//   `branch` is REFUSED, not ignored. It was in the accepted set with nothing consulting
+//     it, so a branch-scoped holder read every plan in the tenant.
+//   `/crm/emi-plans*` WRITES (create plan, mark-paid, dunning) require `all`: recording a
+//     payment against somebody's plan, or firing a reminder at a customer, is not an
+//     own-scope act.
 //   `/me/emi-plans` (student self-view): always filters to the caller's OWN
-//     student-linked orders (order.student.userId === actorId), independent of the
-//     abstract scope resolution above — this route's entire purpose (DTO comment:
-//     "List own EMI plans (via own orders)") is a fixed "my own account" filter, not a
-//     role-dependent "own" resolution. NOTE (flagged, not silently worked around):
-//     `emi.view` is NOT granted to the `student` role in prisma/seed.ts's P9 grants
-//     (only finance/branch_manager/counsellor hold it) — this route is code-complete
-//     and will 403 real students today until that grant is added; tracked as a Wave-1
-//     seed follow-up (this task owns apps/api only, not prisma/seed.ts permission grants).
+//     student-linked orders, independent of the abstract scope resolution above.
 //
 // SERVER-INITIATED CHARGE (mark-paid without a paymentId — "the server initiates one"):
 // creates a Razorpay TEST order via PAYMENT_PROVIDER.createOrder() and a `payments` row
@@ -181,24 +180,9 @@ export class EmiService {
       });
     }
 
-    // The amount the customer will be charged comes from the ORDER, never from the
-    // request body. `body.totalAmountPaise`/`body.currency` used to be written straight
-    // through — `order` was fetched only to prove it existed — and the schedule those
-    // numbers produce is what `markInstallmentPaid` later hands to the payment provider
-    // as a real charge. A client that lowered the total paid less than the order says it
-    // owes, and one that raised it overcharged, with the order row still reading
-    // correctly either way. CLAUDE.md §3.6: money is derived server-side.
-    if (body.totalAmountPaise !== order.amountPaise || body.currency !== order.currency) {
-      throw new UnprocessableEntityException({
-        code: "EMI_TOTAL_MISMATCH",
-        title: "The plan total must match the order",
-        detail:
-          `This order is for ${order.amountPaise} ${order.currency} (minor units); ` +
-          `the request asked for ${body.totalAmountPaise} ${body.currency}. ` +
-          "An EMI plan splits the order's own total — it cannot change it.",
-      });
-    }
-
+    // The amount the customer will be charged comes from the ORDER, and only from the
+    // order — see CreateEmiPlanRequestSchema for what used to be accepted here and why it
+    // is no longer part of the contract.
     const startDate = new Date(`${body.startDate}T00:00:00.000Z`);
     const installments = buildInstallmentSchedule(order.amountPaise, body.numInstallments, startDate);
 
@@ -217,12 +201,18 @@ export class EmiService {
 
   async listCrm(tenantId: string, actorId: string, query: ListEmiPlansQuery): Promise<PaginatedResult<EmiPlanSummary>> {
     const scope = this.assertCrmReadScope();
+    // The SAME restriction the detail route applies, so the two agree. `own` is seeded to
+    // counsellor (their leads' plans) AND to student (their own orders); narrowing on
+    // leadOwnerId alone meant a student got an empty list from a route that answered 200,
+    // which reads as "you have no EMI plans" rather than "this is not your screen".
+    const restriction = this.readRestriction(scope, actorId);
     const { rows, total } = await this.repository.list({
       tenantId,
       orderId: query.orderId,
       status: query.status,
       search: query.search,
-      leadOwnerId: scope === "own" ? actorId : undefined,
+      leadOwnerId: restriction?.leadOwnerId,
+      studentUserId: restriction?.studentUserId,
       page: query.page,
       pageSize: query.pageSize,
     });

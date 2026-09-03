@@ -10,6 +10,7 @@ import { Injectable } from "@nestjs/common";
 import type { Prisma, RolePermissionScope, User } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { resolveTenantIdCached } from "../../common/tenant/tenant-id-cache";
+import { AccessTokenRevocationStore } from "./lib/access-token-revocation";
 
 export interface FlattenedPermission {
   key: string;
@@ -24,7 +25,17 @@ export interface UserWithRbac {
 
 @Injectable()
 export class AuthRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  // The one deviation from "Prisma only" in this file, and it is deliberate.
+  // `revokeAllSessionsForUser` has TEN call sites across six services; stamping the
+  // access-token epoch as a second, separate step at each of them is the shape of bug
+  // this codebase keeps finding (a wiring step somebody forgets, silently). Doing both
+  // halves inside the one method makes revocation atomic from every caller's point of
+  // view and impossible to half-apply. `TwoFactorStore` sets the precedent for a single
+  // auth class spanning Postgres and Redis.
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly accessTokenRevocation: AccessTokenRevocationStore,
+  ) {}
 
   /**
    * Case-insensitive on the address, because email addresses are not case-sensitive in
@@ -197,12 +208,22 @@ export class AuthRepository {
     });
   }
 
-  /** T28 (password-reset, docs/plans/phase-9-completion.md): revokes every still-active session for a user — called on a successful password reset so a leaked/stolen session cannot survive the credential change. */
+  /**
+   * Revokes every still-active session for a user — called whenever their credential
+   * changes hands (password change, password reset, 2FA recovery, admin rotation, admin
+   * deactivation) so a leaked or stolen session cannot survive it.
+   *
+   * BOTH HALVES. The `sessions` rows govern refresh; the Redis epoch governs the access
+   * token, which carries no session id and was therefore untouched by this method — a
+   * stolen access token kept working for the rest of its 15 minutes after the very reset
+   * meant to kill it. See access-token-revocation.ts.
+   */
   async revokeAllSessionsForUser(userId: string): Promise<void> {
     await this.prisma.client.session.updateMany({
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+    await this.accessTokenRevocation.revokeAllBefore(userId);
   }
 
   /** Used only by integration tests / privileged tooling — not exposed via any controller. */

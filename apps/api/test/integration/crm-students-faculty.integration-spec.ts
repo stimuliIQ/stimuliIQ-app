@@ -221,7 +221,12 @@ describeIfAvailable("CRM students + faculty (CRUD, transaction, audit, IDOR, sco
   // ── Gap-closing pass GAP #2: POST /crm/students/:id/resend-credentials ───────────────
 
   describe("students resend-credentials (gap-closing pass — CRM 'reissue LMS login' action)", () => {
-    it("happy path: 200, returns the student's email, rotates the password + re-raises mustChangePassword, re-sends the welcome email", async () => {
+    // This action changed in 24c9d3b: it emails a one-time SET-PASSWORD LINK now, not a
+    // temporary password. So the old password is invalidated (a fresh unusable hash is
+    // written, never disclosed) and `mustChangePassword` is deliberately left FALSE — the
+    // gate would otherwise block the very reset flow the link opens. The assertions below
+    // were still describing the old behaviour and had been failing since that commit.
+    it("happy path: 200, returns the student's email, invalidates the old credential, and emails a set-password link", async () => {
       const { accessToken, csrfToken } = await loginAs(SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD);
       const email = `qa-resend-creds-${Date.now()}@stimuliiq.test`;
       const createRes = await request(app.getHttpServer())
@@ -244,13 +249,23 @@ describeIfAvailable("CRM students + faculty (CRUD, transaction, audit, IDOR, sco
       expect(res.body.data.email).toBe(email);
 
       const afterUser = await prisma.user.findUnique({ where: { id: profile!.userId } });
-      expect(afterUser!.mustChangePassword).toBe(true);
+      // A real argon2 hash of a value nobody holds: the previous password stops working,
+      // and the row is not left with an empty hash that some later code path might read as
+      // "no password set".
       expect(afterUser!.passwordHash).not.toBe("");
       expect(afterUser!.passwordHash).toMatch(/^\$argon2/);
       expect(afterUser!.status).toBe("active");
+      // FALSE on purpose — see the note above this test. The student proves ownership
+      // through the emailed link, and MustChangePasswordGuard would stand in front of
+      // exactly that flow.
+      expect(afterUser!.mustChangePassword).toBe(false);
 
       expect(mailSpy.send).toHaveBeenCalledTimes(1);
       expect(mailSpy.send.mock.calls[0][0].to).toBe(email);
+      // A LINK, never a credential. If a temporary password is ever mailed from this
+      // action again, this is what catches it.
+      expect(mailSpy.send.mock.calls[0][0].subject).toMatch(/set your .*password/i);
+      expect(mailSpy.send.mock.calls[0][0].html).toContain("/reset-password?token=");
 
       // Calling it AGAIN rotates the credential a second time — unlike auto-provisioning,
       // this is NOT a one-shot idempotent no-op; each call is a fresh reissue.

@@ -592,6 +592,13 @@ export async function teardownLmsFixtures(
     await prisma.session.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.userRole.deleteMany({ where: { userId: { in: userIds } } });
     await purgeAuditLogs(prisma, { actorId: { in: userIds } });
+    // Gamification rows. Completing a lesson now writes a `points_ledger` row and may
+    // award a badge (the award entry points had no call sites until this pass, so
+    // nothing referenced these users before and this teardown never needed them). Both
+    // tables FK to `users`, and this is a HARD delete — production soft-deletes users, so
+    // only the fixtures hit the constraint.
+    await prisma.pointsLedger.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.userBadge.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
   }
 

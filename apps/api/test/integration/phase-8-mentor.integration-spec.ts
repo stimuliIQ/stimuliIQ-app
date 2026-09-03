@@ -431,6 +431,9 @@ describeIfAvailable(
         if (fixtureProgramId) await prisma.program.deleteMany({ where: { id: fixtureProgramId } }).catch(() => {});
         await prisma.session.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
         await prisma.userRole.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
+        // Gamification rows FK to `users`, and lesson completion now writes them.
+        await prisma.pointsLedger.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
+        await prisma.userBadge.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
         await prisma.user.deleteMany({ where: { id: { in: fixtureUserIds } } }).catch(() => {});
         await prisma.branch.deleteMany({ where: { id: { in: fixtureBranchIds } } }).catch(() => {});
         await prisma.$disconnect();
@@ -901,18 +904,34 @@ describeIfAvailable(
         expect(dbBatch.completedAt).not.toBeNull();
         expect(dbBatch.completedByUserId).toBe(adminUserId);
 
-        // AC-42: enrollment/certificate rows untouched by the transition.
+        // AC-42, as amended: ENROLLMENT rows are still untouched by the transition —
+        // completing a batch does not change anybody's enrolment status or progress.
         const afterEnrollments = await prisma.enrollment.findMany({
           where: { tenantId, batchId: batchCompletionRollup.id },
           select: { id: true, status: true, progressPct: true },
           orderBy: { id: "asc" },
         });
         expect(afterEnrollments).toEqual(beforeEnrollments);
+
+        // CERTIFICATES are not: `aa17681` deliberately made marking a batch complete issue
+        // the cohort's certificates (BatchCompletionService.issueCohortCertificates), which
+        // is the whole point of the action for a training company. The original assertion
+        // ("certificate rows untouched") predates that and has been failing since.
+        //
+        // So the invariant asserted here is the one that still holds and still matters:
+        // issuance is ADDITIVE and never rewrites history. Every certificate that existed
+        // before is still there, unchanged, and anything new is a fresh valid row — a
+        // completion sweep must not revoke, reissue or restatus somebody's existing
+        // certificate. The response's own counts are asserted below.
         const afterCertificates = await prisma.certificate.findMany({
           where: { tenantId, enrollmentId: { in: afterEnrollments.map((e: { id: string }) => e.id) } },
           select: { id: true, status: true },
         });
-        expect(afterCertificates).toEqual(beforeCertificates);
+        for (const before of beforeCertificates) {
+          expect(afterCertificates).toContainEqual(before);
+        }
+        expect(afterCertificates.length).toBeGreaterThanOrEqual(beforeCertificates.length);
+        expect(afterCertificates.every((c: { status: string }) => c.status === "valid")).toBe(true);
 
         // AC-39: replay is idempotent (409), never a second successful mutation.
         const replay = await request(httpServer)

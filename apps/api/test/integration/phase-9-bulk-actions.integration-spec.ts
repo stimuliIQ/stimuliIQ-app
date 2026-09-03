@@ -145,6 +145,9 @@ describeIfAvailable("Phase-9 Bulk actions — per-row scope isolation — integr
       await prisma.lead.deleteMany({ where: { id: { in: fixtureLeadIds } } }).catch(() => {});
       await prisma.session.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.userRole.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
+      // Gamification rows FK to `users`, and lesson completion now writes them.
+      await prisma.pointsLedger.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
+      await prisma.userBadge.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.user.deleteMany({ where: { id: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.$disconnect();
     }

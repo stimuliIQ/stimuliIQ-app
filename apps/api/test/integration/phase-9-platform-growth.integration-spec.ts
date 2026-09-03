@@ -143,6 +143,9 @@ describeIfAvailable("Phase-9 Platform (flags/settings) + Growth (landing-pages/l
       await prisma.leadForm.deleteMany({ where: { id: { in: fixtureLeadFormIds } } }).catch(() => {});
       await prisma.session.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.userRole.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
+      // Gamification rows FK to `users`, and lesson completion now writes them.
+      await prisma.pointsLedger.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
+      await prisma.userBadge.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.user.deleteMany({ where: { id: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.$disconnect();
     }

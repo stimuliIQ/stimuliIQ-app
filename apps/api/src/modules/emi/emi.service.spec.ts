@@ -137,7 +137,7 @@ describe("EmiService", () => {
 
       await expect(
         runWithScope("all", () =>
-          service.createPlan("tenant-1", { orderId: "order-1", totalAmountPaise: 100_000, currency: "INR", numInstallments: 4, startDate: "2026-01-01" }),
+          service.createPlan("tenant-1", { orderId: "order-1", numInstallments: 4, startDate: "2026-01-01" }),
         ),
       ).rejects.toBeInstanceOf(UnprocessableEntityException);
     });
@@ -146,7 +146,7 @@ describe("EmiService", () => {
       repo.findOrderForPlan.mockResolvedValue(null);
       await expect(
         runWithScope("all", () =>
-          service.createPlan("tenant-1", { orderId: "missing", totalAmountPaise: 100_000, currency: "INR", numInstallments: 4, startDate: "2026-01-01" }),
+          service.createPlan("tenant-1", { orderId: "missing", numInstallments: 4, startDate: "2026-01-01" }),
         ),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
@@ -158,7 +158,7 @@ describe("EmiService", () => {
       repo.findById.mockResolvedValue(PLAN_ROW as never);
 
       const result = await runWithScope("all", () =>
-        service.createPlan("tenant-1", { orderId: "order-1", totalAmountPaise: 100_000, currency: "INR", numInstallments: 4, startDate: "2026-01-01" }),
+        service.createPlan("tenant-1", { orderId: "order-1", numInstallments: 4, startDate: "2026-01-01" }),
       );
       expect(result.id).toBe("plan-1");
       expect(repo.createPlanWithInstallments).toHaveBeenCalledWith(
@@ -168,33 +168,9 @@ describe("EmiService", () => {
     });
 
     // The schedule this builds is what `markInstallmentPaid` later hands the payment
-    // provider as a real charge, so the total cannot come from the request body.
-    it("422s when the requested total does not match the order, rather than charging it", async () => {
-      repo.findOrderForPlan.mockResolvedValue({
-        id: "order-1",
-        studentId: "student-1",
-        amountPaise: 100_000,
-        currency: "INR",
-        studentEmail: "a@b.test",
-        studentName: "Asha",
-      });
-      repo.findActivePlanByOrderId.mockResolvedValue(null);
-
-      await expect(
-        runWithScope("all", () =>
-          service.createPlan("tenant-1", {
-            orderId: "order-1",
-            totalAmountPaise: 1_000, // a hundredth of what the order says
-            currency: "INR",
-            numInstallments: 4,
-            startDate: "2026-01-01",
-          }),
-        ),
-      ).rejects.toMatchObject({ response: { code: "EMI_TOTAL_MISMATCH" } });
-      expect(repo.createPlanWithInstallments).not.toHaveBeenCalled();
-    });
-
-    it("splits the ORDER's total, not the body's, when they agree", async () => {
+    // provider as a real charge, so the total cannot come from the caller. It is not
+    // merely validated against the order — it is not part of the request at all.
+    it("splits the ORDER's total, whatever the caller thinks it is", async () => {
       repo.findOrderForPlan.mockResolvedValue({
         id: "order-1",
         studentId: "student-1",
@@ -210,11 +186,12 @@ describe("EmiService", () => {
       await runWithScope("all", () =>
         service.createPlan("tenant-1", {
           orderId: "order-1",
-          totalAmountPaise: 100_000,
-          currency: "INR",
           numInstallments: 4,
           startDate: "2026-01-01",
-        }),
+          // A caller that still sends a total is simply ignored — the DTO is .strict(),
+          // so the pipe rejects it before the service ever sees it, and the service
+          // reads the order regardless.
+        } as never),
       );
       expect(repo.createPlanWithInstallments).toHaveBeenCalledWith(
         "tenant-1",

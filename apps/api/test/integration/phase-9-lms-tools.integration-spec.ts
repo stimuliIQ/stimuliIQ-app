@@ -220,6 +220,9 @@ describeIfAvailable("Phase-9 LMS tools — video library / bookmarks / notes / s
       await prisma.program.deleteMany({ where: { id: programId } }).catch(() => {});
       await prisma.session.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.userRole.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
+      // Gamification rows FK to `users`, and lesson completion now writes them.
+      await prisma.pointsLedger.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
+      await prisma.userBadge.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.user.deleteMany({ where: { id: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.$disconnect();
     }

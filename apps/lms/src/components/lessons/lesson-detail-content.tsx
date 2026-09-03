@@ -50,6 +50,7 @@ import type { LessonDetailResponse, ResourceMeta } from "@repo/types";
 
 import { useLesson } from "../../hooks/use-lesson";
 import { useProgressReporting } from "../../hooks/use-progress-reporting";
+import { useDownloadResource } from "../../hooks/use-resource-download";
 import { LessonVideoPlayer } from "./lesson-video-player";
 import { LessonNotesPanel } from "./lesson-notes-panel";
 import { BookmarkButton } from "../shared/bookmark-button";
@@ -80,11 +81,37 @@ function LessonSkeleton(): React.JSX.Element {
 }
 
 // ---------------------------------------------------------------------------
-// Resource list (P3: metadata only — no download URLs)
+// Resource list
+//
+// Each row downloads through a freshly-minted, short-lived signed URL
+// (`useDownloadResource` → GET /me/lessons/:id/resources/:resourceId/download-url).
+// The URL is never cached: one click, one mint, same posture as the certificate
+// download.
+//
+// Until now every row rendered a dead "Soon" chip titled "Download coming in P4" —
+// telling students, in production, that the feature was not built yet. It was: the
+// endpoint, the service, the SDK method, this hook and its unit test all shipped, and
+// the hook simply had no consumer. The chip was the only thing standing between a
+// student and their own course materials.
 // ---------------------------------------------------------------------------
 
-function ResourceList({ resources }: { resources: ResourceMeta[] }): React.JSX.Element | null {
+function ResourceList({ resources, lessonId }: { resources: ResourceMeta[]; lessonId: string }): React.JSX.Element | null {
+  const { download, isDownloading, downloadError, clearError } = useDownloadResource();
+  const [pendingId, setPendingId] = React.useState<string | null>(null);
+
   if (resources.length === 0) return null;
+
+  async function handleDownload(resourceId: string): Promise<void> {
+    clearError();
+    setPendingId(resourceId);
+    const result = await download({ lessonId, resourceId });
+    setPendingId(null);
+    if (result) {
+      // A new tab, not a same-tab navigation: the signed URL is a file, and replacing
+      // the player page with a download would lose the student's place in the lesson.
+      window.open(result.downloadUrl, "_blank", "noopener,noreferrer");
+    }
+  }
 
   function formatBytes(bytes: number | null): string {
     if (!bytes) return "";
@@ -113,18 +140,27 @@ function ResourceList({ resources }: { resources: ResourceMeta[] }): React.JSX.E
                 {res.sizeBytes ? ` · ${formatBytes(res.sizeBytes)}` : ""}
               </span>
             </span>
-            {/* Download URLs are deferred to P4 (StorageProvider). */}
-            <span
-              className="inline-flex items-center gap-1 text-xs text-fg-subtle"
-              aria-label="Download available in a future update"
-              title="Download coming in P4"
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              loading={isDownloading && pendingId === res.id}
+              disabled={isDownloading}
+              onClick={() => void handleDownload(res.id)}
+              aria-label={`Download ${res.title}`}
+              data-testid="resource-download"
             >
               <Download aria-hidden="true" className="size-3.5" />
-              <span>Soon</span>
-            </span>
+              <span>Download</span>
+            </Button>
           </li>
         ))}
       </ul>
+      {downloadError ? (
+        <p role="alert" className="mt-2 text-sm text-danger" data-testid="resource-download-error">
+          {downloadError.message}
+        </p>
+      ) : null}
     </section>
   );
 }
@@ -500,7 +536,7 @@ export function LessonDetailContent({
           )}
 
           {/* Resources */}
-          <ResourceList resources={lesson.resources} />
+          <ResourceList resources={lesson.resources} lessonId={lesson.id} />
 
           {/* Notes, outline, activity and progress now live in the course
               context panel (right rail on lg+, drawer below). Preview lessons

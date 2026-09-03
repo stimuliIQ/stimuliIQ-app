@@ -87,6 +87,8 @@ describeIfAvailable("Phase-9 EMI + Referrals — integration (real Postgres + Re
   let prisma: InstanceType<typeof PrismaClient>;
 
   const PASSWORD = "P@ssword123!";
+  /** Order A's total. Deliberately not divisible by 3 — see the order fixture below. */
+  const ORDER_A_AMOUNT_PAISE = 60000_01;
   const suffix = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 
   let tenantId: string;
@@ -177,7 +179,11 @@ describeIfAvailable("Phase-9 EMI + Referrals — integration (real Postgres + Re
         tenantId,
         studentId: studentAProfileId,
         programId,
-        amountPaise: 60000_00,
+        // Deliberately NOT divisible by 3: the plan below splits it three ways, and the
+        // stray paise is what proves the schedule distributes a remainder instead of
+        // dropping it or floating it. The odd paise used to be sent in the REQUEST; now
+        // that the total is read from the order, it belongs here.
+        amountPaise: ORDER_A_AMOUNT_PAISE,
         idempotencyKey: `p9-er-order-a-${suffix}`,
         status: "paid",
       },
@@ -213,6 +219,9 @@ describeIfAvailable("Phase-9 EMI + Referrals — integration (real Postgres + Re
       await prisma.program.deleteMany({ where: { id: programId } }).catch(() => {});
       await prisma.session.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.userRole.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
+      // Gamification rows FK to `users`, and lesson completion now writes them.
+      await prisma.pointsLedger.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
+      await prisma.userBadge.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.user.deleteMany({ where: { id: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.$disconnect();
     }
@@ -233,7 +242,7 @@ describeIfAvailable("Phase-9 EMI + Referrals — integration (real Postgres + Re
         .post("/api/v1/crm/emi-plans")
         .set("Cookie", cookieHeader(studentACookies))
         .set("X-CSRF-Token", csrfStudentA)
-        .send({ orderId: orderAId, totalAmountPaise: 60000_00, numInstallments: 3, startDate: "2026-08-01" });
+        .send({ orderId: orderAId, numInstallments: 3, startDate: "2026-08-01" });
       expect(res.status).toBe(403);
     });
 
@@ -242,12 +251,15 @@ describeIfAvailable("Phase-9 EMI + Referrals — integration (real Postgres + Re
         .post("/api/v1/crm/emi-plans")
         .set("Cookie", cookieHeader(financeCookies))
         .set("X-CSRF-Token", csrfFinance)
-        .send({ orderId: orderAId, totalAmountPaise: 60000_01, numInstallments: 3, startDate: "2026-08-01" });
+        .send({ orderId: orderAId, numInstallments: 3, startDate: "2026-08-01" });
       expect(res.status).toBe(201);
       planId = res.body.data.id;
       expect(res.body.data.installments).toHaveLength(3);
       const total = res.body.data.installments.reduce((sum: number, i: { amountPaise: number }) => sum + i.amountPaise, 0);
-      expect(total).toBe(60000_01); // every paise accounted for (remainder distributed, not dropped/floated)
+      // Every paise accounted for, and it is the ORDER's total — not a number the client
+      // named. A plan that splits anything other than what is owed is the bug this asserts
+      // against.
+      expect(total).toBe(ORDER_A_AMOUNT_PAISE);
       installment1Id = res.body.data.installments[0].id;
       installment2Id = res.body.data.installments[1].id;
     });
@@ -257,7 +269,7 @@ describeIfAvailable("Phase-9 EMI + Referrals — integration (real Postgres + Re
         .post("/api/v1/crm/emi-plans")
         .set("Cookie", cookieHeader(financeCookies))
         .set("X-CSRF-Token", csrfFinance)
-        .send({ orderId: orderAId, totalAmountPaise: 100000, numInstallments: 2, startDate: "2026-09-01" });
+        .send({ orderId: orderAId, numInstallments: 2, startDate: "2026-09-01" });
       expect(res.status).toBe(422);
       expect(res.body.error.code).toBe("EMI_PLAN_ALREADY_EXISTS");
     });

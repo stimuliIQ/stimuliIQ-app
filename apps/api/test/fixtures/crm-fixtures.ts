@@ -510,6 +510,9 @@ export async function teardownCrmFixtures(prisma: PrismaClient, _tenantId: strin
   await prisma.session.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.userRole.deleteMany({ where: { userId: { in: userIds } } });
   await purgeAuditLogs(prisma, { actorId: { in: userIds } });
+  // Gamification rows FK to `users`, and lesson completion now writes them.
+  await prisma.pointsLedger.deleteMany({ where: { userId: { in: userIds } } }).catch(() => {});
+  await prisma.userBadge.deleteMany({ where: { userId: { in: userIds } } }).catch(() => {});
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
 
   await prisma.program.deleteMany({ where: { slug: "qa-crm-fixture-program" } });

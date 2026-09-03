@@ -131,6 +131,9 @@ export async function teardownFixtures(prisma: PrismaClient, _tenantId: string):
   await prisma.session.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.userRole.deleteMany({ where: { userId: { in: userIds } } });
   await purgeAuditLogs(prisma, { actorId: { in: userIds } });
+  // Gamification rows FK to `users`, and lesson completion now writes them.
+  await prisma.pointsLedger.deleteMany({ where: { userId: { in: userIds } } }).catch(() => {});
+  await prisma.userBadge.deleteMany({ where: { userId: { in: userIds } } }).catch(() => {});
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
   // Intentionally leave the audit_log.list permission + role grants + the shared
   // "stimuliiq" tenant/roles in place — they are upserted (idempotent) on every run and

@@ -148,6 +148,9 @@ describeIfAvailable("Phase-9 Headless Content — integration + RBAC + draft/pub
       await prisma.careerApplication.deleteMany({ where: { id: { in: fixtureCareerIds } } }).catch(() => {});
       await prisma.session.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.userRole.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
+      // Gamification rows FK to `users`, and lesson completion now writes them.
+      await prisma.pointsLedger.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
+      await prisma.userBadge.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.user.deleteMany({ where: { id: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.$disconnect();
     }

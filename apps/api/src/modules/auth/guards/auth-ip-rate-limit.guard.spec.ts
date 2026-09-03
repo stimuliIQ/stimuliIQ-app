@@ -25,7 +25,7 @@ const REQUIRED_ENV: NodeJS.ProcessEnv = {
   COOKIE_DOMAIN: ".stimuliiq.test",
 };
 
-function buildContext(opts: { ip?: string; handlerName?: string; setHeader?: jest.Mock } = {}): ExecutionContext {
+function buildContext(opts: { ip?: string; handlerName?: string; className?: string; setHeader?: jest.Mock } = {}): ExecutionContext {
   function login() {
     /* named function so context.getHandler().name === "login" */
   }
@@ -39,7 +39,7 @@ function buildContext(opts: { ip?: string; handlerName?: string; setHeader?: jes
       getResponse: () => ({ setHeader: opts.setHeader ?? jest.fn() }),
     }),
     getHandler: () => handler,
-    getClass: () => ({ name: "AuthController" }),
+    getClass: () => ({ name: opts.className ?? "AuthController" }),
   } as unknown as ExecutionContext;
 }
 
@@ -82,7 +82,7 @@ describe("AuthIpRateLimitGuard, AC-57", () => {
     expect(setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
   });
 
-  it("buckets by handler name, a flood on one auth route does not exhaust another route's budget", async () => {
+  it("buckets by route, a flood on one auth route does not exhaust another route's budget", async () => {
     const incr = jest.fn().mockResolvedValue(1);
     const redis = { client: { incr, expire: jest.fn() } } as unknown as RedisService;
     const guard = new AuthIpRateLimitGuard(redis);
@@ -90,8 +90,29 @@ describe("AuthIpRateLimitGuard, AC-57", () => {
     await guard.canActivate(buildContext({ handlerName: "login", ip: "10.0.0.1" }));
     await guard.canActivate(buildContext({ handlerName: "requestOtp", ip: "10.0.0.1" }));
 
-    expect(incr).toHaveBeenNthCalledWith(1, "auth:ip-rl:login:10.0.0.1");
-    expect(incr).toHaveBeenNthCalledWith(2, "auth:ip-rl:requestOtp:10.0.0.1");
+    expect(incr).toHaveBeenNthCalledWith(1, "auth:ip-rl:AuthController.login:10.0.0.1");
+    expect(incr).toHaveBeenNthCalledWith(2, "auth:ip-rl:AuthController.requestOtp:10.0.0.1");
+  });
+
+  // The handler name alone was NOT unique: PasswordResetController.request/confirm and
+  // TwoFactorRecoveryController.request/confirm share both method names, so two unrelated
+  // flows were counting against one another's budget. Tighter than intended rather than
+  // looser, so never a bypass — but the guard's own header claimed "bucketed per ROUTE",
+  // and a future handler named `login` elsewhere would have eaten the login budget.
+  it("does not collide two controllers that share a handler name", async () => {
+    const incr = jest.fn().mockResolvedValue(1);
+    const redis = { client: { incr, expire: jest.fn() } } as unknown as RedisService;
+    const guard = new AuthIpRateLimitGuard(redis);
+
+    await guard.canActivate(
+      buildContext({ className: "PasswordResetController", handlerName: "request", ip: "10.0.0.2" }),
+    );
+    await guard.canActivate(
+      buildContext({ className: "TwoFactorRecoveryController", handlerName: "request", ip: "10.0.0.2" }),
+    );
+
+    expect(incr).toHaveBeenNthCalledWith(1, "auth:ip-rl:PasswordResetController.request:10.0.0.2");
+    expect(incr).toHaveBeenNthCalledWith(2, "auth:ip-rl:TwoFactorRecoveryController.request:10.0.0.2");
   });
 
   it("FAILS CLOSED when Redis errors, this is the only defense against distributed credential-stuffing here", async () => {

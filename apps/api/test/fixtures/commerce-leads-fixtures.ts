@@ -482,6 +482,9 @@ export async function teardownCommerceLeadsFixtures(prisma: PrismaClient, _tenan
   // must be cleaned up before deleting the user (FK) or teardown throws.
   await prisma.notification.deleteMany({ where: { userId: { in: [...userIds, ...convertedUserIds] } } });
   await prisma.notificationPref.deleteMany({ where: { userId: { in: [...userIds, ...convertedUserIds] } } });
+  // Gamification rows FK to `users`, and lesson completion now writes them.
+  await prisma.pointsLedger.deleteMany({ where: { userId: { in: [...userIds, ...convertedUserIds] } } }).catch(() => {});
+  await prisma.userBadge.deleteMany({ where: { userId: { in: [...userIds, ...convertedUserIds] } } }).catch(() => {});
   await prisma.user.deleteMany({ where: { id: { in: [...userIds, ...convertedUserIds] } } });
 
   await prisma.branch.deleteMany({ where: { name: { in: ["QA CL Fixture Branch A", "QA CL Fixture Branch B"] } } });

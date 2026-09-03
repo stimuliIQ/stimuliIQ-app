@@ -225,6 +225,9 @@ describeIfAvailable("Phase-9 Live Classes — integration + RBAC scope isolation
       if (fixtureProgramId) await prisma.program.deleteMany({ where: { id: fixtureProgramId } }).catch(() => {});
       await prisma.session.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.userRole.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
+      // Gamification rows FK to `users`, and lesson completion now writes them.
+      await prisma.pointsLedger.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
+      await prisma.userBadge.deleteMany({ where: { userId: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.user.deleteMany({ where: { id: { in: fixtureUserIds } } }).catch(() => {});
       await prisma.branch.deleteMany({ where: { id: { in: fixtureBranchIds } } }).catch(() => {});
       await prisma.$disconnect();

@@ -27,6 +27,7 @@ import { TwoFactorStore } from "./lib/two-factor-store";
 import { PasswordResetController } from "./password-reset.controller";
 import { PasswordResetService } from "./password-reset.service";
 import { PasswordResetStore } from "./lib/password-reset-store";
+import { AccessTokenRevocationStore } from "./lib/access-token-revocation";
 // 2FA recovery: the "lost my authenticator" path — unauthenticated email-OTP reset.
 // (The admin rescue path lives in AdminModule, which consumes TwoFactorStore via this
 // module's exports.)
@@ -68,10 +69,15 @@ import { TwoFactorRecoveryStore } from "./lib/two-factor-recovery-store";
     TwoFactorRecoveryStore,
     PasswordResetService,
     PasswordResetStore,
+    AccessTokenRevocationStore,
   ],
   exports: [
     AuthRepository,
     TokenService,
+    // AuditContextMiddleware (registered in AppModule) resolves the request user, so it
+    // needs the same revocation check the guard does — otherwise a revoked access token
+    // would still populate `req.user` for audit/logging purposes.
+    AccessTokenRevocationStore,
     JwtAuthGuard,
     PermissionsGuard,
     AuthIpRateLimitGuard,

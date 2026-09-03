@@ -15,11 +15,13 @@ import { AuthRepository } from "../auth.repository";
 import type { RequestUser } from "./request-user";
 import type { AppAudience } from "@repo/types";
 import { accessTokenCandidates } from "./cookies";
+import { AccessTokenRevocationStore } from "./access-token-revocation";
 
 export async function resolveRequestUser(
   cookies: Record<string, string> | undefined,
   tokenService: TokenService,
   authRepository: AuthRepository,
+  accessTokenRevocation: AccessTokenRevocationStore,
   audience?: AppAudience,
 ): Promise<RequestUser | undefined> {
   for (const accessToken of accessTokenCandidates(cookies, audience)) {
@@ -27,6 +29,13 @@ export async function resolveRequestUser(
       const claims = await tokenService.verifyAccessToken(accessToken);
       const user = await authRepository.findUserById(claims.sub);
       if (!user || user.status !== "active") continue;
+
+      // A valid signature is not the same as a current credential. Revoking a user's
+      // sessions marks the `sessions` rows, and those govern REFRESH only — this token
+      // carries no session id, so without this check a stolen access token outlived the
+      // password reset, 2FA recovery or admin rotation that was meant to kill it, by the
+      // remainder of its 15 minutes. See lib/access-token-revocation.ts.
+      if (await accessTokenRevocation.isRevoked(claims.sub, claims.iat)) continue;
 
       const { roleKeys, permissions } = await authRepository.getRbacProfile(user.id);
       return {

@@ -9,6 +9,7 @@
 import * as React from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { LessonDetailResponse } from "@repo/types";
 
 // next/navigation: the component reads ?t= for the resume position.
@@ -48,6 +49,20 @@ vi.mock("../../hooks/use-lesson", () => ({
 
 import { LessonDetailContent } from "./lesson-detail-content";
 
+// The resource list mints a signed download URL through a TanStack `useMutation`, so the
+// component needs a QueryClient even on a lesson with no resources — the hook runs either
+// way. A fresh client per render keeps the three cases independent.
+function renderLesson(): void {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <LessonDetailContent lessonId={BASE.id} />
+    </QueryClientProvider>,
+  );
+}
+
 const BASE: LessonDetailResponse = {
   id: "33333333-3333-4333-8333-333333333333",
   title: "Semantic HTML",
@@ -75,7 +90,7 @@ describe("LessonDetailContent, body on a video lesson", () => {
   it("shows the summary the faculty wrote, under the player", () => {
     lesson = { ...BASE, content: "<p>Covers headings and landmark roles.</p>" };
 
-    render(<LessonDetailContent lessonId={BASE.id} />);
+    renderLesson();
 
     const summary = screen.getByTestId("video-lesson-summary");
     expect(summary).toHaveTextContent("Covers headings and landmark roles.");
@@ -85,7 +100,7 @@ describe("LessonDetailContent, body on a video lesson", () => {
   });
 
   it("renders no empty card when the video has no summary", () => {
-    render(<LessonDetailContent lessonId={BASE.id} />);
+    renderLesson();
 
     expect(screen.queryByTestId("video-lesson-summary")).not.toBeInTheDocument();
     expect(screen.queryByText("About this lesson")).not.toBeInTheDocument();
@@ -95,7 +110,7 @@ describe("LessonDetailContent, body on a video lesson", () => {
   it("still renders a reading lesson's body on the reading branch", () => {
     lesson = { ...BASE, type: "reading", videoMeta: null, content: "<p>Read this first.</p>" };
 
-    render(<LessonDetailContent lessonId={BASE.id} />);
+    renderLesson();
 
     expect(screen.getByTestId("reading-lesson-card")).toHaveTextContent("Read this first.");
     expect(screen.queryByTestId("video-lesson-summary")).not.toBeInTheDocument();

@@ -31,6 +31,7 @@ import { LoginRateLimiter } from "./lib/login-rate-limiter";
 import { SMS_PROVIDER, type SmsProvider } from "./providers/sms/sms-provider.interface";
 import { PermissionsGuard } from "./guards/permissions.guard";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
+import { AccessTokenRevocationStore } from "./lib/access-token-revocation";
 import type { RequestUser } from "./lib/request-user";
 
 type Mocked<T> = { [K in keyof T]: T[K] extends (...args: never[]) => unknown ? jest.Mock : T[K] };
@@ -602,10 +603,15 @@ describe("PermissionsGuard", () => {
 });
 
 describe("JwtAuthGuard", () => {
+  // A revoked access token is refused even though its signature verifies — see
+  // lib/access-token-revocation.ts. Nothing is revoked in these two cases.
+  const revocationStub = () =>
+    ({ isRevoked: jest.fn().mockResolvedValue(false) }) as unknown as AccessTokenRevocationStore;
+
   it("throws 401 when no access_token cookie is present", async () => {
     const tokenService = { verifyAccessToken: jest.fn() } as unknown as TokenService;
     const authRepository = { findUserById: jest.fn() } as unknown as AuthRepository;
-    const guard = new JwtAuthGuard(tokenService, authRepository);
+    const guard = new JwtAuthGuard(tokenService, authRepository, revocationStub());
 
     const req = { cookies: {}, user: undefined };
     const context = { switchToHttp: () => ({ getRequest: () => req }) };
@@ -616,7 +622,7 @@ describe("JwtAuthGuard", () => {
   it("passes through and sets req.user when req.user is already populated (middleware ran first)", async () => {
     const tokenService = { verifyAccessToken: jest.fn() } as unknown as TokenService;
     const authRepository = { findUserById: jest.fn() } as unknown as AuthRepository;
-    const guard = new JwtAuthGuard(tokenService, authRepository);
+    const guard = new JwtAuthGuard(tokenService, authRepository, revocationStub());
 
     const user: RequestUser = { id: "u1", tenantId: "t1", roles: ["student"], permissions: [], mustChangePassword: false };
     const req = { cookies: {}, user };

@@ -20,12 +20,14 @@ import { AuthRepository } from "../../modules/auth/auth.repository";
 import { TokenService } from "../../modules/auth/lib/token.service";
 import { resolveRequestUser } from "../../modules/auth/lib/resolve-request-user";
 import { readAudienceHeader } from "../../modules/auth/lib/cookies";
+import { AccessTokenRevocationStore } from "../../modules/auth/lib/access-token-revocation";
 
 @Injectable()
 export class AuditContextMiddleware implements NestMiddleware {
   constructor(
     private readonly tokenService: TokenService,
     private readonly authRepository: AuthRepository,
+    private readonly accessTokenRevocation: AccessTokenRevocationStore,
   ) {}
 
   use(req: Request, res: Response, next: NextFunction): void {
@@ -39,6 +41,7 @@ export class AuditContextMiddleware implements NestMiddleware {
       req.cookies,
       this.tokenService,
       this.authRepository,
+      this.accessTokenRevocation,
       readAudienceHeader(req),
     );
     if (user) {

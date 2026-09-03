@@ -26,15 +26,22 @@ export const EmiInstallmentStatusSchema = z.enum(["pending", "paid", "overdue", 
 export type EmiInstallmentStatus = z.infer<typeof EmiInstallmentStatusSchema>;
 
 /**
- * POST /api/v1/crm/emi-plans — the server computes the installment schedule
- * (`totalAmountPaise` split across `numInstallments`, first due on `startDate` then
- * monthly) server-side; the client never sends per-installment amounts/dates.
+ * POST /api/v1/crm/emi-plans — the server computes the installment schedule (the ORDER's
+ * total split across `numInstallments`, first due on `startDate` then monthly); the
+ * client never sends amounts or dates.
+ *
+ * NO `totalAmountPaise`, NO `currency`. Both used to be required here and were written
+ * straight through — the order was fetched only to prove it existed — and the schedule
+ * they produce is what `markInstallmentPaid` later hands the payment provider as a real
+ * charge. A client that lowered the total collected less than the order says is owed; one
+ * that raised it overcharged; the order row read correctly either way. An EMI plan splits
+ * an order's total, it does not set one, so the fields are gone rather than validated:
+ * there is no legitimate caller that knows the amount better than the order does
+ * (CLAUDE.md §3.6, money is derived server-side).
  */
 export const CreateEmiPlanRequestSchema = z
   .object({
     orderId: UuidSchema,
-    totalAmountPaise: z.number().int().min(1),
-    currency: z.string().length(3).default("INR"),
     numInstallments: z.number().int().min(2).max(24),
     startDate: IsoDateSchema,
   })
