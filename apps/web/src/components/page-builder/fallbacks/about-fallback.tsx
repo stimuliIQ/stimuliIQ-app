@@ -5,7 +5,6 @@
  * both the CMS and fallback paths) — everything else here is unchanged from the original.
  */
 import Image from "next/image";
-import { TestimonialCard } from "@repo/ui";
 import { BOOK_SLOT_HREF } from "../../shell/nav-config";
 import { BrandMarkBand } from "../hero-motif";
 
@@ -50,36 +49,6 @@ const PILLARS = [
   { icon: "placement", title: "A growing career network", description: "Direct referrals through our network of healthcare mentors and alumni, with portfolio reviews and career guidance." },
   { icon: "pricing", title: "Student-first pricing", description: "Priced for students in India, with simple pre-registration and transparent, upfront costs." },
 ] as const;
-
-const TESTIMONIALS = [
-  {
-    id: "t1",
-    quote:
-      "The Clinical Research internship changed my career prospects completely. Within 3 months of finishing, I joined a research team at a Bangalore hospital.",
-    studentName: "Aditya R.",
-    college: "Government Medical College, Warangal",
-    program: "Clinical Research",
-    ratingStars: 5 as const,
-  },
-  {
-    id: "t2",
-    quote:
-      "The live sessions with practising clinicians made all the difference. I could ask questions about real cases and get answers that no textbook gives you.",
-    studentName: "Priya S.",
-    college: "Osmania Medical College, Hyderabad",
-    program: "Hospital Administration",
-    ratingStars: 5 as const,
-  },
-  {
-    id: "t3",
-    quote:
-      "The verifiable certificate was a major trust signal when I applied for postings. Interviewers could actually check it on the platform, and that set my application apart.",
-    studentName: "Rahul M.",
-    college: "Osmania University",
-    program: "Public Health & Data",
-    ratingStars: 5 as const,
-  },
-];
 
 const COMMITMENTS = [
   { title: "Mentor-led training", description: "Every program is guided by practicing healthcare professionals." },
@@ -269,27 +238,18 @@ export function AboutPageFallback() {
         </div>
       </section>
 
-      <section aria-label="Student stories" className="py-16 lg:py-24">
-        <div className="mx-auto max-w-screen-xl px-4 md:px-6">
-          <div className="mx-auto mb-12 max-w-xl text-center">
-            <h2 className="font-display text-3xl font-bold tracking-tight text-fg md:text-4xl">
-              Students Who Made the <span className="text-chart-3">Jump</span>
-            </h2>
-          </div>
-          <ul role="list" className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            {TESTIMONIALS.map((t) => (
-              <li key={t.id}>
-                <TestimonialCard quote={t.quote} studentName={t.studentName} college={t.college} program={t.program} ratingStars={t.ratingStars} />
-              </li>
-            ))}
-          </ul>
-          <div className="mt-8 text-center">
-            <a href="/testimonials" className="text-sm font-medium text-brand-500 hover:text-brand-600 focus-visible:outline-none focus-visible:underline">
-              Read more stories &rarr;
-            </a>
-          </div>
-        </div>
-      </section>
+      {/* The testimonials section that used to sit here is gone. It carried three INVENTED
+          students — full quotes, names, named real medical colleges, five stars each —
+          rendered whenever the CMS fetch failed. That is fabricated social proof
+          attributed to institutions that exist, on a healthcare-training site, at exactly
+          the moment nobody is watching the page.
+
+          `home-fallback.tsx` already refuses to do this in almost these words, and
+          `careers-fallback.tsx` records the rule ("a fallback may degrade; it may not
+          lie") — the two page fallbacks simply disagreed with each other. Real
+          testimonials live in CRM ▸ Marketing ▸ Testimonials and render through the
+          page-builder's live_collection_ref block; /testimonials shows "No testimonials
+          yet" when there are none, and now this page is silent for the same reason. */}
 
       <section aria-label="Our commitments" className="py-14">
         <div className="mx-auto grid max-w-screen-xl grid-cols-1 gap-8 px-4 sm:grid-cols-2 md:grid-cols-4 md:px-6">

@@ -6,10 +6,23 @@
 import Image from "next/image";
 import { LeadFormConnected } from "../../leads/lead-form-connected";
 
+// PROGRAMME TERMS, not measured outcomes. What the company has committed to award is a
+// fact it sets; how many students have taken it up is a fact it would have to count.
+//
+// "10,000+ students supported", "90%+ internship completion rate", "₹50L+ already
+// disbursed", "320+ scholars active", "85% placement success", "40+ cities reached" and a
+// per-track fund-distribution bar chart all used to render here. None of them is measured
+// anywhere in this product, and the healthcare repositioning left the student table empty,
+// so they were not stale — they were invented. They rendered whenever the CMS fetch failed,
+// which is precisely when nobody is watching the site.
+//
+// This is the same call `careers-fallback.tsx` records ("a fallback may degrade; it may not
+// lie") and `home-fallback.tsx` makes about testimonials. Real figures belong in the CMS,
+// where somebody owns them: CRM ▸ Content ▸ Pages, the scholarship page's stat_group block.
 const HERO_STATS = [
   { value: "Up to ₹1 Crore", label: "Total scholarship fund" },
-  { value: "10,000+", label: "Students supported" },
-  { value: "90%+", label: "Internship completion rate" },
+  { value: "Up to 50%", label: "Fee waiver on any programme" },
+  { value: "Every track", label: "Eligible for the award" },
 ];
 
 const BENEFITS = [
@@ -18,20 +31,6 @@ const BENEFITS = [
   { title: "Covers every Stimuli IQ program", description: "Psychology, Clinical & Counselling Psychology, Neurology, Healthcare Training, and Internship tracks are all eligible." },
   { title: "Open to students across India", description: "MBBS, BDS, BSc Nursing, Psychology, Life Sciences, Allied Health, and related degree students from any college or university can apply." },
   { title: "Extended mentor access", description: "Scholars get additional 1:1 sessions with clinician mentors and personalised career guidance throughout the program." },
-];
-
-const IMPACT_STATS = [
-  { value: "₹50L+", label: "Already disbursed" },
-  { value: "320+", label: "Scholars active" },
-  { value: "85%", label: "Placement success" },
-  { value: "40+", label: "Cities reached" },
-];
-
-const FUND_DISTRIBUTION = [
-  { track: "Clinical Research", lakhs: 17.3 },
-  { track: "Medical Coding & Billing", lakhs: 13.8 },
-  { track: "Hospital Administration", lakhs: 11.4 },
-  { track: "Public Health & Data", lakhs: 9.4 },
 ];
 
 const PROCESS_STEPS = [
@@ -43,7 +42,6 @@ const PROCESS_STEPS = [
 ];
 
 export function ScholarshipPageFallback() {
-  const maxLakhs = Math.max(...FUND_DISTRIBUTION.map((d) => d.lakhs));
 
   return (
     <main id="main-content" className="flex flex-col" data-testid="scholarship-page">
@@ -182,45 +180,22 @@ export function ScholarshipPageFallback() {
       <section aria-label="Scholarship impact" data-testid="scholarship-impact" className="bg-bg py-16 lg:py-20">
         <div className="mx-auto max-w-screen-xl px-4 md:px-6">
           <h2 className="text-center text-3xl font-bold text-fg md:text-4xl">
-            The <span className="text-chart-3">₹1 Crore</span> impact
+            The <span className="text-chart-3">₹1 Crore</span> commitment
           </h2>
-          <div className="mx-auto mt-12 grid max-w-5xl grid-cols-1 items-center gap-10 md:grid-cols-2">
-            <div>
-              <h3 className="text-xl font-semibold leading-snug text-fg">
-                Financial constraints should never stop a capable student from building a career in healthcare.
-              </h3>
-              <p className="mt-4 text-base leading-relaxed text-fg-muted">
-                The fund is structured to democratise access to industry-grade internship training, and awards are spread across every track so students from any discipline can
-                benefit.
-              </p>
-              <dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border">
-                {IMPACT_STATS.map((stat) => (
-                  <div key={stat.label} className="flex flex-col gap-1 bg-card p-5">
-                    <dt className="order-2 text-sm text-fg-muted">{stat.label}</dt>
-                    <dd className="order-1 text-2xl font-bold text-brand-600">{stat.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-
-            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-              <h3 className="text-base font-semibold text-fg">
-                Fund distribution by track <span className="font-normal text-fg-muted">(in lakhs)</span>
-              </h3>
-              <ul role="list" className="mt-6 flex flex-col gap-5">
-                {FUND_DISTRIBUTION.map((item) => (
-                  <li key={item.track}>
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-sm font-medium text-fg">{item.track}</span>
-                      <span className="text-sm font-semibold text-brand-600">₹{item.lakhs}L</span>
-                    </div>
-                    <div role="img" aria-label={`${item.track}: ${item.lakhs} lakhs`} className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-surface">
-                      <div className="h-full rounded-full bg-brand-500" style={{ width: `${(item.lakhs / maxLakhs) * 100}%` }} />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {/* The counters and the fund-distribution chart that used to sit here are gone:
+              see the note on HERO_STATS. Nothing in this product measures scholars
+              supported, disbursement, placement rate or cities reached, so every figure
+              was invented — and this markup renders exactly when the CMS is unreachable
+              and nobody is looking. What remains is the commitment itself, which is a
+              decision the company made rather than an outcome it would have to count. */}
+          <div className="mx-auto mt-10 max-w-3xl text-center">
+            <h3 className="text-xl font-semibold leading-snug text-fg">
+              Financial constraints should never stop a capable student from building a career in healthcare.
+            </h3>
+            <p className="mt-4 text-base leading-relaxed text-fg-muted">
+              The fund is structured to democratise access to industry-grade internship training, and awards are
+              spread across every track so students from any discipline can benefit.
+            </p>
           </div>
         </div>
       </section>

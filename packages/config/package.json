@@ -23,5 +23,8 @@
     "lint": "echo \"@repo/config: nothing to lint\"",
     "build": "echo \"@repo/config: nothing to build\"",
     "test": "echo \"@repo/config: nothing to test\""
+  },
+  "dependencies": {
+    "eslint-plugin-react-hooks": "^5.2.0"
   }
 }

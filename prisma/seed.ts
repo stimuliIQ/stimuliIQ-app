@@ -939,6 +939,19 @@ async function main(): Promise<void> {
       usersAdminPermissions.map((permission) => grant(role.id, permission.id, RolePermissionScope.all)),
     );
   }
+  // Register them with `permId` too. The lookup map is built once, from
+  // `permissionCatalog` alone, so every key upserted in one of these dedicated
+  // out-of-catalog blocks is invisible to `permId` unless it is added back here — and
+  // `permId` THROWS on a miss, which aborts the whole seed rather than skipping a grant.
+  //
+  // That is not hypothetical: the HR block further down calls `permId("users.view")`, so
+  // `pnpm db:seed` died at exactly that line — "[seed] expected permission
+  // \"users.view\" to exist after catalog upsert" — on every database, fresh or existing,
+  // leaving roles half-granted. Keeping the map complete is what makes the two halves of
+  // this file agree about which keys exist.
+  for (const permission of usersAdminPermissions) {
+    permissionByKey.set(permission.key, permission);
+  }
 
   // ── Audit log permissions — VIEW ONLY, for everyone, including super_admin ──────────
   //
