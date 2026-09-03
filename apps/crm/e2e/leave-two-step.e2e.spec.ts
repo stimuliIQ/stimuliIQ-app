@@ -24,9 +24,11 @@
 // It also needs an org chart to exist: the three accounts must be a member, the lead and
 // the manager of one team. The test SKIPS with a named reason rather than failing if the
 // chain does not resolve, because a missing org chart is a setup gap, not a regression.
+// `scripts/dev-provision-e2e-org.cjs` builds exactly that chain on a local database.
 //
 // Run:
-//   QA_ALLOW_DESTRUCTIVE=1 QA_LEAVE_PASSWORD=... npx playwright test e2e/leave-two-step
+//   pnpm dev:provision:e2e-org
+//   QA_ALLOW_DESTRUCTIVE=1 QA_LEAVE_PASSWORD=LeaveQa@12345 npx playwright test e2e/leave-two-step
 
 import { test, expect, type APIRequestContext } from "@playwright/test";
 

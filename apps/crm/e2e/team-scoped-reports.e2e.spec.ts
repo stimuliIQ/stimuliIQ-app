@@ -18,8 +18,10 @@
 // records. Keeping the two gates different is deliberate: an opt-in that is demanded when
 // it is not needed stops being read.
 //
-// Run:
-//   QA_LEAVE_PASSWORD=... npx playwright test e2e/team-scoped-reports
+// Run (the first line provisions the fixture accounts and the team below; without it
+// every test here skips itself, which is the quietest way for a suite to stop testing):
+//   pnpm dev:provision:e2e-org
+//   QA_LEAVE_PASSWORD=LeaveQa@12345 npx playwright test e2e/team-scoped-reports
 
 import { test, expect, type APIRequestContext } from "@playwright/test";
 

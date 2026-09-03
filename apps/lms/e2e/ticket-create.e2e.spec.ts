@@ -31,6 +31,12 @@ test.describe("Support ticket — student create journey (own-scope)", () => {
     // is a product defect; both are what interacting with a page that is still booting
     // looks like.
     await page.waitForLoadState("networkidle");
+    // `networkidle` is not sufficient on its own against a cold dev server: it can settle
+    // while the route is still compiling, and the two-element window described above is
+    // then still open. Asserting the field has resolved to exactly ONE node retries until
+    // hydration has genuinely finished, which is the precondition the fills below need.
+    // The timeout is generous because the first hit on a route pays for its compile.
+    await expect(page.locator("#login-email")).toHaveCount(1, { timeout: 30_000 });
     // Target the inputs by id — getByLabel("Password") does a substring match and also
     // resolves the "Show password" toggle button (aria-label), tripping strict mode.
     await page.locator("#login-email").fill(STUDENT_EMAIL!);

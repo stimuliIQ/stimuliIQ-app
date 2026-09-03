@@ -236,6 +236,7 @@ byte-for-byte today's behaviour. Existing `pending` rows keep their meaning. No 
 | `apps/crm/e2e/org-teams.e2e.spec.ts` | the Teams screen in a real browser: drawer opens, pickers populate, the shared validator disables Save. Stubs the API, so it needs no backend |
 | `apps/crm/e2e/leave-two-step.e2e.spec.ts` | the LIVE chain: member → lead → manager, with the balance moving only at the end. Double-gated behind `QA_LEAVE_PASSWORD` + `QA_ALLOW_DESTRUCTIVE=1`, because it writes real leave records |
 | `apps/crm/e2e/team-scoped-reports.e2e.spec.ts` | the three narrowings, live: a manager must see a STRICT SUBSET of what the owner sees, on marketing targets, lead performance and the calendar. Needs `QA_LEAVE_PASSWORD` but NOT the destructive gate — it is read-only |
+| `scripts/dev-provision-e2e-org.cjs` (`pnpm dev:provision:e2e-org`) | builds the approval chain both live specs above name as their defaults. Added 2026-09-03: the accounts are seeded `invited` with placeholder hashes and nobody is on a team, so on any freshly seeded database both specs had always skipped themselves. Local-only, guarded like `dev-set-passwords.cjs`, idempotent |
 
 The Playwright journey earned its place immediately: it caught a gap no unit test had, where
 a **manager could approve straight from `pending` and skip the team lead entirely**. The rule
