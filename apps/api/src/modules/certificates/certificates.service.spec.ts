@@ -52,6 +52,9 @@ function makeMockRepo(overrides: Partial<CertificatesRepository> = {}): jest.Moc
     findForPublicDownloadBySerial: jest.fn(),
     serialExists: jest.fn().mockResolvedValue(false),
     createCertificate: jest.fn(),
+    // Written by the regeneration path when a certificate has no stored PDF (issuance fails
+    // OPEN on the storage write, so rows with a null storage_key are normal, not corrupt).
+    setStorageKey: jest.fn(),
     revokeCertificate: jest.fn(),
     softDeleteCertificate: jest.fn(),
     findTemplateById: jest.fn(),
@@ -1052,6 +1055,109 @@ describe("CertificatesService", () => {
       await expect(
         service.downloadStudentCertificate(TENANT_ID, ACTOR_ID, CERT_ID),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── STAFF VIEW OF THE DOCUMENT ─────────────────────────────────────────────
+
+  describe("downloadCrmCertificate", () => {
+    const certRow = (over: Partial<ReturnType<typeof baseCertRow>> = {}) => ({ ...baseCertRow(), ...over });
+    function baseCertRow() {
+      return {
+        id: CERT_ID,
+        tenantId: TENANT_ID,
+        enrollmentId: ENROLLMENT_ID,
+        kind: "training" as const,
+        studentId: STUDENT_ID,
+        programId: PROGRAM_ID,
+        certUid: "fake.uid",
+        serial: "STMQ-2026-7F3K-9QX2",
+        templateId: TEMPLATE_ID,
+        templateName: "Test",
+        storageKey: `certificates/${TENANT_ID}/fake.uid.pdf` as string | null,
+        issuedAt: new Date(),
+        issuedById: ACTOR_ID,
+        issuedByName: "Actor",
+        status: "valid" as "valid" | "revoked",
+        revokedReason: null as string | null,
+        revokedById: null as string | null,
+        revokedByName: null as string | null,
+        revokedAt: null as Date | null,
+        batchId: BATCH_ID,
+        batchName: "Batch",
+        studentName: "Student",
+        programTitle: "Test Program",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }
+
+    it("returns a signed URL, never a raw bucket URL", async () => {
+      repo.findById.mockResolvedValue(certRow());
+
+      const result = await service.downloadCrmCertificate(TENANT_ID, CERT_ID, "all", ACTOR_ID);
+
+      expect(result.downloadUrl).toContain("noop.local");
+      expect(result.filename).toContain(".pdf");
+      expect(result.downloadUrl).not.toContain("amazonaws.com");
+      expect(result.downloadUrl).not.toContain("r2.cloudflarestorage.com");
+    });
+
+    it("still returns a REVOKED certificate, where the student gets 410", async () => {
+      // Revocation is exactly when somebody in the company has to look at the document —
+      // to check what went out, or to answer a question about it. Hiding it from staff
+      // protects nobody, since the student already holds their copy.
+      repo.findById.mockResolvedValue(
+        certRow({ status: "revoked", revokedReason: "Issued in error", revokedAt: new Date() }),
+      );
+
+      const result = await service.downloadCrmCertificate(TENANT_ID, CERT_ID, "all", ACTOR_ID);
+      expect(result.downloadUrl).toBeDefined();
+    });
+
+    it("regenerates and stores the PDF when the certificate has none", async () => {
+      // Issuance fails OPEN on the storage write — an earned certificate is issued even if
+      // the document store is down — which leaves rows with a null storage_key. Repairing
+      // it here also fixes the student's own next download, since the key is written back.
+      repo.findById.mockResolvedValue(certRow({ storageKey: null }));
+      repo.findTemplateById.mockResolvedValue(makeTemplate());
+
+      const result = await service.downloadCrmCertificate(TENANT_ID, CERT_ID, "all", ACTOR_ID);
+
+      expect(repo.setStorageKey).toHaveBeenCalledWith(CERT_ID, expect.stringContaining(TENANT_ID));
+      expect(result.downloadUrl).toBeDefined();
+    });
+
+    it("404s rather than 403s for a faculty member outside their assigned batches (IDOR)", async () => {
+      repo.findById.mockResolvedValue(certRow());
+      repo.findFacultyProfileId.mockResolvedValue("33333333-3333-3333-3333-333333333333");
+      repo.findAssignedBatchIds.mockResolvedValue(["some-other-batch"]);
+
+      await expect(
+        service.downloadCrmCertificate(TENANT_ID, CERT_ID, "assigned", ACTOR_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("404s for a certificate that does not exist in this tenant", async () => {
+      repo.findById.mockResolvedValue(null);
+
+      await expect(
+        service.downloadCrmCertificate(TENANT_ID, CERT_ID, "all", ACTOR_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("asks storage for an inline URL only when the caller wants to render it", async () => {
+      // Passing a filename is what sets `Content-Disposition: attachment`, and a PDF served
+      // as an attachment is downloaded rather than rendered — the CRM's preview panel would
+      // frame an empty box.
+      const spy = jest.spyOn(storage, "getSignedDownloadUrl");
+      repo.findById.mockResolvedValue(certRow());
+
+      await service.downloadCrmCertificate(TENANT_ID, CERT_ID, "all", ACTOR_ID, "inline");
+      expect(spy).toHaveBeenLastCalledWith(expect.not.objectContaining({ downloadFilename: expect.anything() }));
+
+      await service.downloadCrmCertificate(TENANT_ID, CERT_ID, "all", ACTOR_ID, "attachment");
+      expect(spy).toHaveBeenLastCalledWith(expect.objectContaining({ downloadFilename: expect.any(String) }));
     });
   });
 

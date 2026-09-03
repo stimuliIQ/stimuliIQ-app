@@ -2470,6 +2470,7 @@ import {
   ReissueCertificateRequestSchema,
   CertificateListItemSchema,
   CertificateDetailSchema,
+  CertificateDownloadQuerySchema,
   CertificateDownloadResponseSchema,
   CertificateCrmDetailSchema,
   VerifyResultSchema,
@@ -3116,6 +3117,31 @@ registry.registerPath({
   ...requiredPermission("certificates.view (scope: assigned|all)"),
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: { 200: { description: "Certificate CRM detail.", content: { "application/json": { schema: CertificateCrmDetailEnvelope } } }, ...errorResponses },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/v1/crm/certificates/{id}/download",
+  summary: "Get a signed URL for a certificate PDF (staff view of the student's document)",
+  description:
+    "Returns a short-lived signed GET URL for the certificate PDF (NOT a raw bucket URL, AC-I2), " +
+    "so staff can see the document a student receives rather than only its metadata. " +
+    "Differs from the student's own download on purpose: a REVOKED certificate is still " +
+    "returned (that is exactly when somebody has to look at it), and a certificate whose PDF " +
+    "was never stored is regenerated on demand rather than 404ing. " +
+    "`disposition=inline` renders it in the CRM's preview panel; `attachment` (the default) saves it. " +
+    "Permission: certificates.view (scope: assigned|all; assigned is limited to the faculty's own batches).",
+  tags: ["learning", "certificates"],
+  security: [{ cookieAuth: [] }],
+  ...requiredPermission("certificates.view (scope: assigned|all). Signed URL only; IDOR → 404"),
+  request: {
+    params: z.object({ id: z.string().uuid() }),
+    query: CertificateDownloadQuerySchema,
+  },
+  responses: {
+    200: { description: "Signed URL for the certificate PDF.", content: { "application/json": { schema: CertificateDownloadEnvelope } } },
+    ...errorResponses,
+  },
 });
 
 registry.registerPath({

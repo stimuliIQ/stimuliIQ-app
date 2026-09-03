@@ -1,9 +1,29 @@
-# Approved certificate artwork (reference only)
+# Approved certificate artwork (the source of truth)
 
-The two PNGs here are the **approved design specimens** the PDF renderer reproduces
-(`apps/api/src/modules/certificates/providers/pdf/sync-certificate-pdf.adapter.ts`).
-They carry placeholder values on purpose — "Your Name", "DOMAIN", `STIQ-2026-000001` —
-so nothing in this folder is, or resembles, a real award.
+The two PNGs here are the **approved design specimens**, and they are not reference
+material any more — they are the input the issued certificate is built from. They carry
+placeholder values on purpose ("Your Name", "DOMAIN", `STIQ-2026-000001`), so nothing in
+this folder is, or resembles, a real award.
+
+## These files ARE the certificate
+
+`scripts/build-certificate-artwork.cjs` derives a blank of each — the same image with the
+four per-student values erased — into the API's private asset directory, and the renderer
+prints that blank full-bleed as the page and draws only those four values onto it. So
+every static mark on an issued certificate is these pixels, not a drawing of them.
+
+**Change the design by replacing these two files**, then:
+
+```bash
+node scripts/build-certificate-artwork.cjs      # rebuild the blanks the renderer prints
+node scripts/build-certificate-artwork.cjs --check   # …or just check they are current
+node scripts/check-certificate-render.cjs --strict   # confirm the drawn values still land
+node scripts/build-sample-certificates.cjs      # refresh the watermarked public specimens
+```
+
+A design that moves its values also needs the erase regions in the build script and the
+placements in `artwork-certificate.ts` updated; both are commented with the ink boxes they
+were measured from. See `apps/api/assets/certificate/README.md`.
 
 | File | `design.certificateKind` | Ribbon label |
 |------|--------------------------|--------------|

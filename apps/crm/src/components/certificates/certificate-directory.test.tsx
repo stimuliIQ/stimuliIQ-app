@@ -168,3 +168,35 @@ describe("CertificateDirectory, the certificate ID", () => {
     expect(control).toBeInTheDocument();
   });
 });
+
+describe("CertificateDirectory, seeing the document", () => {
+  // The queue could show everything ABOUT an award and not the award. Reviewing a document
+  // you cannot open is not reviewing it, and a revoked row is exactly where somebody needs
+  // to look — so View is offered there too, unlike the student's own download.
+
+  it("offers View on an issued certificate", () => {
+    renderDirectory();
+
+    expect(
+      screen.getByRole("button", { name: "View the certificate issued to Sneha Iyer" }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers View on a REVOKED certificate", () => {
+    rows = [row({ certificateStatus: "revoked" })];
+
+    renderDirectory();
+
+    expect(
+      screen.getByRole("button", { name: "View the certificate issued to Sneha Iyer" }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers nothing to view when no certificate has been issued", () => {
+    rows = [row({ certificateStatus: null, serial: null, certificateId: null, certUid: null })];
+
+    renderDirectory();
+
+    expect(screen.queryByRole("button", { name: /^View the certificate/ })).not.toBeInTheDocument();
+  });
+});

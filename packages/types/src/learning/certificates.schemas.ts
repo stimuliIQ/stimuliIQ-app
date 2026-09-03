@@ -372,6 +372,27 @@ export const CertificateDownloadResponseSchema = z.object({
 });
 export type CertificateDownloadResponse = z.infer<typeof CertificateDownloadResponseSchema>;
 
+/**
+ * Query for the CRM download — GET /crm/certificates/:id/download
+ *
+ * `disposition` decides whether the signed URL forces a save or renders in place, and it
+ * exists because staff need BOTH. The CRM shows the certificate inside a preview panel so a
+ * reviewer can see the document a student receives without leaving the queue, and a browser
+ * will not render a PDF served as `Content-Disposition: attachment` — it downloads it. The
+ * same panel's Download button asks for `attachment`, which is also what makes saving work
+ * cross-origin, since the HTML `download` attribute is ignored for a foreign origin.
+ *
+ * Default `attachment`, matching the student's own download: a caller that says nothing gets
+ * a file, not a render.
+ */
+export const CertificateDownloadQuerySchema = z.object({
+  disposition: z
+    .enum(["attachment", "inline"])
+    .default("attachment")
+    .describe("attachment = force save (default); inline = render in a viewer or a frame."),
+});
+export type CertificateDownloadQuery = z.infer<typeof CertificateDownloadQuerySchema>;
+
 // ─────────────────────────────────────────────────────────────────────────
 // CRM certificate detail (ops view — includes enrollment + student info)
 // ─────────────────────────────────────────────────────────────────────────

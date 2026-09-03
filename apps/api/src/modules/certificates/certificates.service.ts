@@ -1352,6 +1352,97 @@ export class CertificatesService {
     };
   }
 
+  /**
+   * Mint a signed URL for a certificate PDF so STAFF can see the document itself.
+   *
+   * Until this existed the CRM could show everything about a certificate except the
+   * certificate: the directory listed the holder, the serial, the status and a verify link,
+   * and the only way anyone inside the company could see what a student actually receives
+   * was to log in as that student. Reviewing an award you cannot look at is not reviewing it.
+   *
+   * THREE DELIBERATE DIFFERENCES FROM THE STUDENT PATH:
+   *
+   *   1. A REVOKED certificate is still returned, where a student gets 410. Revocation is
+   *      exactly the case where somebody in the company has to look at the document — to
+   *      check what went out, or answer a question about it — and hiding it from staff
+   *      protects nobody, since the student already has their copy.
+   *   2. A missing PDF is REGENERATED rather than 404'd. `renderAndStorePdf` fails open at
+   *      issuance (a certificate that is earned must be issued even if the document store is
+   *      down), which leaves rows whose `storage_key` is null; the public download path
+   *      already repairs those on demand and this does the same, storing the key so the
+   *      student's own next download works too.
+   *   3. The scope check is `getCertificate`'s, so an assigned-scope faculty member can only
+   *      open a certificate from a batch they teach — IDOR still 404s rather than 403s.
+   *
+   * The URL is short-lived and signed, and never a raw bucket URL (AC-I2).
+   */
+  async downloadCrmCertificate(
+    tenantId: string,
+    id: string,
+    scope: AuthoringScope,
+    actorId: string,
+    /** "inline" renders in the CRM's preview panel; "attachment" saves the file. */
+    disposition: "attachment" | "inline" = "attachment",
+  ): Promise<CertificateDownloadResponse> {
+    const row = await this.repo.findById(tenantId, id);
+    if (!row) throw new NotFoundException("Certificate not found.");
+
+    if (scope === "assigned") {
+      await this.assertFacultyCanAccessEnrollment(tenantId, actorId, row.batchId);
+    }
+
+    let storageKey = row.storageKey;
+    if (!storageKey) {
+      const template = await this.repo.findTemplateById(row.tenantId, row.templateId);
+      if (!template) {
+        throw new NotFoundException({
+          code: "CERTIFICATE_PDF_PENDING",
+          title: "Certificate PDF is not yet available.",
+          detail:
+            "This certificate has no stored document and its template is missing, so it " +
+            "cannot be regenerated. Reissue the certificate to produce a new one.",
+        });
+      }
+
+      const env = validateEnv();
+      storageKey = await this.renderAndStorePdf({
+        tenantId: row.tenantId,
+        template,
+        certUid: row.certUid,
+        serial: row.serial,
+        holderName: row.studentName,
+        programTitle: row.programTitle,
+        issuedAt: row.issuedAt,
+        verifyUrl: `${env.WEB_APP_URL}/verify/${row.certUid}`,
+      });
+
+      if (!storageKey) {
+        throw new ServiceUnavailableException({
+          code: "CERTIFICATE_PDF_UNAVAILABLE",
+          title: "Certificate PDF is temporarily unavailable.",
+          detail: "The document store is unavailable, so the certificate could not be prepared. Please try again shortly.",
+        });
+      }
+      await this.repo.setStorageKey(row.id, storageKey);
+    }
+
+    const filename = certificateFilename(row.programTitle);
+    const download = await this.storage.getSignedDownloadUrl({
+      key: storageKey,
+      ttlSeconds: CERT_DOWNLOAD_TTL_SECONDS,
+      // Passing a filename is what sets `Content-Disposition: attachment`, so an inline
+      // request omits it — a PDF served as an attachment is downloaded, never rendered,
+      // and the CRM's preview panel would show an empty frame.
+      ...(disposition === "attachment" ? { downloadFilename: filename } : {}),
+    });
+
+    return {
+      downloadUrl: download.url,
+      expiresAt: download.expiresAt.toISOString(),
+      filename,
+    };
+  }
+
   // ─── PUBLIC VERIFY ───────────────────────────────────────────────────────
 
   /**

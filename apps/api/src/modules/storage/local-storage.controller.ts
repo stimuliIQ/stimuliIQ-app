@@ -199,6 +199,21 @@ export class LocalStorageController {
       // execute anything, so college and partner logos keep working.
       if (contentType === "image/svg+xml") {
         res.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+      } else if (contentType === "application/pdf") {
+        // Helmet applies `frame-ancestors 'self'` to every response from this API, so an
+        // object served here can only be framed by the API's own origin — and the apps are
+        // all on other origins. The CRM's certificate preview frames a PDF, so in local dev
+        // (the only place this controller is reached; production signs R2 URLs, which carry
+        // no such header) that panel would show an EMPTY BOX while working perfectly in
+        // production — the worst way for a feature to be broken.
+        //
+        // Widening frame-ancestors costs nothing here: this route serves a stored file, not
+        // application UI, so there is no interactive surface a framing attack could trick
+        // somebody into clicking. Deliberately ONLY frame-ancestors, with no
+        // `default-src 'none'` — that directive can stop a browser's built-in PDF viewer
+        // from loading its own machinery, which would trade an empty frame for an empty
+        // frame. Every other content type keeps helmet's header untouched.
+        res.setHeader("Content-Security-Policy", "frame-ancestors *");
       }
       res.setHeader("Cache-Control", "public, max-age=3600");
       if (downloadFilename) {

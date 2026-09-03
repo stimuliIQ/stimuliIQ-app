@@ -234,6 +234,15 @@ export interface ArtworkFieldPlacement {
   font?: "script" | "body" | "bodyBold";
   /** Line height multiplier, for the multi-line body paragraph. */
   lineHeight?: number;
+  /**
+   * Extra tracking in points.
+   *
+   * Not a nicety: the approved artwork sets its small caps WIDE, and a face set solid at
+   * the same size is a visibly different piece of typography sitting in the middle of an
+   * otherwise pixel-exact page. Matching the tracking is what makes the drawn paragraph
+   * read as part of the design rather than as something typed onto it.
+   */
+  letterSpacing?: number;
 }
 
 /**

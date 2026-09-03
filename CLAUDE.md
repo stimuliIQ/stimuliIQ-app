@@ -165,6 +165,32 @@ db foundation). Then execute it, delegating each task to the named specialist su
   can't both return one attempt). It is deliberately never called "reject" anywhere the
   student can see: a real fail is a low grade; this means "do it again". Reviewers work
   cohort-first — the submission queue carries `batchId`/`batchName` and a batch filter.
+  **The certificate IS the approved artwork (2026-09-03).** The renderer used to REPRODUCE the
+  design in code — frame, ribbon, seal, headings all drawn by `sync-certificate-pdf.adapter.ts` —
+  which can resemble the approved file but never equal it. "Artwork mode" existed but was INERT:
+  the seeded templates named blank files nobody had ever built, so every certificate ever issued
+  was the code drawing. Now `scripts/build-certificate-artwork.cjs` derives a blank from each
+  approved specimen in `docs/sample certificate/` (masking the ink of the four per-student values
+  and filling from the paper around it), and the PDF **is** that image printed full-bleed with
+  only **holder name, body paragraph, certificate ID and issue date** drawn on top. Everything
+  else is pixel-exact by construction. The artwork and its two typefaces are defaulted **in
+  code** per `certificateKind`, not left to the template's `design` JSON, because every database
+  seeded before this names neither and would otherwise keep drawing forever. `course` keeps the
+  code-drawn fallback on purpose — there is no approved artwork for it, and inventing one would
+  reprint a neutral award as a training or internship certificate.
+  **The three ways this goes wrong do NOT throw.** @react-pdf pushes the values onto a SECOND
+  PAGE unless the absolutely-positioned children sit inside a sized `View`; an A4 page STRETCHES
+  the 3:2 design ~6% (the page now takes the artwork's own aspect ratio); and a `.woff2` EMBEDS
+  AND RENDERS BLANK, so that extension is refused. The two faces (Parisienne, Outfit) were
+  identified by MEASURING the specimen — glyph aspect, single-glyph widths — not by eye.
+  `scripts/check-certificate-render.cjs` rasterises a real render and reports each drawn value's
+  offset from the approved design (`--strict` fails over 4 px of 1536); it is the only check that
+  catches any of the above.
+  **Staff can now see the document**: `GET /crm/certificates/:id/download` plus a preview panel in
+  CRM ▸ Certificates and on the student record. It differs from the student's own download on
+  purpose — a REVOKED certificate is still returned (that is exactly when somebody is being asked
+  about it) and a certificate whose PDF was never stored is regenerated rather than 404'd.
+  Docs: `apps/api/assets/certificate/README.md`.
 - **P5 Website:** marketing pages, SEO, book-slot, payment + registration funnel.
 - **P6 Engagement:** notifications, WhatsApp/email campaigns, gamification, forum.
 - **P7 Analytics + hardening:** dashboards, reports, perf, security audit, load test.

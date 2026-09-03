@@ -99,9 +99,96 @@ export async function loadCertificateAsset(candidate: string | undefined): Promi
 export function __clearCertificateAssetCache(): void {
   cache.clear();
   fontPathCache.clear();
+  artworkCache.clear();
 }
 
-/** Font files the renderer may register. Kept separate from image extensions. */
+// ─────────────────────────────────────────────────────────────────────────────
+// Artwork mode — the asset the page IS, so its proportions matter
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** An approved artwork plus the pixel size that fixes the page's proportions. */
+export interface CertificateArtwork {
+  src: string;
+  widthPx: number;
+  heightPx: number;
+}
+
+const artworkCache = new Map<string, CertificateArtwork | undefined>();
+
+/**
+ * Read the intrinsic pixel size out of the image header.
+ *
+ * Needed because the artwork IS the page in artwork mode: printing a 3:2 design onto A4
+ * landscape (1.414:1) stretches it about 6% vertically, which is small enough to pass a
+ * glance and large enough to be wrong — the seal turns into an ellipse and every letter
+ * of the approved wordmark gets taller. The caller sizes the page from these numbers
+ * instead, so the design is reproduced at its own proportions whatever they are.
+ *
+ * PNG: the IHDR is at a fixed offset. JPEG: walk the segment chain to the frame header —
+ * worth the dozen lines, because the silent failure otherwise is a distorted certificate
+ * whenever somebody exports a .jpg.
+ */
+function imageDimensions(bytes: Buffer): { widthPx: number; heightPx: number } | undefined {
+  if (bytes.length > 24 && bytes.readUInt32BE(0) === 0x89504e47) {
+    return { widthPx: bytes.readUInt32BE(16), heightPx: bytes.readUInt32BE(20) };
+  }
+  if (bytes.length > 4 && bytes.readUInt16BE(0) === 0xffd8) {
+    let offset = 2;
+    while (offset + 9 < bytes.length) {
+      if (bytes[offset] !== 0xff) return undefined; // Not a segment boundary — give up.
+      const marker = bytes[offset + 1] ?? 0;
+      // SOF0-SOF15, excluding the four that are not frame headers (DHT/JPG/DAC/RST).
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        return { heightPx: bytes.readUInt16BE(offset + 5), widthPx: bytes.readUInt16BE(offset + 7) };
+      }
+      offset += 2 + bytes.readUInt16BE(offset + 2);
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Load the approved artwork as a data URI plus its intrinsic size.
+ *
+ * Separate from `loadCertificateAsset` because only this one caller needs the dimensions,
+ * and they must not be paid for on every logo/badge read. Same untrusted-input posture and
+ * the same degrade-quietly contract: an absent or unreadable file returns `undefined` and
+ * the adapter falls back to the code-drawn certificate rather than failing an issuance.
+ */
+export async function loadCertificateArtwork(
+  candidate: string | undefined,
+): Promise<CertificateArtwork | undefined> {
+  const name = safeAssetName(candidate);
+  if (!name) return undefined;
+  if (artworkCache.has(name)) return artworkCache.get(name);
+
+  let artwork: CertificateArtwork | undefined;
+  try {
+    const bytes = await readFile(join(ASSET_DIR, name));
+    const size = imageDimensions(bytes);
+    if (size) {
+      const mime = MIME_BY_EXTENSION[extname(name).toLowerCase()] ?? "image/png";
+      artwork = { src: `data:${mime};base64,${bytes.toString("base64")}`, ...size };
+    }
+  } catch {
+    artwork = undefined;
+  }
+
+  artworkCache.set(name, artwork);
+  return artwork;
+}
+
+/**
+ * Font files the renderer may register. Kept separate from image extensions.
+ *
+ * DELIBERATELY NOT `.woff2`, and it took a wrong turn to learn why. @react-pdf accepts a
+ * web font, reports no error, and embeds it — the PDF even names the right face in its font
+ * table — but the glyphs come out with no outlines, so every line set in it renders as
+ * BLANK SPACE. Nothing upstream catches that: the render succeeds, the bytes are a valid
+ * PDF, and the certificate is simply missing its paragraph. Refusing the extension turns
+ * that into the visible degrade this file promises everywhere else (fall back to the
+ * built-in face) instead of an invisible one.
+ */
 const ALLOWED_FONT_EXTENSIONS = new Set([".ttf", ".otf"]);
 const fontPathCache = new Map<string, string | undefined>();
 

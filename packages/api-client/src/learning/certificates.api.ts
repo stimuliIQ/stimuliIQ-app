@@ -12,6 +12,7 @@
 //     POST /crm/certificates                           → issue()
 //     POST /crm/certificates/:enrollmentId/recommend   → recommend()
 //     GET  /crm/certificates/:id                       → getCrm()
+//     GET  /crm/certificates/:id/download              → getCrmDownloadUrl()
 //     PATCH /crm/certificates/:id/revoke               → revoke() [instant, audited]
 //     POST /crm/certificates/:enrollmentId/reissue     → reissue()
 //
@@ -41,6 +42,7 @@ import type {
   ReissueCertificateRequest,
   CertificateListItem,
   CertificateDetail,
+  CertificateDownloadQuery,
   CertificateDownloadResponse,
   CertificateCrmDetail,
   VerifyResult,
@@ -224,6 +226,30 @@ export class CertificatesApi {
    */
   async getCrm(id: string): Promise<CertificateCrmDetail> {
     return this.client.request<CertificateCrmDetail>("GET", `/api/v1/crm/certificates/${id}`);
+  }
+
+  /**
+   * GET /api/v1/crm/certificates/:id/download
+   *
+   * Short-lived signed URL for the certificate PDF — the document the student receives —
+   * so staff can see the award itself and not just its metadata.
+   *
+   * Differs from the student's `getDownloadUrl()` in two ways on purpose: a REVOKED
+   * certificate is still returned (that is precisely when somebody has to look at it), and
+   * a certificate whose PDF was never stored is regenerated rather than 404'd.
+   *
+   * NEVER a raw bucket URL, and never cache the result — re-call for a fresh URL.
+   * Permission: certificates.view (scope: assigned|all; assigned sees only its own batches).
+   */
+  async getCrmDownloadUrl(
+    id: string,
+    /** "inline" to render it in a viewer or a frame; "attachment" (default) to save it. */
+    disposition: CertificateDownloadQuery["disposition"] = "attachment",
+  ): Promise<CertificateDownloadResponse> {
+    return this.client.request<CertificateDownloadResponse>(
+      "GET",
+      `/api/v1/crm/certificates/${id}/download${toQueryString({ disposition })}`,
+    );
   }
 
   /**

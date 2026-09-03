@@ -1,7 +1,7 @@
 # Certificate print assets (private — never served over HTTP)
 
-Images the certificate PDF renderer embeds
-(`src/modules/certificates/providers/pdf/sync-certificate-pdf.adapter.ts`).
+Files the certificate PDF renderer reads from disk
+(`src/modules/certificates/providers/pdf/`).
 
 **This directory is deliberately not inside any app's `public/`.** The authorised
 signature is the security-sensitive part of a certificate: a scan that is reachable by
@@ -9,76 +9,123 @@ URL can be lifted by anyone and pasted onto a forged document. Files here are re
 disk inside the API process at render time and embedded straight into the PDF bytes, so
 the only way to obtain the signature is to already hold a genuine certificate.
 
+## The certificate IS the approved artwork
+
+The renderer has two modes and **artwork mode is the live one**. The approved export is
+printed full-bleed as the page, and only the four values that differ per student are drawn
+on top:
+
+| Drawn per student | Everything else |
+|---|---|
+| holder name, body paragraph, certificate ID, issue date | frame, ornaments, ribbon, seal, wordmark, ISO/MSME lockups, signature block, the "Verify this certificate at" line |
+
+Everything in the right-hand column is **pixel-exact**, because it is the approved file
+rather than a drawing of it.
+
+The other mode — `sync-certificate-pdf.adapter.ts` reproducing the certificate in code —
+still exists as the fallback for a template whose `certificateKind` is the neutral
+`course`, and for a server where the blanks below are missing. It is a careful copy, and a
+copy is the problem: the typeface, the ornament geometry and the spacing are all drawn by
+that file, so it can resemble the approved artwork but never equal it, and every visual
+change means editing TypeScript.
+
 ## Files
 
-| File | Drawn at | Purpose | Required |
-|------|----------|---------|----------|
-| `logo.png` | 34 pt tall | Issuer wordmark printed at the head of the certificate | no — falls back to typeset `orgName` |
-| `ceo-signature.png` | 40 pt tall | Authorised signature, drawn over the ruled signature line | no — falls back to the ruled line + printed name |
-| `iso-badge.png` | 42 × 42 pt | ISO 9001 accreditation mark beside the Certificate ID | no — omitted when absent |
-| `msme-badge.png` | 34 × 86 pt | MSME / Ministry of MSME lockup | no — omitted when absent |
+| File | Purpose | Required |
+|------|---------|----------|
+| `training-certificate-blank.png` | The approved training artwork, values erased. Full-bleed page background. | for artwork mode |
+| `internship-certificate-blank.png` | The same for the internship award. | for artwork mode |
+| `Parisienne-Regular.ttf` | The script the holder's name is set in. | for artwork mode |
+| `Outfit-Medium.ttf` / `Outfit-SemiBold.ttf` | The sans for the paragraph, the certificate ID and the date. | for artwork mode |
+| `ceo-signature.png` | Authorised signature. **Code-drawn mode only** — the approved artwork carries its own. | no |
+| `logo.png` | Issuer wordmark. Code-drawn mode only. | no |
+| `iso-badge.png` / `msme-badge.png` | Accreditation marks. Code-drawn mode only. | no |
 
-Every asset is optional. A missing file never fails issuance: the layout degrades to the
-typeset fallback, because a certificate that has been earned must still be issuable.
+Every file is optional in the sense that nothing here throws: a missing asset degrades to
+the typeset fallback rather than failing an issuance, because a certificate that has been
+earned must still be issuable. That is also the trap — a missing font does not fail, it
+prints the approved certificate with Helvetica across the middle of it. The spec
+`artwork-certificate.spec.ts` asserts every file named above is on disk for exactly that
+reason.
 
-## Artwork mode — how to get the approved design EXACTLY
+### The blanks are BUILT, not hand-edited
 
-The four files above decorate a certificate this repo **draws in code**. A drawing is a
-copy: the typeface, the ornament geometry and the spacing are all produced by
-`sync-certificate-pdf.adapter.ts`, so it can resemble the approved artwork but never equal
-it, and every visual change means editing TypeScript.
-
-Artwork mode replaces that. Drop the approved export in here, name it on the template, and
-the PDF **is** that file with the student's values printed onto it.
-
-| File | Used by | Notes |
-|------|---------|-------|
-| `training-certificate-blank.png` | the training template | full-bleed page background |
-| `internship-certificate-blank.png` | the internship template | full-bleed page background |
-
-Then set on the template's `design` JSON:
-
-```json
-{ "certificateKind": "training", "artworkFileName": "training-certificate-blank.png" }
+```bash
+node scripts/build-certificate-artwork.cjs          # rebuild from the approved specimens
+node scripts/build-certificate-artwork.cjs --check  # fail if the committed blanks are stale
 ```
 
-### The artwork must be BLANK where values go
+The script reads `docs/sample certificate/*.png`, masks the ink of the four values, and
+fills each masked pixel from the paper around it. Deriving the blanks rather than editing
+them by hand is what keeps them honest: re-approve a design, re-run the script, and the
+blanks follow. A hand-erased PNG committed once drifts from the specimen the first time
+the specimen changes, silently, in a file nobody diffs.
 
-Leave out the holder name, the body paragraph, the certificate id value and the issue
-date — those five are printed on top. Everything else (frame, corner ornaments, ribbon,
-seal, wordmark, ISO/MSME marks, signature block, the "Verify this certificate at" line)
-**stays in the image** and is therefore pixel-exact.
+Re-run it whenever `docs/sample certificate/` changes, and commit the result.
 
-The body paragraph is printed rather than baked because the programme name and the date sit
-mid-sentence: a baked sentence with a gap in it cannot fit both "AI" and "Clinical Neurology
-Fellowship" without one of them looking wrong.
+### Which fonts, and why those
 
-Export at **A4 landscape** (3508 × 2480 px at 300 dpi) so the image fills the page with no
-distortion. The signature must NOT be baked in — it is stamped at render time from
-`ceo-signature.png` above, which is the whole reason that file is private.
+Both were identified by MEASURING the specimen, not by eye — there are hundreds of
+candidates and the wrong one is not obviously wrong:
 
-### Matching the typefaces
+- **Parisienne** for the name, from the proportion of the specimen's "Your Name"
+  (363 × 85 px, aspect 4.271; Parisienne is 4.266). Size is a free parameter and a
+  connected script cannot be tracked, so aspect is a fingerprint nothing downstream can
+  fake. Great Vibes — the obvious guess — is 3.47, which renders a name half again too
+  tall for its width.
+- **Outfit** for everything else, from single-glyph widths as a fraction of cap height
+  (O 1.000, F 0.677, C 0.903, M 1.032, E 0.645, measured off "OF COMPLETION"). A single
+  glyph is the fingerprint because tracking moves a whole line but never one letter.
+  Poppins is 3× the measurement error out on F and E, which at a matched cap height makes
+  its words about 15% too wide.
 
-Positions come from `DEFAULT_ARTWORK_FIELDS` (measured from the approved specimens) and can
-be overridden per template via `design.artworkFields`. To match the artwork's fonts rather
-than falling back to Helvetica, drop the `.ttf`/`.otf` files here too and name them:
+Both are SIL Open Font Licence; `outfit-OFL.txt` and `parisienne-OFL.txt` ship beside them.
 
-```json
-{ "artworkFonts": { "script": "GreatVibes-Regular.ttf", "body": "Montserrat-Regular.ttf", "bodyBold": "Montserrat-Bold.ttf" } }
+**Never a `.woff2`.** @react-pdf accepts a web font, reports no error, embeds it, names the
+right face in the PDF's font table — and renders every line set in it as **blank space**.
+`certificate-assets.ts` refuses the extension so that failure cannot happen invisibly.
+Outfit publishes only a variable font upstream; the static instances here came from
+`gwfh.mranftl.com` (google-webfonts-helper), which serves real TrueType instances.
+
+### Checking a render against the approved design
+
+```bash
+node scripts/check-certificate-render.cjs --strict --out ./tmp
 ```
 
-A missing or unreadable font degrades to the built-in face — it never fails an issuance.
+Renders both awards with the specimen's own placeholder values, rasterises page 1, and
+reports how far each drawn value sits from the specimen's own ink. This is the only check
+that catches the failures that do not throw — a name two points too large, a paragraph
+wrapping into three lines where the design has four, a page stretched from 3:2 onto A4.
+`--strict` fails over 4 px (of 1536).
 
-All four are **transparent PNGs**. The certificate page is pure white while the approved
-artwork is printed on a faintly warm paper, so any mark carried over from the artwork has
-its background knocked out rather than kept — an opaque off-white rectangle sitting on a
-white page is visible, and it is visible in exactly the place a reader is looking for a
-seal.
+To render a specimen without the comparison:
 
-The ISO and MSME marks are lifted from `docs/sample certificate/training-certificate.png`
-(the approved artwork), which is why they carry the same crop and weight as the specimen.
+```bash
+pnpm --filter @stimuliiq/api exec node -r ts-node/register -r tsconfig-paths/register \
+  scripts/render-sample-certificate.ts --name "Your Name" --program "Domain" --out ./tmp
+```
+
+### Changing the design
+
+Replace the two files in `docs/sample certificate/`, re-run
+`scripts/build-certificate-artwork.cjs`, then re-run
+`scripts/check-certificate-render.cjs` and adjust `DEFAULT_ARTWORK_FIELDS` in
+`artwork-certificate.ts` until the offsets are small again. The erase regions in the build
+script are measured in specimen pixels, so a design that moves its values needs those
+updated too — they are commented with the ink boxes they were cut from.
+
+No code change is needed for the artwork itself: the file names are defaulted per award in
+`sync-certificate-pdf.adapter.ts`, and a template can still name its own via
+`design.artworkFileName` / `design.artworkFonts` / `design.artworkFields`. Those names are
+CRM-editable and therefore untrusted, so each is reduced to a basename inside this
+directory before it can touch the filesystem — it cannot point anywhere else.
 
 ## Adding the signature
+
+Only the code-drawn fallback stamps a signature; the approved artwork already carries the
+signature block. Kept here because that fallback is still what a `course`-kind template
+renders.
 
 1. Export the signature as a **PNG with a transparent background** — it is drawn directly
    over the ruled line, so a white box would blank the rule out.
@@ -92,22 +139,6 @@ The ISO and MSME marks are lifted from `docs/sample certificate/training-certifi
 
 **Never** stage a signature anywhere else in the repo on the way here — not in `docs/`,
 not in an app's `public/`. `.gitignore` blocks `docs/**/*signature*` for that reason.
-
-## Seeing what you changed
-
-Assets and layout have no cheap feedback loop through the API, so render a specimen
-directly:
-
-```bash
-pnpm --filter @stimuliiq/api exec node -r ts-node/register -r tsconfig-paths/register \
-  scripts/render-sample-certificate.ts --name "Your Name" --program "Domain" --out ./tmp
-```
-
-That writes one PDF per award (internship + training) without touching the database.
-
-No code change is needed. To use a different file name, set `signatureFileName` on the
-template's `design` JSON — the name is sanitised to a basename inside this directory,
-so it cannot point anywhere else on the filesystem.
 
 ## Deployment
 

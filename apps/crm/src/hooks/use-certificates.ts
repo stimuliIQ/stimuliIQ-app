@@ -151,3 +151,38 @@ export function useReissueCertificate() {
     onSuccess: () => invalidate(),
   });
 }
+
+// ── The document itself ───────────────────────────────────────────────────────
+
+export function certificateFileKey(id: string, disposition: string) {
+  return [...CERTIFICATES_QUERY_KEY, "file", id, disposition] as const;
+}
+
+/**
+ * A short-lived signed URL for a certificate PDF — the document the student receives.
+ *
+ * `disposition: "inline"` is what the preview panel frames; `"attachment"` is what the
+ * Download button sends the browser to. They are separate URLs because the disposition is
+ * signed INTO the URL (S3 `ResponseContentDisposition`), not chosen by the client.
+ *
+ * `gcTime: 0` on purpose: a signed URL is a bearer credential for the object, so it should
+ * not sit in the query cache after the panel that needed it has closed. `staleTime` is well
+ * inside the URL's own lifetime, so reopening the same certificate within a couple of
+ * minutes reuses a URL that is still valid rather than minting another.
+ */
+export function useCertificateFileUrl(
+  certificateId: string | null,
+  disposition: "inline" | "attachment" = "inline",
+) {
+  return useQuery({
+    queryKey: certificateFileKey(certificateId ?? "", disposition),
+    queryFn: () =>
+      apiClient.learning.certificates.getCrmDownloadUrl(certificateId as string, disposition),
+    enabled: Boolean(certificateId),
+    gcTime: 0,
+    staleTime: 2 * 60 * 1000,
+    // A certificate with no document and no template cannot be regenerated, and retrying
+    // says so three times instead of once.
+    retry: false,
+  });
+}

@@ -12,7 +12,7 @@
 // — inside one cohort they repeated the same value on every row, and the context
 // line under the header carries them instead.
 import * as React from "react";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, ExternalLink, Eye } from "lucide-react";
 import {
   Alert,
   Button,
@@ -44,6 +44,7 @@ import { RevokeCertificateDialog } from "./revoke-certificate-dialog";
 import { BulkIssueDialog } from "./bulk-issue-dialog";
 import { CertificateBatchList } from "./certificate-batch-list";
 import { CertTemplateDesignerDrawer } from "./cert-template-designer-drawer";
+import { CertificatePreviewDialog } from "./certificate-preview-dialog";
 import { certificateVerifyUrl } from "../../lib/public-urls";
 import { queryErrorMessage } from "../../lib/surface-error";
 
@@ -105,6 +106,12 @@ export function CertificateDirectory({
     certificateId: string;
     studentName: string;
     certUid: string | null;
+  } | null>(null);
+  const [previewTarget, setPreviewTarget] = React.useState<{
+    certificateId: string;
+    studentName: string;
+    programTitle: string;
+    revoked: boolean;
   } | null>(null);
   const [bulkIssueOpen, setBulkIssueOpen] = React.useState(false);
   const [designerOpen, setDesignerOpen] = React.useState(false);
@@ -301,6 +308,27 @@ export function CertificateDirectory({
       // cell and wrapped on top of each other at narrower widths.
       cell: (row) => (
         <div className="flex flex-nowrap items-center justify-end gap-1 whitespace-nowrap">
+          {/* View the document itself — before revoking or reissuing, look at it. */}
+          {row.certificateId ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPreviewTarget({
+                  certificateId: row.certificateId as string,
+                  studentName: row.studentName,
+                  programTitle: row.programTitle,
+                  revoked: row.certificateStatus === "revoked",
+                });
+              }}
+              aria-label={`View the certificate issued to ${row.studentName}`}
+              data-testid={`view-certificate-button-${row.enrollmentId}`}
+            >
+              <Eye className="mr-1 size-3.5" aria-hidden="true" />
+              View
+            </Button>
+          ) : null}
           {/* Faculty recommend (not issue) */}
           {canRecommend && !row.eligibility.recommendedAt && !row.certificateStatus ? (
             <Button
@@ -635,6 +663,15 @@ export function CertificateDirectory({
         certificateId={revokeTarget?.certificateId ?? null}
         studentName={revokeTarget?.studentName}
         certUid={revokeTarget?.certUid}
+      />
+
+      <CertificatePreviewDialog
+        open={Boolean(previewTarget)}
+        onOpenChange={(open) => !open && setPreviewTarget(null)}
+        certificateId={previewTarget?.certificateId ?? null}
+        studentName={previewTarget?.studentName}
+        programTitle={previewTarget?.programTitle}
+        revoked={previewTarget?.revoked}
       />
 
       <BulkIssueDialog

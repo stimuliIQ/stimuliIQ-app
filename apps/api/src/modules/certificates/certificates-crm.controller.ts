@@ -10,6 +10,7 @@
 //   POST   /crm/certificates                       → issueCertificate (certificates.issue)
 //   POST   /crm/certificates/:enrollmentId/recommend → recommendCertificate (certificates.recommend)
 //   GET    /crm/certificates/:id                   → getCertificate (certificates.view)
+//   GET    /crm/certificates/:id/download          → downloadCertificate (certificates.view)
 //   PATCH  /crm/certificates/:id/revoke            → revokeCertificate (certificates.revoke) AUDITED
 //   POST   /crm/certificates/:enrollmentId/reissue → reissueCertificate (certificates.issue) AUDITED
 //   GET    /crm/certificate-templates              → listTemplates (certificates.view)
@@ -39,6 +40,8 @@ import {
 } from "@nestjs/common";
 import type {
   CertificateCrmDetail,
+  CertificateDownloadQuery,
+  CertificateDownloadResponse,
   CertificateTemplateSummary,
   CertificateTemplateDetail,
   CreateCertificateTemplateRequest,
@@ -64,6 +67,7 @@ import {
   CreateCertificateTemplateRequestSchema,
   UpdateCertificateTemplateRequestSchema,
   BulkIssueCertificatesRequestSchema,
+  CertificateDownloadQuerySchema,
   ListCertificatesQuerySchema,
   ListEligibilityQuerySchema,
   ListEligibilityBatchesQuerySchema,
@@ -157,6 +161,30 @@ export class CertificatesCrmController {
   ): Promise<PaginatedResult<CertificateCrmDetail>> {
     const scope = assertAuthoringScope("certificates", requireScopeContext().scope);
     return this.service.listCertificates(user.tenantId, query, scope, user.id);
+  }
+
+  /**
+   * GET /api/v1/crm/certificates/:id/download
+   * Signed, short-lived URL for the certificate PDF — the document the student receives.
+   *
+   * ROUTE ORDER: declared BEFORE `certificates/:id`. Nest matches in declaration order and
+   * `:id` is the more general pattern; below it this would still work (the extra segment
+   * makes the paths distinct), but keeping the specific route first is the rule the
+   * eligibility-batches route above already had to learn.
+   *
+   * Unlike the student's own download this returns a REVOKED certificate too, and
+   * regenerates a missing PDF rather than 404ing — see the service for why.
+   * Permission: certificates.view (assigned scope is limited to the faculty's own batches).
+   */
+  @Get("certificates/:id/download")
+  @RequirePermission("certificates.view")
+  async downloadCertificate(
+    @CurrentUser() user: RequestUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Query(new ZodValidationPipe(CertificateDownloadQuerySchema)) query: CertificateDownloadQuery,
+  ): Promise<CertificateDownloadResponse> {
+    const scope = assertAuthoringScope("certificates", requireScopeContext().scope);
+    return this.service.downloadCrmCertificate(user.tenantId, id, scope, user.id, query.disposition);
   }
 
   /**

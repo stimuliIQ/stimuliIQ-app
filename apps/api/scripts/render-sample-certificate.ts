@@ -14,7 +14,12 @@
  *   --program programme name           (default "Domain")
  *   --kind    internship|training|both (default both)
  *   --serial  certificate id           (default STIQ-SAMPLE-0001)
+ *   --issued  issue date, YYYY-MM-DD   (default today)
  *   --out     output directory         (default the current directory)
+ *
+ * `--issued` exists for `scripts/check-certificate-render.cjs`, which reproduces the
+ * specimen's own values and compares the result with the approved design pixel by pixel —
+ * a date that changed with the clock would move the one value it is measuring.
  *
  * NOT A CERTIFICATE ISSUER. Nothing here touches the database, so the serial it prints is
  * not registered and will not verify — which is the point: this renders artwork, it does
@@ -29,7 +34,14 @@ import type {
   CertificateKind,
 } from "../src/modules/certificates/providers/pdf/certificate-pdf-port.interface";
 
-/** Mirrors the seeded templates in prisma/seed.ts — keep the two in step. */
+/**
+ * Mirrors the seeded templates in prisma/seed.ts — keep the two in step.
+ *
+ * Deliberately names NO artwork. The adapter defaults the approved blank per
+ * `certificateKind`, so this renders exactly what a real issuance renders, and a design
+ * that only looked right because this script asked for something the database does not
+ * would be invisible here.
+ */
 export const SAMPLE_DESIGN_BASE: CertificateDesign = {
   orientation: "landscape",
   orgName: "STIMULI IQ",
@@ -78,6 +90,11 @@ async function main(): Promise<void> {
   const holderName = arg("name", "Your Name");
   const programName = arg("program", "Domain");
   const serial = arg("serial", "STIQ-SAMPLE-0001");
+  const issuedRaw = arg("issued", "");
+  const issuedAt = issuedRaw ? new Date(`${issuedRaw}T00:00:00Z`) : undefined;
+  if (issuedRaw && Number.isNaN(issuedAt!.getTime())) {
+    throw new Error(`--issued must be a date, got "${issuedRaw}"`);
+  }
   const outDir = resolve(arg("out", "."));
   const requested = arg("kind", "both");
   const kinds: CertificateKind[] =
@@ -86,7 +103,7 @@ async function main(): Promise<void> {
   await mkdir(outDir, { recursive: true });
 
   for (const kind of kinds) {
-    const pdf = await renderSample({ kind, holderName, programName, serial });
+    const pdf = await renderSample({ kind, holderName, programName, serial, issuedAt });
     const slug = holderName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const file = join(outDir, `${slug}-${kind}-certificate.pdf`);
     await writeFile(file, pdf);

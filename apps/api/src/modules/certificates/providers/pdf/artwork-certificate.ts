@@ -27,35 +27,139 @@
 // HTTP, and `certUid` is never logged.
 
 import { createElement as h, type ReactElement } from "react";
-import { Document, Page, Text, Image, Font, type DocumentProps } from "@react-pdf/renderer";
+import { Document, Page, Text, Image, View, Font, type DocumentProps } from "@react-pdf/renderer";
 
 import type {
   ArtworkFieldKey,
   ArtworkFieldPlacement,
   CertificateDesign,
+  CertificateKind,
   CertificateRenderFields,
 } from "./certificate-pdf-port.interface";
 import { resolveCertificateFontPath } from "./certificate-assets";
 
 /**
- * Field placements measured from the approved specimens in `docs/sample certificate/`
- * (1536 × 1024), as PERCENTAGES so the same numbers hold at any export size.
+ * Field placements measured off the approved specimens in `docs/sample certificate/`
+ * (both 1536 × 1024), as PERCENTAGES so the same numbers hold at any export size.
  *
  * A template that names artwork and nothing else already lands its values in the right
  * places; `design.artworkFields` overrides any single entry.
+ *
+ * `y` is the TOP OF THE LINE BOX, not the top of the ink, so these numbers are not the ink
+ * boxes measured from the specimen — they are those boxes back-solved through the font's
+ * ascent and the line height. They were tuned against a rasterised render until every drawn
+ * value landed on the specimen's own ink to within a pixel; see
+ * `scripts/check-certificate-render.cjs`, which is the loop that produced them and the one
+ * that catches it if a font or a page size changes underneath them.
+ *
+ * These are the shared values; `ARTWORK_FIELD_OVERRIDES` carries the handful the two
+ * approved exports disagree about.
  */
 export const DEFAULT_ARTWORK_FIELDS: Record<ArtworkFieldKey, ArtworkFieldPlacement> = {
-  /** The script line under "THIS IS TO CERTIFY THAT". */
-  holderName: { x: 49, y: 45.5, width: 52, size: 34, align: "center", font: "script", color: "#14563C" },
-  /** The four-line paragraph beneath the name's ornamental rule. */
-  body: { x: 49, y: 58.5, width: 50, size: 9.5, align: "center", font: "body", color: "#1F2933", lineHeight: 1.75 },
-  /** Under the "CERTIFICATE ID" label in the footer band. */
-  certificateId: { x: 35.5, y: 80.5, width: 18, size: 11, align: "center", font: "bodyBold", color: "#1F2933" },
-  /** After the "Date of Issue:" label on the bottom rule. */
-  issuedAt: { x: 76.5, y: 92, width: 16, size: 10, align: "left", font: "bodyBold", color: "#1F2933" },
+  /** The script line under "THIS IS TO CERTIFY THAT". Specimen ink: x 576-939, y 473-566. */
+  holderName: {
+    x: 48.9, y: 45.4, width: 56, size: 40.5, align: "center", font: "script", color: "#14563C",
+  },
+  /**
+   * The paragraph beneath the name's ornamental rule. Specimen ink: y 614-739, widest line
+   * 750 px of 1536.
+   *
+   * `width` is the load-bearing number and it is NOT the box the text needs — it is the
+   * measure the design wraps at. Set it wider and the sentence still fits and still centres,
+   * in three long lines where the design has four; the paragraph is then a different shape
+   * in the middle of an otherwise exact page. 49% is the specimen's own widest line.
+   */
+  body: {
+    x: 47.9, y: 59.8, width: 49, size: 10.2, align: "center", font: "body", color: "#1F2933",
+    lineHeight: 1.9, letterSpacing: 0.62,
+  },
+  /** Under the "CERTIFICATE ID" label in the footer band. Specimen ink: x 453-631, y 838-852. */
+  certificateId: {
+    x: 35.3, y: 81.2, width: 20, size: 11.5, align: "center", font: "bodyBold", color: "#1F2933",
+  },
+  /** After the "Date of Issue:" label on the bottom rule. Specimen ink: x 1060-1190, y 950-968. */
+  issuedAt: {
+    x: 69.0, y: 92.4, width: 20, size: 11.5, align: "left", font: "bodyBold", color: "#1F2933",
+  },
   /** Off unless a template positions it — the artwork carries the static verify address. */
   verifyUrl: { x: 50, y: 96, width: 40, size: 8, align: "center", font: "body", color: "#6B7280" },
 };
+
+/**
+ * Where the two approved exports genuinely disagree.
+ *
+ * They are not the same layout with a different ribbon: the internship artwork's whole
+ * upper block sits about 13 px left of the training one's at 1536 px wide, and its
+ * paragraph about 10 px lower. That is visible on the page, because the name is centred on
+ * an ORNAMENTAL RULE the artwork draws — the rules are at 752 and 739 respectively — so a
+ * single shared centre splits the difference and leaves the name visibly off its own rule
+ * on both certificates. Two lines of table beat that.
+ *
+ * Everything the two artworks agree on stays in the shared table above. Anything a template
+ * sets in `design.artworkFields` still wins over both.
+ */
+const ARTWORK_FIELD_OVERRIDES: Partial<
+  Record<CertificateKind, Partial<Record<ArtworkFieldKey, Partial<ArtworkFieldPlacement>>>>
+> = {
+  training: { holderName: { x: 49.3, y: 45.2 }, body: { y: 59.5 } },
+  internship: { holderName: { x: 48.3, y: 45.7 }, body: { y: 60.5 } },
+};
+
+/** The placements for one award: shared table, the artwork's own nudges, then the template's. */
+export function resolveArtworkFields(
+  kind: CertificateKind,
+  overrides: CertificateDesign["artworkFields"],
+): Record<ArtworkFieldKey, ArtworkFieldPlacement> {
+  const perArtwork = ARTWORK_FIELD_OVERRIDES[kind] ?? {};
+  const resolved = {} as Record<ArtworkFieldKey, ArtworkFieldPlacement>;
+  for (const key of Object.keys(DEFAULT_ARTWORK_FIELDS) as ArtworkFieldKey[]) {
+    resolved[key] = { ...DEFAULT_ARTWORK_FIELDS[key], ...perArtwork[key], ...overrides?.[key] };
+  }
+  return resolved;
+}
+
+/**
+ * The faces the approved artwork is set in, shipped in the private asset directory.
+ *
+ * Defaulted IN CODE rather than left to the template's `design` JSON. The artwork and the
+ * type that goes on it are one design: a database row that names the artwork but not the
+ * fonts would print the approved certificate with a Helvetica name across the middle of it,
+ * and every environment seeded before these files existed is exactly that row. A template
+ * that wants different faces still names them and wins.
+ *
+ * HOW THESE TWO WERE CHOSEN, since "it looks about right" is how a certificate ends up
+ * subtly not being the approved design. Both were identified by measuring the specimen
+ * rather than by eye, because eyes are bad at this and there are hundreds of candidates:
+ *
+ *   - Parisienne, for the name, from the PROPORTION of the specimen's "Your Name" — 363 ×
+ *     85 px, an aspect of 4.271. Size is a free parameter and a connected script cannot be
+ *     tracked, so aspect is a fingerprint nothing downstream can fake. Parisienne is 4.266.
+ *     The next candidate is off by 8×, and Great Vibes — the obvious guess, and what this
+ *     file's own documentation used to suggest — is off by 200×, which is why the first
+ *     render came out with a name half again too tall for its width.
+ *   - Outfit, for everything else, from the specimen's single-glyph widths as a fraction of
+ *     cap height (O 1.000, F 0.677, C 0.903, M 1.032, E 0.645, measured off "OF COMPLETION"
+ *     at 31 px). A single glyph's width is the fingerprint here because tracking, which the
+ *     placements above set, moves a whole line but never one letter. Outfit matches all
+ *     five inside the ±0.03 a 31 px measurement can resolve. Poppins — the obvious guess,
+ *     and what this file tried second — is 3× that out on F and E, which is not noise: at a
+ *     matched cap height its words come out about 15% wide, so the paragraph either
+ *     overflows the design's column or has to be shrunk until the type is visibly small.
+ *
+ * The two Outfit files are STATIC instances, and finding them was the awkward part: Outfit
+ * is published as a variable font, which hands @react-pdf a single weight and would flatten
+ * the runs the design sets bolder. The web-font builds of the static instances are worse
+ * than useless — @react-pdf embeds a .woff2 without complaint and renders it as blank space
+ * (see certificate-assets.ts). These are TrueType instances, latin subset, which the sans
+ * never strains: it sets only the fixed English sentence, the programme name, the serial
+ * and the date. THE HOLDER NAME — the one string nobody controls — is Parisienne, and that
+ * is the complete font.
+ */
+export const DEFAULT_ARTWORK_FONTS = {
+  script: "Parisienne-Regular.ttf",
+  body: "Outfit-Medium.ttf",
+  bodyBold: "Outfit-SemiBold.ttf",
+} as const;
 
 /** Registered @react-pdf font families; an absent slot falls back to a built-in face. */
 export interface ArtworkFonts {
@@ -75,7 +179,7 @@ const registeredFonts = new Set<string>();
  * in @react-pdf's global registry.
  */
 export async function registerArtworkFonts(design: CertificateDesign): Promise<ArtworkFonts> {
-  const requested = design.artworkFonts ?? {};
+  const requested = { ...DEFAULT_ARTWORK_FONTS, ...(design.artworkFonts ?? {}) };
   const resolved: ArtworkFonts = {};
 
   for (const slot of ["script", "body", "bodyBold"] as const) {
@@ -122,6 +226,7 @@ function placementStyle(placement: ArtworkFieldPlacement, fonts: ArtworkFonts) {
     color: placement.color ?? "#1F2933",
     ...(family ? { fontFamily: family } : {}),
     ...(placement.lineHeight ? { lineHeight: placement.lineHeight } : {}),
+    ...(placement.letterSpacing ? { letterSpacing: placement.letterSpacing } : {}),
   };
 }
 
@@ -130,7 +235,18 @@ export interface ArtworkDocumentInput {
   design: CertificateDesign;
   /** Data URI of the approved artwork, already loaded from the private asset directory. */
   artworkSrc: string;
+  /**
+   * The artwork's intrinsic pixel size, which SETS THE PAGE SIZE.
+   *
+   * The approved design is 3:2. A4 landscape is 1.414:1, so printing it onto A4 full-bleed
+   * stretches it about 6% vertically — enough to turn the seal into an ellipse and stretch
+   * every letter of the approved wordmark, while still looking roughly right, which is the
+   * worst kind of wrong. The page takes the artwork's proportions instead.
+   */
+  artworkPx: { widthPx: number; heightPx: number };
   fonts: ArtworkFonts;
+  /** Which approved artwork this is, so that artwork's own field nudges apply. */
+  kind: CertificateKind;
   /** "TRAINING" | "INTERNSHIP" | "PROGRAM" — appears twice in the body sentence. */
   kindNoun: string;
   /** PDF document title, e.g. "TRAINING CERTIFICATE — Certificate of Completion". */
@@ -163,9 +279,28 @@ function buildBody(input: ArtworkDocumentInput, placement: ArtworkFieldPlacement
   ]);
 }
 
+/**
+ * A4 landscape's width in points — the page's long edge, whatever its proportions.
+ *
+ * Anchoring the WIDTH rather than fitting inside A4 in both axes keeps the certificate a
+ * familiar size on screen and on paper: at 3:2 the page comes out 842 × 561 pt, shorter
+ * than A4 landscape's 595 pt, so it still prints on an A4 sheet with a little more margin
+ * top and bottom, which is exactly how a certificate is trimmed anyway.
+ */
+const PAGE_LONG_EDGE_PT = 841.89;
+
 /** The whole document in artwork mode: one full-bleed image, and the values on top of it. */
 export function buildArtworkDocument(input: ArtworkDocumentInput): ReactElement<DocumentProps> {
-  const placements = { ...DEFAULT_ARTWORK_FIELDS, ...(input.design.artworkFields ?? {}) };
+  const placements = resolveArtworkFields(input.kind, input.design.artworkFields);
+
+  // The page IS the artwork, so it takes the artwork's aspect ratio rather than a paper
+  // size. `orientation` is deliberately not consulted: the artwork already is landscape or
+  // portrait, and letting a stale design flag rotate the page would only ever distort it.
+  const { widthPx, heightPx } = input.artworkPx;
+  const landscape = widthPx >= heightPx;
+  const pageSize: [number, number] = landscape
+    ? [PAGE_LONG_EDGE_PT, (PAGE_LONG_EDGE_PT * heightPx) / widthPx]
+    : [(PAGE_LONG_EDGE_PT * widthPx) / heightPx, PAGE_LONG_EDGE_PT];
 
   const values: Array<[ArtworkFieldKey, string | undefined]> = [
     ["holderName", input.fields.holderName],
@@ -178,17 +313,31 @@ export function buildArtworkDocument(input: ArtworkDocumentInput): ReactElement<
   return h(
     Document,
     { title: input.documentTitle, author: input.orgName },
-    h(Page, { size: "A4", orientation: input.design.orientation ?? "landscape", style: { position: "relative" } }, [
-      // Full-bleed: the artwork IS the page, not a decoration on it.
-      h(Image, {
-        key: "artwork",
-        src: input.artworkSrc,
-        style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%" },
-      }),
-      buildBody(input, placements.body),
-      ...values
-        .filter((entry): entry is [ArtworkFieldKey, string] => Boolean(entry[1]))
-        .map(([key, value]) => h(Text, { key, style: placementStyle(placements[key], input.fonts) }, value)),
-    ]),
+    h(
+      Page,
+      { size: pageSize, style: { position: "relative" } },
+      // ONE full-size positioned View holding everything, rather than the image and the
+      // values as direct children of the Page. Load-bearing, and it cost an afternoon:
+      // @react-pdf measures a page-height child as flow content even when it is absolutely
+      // positioned, decides the values no longer fit beside it, and pushes them onto a
+      // SECOND PAGE. That fails silently — the render succeeds and produces the approved
+      // artwork followed by a page carrying the student's name. Giving the absolute
+      // children a sized container to resolve their percentages against keeps the page's
+      // own flow empty, so there is never a second page to spill onto. (`wrap: false` looks
+      // like the fix and is not: it tells @react-pdf to size the page to its content, and
+      // with every child absolute that content is nothing — a page 0 pt tall.)
+      h(View, { style: { position: "relative", width: "100%", height: "100%" } }, [
+        // Full-bleed: the artwork IS the page, not a decoration on it.
+        h(Image, {
+          key: "artwork",
+          src: input.artworkSrc,
+          style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%" },
+        }),
+        buildBody(input, placements.body),
+        ...values
+          .filter((entry): entry is [ArtworkFieldKey, string] => Boolean(entry[1]))
+          .map(([key, value]) => h(Text, { key, style: placementStyle(placements[key], input.fonts) }, value)),
+      ]),
+    ),
   );
 }

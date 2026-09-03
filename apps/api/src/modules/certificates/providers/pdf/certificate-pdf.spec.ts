@@ -158,10 +158,10 @@ describe("SyncCertificatePdfAdapter, artwork mode", () => {
   }, 60000);
 
   it("renders with the real artwork when one is installed", async () => {
-    // Skips until a blank artwork is dropped into apps/api/assets/certificate/, the file is
-    // the customer's approved design and is deliberately not committed as a fixture.
     const installed = await loadCertificateAsset("training-certificate-blank.png");
-    if (!installed) return;
+    // The blanks are built from the approved specimens by scripts/build-certificate-artwork.cjs
+    // and committed, so a missing one is a broken checkout, not a skip.
+    expect(installed).toBeDefined();
 
     const result = await adapter.render({
       ...INPUT,
@@ -172,5 +172,81 @@ describe("SyncCertificatePdfAdapter, artwork mode", () => {
     // The artwork is embedded, so the document is materially larger than the vector-only
     // reproduction, a cheap proof that the image actually made it into the page.
     expect(result.bytes.byteLength).toBeGreaterThan(20_000);
+  }, 60000);
+
+  // ── The three ways an artwork-mode render goes wrong WITHOUT failing ──────────
+  //
+  // Each of these shipped at some point during this work, and none of them throws: the
+  // render succeeds, the bytes are a valid PDF, and the certificate is wrong. They are the
+  // reason this block asserts the PDF's structure rather than just its first four bytes.
+
+  for (const kind of ["training", "internship"] as const) {
+    it(`prints the approved ${kind} artwork with no artworkFileName on the template`, async () => {
+      // The artwork is DEFAULTED per kind in code, because every database seeded before the
+      // blanks existed has a template that names none — and on those the renderer would
+      // quietly go on drawing its own reproduction of the design forever.
+      const result = await adapter.render({
+        ...INPUT,
+        design: { orientation: "landscape", certificateKind: kind },
+      });
+      expect(result.bytes.byteLength).toBeGreaterThan(20_000);
+    }, 60000);
+  }
+
+  it("puts the whole certificate on ONE page", async () => {
+    // @react-pdf measures the full-bleed artwork as flow content even though it is
+    // absolutely positioned, and will happily push the student's name onto a SECOND page —
+    // a blank certificate followed by a page of stray text, rendered without a word of
+    // complaint.
+    const result = await adapter.render({
+      ...INPUT,
+      design: { ...INPUT.design, certificateKind: "training" },
+    });
+    const pdf = Buffer.from(result.bytes).toString("latin1");
+    expect(pdf).toMatch(/\/Count\s+1\b/);
+  }, 60000);
+
+  it("sizes the page to the artwork's own 3:2, not to A4", async () => {
+    // A4 landscape is 1.414:1. Printing a 3:2 design onto it full-bleed stretches it ~6%
+    // vertically: the seal becomes an ellipse and every letter of the approved wordmark
+    // grows taller, while the page still looks broadly right.
+    const result = await adapter.render({
+      ...INPUT,
+      design: { ...INPUT.design, certificateKind: "training" },
+    });
+    const box = /\/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]/.exec(
+      Buffer.from(result.bytes).toString("latin1"),
+    );
+    expect(box).not.toBeNull();
+    const ratio = Number(box![1]) / Number(box![2]);
+    expect(ratio).toBeCloseTo(1.5, 2);
+  }, 60000);
+
+  it("embeds the approved typefaces rather than falling back to Helvetica", async () => {
+    // The fonts are defaulted in code for the same reason the artwork is. A template that
+    // names the artwork but no fonts would otherwise print the approved certificate with a
+    // Helvetica name across the middle of it.
+    const result = await adapter.render({
+      ...INPUT,
+      design: { ...INPUT.design, certificateKind: "training" },
+    });
+    const pdf = Buffer.from(result.bytes).toString("latin1");
+    expect(pdf).toContain("Parisienne");
+    expect(pdf).toContain("Outfit");
+  }, 60000);
+
+  it("leaves the neutral COURSE kind on the code-drawn certificate", async () => {
+    // There is no approved artwork for `course` — it is the fallback kind for templates
+    // seeded before `certificateKind` existed. Defaulting it to one of the two real artworks
+    // would reprint a neutral PROGRAM award as a training or internship certificate.
+    const result = await adapter.render({ ...INPUT, design: { certificateKind: "course" } });
+    // Byte size cannot tell the two modes apart — the code-drawn page embeds the logo, the
+    // signature and both accreditation marks, so it is the larger of the two. The PAGE SIZE
+    // can: only artwork mode sizes the page to the design, everything else is A4 (1.414:1).
+    const box = /\/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]/.exec(
+      Buffer.from(result.bytes).toString("latin1"),
+    );
+    expect(box).not.toBeNull();
+    expect(Number(box![1]) / Number(box![2])).toBeCloseTo(1.414, 2);
   }, 60000);
 });

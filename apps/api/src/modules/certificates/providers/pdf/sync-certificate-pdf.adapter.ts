@@ -73,7 +73,7 @@ import type {
   ArtworkFieldKey,
   ArtworkFieldPlacement,
 } from "./certificate-pdf-port.interface";
-import { DEFAULT_ASSETS, loadCertificateAsset } from "./certificate-assets";
+import { DEFAULT_ASSETS, loadCertificateAsset, loadCertificateArtwork } from "./certificate-assets";
 import { buildArtworkDocument, registerArtworkFonts } from "./artwork-certificate";
 
 // Palette — the artwork's deep forest green on white, with a gold hairline on the
@@ -112,6 +112,26 @@ const KIND_COPY: Record<CertificateKind, { ribbon: string; noun: string }> = {
 function resolveKind(candidate: unknown): CertificateKind {
   return candidate === "internship" || candidate === "training" ? candidate : "course";
 }
+
+/**
+ * The approved blank artwork each award is printed on, when the template does not name one.
+ *
+ * A CODE default, not a seed-only one, and that is the point. Both approved artworks ship
+ * in this repo; a `certificate_templates` row that predates them names no artwork at all,
+ * and on every such database — every environment seeded before this shipped, which is all
+ * of the live ones — the renderer would quietly keep drawing its own reproduction. The
+ * approved design is not a per-tenant setting somebody opted into; it is what a Stimuli IQ
+ * certificate looks like, so it applies unless a template deliberately says otherwise.
+ *
+ * `course` has no entry on purpose. It is the neutral fallback kind for templates seeded
+ * before `certificateKind` existed, there is no approved artwork for it, and inventing one
+ * would silently reprint a "PROGRAM" certificate as a training or internship award.
+ */
+const DEFAULT_ARTWORK_BY_KIND: Record<CertificateKind, string | undefined> = {
+  internship: "internship-certificate-blank.png",
+  training: "training-certificate-blank.png",
+  course: undefined,
+};
 
 const SUBTLE_COLOR = "#6B7280";
 const GOLD = "#C9A227";
@@ -596,16 +616,21 @@ export class SyncCertificatePdfAdapter implements CertificatePdfPort {
     // artwork-certificate.ts for why that is the only way to be exact rather than close.
     // Everything below this block is the code-drawn REPRODUCTION, kept unchanged as the
     // fallback for templates that have no artwork.
-    const artworkSrc = await loadCertificateAsset(design.artworkFileName);
-    if (artworkSrc) {
-      const kind = KIND_COPY[resolveKind(design.certificateKind)];
+    const resolvedKind = resolveKind(design.certificateKind);
+    const artwork = await loadCertificateArtwork(
+      design.artworkFileName ?? DEFAULT_ARTWORK_BY_KIND[resolvedKind],
+    );
+    if (artwork) {
+      const kind = KIND_COPY[resolvedKind];
       const fonts = await registerArtworkFonts(design);
       const bytes = await renderToBuffer(
         buildArtworkDocument({
           fields: input.fields,
           design,
-          artworkSrc,
+          artworkSrc: artwork.src,
+          artworkPx: artwork,
           fonts,
+          kind: resolvedKind,
           kindNoun: kind.noun,
           documentTitle: `${kind.ribbon.replace("\n", " ")}, Certificate of Completion`,
           orgName: design.orgName ?? DEFAULTS.orgName,
