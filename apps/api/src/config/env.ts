@@ -141,6 +141,13 @@ const rawEnvSchema = z.object({
   // once/twice-daily cadence, not a tight poll like the report-schedule dispatcher.
   EMI_DUNNING_SCAN_INTERVAL_MS: z.coerce.number().int().positive().default(21_600_000),
 
+  // CAMPAIGN_SCHEDULE_SCAN_INTERVAL_MS — how often CampaignScheduleScheduler looks for
+  // campaigns whose `schedule_at` has passed and sends them. Gated by the SAME
+  // isSchedulerEnabled()/SCHEDULER_ENABLED flag as every other cron job here, so it never
+  // fires during unit tests. Default: 60_000 (1 minute) — a marketing send scheduled for
+  // 10:00 should not go out at 10:20, and the query is a single indexed read.
+  CAMPAIGN_SCHEDULE_SCAN_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
+
   // DEADLINE_REMINDER_INTERVAL_MS — how often DeadlineRemindersScheduler (T31 / R3,
   // docs/plans/phase-9-completion.md) scans `assignments.due_at` for a reminder-eligible
   // 1-hour bucket. Gated by the SAME isSchedulerEnabled()/SCHEDULER_ENABLED flag as every

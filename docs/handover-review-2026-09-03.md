@@ -231,6 +231,15 @@ claimed "bucketed per ROUTE". Now keyed on `Class.handler`.
   gallery events each rendered as a grey box containing the literal string
   `[Image: …]`. `careers-fallback.tsx` already records the rule they broke: *a fallback may
   degrade; it may not lie.*
+- **Scheduled campaigns never fired.** `Campaign.scheduleAt` has been written, validated
+  and displayed since P6, the CRM builder makes picking a send time a REQUIRED step, and
+  `scheduled` is handled as a first-class status throughout the service — but nothing ever
+  polled for a due campaign. One saved as scheduled sat there forever and went to nobody.
+  Recorded in `docs/live-issues.md` as a known gap; the missing piece was a sweep, which
+  now exists (`CampaignScheduleScheduler`, mirroring the EMI-dunning and report-dispatch
+  schedulers, gated by the same `SCHEDULER_ENABLED` flag so it never fires in tests). It
+  sends as whoever SCHEDULED the campaign — they chose the moment as much as the content,
+  and it is the only accountable name there is.
 - **The Student 360 drawer had no Attendance tab.** `attendance` rows have been written
   since P3 (one per completed lesson, deduped per enrollment+lesson) and by the live-class
   sync, and nothing on the STAFF side could read them: no CRM endpoint, no SDK method, no
@@ -289,7 +298,7 @@ decision or a build, not a patch.
 | # | Item | Notes |
 |---|------|-------|
 | **O1** | **Forum post reporting does not exist.** | The button is now removed rather than silently doing nothing. Building it needs somewhere to put a report — a `forum_post_reports` table, or a route into the existing ticket queue — plus a CRM surface to work it. A student forum with no abuse reporting is a product decision somebody should make deliberately. |
-| **O2** | **Scheduled campaigns never fire.** | `Campaign.scheduleAt` is written, displayed and validated, the `scheduled` status is handled throughout the service, and nothing polls for due campaigns. Already recorded in `docs/live-issues.md`. The send path and the scheduler pattern both exist; this is a small build, not a redesign. |
+| **O2** | **WhatsApp template campaigns still fail at Meta.** | Separate from the scheduling gap above, and unchanged by this pass: `docs/live-issues.md` records three defects (the friendly template name is sent instead of the approved one, variables are never passed, the language is hard-coded to English). Email campaigns work; WhatsApp ones do not, scheduled or otherwise. |
 | **O3** | **`branch` scope is unimplemented** for assessments, assignments, certificates and EMI. | It is now **refused** rather than silently treated as "all". A branch manager holding those keys gets a clear 403 instead of every branch's data. Either implement a real filter or narrow the seeded grants. |
 | **O4** | **Presigned PUT size limits are advisory.** | `maxBytes` is written as object metadata; S3/R2 do not enforce a byte ceiling on a presigned PUT. An anonymous caller can declare `sizeBytes: 1` and upload gigabytes. Fix with `createPresignedPost` + a `content-length-range` condition, or a bucket policy. |
 | **O5** | **No AV scanning on uploads** (resumes, onboarding receipts, submissions). | Long-standing, tracked in `docs/go-live-checklist.md` R8. Staff download these files. |

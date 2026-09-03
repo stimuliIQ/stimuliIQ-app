@@ -16,6 +16,10 @@
 //   MailProviderModule    — MAIL_PROVIDER (webhook signature verification — Svix)
 //   WhatsAppProviderModule— WHATSAPP_PROVIDER (webhook signature verification — X-Hub-256)
 //
+//   CampaignScheduleScheduler   — sends campaigns whose `schedule_at` has arrived. The
+//                                 CRM has always made scheduling a required step and
+//                                 nothing ever polled for it; see that file's header.
+//
 // CSRF EXCLUSION (app.module.ts): POST /campaigns/webhooks/:channel is excluded from
 // CsrfMiddleware (unauthenticated, HMAC-protected).
 
@@ -29,11 +33,12 @@ import { CampaignsController } from "./campaigns.controller";
 import { CampaignWebhookController } from "./campaign-webhook.controller";
 import { CampaignsService } from "./campaigns.service";
 import { CampaignsRepository } from "./campaigns.repository";
+import { CampaignScheduleScheduler } from "./campaign-schedule.scheduler";
 
 @Module({
   imports: [AuthModule, DispatchModule, MailProviderModule, WhatsAppProviderModule, RateLimitModule],
   controllers: [CampaignsController, CampaignWebhookController],
-  providers: [CampaignsService, CampaignsRepository],
+  providers: [CampaignsService, CampaignsRepository, CampaignScheduleScheduler],
   exports: [CampaignsService],
 })
 export class CampaignsModule {}

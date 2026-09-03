@@ -1,5 +1,15 @@
 # Go-Live Checklist
 
+> **2026-09-03 — read `docs/handover-review-2026-09-03.md` alongside this file.** A
+> full pre-handover review pass closed a set of items recorded here as done (R3's
+> gamification notifiers had call sites, but the gamification AWARDS did not; R13's
+> Playwright suites existed but had not been run against a live stack), found and fixed
+> several security issues that predate this list, and re-scoped what is genuinely open.
+> Two of its deploy-time actions are now **boot-blocking**: `COOKIE_SECURE`/
+> `COOKIE_DOMAIN`, and the private/public R2 bucket split. Where the two files disagree,
+> the newer one is the measured state.
+
+
 > Status as of 2026-07-09 (updated at Phase-9/Completion closeout — see
 > `docs/plans/phase-9-completion.md`). Originally derived from a full audit of all three
 > PRDs, the phase-0..8 follow-up logs, and a production-readiness scan of the codebase

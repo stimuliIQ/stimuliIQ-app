@@ -231,6 +231,32 @@ export class CampaignsRepository {
     return this.mapCampaignRow(row);
   }
 
+  /**
+   * Campaigns whose scheduled moment has arrived and which nobody has sent yet.
+   *
+   * `scheduleAt` has been written, validated, displayed in the CRM and handled throughout
+   * this service since P6, and NOTHING ever polled for it — a campaign saved as scheduled
+   * simply never went out, while the builder made picking a date a required step. This is
+   * the missing half.
+   *
+   * Cross-tenant by design, like every other scheduler in this codebase
+   * (`ReportSchedulesRepository.findDueCandidates`, `EmiRepository.findOverdueCandidates`):
+   * a cron sweep is not acting on behalf of a tenant-scoped request.
+   *
+   * Only `scheduled` — never `draft` (nobody asked for it to go), never `paused` (somebody
+   * asked for it to stop), never `sending` (a capped batch is resumed by its own path).
+   * Oldest first, so a backlog after downtime drains in the order it was queued.
+   */
+  async findDueScheduledCampaigns(now: Date, limit: number): Promise<Array<{ id: string; tenantId: string; createdById: string }>> {
+    const rows = await this.prisma.client.campaign.findMany({
+      where: { status: "scheduled", scheduleAt: { not: null, lte: now }, deletedAt: null },
+      orderBy: { scheduleAt: "asc" },
+      take: limit,
+      select: { id: true, tenantId: true, createdById: true },
+    });
+    return rows;
+  }
+
   async findCampaignById(tenantId: string, id: string): Promise<CampaignRow | null> {
     const row = await this.prisma.client.campaign.findFirst({
       where: { id, tenantId, deletedAt: null },
