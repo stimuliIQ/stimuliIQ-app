@@ -42,7 +42,7 @@ export function IssueCertificateDialog({
   const issueCertificate = useIssueCertificate();
   const { data: templatesData } = useCertificateTemplates();
 
-  const templates = templatesData?.items ?? [];
+  const templates = templatesData ?? [];
 
   const {
     handleSubmit,

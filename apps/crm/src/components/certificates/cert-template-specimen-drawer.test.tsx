@@ -78,7 +78,7 @@ beforeEach(() => {
   useCertificateTemplatesMock.mockReset();
   useCertificateTemplateSpecimenMock.mockReset();
   useCertificateTemplatesMock.mockReturnValue({
-    data: { items: [{ id: TEMPLATE_ID, name: "Internship completion", status: "active", createdAt: "2026-01-01T00:00:00.000Z" }] },
+    data: [{ id: TEMPLATE_ID, name: "Internship completion", status: "active", createdAt: "2026-01-01T00:00:00.000Z" }],
   });
   useCertificateTemplateSpecimenMock.mockReturnValue(specimenState());
   // jsdom implements neither of these; the drawer turns base64 into a blob URL for the frame.

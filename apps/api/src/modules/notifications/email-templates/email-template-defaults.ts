@@ -59,18 +59,17 @@ export const EMAIL_TEMPLATE_DEFAULTS: Record<EmailTemplateKey, EmailTemplateDefa
     name: "Payment receipt",
     description:
       "Sent when a payment is recorded for a student who already has an LMS account, for example a second instalment. The first payment gets the enrolment welcome instead, never both.",
-    subject: "Payment receipt, ₹{{amountRupees}} received",
-    heading: "Payment Received",
-    // The order, invoice and amount used to be a code-owned details table under the prose,
-    // which would have made this screen unable to do the one thing it was asked for: stop
-    // showing the amount. They are placeholders in the editable text instead, so deleting a
-    // line here actually deletes it from the email. The default keeps every fact the old
-    // table carried, so an unedited receipt reads exactly as it always did.
+    subject: "You're enrolled at Stimuli IQ",
+    heading: "You're Enrolled!",
+    // NO AMOUNT, NO ORDER, NO INVOICE — the owner's instruction covered both payment
+    // emails, not just the first one. A student paying a second instalment was still
+    // getting "we've received your payment of ₹14,999.00" with the order id and invoice
+    // number under it. All three are gone from the default; the placeholders stay
+    // DECLARED below so anybody who does want a receipt can add them back from the CRM
+    // without a deploy, which is the entire point of that screen.
     body:
-      "Hi {{studentName}}, we've received your payment of ₹{{amountRupees}}.\n\n" +
-      "Order: {{orderId}}\n" +
-      "Invoice: {{invoiceNumber}}\n\n" +
-      "You are now enrolled. Head to the LMS to begin your program.",
+      "Hi {{studentName}}, your payment has been received and your enrolment is confirmed.\n\n" +
+      "Head to the LMS to continue your programme.",
     footnote: null,
     variables: [
       { key: "studentName", description: "The student's name.", sample: "Chandra Sekhar" },
@@ -79,7 +78,7 @@ export const EMAIL_TEMPLATE_DEFAULTS: Record<EmailTemplateKey, EmailTemplateDefa
       { key: "invoiceNumber", description: "The GST invoice number, when one exists.", sample: "INV-2026-0001" },
     ],
     fixedPartsNote:
-      "Only the 'Go to LMS' button is added automatically. Everything a student reads is the text above, so removing a line here removes it from the email — delete {{amountRupees}} to stop showing the amount, or the Invoice line to stop showing the invoice number.",
+      "Only the 'Go to LMS' button is added automatically. Everything a student reads is the text above. This email intentionally mentions no amount, order or invoice — add {{amountRupees}}, {{orderId}} or {{invoiceNumber}} if you ever want it to read as a receipt.",
   },
 };
 

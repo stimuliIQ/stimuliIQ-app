@@ -109,8 +109,8 @@ export class CertificatesApi {
    * Available seeded templates for ops to select at issuance.
    * Permission: certificates.view.
    */
-  async listTemplates() {
-    return this.client.requestPaginated<CertificateTemplateSummary>(
+  async listTemplates(): Promise<CertificateTemplateSummary[]> {
+    return this.client.request<CertificateTemplateSummary[]>(
       "GET",
       "/api/v1/crm/certificate-templates",
     );

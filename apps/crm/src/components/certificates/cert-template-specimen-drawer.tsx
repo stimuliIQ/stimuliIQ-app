@@ -82,7 +82,7 @@ export function CertTemplateSpecimenDrawer({ open, onOpenChange }: CertTemplateS
             onValueChange={setTemplateId}
             data-testid="cert-template-select"
           >
-            {(templates?.items ?? []).map((t) => (
+            {(templates ?? []).map((t) => (
               <SelectItem key={t.id} value={t.id}>
                 {t.name}
               </SelectItem>

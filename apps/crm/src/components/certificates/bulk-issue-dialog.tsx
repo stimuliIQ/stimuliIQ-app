@@ -33,7 +33,7 @@ export function BulkIssueDialog({ open, onOpenChange, candidates, onDone }: Bulk
   // The award comes FROM the template, never from a second picker: the template carries the
   // artwork whose ribbon reads TRAINING or INTERNSHIP, so asking separately would let the
   // issued row contradict the document the student receives.
-  const selectedTemplate = (templates?.items ?? []).find((t) => t.id === templateId);
+  const selectedTemplate = (templates ?? []).find((t) => t.id === templateId);
   const [running, setRunning] = React.useState(false);
   const [results, setResults] = React.useState<RowResult[] | null>(null);
 
@@ -89,7 +89,7 @@ export function BulkIssueDialog({ open, onOpenChange, candidates, onDone }: Bulk
                 onValueChange={setTemplateId}
                 data-testid="bulk-issue-template-select"
               >
-                {(templates?.items ?? []).map((t) => (
+                {(templates ?? []).map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name}, {CERTIFICATE_KIND_LABEL[t.kind]}
                   </SelectItem>

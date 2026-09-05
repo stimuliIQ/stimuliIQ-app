@@ -39,7 +39,7 @@ vi.mock("../../hooks/use-certificates", async (importOriginal) => {
     }),
     useEligibilityDetail: () => ({ data: undefined, isLoading: false, isError: false }),
     useEligibilityBatches: () => ({ data: { items: [] }, isLoading: false, isError: false }),
-    useCertificateTemplates: () => ({ data: { items: [] }, isLoading: false, isError: false }),
+    useCertificateTemplates: () => ({ data: [], isLoading: false, isError: false }),
     useIssueCertificate: noopMutation,
     useRevokeCertificate: noopMutation,
     useRecommendCertificate: noopMutation,

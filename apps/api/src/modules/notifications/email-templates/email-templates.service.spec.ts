@@ -198,6 +198,38 @@ describe("EmailTemplatesService", () => {
       expect(visible).not.toMatch(/\border id\b/i);
       expect(subject).not.toMatch(/payment|₹/i);
     });
+
+    // Both payment emails, not just the first. A student paying a second instalment used to
+    // get "we've received your payment of ₹14,999.00" with the order and invoice under it.
+    it("sends no amount, order or invoice in the default payment receipt either", async () => {
+      const { subject, html } = await service.renderForSend(TENANT, "payment_receipt", {
+        studentName: "Chandra Sekhar",
+        amountRupees: "14,999.00",
+        orderId: "a9adcbe6-2e3e-4351-87d0-ea470ebf0078",
+        invoiceNumber: "INV-2026-0001",
+      });
+
+      const visible = html.replace(/<[^>]*>/g, " ");
+      expect(visible).not.toContain("14,999.00");
+      expect(visible).not.toContain("INV-2026-0001");
+      expect(visible).not.toContain("a9adcbe6");
+      expect(visible).not.toMatch(/₹/);
+      expect(subject).not.toMatch(/₹|receipt/i);
+    });
+
+    // The placeholders stay DECLARED even though the default no longer uses them, so the
+    // CRM can add a receipt back without a deploy. If this list ever shrinks, that door
+    // closes and the 422 on save would be the only clue.
+    it("still allows the money placeholders, so a receipt can be restored from the CRM", async () => {
+      await expect(
+        service.update(TENANT, "payment_receipt", {
+          subject: "Payment receipt",
+          heading: "Payment Received",
+          body: "We received ₹{{amountRupees}} for order {{orderId}} ({{invoiceNumber}}).",
+          footnote: null,
+        }),
+      ).resolves.toBeDefined();
+    });
   });
 
   describe("preview()", () => {
