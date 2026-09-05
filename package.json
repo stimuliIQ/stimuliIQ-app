@@ -43,6 +43,7 @@
     "db:seed:course-types": "ts-node --project prisma/tsconfig.seed.json prisma/seed-course-types.ts",
     "db:seed:marketing-targets": "ts-node --project prisma/tsconfig.seed.json prisma/seed-marketing-targets.ts",
     "db:seed:org": "ts-node --project prisma/tsconfig.seed.json prisma/seed-org.ts",
+    "db:seed:org-permissions": "ts-node --project prisma/tsconfig.seed.json prisma/seed-org-permissions.ts",
     "dev:provision:e2e-org": "node scripts/dev-provision-e2e-org.cjs",
     "resync:progress": "ts-node --project prisma/tsconfig.seed.json prisma/resync-enrollment-progress.ts",
     "db:generate": "prisma generate",

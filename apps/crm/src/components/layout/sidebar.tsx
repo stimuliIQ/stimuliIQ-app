@@ -81,8 +81,15 @@ function hasRole(me: MeResponse | undefined, role: string | undefined): boolean 
 
 function isSectionVisible(section: NavSection, me: MeResponse | undefined): boolean {
   if (!hasRole(me, section.role)) return false;
-  if (!section.permission) return true;
-  return hasPermission(me?.permissions, section.permission);
+  if (section.permission && !hasPermission(me?.permissions, section.permission)) return false;
+  // A parent whose every child is hidden is a dead end: it opens a panel that says
+  // "Nothing here for your role" and offers nowhere to go. Almost no section declares a
+  // permission of its own (the gate lives on each leaf), so without this a role missing one
+  // whole module still gets its heading in the sidebar. That is how a super admin ended up
+  // staring at an empty Organisation panel on a database where `org.teams.view` had never
+  // been seeded — the nav promised a screen the account could not open.
+  if (section.children?.length) return section.children.some((child) => isLeafVisible(child, me));
+  return true;
 }
 
 export function isLeafVisible(leaf: NavLeaf, me: MeResponse | undefined): boolean {
@@ -648,6 +655,10 @@ function SidebarSection({
 
           <ul className="min-h-0 flex-1 overflow-y-auto p-2" aria-label={section.label}>
             {visibleChildren.length === 0 ? (
+              // Unreachable by construction: `isSectionVisible` now drops a section whose
+              // every child is hidden, so a section that renders always has one. Kept as the
+              // graceful degrade if those two ever disagree — a sentence explaining an empty
+              // panel beats an empty panel.
               <li className="px-2.5 py-2 text-sm text-fg-subtle">Nothing here for your role.</li>
             ) : (
               visibleChildren.map((child) => {

@@ -440,6 +440,17 @@ db foundation). Then execute it, delegating each task to the named specialist su
   **DB setup on an existing/live database:** `prisma migrate deploy` (additive — one table, one
   nullable column on `users`, one enum value in its own migration because Postgres will not use a
   new value in the transaction that added it, three nullable leave columns) then `pnpm db:seed:org`.
+  **If only the Organisation SCREEN is wanted, run `pnpm db:seed:org-permissions` instead**
+  (added 2026-09-05). `seed-org.ts` is the whole phase and it changes other people's access —
+  it hands `leave.approve` to seven staff roles and NARROWS `leave.calendar.view` from
+  company-wide to own-team — so unblocking one screen should not be its price. The subset
+  writes only the two `org.teams.*` permissions and grants read to super_admin/admin/
+  branch_manager and write to super_admin. Both are idempotent and `db:seed:org` layers
+  cleanly on top. **Production hit exactly this on 2026-09-05**: the migration had run (the
+  `teams` table existed) but neither seed had, so `org.teams.view` did not exist as a
+  permission ROW and the owner's own sidebar offered Organisation and then said "Nothing here
+  for your role". The sidebar now also hides any section whose every child is hidden, so a
+  missing grant can no longer produce a nav entry that leads nowhere.
   Do NOT run the full `pnpm db:seed`. **No teams are seeded, nobody is put on one, and nobody is
   given `hr`** — a seeded team is a live approval route for real people's absence.
   **Known limitation:** a manager holding only `admin` cannot approve, since `admin` is

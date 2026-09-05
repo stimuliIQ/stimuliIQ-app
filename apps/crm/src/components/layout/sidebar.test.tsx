@@ -282,6 +282,31 @@ describe("Sidebar, RBAC gating", () => {
     // `leads.create` is not held, so Import must not be offered at all.
     expect(screen.queryByTestId("nav-leaf-import")).not.toBeInTheDocument();
   });
+
+  it("hides a section whose every child is hidden, rather than offering a dead end", () => {
+    // Almost no section declares a permission of its own — the gate is on each leaf — so a
+    // section only disappears if this rule holds. Without it a viewer missing a whole module
+    // still gets its heading, clicks it, and lands on "Nothing here for your role": the nav
+    // promising a screen the account cannot open. A super admin hit exactly that on
+    // Organisation, on a database where `org.teams.view` had never been seeded.
+    renderSidebar({ me: LEADS_ONLY_ME });
+
+    expect(screen.queryByTestId("nav-section-academics")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("nav-section-organisation")).not.toBeInTheDocument();
+    expect(screen.queryByText("Nothing here for your role.")).not.toBeInTheDocument();
+  });
+
+  it("shows a section as soon as ONE of its children is permitted", () => {
+    const me: MeResponse = {
+      ...LEADS_ONLY_ME,
+      permissions: [{ key: "org.teams.view", scope: "all" }],
+    };
+    renderSidebar({ me });
+
+    expect(screen.getByTestId("nav-section-organisation")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("nav-section-organisation"));
+    expect(screen.getByTestId("nav-leaf-teams")).toBeInTheDocument();
+  });
 });
 
 describe("Sidebar, active route", () => {
