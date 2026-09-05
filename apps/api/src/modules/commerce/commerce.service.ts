@@ -931,11 +931,8 @@ export class CommerceService {
       }
 
       if (creds) {
-        await this.sendReceiptWithCredentialsEmail(student.email, {
+        await this.sendCredentialsWelcomeEmail(student.email, {
           studentName: student.name,
-          orderId: args.orderId,
-          amountPaise: args.amountPaise,
-          invoiceNumber,
           username: creds.email,
           tempPassword: creds.tempPassword,
         });
@@ -960,34 +957,46 @@ export class CommerceService {
     }
   }
 
-  /** The single first-payment email: receipt + LMS credentials + sign-in CTA. */
-  private async sendReceiptWithCredentialsEmail(
+  /**
+   * The single first-payment email: welcome + LMS credentials + sign-in CTA.
+   *
+   * DELIBERATELY NOT A RECEIPT. It used to open with "We've received your payment of
+   * ₹14,999.00" and list Order ID, Invoice number and Amount above the login details. The
+   * money is now left out entirely, on the owner's instruction: the first thing a student
+   * reads after paying should welcome them and get them signed in, not restate what they
+   * were just charged. The amount, the order and the invoice all still exist and are
+   * unchanged in the CRM — this only stops repeating them here.
+   *
+   * CONSEQUENCE WORTH KNOWING: `invoices.view` is a STAFF permission and there is no
+   * student-facing invoice screen in the LMS, so the invoice number in this email was the
+   * only reference a student had to their GST invoice. Dropping it means the invoice is
+   * reachable only by asking the office. If students should be able to fetch their own,
+   * that needs an LMS surface, not this email.
+   *
+   * `amountPaise` and `invoiceNumber` are gone from the parameters rather than accepted
+   * and ignored: a value a caller still passes is a value somebody re-adds to the body
+   * later without asking why it left.
+   */
+  private async sendCredentialsWelcomeEmail(
     to: string,
     data: {
       studentName: string;
-      orderId: string;
-      amountPaise: number;
-      invoiceNumber: string | undefined;
       username: string;
       tempPassword: string;
     },
   ): Promise<void> {
     const env = validateEnv();
-    const amount = `₹${(data.amountPaise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
     await this.mail.send({
       to,
-      subject: `Payment received. You're enrolled! Your LMS login is inside`,
+      subject: `Welcome aboard! Your LMS login is inside`,
       html: renderBrandedEmail({
-        title: "Payment Received, You're Enrolled!",
+        title: "You're Enrolled!",
         greeting: `Hi ${escapeEmailHtml(data.studentName)},`,
         paragraphs: [
-          `We've received your payment of <strong>${amount}</strong>, welcome aboard! ` +
-            `Your learning account is ready; sign in with the details below.`,
+          `Welcome aboard! Your enrolment is confirmed and your learning account is ready. ` +
+            `Sign in with the details below to get started.`,
         ],
         details: [
-          { label: "Order ID", value: data.orderId },
-          ...(data.invoiceNumber ? [{ label: "Invoice", value: data.invoiceNumber }] : []),
-          { label: "Amount", value: amount },
           { label: "LMS username", value: escapeEmailHtml(data.username) },
           { label: "Temporary password", value: escapeEmailHtml(data.tempPassword) },
         ],
@@ -996,7 +1005,7 @@ export class CommerceService {
           "For your security you'll be asked to set a new password the first time you sign in. " +
           "Please don't share these details with anyone.",
       }),
-      tags: [{ name: "category", value: "payment_receipt_credentials" }],
+      tags: [{ name: "category", value: "enrollment_welcome_credentials" }],
     });
   }
 

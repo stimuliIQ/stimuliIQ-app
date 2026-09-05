@@ -1137,7 +1137,7 @@ describe("CommerceService", () => {
       expect(lmsProvisioning.provisionQuiet).toHaveBeenCalledWith(TENANT_ID, order.studentId);
     });
 
-    it("FIRST payment sends ONE combined email (receipt + credentials) and suppresses the fan-out email", async () => {
+    it("FIRST payment sends ONE welcome email carrying the credentials, and suppresses the fan-out email", async () => {
       const order = makeMockOrderRow({ status: "created", notes: { batchId: BATCH_ID } });
       repository.findOrderById.mockResolvedValue(order);
       repository.listPayments.mockResolvedValue({ rows: [], total: 0 });
@@ -1179,12 +1179,21 @@ describe("CommerceService", () => {
         }),
       );
 
-      // One combined email carrying the credentials…
+      // One email carrying the credentials…
       expect(mail.send).toHaveBeenCalledTimes(1);
       const sent = mail.send.mock.calls[0][0];
       expect(sent.to).toBe("student@test.com");
       expect(sent.html).toContain("tmp-secret-123");
-      expect(sent.html).toContain("INV-2026-0001");
+
+      // …and NOTHING about the money. This email used to open with "We've received your
+      // payment of ₹1,000.00" and list the order, the invoice number and the amount above
+      // the login details; the owner asked for a welcome, not a receipt. Asserted as
+      // absences because that is the whole change — a later edit that reintroduces any of
+      // them silently undoes it, and the invoice number in particular reads as helpful.
+      expect(sent.html).not.toContain("INV-2026-0001");
+      expect(sent.html).not.toContain(ORDER_ID);
+      expect(sent.html).not.toContain("1,000.00");
+      expect(sent.html).not.toMatch(/Amount/i);
       // …and the fan-out receipt runs WITHOUT an email address (no duplicate email).
       expect(notifSvc.notifyPaymentReceipt).toHaveBeenCalledWith(
         "user-1",
