@@ -125,9 +125,12 @@ import type {
   UnsubscribeResponse,
   NotificationPrefMatrix,
   QuietHours,
+  EmailTemplateKey,
 } from "@repo/types";
+import { EMAIL_TEMPLATE_KEYS } from "@repo/types";
 import { validateEnv } from "../../config/env";
 import { NotificationsRepository } from "./notifications.repository";
+import { EmailTemplatesService } from "./email-templates/email-templates.service";
 import {
   NOTIFICATION_DISPATCH_PORT,
   type NotificationDispatchPort,
@@ -324,6 +327,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly repo: NotificationsRepository,
     private readonly templateRegistry: TemplateRegistry,
+    private readonly emailTemplates: EmailTemplatesService,
     @Inject(NOTIFICATION_DISPATCH_PORT) private readonly dispatch: NotificationDispatchPort,
     private readonly redis: RedisService,
   ) {}
@@ -453,6 +457,31 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     };
 
     const templates = this.templateRegistry.renderAll(type, enrichedPayload);
+
+    // The EMAIL channel for the types CRM ▸ Settings ▸ Email templates governs comes from
+    // the resolved template instead of the registry's baked-in copy, so editing the text
+    // there changes what students actually receive. The registry stays authoritative for
+    // in_app / sms / whatsapp: those are short, DLT-registered where it matters, and are
+    // not what anybody asked to be able to reword.
+    //
+    // Failure here is swallowed on purpose. This runs inside notify(), which every feature
+    // fires and none of them treat as load-bearing; a database hiccup while resolving an
+    // override must degrade to the shipped wording, never drop the notification.
+    if (isEditableEmailType(type) && templates.email) {
+      try {
+        const rendered = await this.emailTemplates.renderForSend(
+          tenantId,
+          type,
+          toTemplateValues(enrichedPayload),
+          { button: { label: "Go to LMS", url: env.LMS_APP_URL } },
+        );
+        templates.email = { ...templates.email, subject: rendered.subject, body: rendered.html };
+      } catch (err) {
+        this.logger.warn(
+          `[NotificationsService] email-template override failed for "${type}", using the default: ${String(err)}`,
+        );
+      }
+    }
 
     // ─── 3. Write in-app row (ALWAYS — AC-7) ─────────────────────────────
     // Build channels record (will update after fan-out completes)
@@ -1205,3 +1234,23 @@ function toNotificationDto(row: NotificationRow): NotificationDto {
 }
 
 export { toNotificationDto };
+
+/**
+ * Types whose EMAIL body is editable in the CRM.
+ *
+ * Derived from EMAIL_TEMPLATE_KEYS rather than listed again here, so a key added to that
+ * contract cannot be left un-wired on this side — which would put a template in the CRM
+ * that edits text no student ever sees.
+ */
+function isEditableEmailType(type: NotificationType): type is NotificationType & EmailTemplateKey {
+  return (EMAIL_TEMPLATE_KEYS as readonly string[]).includes(type);
+}
+
+/** Payload values as strings, for {{placeholder}} interpolation. */
+function toTemplateValues(payload: Record<string, unknown>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(payload)
+      .filter(([, v]) => v !== null && v !== undefined)
+      .map(([k, v]) => [k, String(v)]),
+  );
+}

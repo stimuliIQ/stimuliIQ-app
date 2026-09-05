@@ -119,6 +119,7 @@ const AUDITED_MODELS = new Set<string>([
   // only redaction (SECRET_FIELDS) is sufficient; no allowlist required. The signing key
   // (CLOUDFLARE_STREAM_SIGNING_KEY_PEM etc.) never appears in the Video row.
   "Video",
+  "EmailTemplate",
   //
   // LessonProgress: INCLUDED with the following audit-volume caveat (see schema.prisma
   // header for full decision rationale):

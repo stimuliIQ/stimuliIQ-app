@@ -568,6 +568,7 @@ model Tenant {
   notificationSuppressions NotificationSuppression[]
   campaigns                Campaign[]
   campaignTemplates        CampaignTemplate[]
+  emailTemplates           EmailTemplate[]
   campaignRecipients       CampaignRecipient[]
   badges                   Badge[]
   userBadges               UserBadge[]
@@ -2533,6 +2534,47 @@ model CampaignTemplate {
   @@index([tenantId, channel])
   @@index([tenantId, deletedAt])
   @@map("campaign_templates")
+}
+
+/// CRM-editable OVERRIDES of the transactional emails the system sends automatically.
+///
+/// A row is an override, not the template itself: the DEFAULT prose for every key lives in
+/// EMAIL_TEMPLATE_DEFAULTS in the API. An email that fails to render is worse than one
+/// nobody can reword, and a missing row must never be able to break enrolment for a student
+/// who has already paid, so there is no row until somebody edits one and "reset to default"
+/// deletes it rather than rewriting it.
+///
+/// Only the PROSE is stored. The details table (which carries the LMS username and
+/// temporary password), the button and the layout stay in code — an editor able to delete
+/// somebody's credentials out of the one email containing them is not a feature.
+model EmailTemplate {
+  id       String  @id @default(uuid()) @db.Uuid
+  tenantId String  @map("tenant_id") @db.Uuid
+  /// Stable code key (EMAIL_TEMPLATE_KEYS in @repo/types), e.g. "enrollment_welcome".
+  /// Not an enum: adding a key is a code change that ships its default alongside, and a DB
+  /// enum would make every new email a migration for no gain.
+  key      String
+  subject  String
+  heading  String
+  /// Prose. Blank lines separate paragraphs. May use the {{placeholders}} the key declares.
+  body     String
+  footnote String?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  /// One override per key per tenant, on a FULL unique (not partial on deleted_at).
+  /// Reset soft-deletes, so the row keeps holding this slot — which would block re-editing
+  /// the same template later, the trap videos.lesson_id has. Saving therefore UPSERTS and
+  /// clears deleted_at, reviving the row rather than inserting a second one. `upsert` is
+  /// the one write softDeleteExtension passes through untouched, which is what makes this
+  /// work against the row the extension's reads cannot see.
+  @@unique([tenantId, key])
+  @@index([tenantId, deletedAt])
+  @@map("email_templates")
 }
 
 // Campaign — a bulk messaging campaign targeting a filtered audience segment.

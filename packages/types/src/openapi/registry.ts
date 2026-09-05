@@ -2485,6 +2485,12 @@ import {
   ListEligibilityQuerySchema,
   ListEligibilityBatchesQuerySchema,
 } from "../learning/certificates.schemas.js";
+import {
+  EmailTemplateSchema,
+  UpdateEmailTemplateRequestSchema,
+  ResetEmailTemplateResponseSchema,
+  EmailTemplatePreviewResponseSchema,
+} from "../engagement/email-templates.schemas.js";
 
 import {
   GetUploadUrlRequestSchema,
@@ -5790,6 +5796,21 @@ const SetSettingRequest = registry.register("SetSettingRequest", SetSettingReque
 const Setting = registry.register("Setting", SettingSchema);
 const SettingEnvelope = envelopeOf("Setting", Setting);
 const SettingListEnvelope = paginatedEnvelopeOf("Setting", Setting);
+
+// -- Email templates (the automatic transactional emails, CRM-editable) --
+const EmailTemplate = registry.register("EmailTemplate", EmailTemplateSchema);
+const EmailTemplateListEnvelope = envelopeOf("EmailTemplateList", z.array(EmailTemplate));
+const EmailTemplateEnvelope = envelopeOf("EmailTemplate", EmailTemplate);
+const UpdateEmailTemplateRequest = registry.register("UpdateEmailTemplateRequest", UpdateEmailTemplateRequestSchema);
+const ResetEmailTemplateResponse = registry.register("ResetEmailTemplateResponse", ResetEmailTemplateResponseSchema);
+const EmailTemplatePreviewResponse = registry.register("EmailTemplatePreviewResponse", EmailTemplatePreviewResponseSchema);
+const EmailTemplateKeyParam = z.object({ key: z.enum(["enrollment_welcome", "payment_receipt"]) });
+
+registry.registerPath({ method: "get", path: "/api/v1/crm/email-templates", summary: "List the automatic emails and whether each is customised", tags: ["crm", "settings"], security: [{ cookieAuth: [] }], ...requiredPermission("settings.view"), responses: { 200: { description: "Templates, default or customised.", content: { "application/json": { schema: EmailTemplateListEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "get", path: "/api/v1/crm/email-templates/{key}", summary: "Get one automatic email's current text", tags: ["crm", "settings"], security: [{ cookieAuth: [] }], ...requiredPermission("settings.view"), request: { params: EmailTemplateKeyParam }, responses: { 200: { description: "Template.", content: { "application/json": { schema: EmailTemplateEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "get", path: "/api/v1/crm/email-templates/{key}/preview", summary: "Render the email as a student receives it, with sample values", tags: ["crm", "settings"], security: [{ cookieAuth: [] }], ...requiredPermission("settings.view"), request: { params: EmailTemplateKeyParam }, responses: { 200: { description: "Rendered subject + HTML.", content: { "application/json": { schema: envelopeOf("EmailTemplatePreview", EmailTemplatePreviewResponse) } } }, ...errorResponses } });
+registry.registerPath({ method: "put", path: "/api/v1/crm/email-templates/{key}", summary: "Override an automatic email's wording", tags: ["crm", "settings"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("settings.edit"), request: { params: EmailTemplateKeyParam, body: { content: { "application/json": { schema: UpdateEmailTemplateRequest } } }, headers: idempotencyKeyHeader }, responses: { 200: { description: "Saved. 422 email_templates.unknown_variable if the text uses a placeholder this email does not supply.", content: { "application/json": { schema: EmailTemplateEnvelope } } }, ...errorResponses } });
+registry.registerPath({ method: "delete", path: "/api/v1/crm/email-templates/{key}", summary: "Discard the override and restore the shipped wording", tags: ["crm", "settings"], security: [{ cookieAuth: [], csrfHeader: [] }], ...requiredPermission("settings.edit"), request: { params: EmailTemplateKeyParam }, responses: { 200: { description: "Reset. 404 email_templates.not_customised when it was never overridden.", content: { "application/json": { schema: envelopeOf("ResetEmailTemplate", ResetEmailTemplateResponse) } } }, ...errorResponses } });
 
 registry.registerPath({ method: "get", path: "/api/v1/crm/settings", summary: "List settings (system+company scope)", tags: ["crm", "settings"], security: [{ cookieAuth: [] }], ...requiredPermission("settings.view"), request: { query: ListSettingsQuerySchema }, responses: { 200: { description: "Setting list.", content: { "application/json": { schema: SettingListEnvelope } } }, ...errorResponses } });
 registry.registerPath({ method: "get", path: "/api/v1/crm/settings/{scope}/{key}", summary: "Get a single setting by (scope,key)", tags: ["crm", "settings"], security: [{ cookieAuth: [] }], ...requiredPermission("settings.view"), request: { params: z.object({ scope: z.enum(["system", "company"]), key: z.string().min(1) }) }, responses: { 200: { description: "Setting detail.", content: { "application/json": { schema: SettingEnvelope } } }, ...errorResponses } });

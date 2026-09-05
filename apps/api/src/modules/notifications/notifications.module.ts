@@ -36,6 +36,9 @@ import { DispatchModule } from "./dispatch/dispatch.module";
 import { NotificationsRepository } from "./notifications.repository";
 import { NotificationsService } from "./notifications.service";
 import { NotificationsMeController, UnsubscribeController } from "./notifications.controller";
+import { EmailTemplatesController } from "./email-templates/email-templates.controller";
+import { EmailTemplatesService } from "./email-templates/email-templates.service";
+import { EmailTemplatesRepository } from "./email-templates/email-templates.repository";
 
 @Module({
   imports: [
@@ -47,16 +50,24 @@ import { NotificationsMeController, UnsubscribeController } from "./notification
   controllers: [
     NotificationsMeController,
     UnsubscribeController,
+    // /crm/email-templates* — the CRM-editable transactional emails.
+    EmailTemplatesController,
   ],
   providers: [
     NotificationsService,
     NotificationsRepository,
+    EmailTemplatesService,
+    EmailTemplatesRepository,
   ],
   exports: [
     // Export so ForumModule (task #9) + future P4/P5 wiring callers can inject this.
     NotificationsService,
     // Export so ReportSchedulesModule (Wave 2 task #11) can reuse the suppression check.
     NotificationsRepository,
+    // Exported so CommerceModule renders the enrolment welcome through the same resolved
+    // template the CRM edits. A send site that composes its own copy is how this screen
+    // would quietly stop describing what students receive.
+    EmailTemplatesService,
   ],
 })
 export class NotificationsModule {}

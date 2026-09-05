@@ -79,6 +79,7 @@ import { StudentsRepository } from "../students/students.repository";
 import { LmsAccountProvisioningService } from "../students/lms-account-provisioning.service";
 import { MAIL_PROVIDER, type MailProvider } from "../notifications/providers/mail/mail-provider.interface";
 import { renderBrandedEmail, escapeEmailHtml } from "../notifications/dispatch/email-layout";
+import { EmailTemplatesService } from "../notifications/email-templates/email-templates.service";
 import type {
   CreateOrderRequest,
   ListOrdersQuery,
@@ -136,6 +137,7 @@ export class CommerceService {
     @Inject(RECEIPT_GEN_PORT) private readonly receiptGen: ReceiptGenPort,
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
     private readonly notifSvc: NotificationsService,
+    private readonly emailTemplates: EmailTemplatesService,
     private readonly studentsRepository: StudentsRepository,
     private readonly lmsProvisioning: LmsAccountProvisioningService,
     @Inject(MAIL_PROVIDER) private readonly mail: MailProvider,
@@ -931,7 +933,7 @@ export class CommerceService {
       }
 
       if (creds) {
-        await this.sendCredentialsWelcomeEmail(student.email, {
+        await this.sendCredentialsWelcomeEmail(tenantId, student.email, {
           studentName: student.name,
           username: creds.email,
           tempPassword: creds.tempPassword,
@@ -962,22 +964,24 @@ export class CommerceService {
    *
    * DELIBERATELY NOT A RECEIPT. It used to open with "We've received your payment of
    * ₹14,999.00" and list Order ID, Invoice number and Amount above the login details. The
-   * money is now left out entirely, on the owner's instruction: the first thing a student
-   * reads after paying should welcome them and get them signed in, not restate what they
-   * were just charged. The amount, the order and the invoice all still exist and are
-   * unchanged in the CRM — this only stops repeating them here.
+   * money is left out entirely, on the owner's instruction: the first thing a student reads
+   * after paying should welcome them and get them signed in, not restate what they were
+   * just charged. The amount, order and invoice all still exist and are unchanged in the
+   * CRM — this only stops repeating them here.
    *
    * CONSEQUENCE WORTH KNOWING: `invoices.view` is a STAFF permission and there is no
    * student-facing invoice screen in the LMS, so the invoice number in this email was the
-   * only reference a student had to their GST invoice. Dropping it means the invoice is
-   * reachable only by asking the office. If students should be able to fetch their own,
-   * that needs an LMS surface, not this email.
+   * only reference a student had to their GST invoice. If students should be able to fetch
+   * their own, that needs an LMS surface, not a line in an email that is no longer about
+   * money.
    *
-   * `amountPaise` and `invoiceNumber` are gone from the parameters rather than accepted
-   * and ignored: a value a caller still passes is a value somebody re-adds to the body
-   * later without asking why it left.
+   * The wording now comes from EmailTemplatesService, so CRM ▸ Settings ▸ Email templates
+   * shows and edits the text this actually sends. The credentials table and the sign-in
+   * button stay HERE and are passed in as fixed parts: an editor that can delete somebody's
+   * password out of the one email containing it is not a feature.
    */
   private async sendCredentialsWelcomeEmail(
+    tenantId: string,
     to: string,
     data: {
       studentName: string;
@@ -986,25 +990,23 @@ export class CommerceService {
     },
   ): Promise<void> {
     const env = validateEnv();
-    await this.mail.send({
-      to,
-      subject: `Welcome aboard! Your LMS login is inside`,
-      html: renderBrandedEmail({
-        title: "You're Enrolled!",
-        greeting: `Hi ${escapeEmailHtml(data.studentName)},`,
-        paragraphs: [
-          `Welcome aboard! Your enrolment is confirmed and your learning account is ready. ` +
-            `Sign in with the details below to get started.`,
-        ],
+    const { subject, html } = await this.emailTemplates.renderForSend(
+      tenantId,
+      "enrollment_welcome",
+      { studentName: data.studentName },
+      {
         details: [
           { label: "LMS username", value: escapeEmailHtml(data.username) },
           { label: "Temporary password", value: escapeEmailHtml(data.tempPassword) },
         ],
         button: { label: "Sign in to the LMS", url: `${env.LMS_APP_URL}/login` },
-        footnote:
-          "For your security you'll be asked to set a new password the first time you sign in. " +
-          "Please don't share these details with anyone.",
-      }),
+      },
+    );
+
+    await this.mail.send({
+      to,
+      subject,
+      html,
       tags: [{ name: "category", value: "enrollment_welcome_credentials" }],
     });
   }

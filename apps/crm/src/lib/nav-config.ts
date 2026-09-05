@@ -417,6 +417,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Course Types", icon: GraduationCap, to: "/admin/course-types", permission: "course_types.manage" },
       { label: "Audit Logs", icon: ScrollText, to: "/admin/audit-logs", permission: "audit_logs.view" },
       { label: "Message Templates", icon: Mail, to: "/admin/notifications", permission: "campaigns.view" },
+      { label: "Automatic Emails", icon: Send, to: "/admin/email-templates", permission: "settings.view" },
       { label: "Settings", icon: Settings, to: "/admin/settings", permission: "settings.view" },
     ],
   },

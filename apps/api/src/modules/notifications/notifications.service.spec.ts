@@ -17,6 +17,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { NotFoundException, BadRequestException } from "@nestjs/common";
 import { NotificationsService, generateUnsubscribeToken, verifyUnsubscribeToken } from "./notifications.service";
+import { EmailTemplatesService } from "./email-templates/email-templates.service";
 import { NotificationsRepository } from "./notifications.repository";
 import { NOTIFICATION_DISPATCH_PORT } from "./dispatch/notification-dispatch.port";
 import { TemplateRegistry } from "./dispatch/template-registry";
@@ -107,6 +108,16 @@ describe("NotificationsService", () => {
         { provide: NOTIFICATION_DISPATCH_PORT, useValue: mockDispatch },
         { provide: TemplateRegistry, useValue: mockTemplateRegistry },
         { provide: RedisService, useValue: mockRedisService },
+        // Only consulted for the types CRM ▸ Automatic Emails governs, and none of the
+        // types exercised here are among them. Bound so the module compiles, and made to
+        // throw so a future test that DOES hit an editable type fails loudly rather than
+        // silently rendering the registry copy and asserting on the wrong email.
+        {
+          provide: EmailTemplatesService,
+          useValue: {
+            renderForSend: jest.fn().mockRejectedValue(new Error("EmailTemplatesService not stubbed for this test")),
+          },
+        },
       ],
     }).compile();
 

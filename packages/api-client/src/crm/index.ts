@@ -38,6 +38,7 @@ import { CareersApi } from "./careers.api.js";
 import { MarketingTargetsApi } from "./marketing-targets.api.js";
 import { SiteSettingsApi } from "./site-settings.api.js";
 import { SettingsApi } from "./settings.api.js";
+import { EmailTemplatesApi } from "./email-templates.api.js";
 import { ReferralsApi } from "./referrals.api.js";
 import { EmiPlansApi } from "./emi.api.js";
 import { LandingPagesApi } from "./landing-pages.api.js";
@@ -117,6 +118,7 @@ export class CrmApi {
   // content-pages controller surface) — see content.api.ts.
   readonly siteSettings: SiteSettingsApi;
   readonly settings: SettingsApi;
+  readonly emailTemplates: EmailTemplatesApi;
   readonly referrals: ReferralsApi;
   readonly emiPlans: EmiPlansApi;
   readonly landingPages: LandingPagesApi;
@@ -166,6 +168,7 @@ export class CrmApi {
     this.careers = new CareersApi(client);
     this.marketingTargets = new MarketingTargetsApi(client);
     this.siteSettings = new SiteSettingsApi(client);
+    this.emailTemplates = new EmailTemplatesApi(client);
     this.settings = new SettingsApi(client);
     this.referrals = new ReferralsApi(client);
     this.emiPlans = new EmiPlansApi(client);

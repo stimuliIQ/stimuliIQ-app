@@ -29,6 +29,7 @@ import { adminRolesRoute } from "./routes/admin-roles-route";
 import { adminBranchesRoute } from "./routes/admin-branches-route";
 import { adminUsersRoute } from "./routes/admin-users-route";
 import { adminCourseTypesRoute } from "./routes/admin-course-types-route";
+import { adminEmailTemplatesRoute } from "./routes/admin-email-templates-route";
 import { orgTeamsRoute } from "./routes/org-teams-route";
 import { adminAuditRoute } from "./routes/admin-audit-route";
 import { adminSettingsRoute } from "./routes/admin-settings-route";
@@ -114,6 +115,7 @@ const routeTree = rootRoute.addChildren([
   adminBranchesRoute,
   adminUsersRoute,
   adminCourseTypesRoute,
+  adminEmailTemplatesRoute,
   orgTeamsRoute,
   adminAuditRoute,
   adminSettingsRoute,

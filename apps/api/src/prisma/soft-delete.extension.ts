@@ -70,6 +70,7 @@ const SOFT_DELETE_MODELS = new Set<string>([
   "NotificationPref",
   "NotificationSuppression",
   "CampaignTemplate",
+  "EmailTemplate",
   "Campaign",
   "CampaignRecipient",
   "Badge",

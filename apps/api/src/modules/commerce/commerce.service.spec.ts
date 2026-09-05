@@ -28,6 +28,7 @@ import { RECEIPT_GEN_PORT } from "./receipt-gen.seam";
 import { STORAGE_PROVIDER } from "../storage/providers/storage/storage-provider.interface";
 import { scopeContextStorage } from "../auth/lib/scope-context";
 import { NotificationsService } from "../notifications/notifications.service";
+import { EmailTemplatesService } from "../notifications/email-templates/email-templates.service";
 import { StudentsRepository } from "../students/students.repository";
 import { LmsAccountProvisioningService } from "../students/lms-account-provisioning.service";
 import { MAIL_PROVIDER } from "../notifications/providers/mail/mail-provider.interface";
@@ -274,6 +275,25 @@ describe("CommerceService", () => {
         { provide: RECEIPT_GEN_PORT, useValue: mockReceiptGen },
         { provide: STORAGE_PROVIDER, useValue: mockStorage },
         { provide: NotificationsService, useValue: notifSvc },
+        // The enrolment email's wording now comes from here. Stubbed with the REAL default
+        // text rather than a placeholder, because the assertions below check what a student
+        // receives — that the credentials are present and the money is not — and a stub
+        // returning "html" would make those pass without meaning anything.
+        {
+          provide: EmailTemplatesService,
+          useValue: {
+            renderForSend: jest.fn(async (_tenantId, _key, values, fixed) => ({
+              subject: "Welcome aboard! Your LMS login is inside",
+              html:
+                `<html><body><h1>You're Enrolled!</h1>` +
+                `<p>Hi ${values.studentName ?? ""}, welcome aboard.</p>` +
+                ((fixed?.details ?? []) as Array<{ label: string; value: string }>)
+                  .map((d) => `<tr><td>${d.label}</td><td>${d.value}</td></tr>`)
+                  .join("") +
+                `</body></html>`,
+            })),
+          },
+        },
         { provide: StudentsRepository, useValue: studentsRepository },
         { provide: LmsAccountProvisioningService, useValue: lmsProvisioning },
         { provide: MAIL_PROVIDER, useValue: mail },

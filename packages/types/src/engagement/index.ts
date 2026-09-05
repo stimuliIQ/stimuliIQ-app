@@ -20,3 +20,4 @@ export * from "./notifications.schemas.js";
 export * from "./campaigns.schemas.js";
 export * from "./gamification.schemas.js";
 export * from "./forum.schemas.js";
+export * from "./email-templates.schemas.js";
