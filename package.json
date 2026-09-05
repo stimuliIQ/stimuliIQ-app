@@ -48,7 +48,8 @@
     "resync:progress": "ts-node --project prisma/tsconfig.seed.json prisma/resync-enrollment-progress.ts",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "prepare": "node ./infra/scripts/check-env-example.mjs || true"
+    "prepare": "node ./infra/scripts/check-env-example.mjs || true",
+    "db:seed:certificate-templates": "ts-node --project prisma/tsconfig.seed.json prisma/seed-certificate-templates.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
