@@ -92,6 +92,7 @@ import {
   ListOrdersQuerySchema,
   OrderSummarySchema,
   OrderDetailSchema,
+  UpdateOrderPriceRequestSchema,
 } from "../commerce/orders.schemas.js";
 import {
   CreateRazorpayOrderResponseSchema,
@@ -1246,6 +1247,30 @@ registry.registerPath({
   },
   responses: {
     201: { description: "Order created.", content: { "application/json": { schema: OrderDetailEnvelope } } },
+    ...errorResponses,
+  },
+});
+
+const UpdateOrderPriceRequest = registry.register("UpdateOrderPriceRequest", UpdateOrderPriceRequestSchema);
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/v1/commerce/orders/{id}/price",
+  summary: "Reprice an unpaid order below its list price (records a discount + reason)",
+  tags: ["commerce", "orders"],
+  security: [{ cookieAuth: [], csrfHeader: [] }],
+  ...requiredPermission("orders.edit"),
+  request: {
+    params: z.object({ id: z.string().uuid() }),
+    body: { content: { "application/json": { schema: UpdateOrderPriceRequest } } },
+    headers: idempotencyKeyHeader,
+  },
+  responses: {
+    200: {
+      description:
+        "Repriced. Stored as amountPaise + discountPaise + discountReason so revenue reads as gross/discount/net. 422 when the order is paid, carries a live payment, the price is above list, or nothing changed.",
+      content: { "application/json": { schema: OrderDetailEnvelope } },
+    },
     ...errorResponses,
   },
 });

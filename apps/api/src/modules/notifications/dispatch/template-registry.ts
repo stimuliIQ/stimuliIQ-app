@@ -153,6 +153,44 @@ const SUPPORT_EMAIL = "support@stimuliiq.com";
  */
 export const NOTIFICATION_TEMPLATES: Record<NotificationType, TemplateDefinition> = {
   // ─── grade_ready ──────────────────────────────────────────────────────────
+  /**
+   * A staff member sold a programme below its list price.
+   *
+   * IN-APP ONLY in practice: the CommerceService fan-out passes no address and no phone, so
+   * only this channel renders. That is deliberate — this is oversight, not an alert. It
+   * belongs in the super admin's feed next to everything else they review, and an email per
+   * discount would be unread within a week. The sms/whatsapp bodies exist because the
+   * registry's shape requires every channel; nothing sends them.
+   */
+  order_price_changed: {
+    inAppBody:
+      "{{studentName}}'s order for {{programTitle}} was repriced from {{fromAmount}} to {{toAmount}}. Reason: {{reason}}",
+
+    emailSubject: "An order was repriced, {{programTitle}}",
+    emailBody: renderBrandedEmail({
+      title: "Order repriced",
+      greeting: "Hi,",
+      paragraphs: [
+        "An order was sold below its list price. This is a notice, not an approval request — the change has already been applied.",
+      ],
+      details: [
+        { label: "Student", value: "{{studentName}}" },
+        { label: "Programme", value: "{{programTitle}}" },
+        { label: "Was", value: "{{fromAmount}}" },
+        { label: "Now", value: "{{toAmount}}" },
+        { label: "Reason", value: "{{reason}}" },
+      ],
+      unsubscribeUrl: "{{unsubscribeUrl}}",
+    }),
+
+    smsBody: `${BRAND_NAME}: order for {{studentName}} repriced {{fromAmount}} -> {{toAmount}}.`,
+    smsDltTemplateId: "DLT_PENDING",
+
+    whatsappTemplateName: "order_price_changed_notification",
+    whatsappBody: "Order for *{{studentName}}* repriced {{fromAmount}} → {{toAmount}}. Reason: {{reason}}",
+    whatsappDltTemplateId: "DLT_PENDING",
+  },
+
   grade_ready: {
     inAppBody: "Your assignment '{{assignmentTitle}}' has been graded. Score: {{score}}.",
 

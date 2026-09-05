@@ -1,0 +1,14 @@
+-- `orders.discount_reason` — why an order is priced below its programme's list price.
+--
+-- Additive and nullable, so every existing order is untouched and reads as "no manual
+-- discount", which is what they are.
+--
+-- WHY A COLUMN RATHER THAN THE AUDIT LOG. Order writes are already audited, so who repriced
+-- an order and from what is recorded automatically. But an audit row is a field diff: it can
+-- say amount_paise went 1499900 -> 1000000 and cannot say "agreed with the college". The
+-- reason is the part a finance review actually needs, and it has to live with the order.
+--
+-- NULL is correct for a COUPON discount too: there the coupon is the reason and `coupon_id`
+-- already records it. This column is only ever set by a manual price change, where the API
+-- makes it mandatory.
+ALTER TABLE "orders" ADD COLUMN "discount_reason" TEXT;

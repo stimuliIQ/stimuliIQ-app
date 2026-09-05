@@ -63,7 +63,10 @@ export type NotificationType =
   | "lead_assigned"
   | "leave_requested"
   | "leave_approved"
-  | "leave_rejected";
+  | "leave_rejected"
+  // Super-admin oversight: somebody sold a programme below its list price. Staff-facing like
+  // the four above.
+  | "order_price_changed";
 
 const typeIconMap: Record<NotificationType, React.ComponentType<{ className?: string; "aria-hidden"?: "true" | boolean }>> = {
   grade_ready: BookOpen,
@@ -80,6 +83,7 @@ const typeIconMap: Record<NotificationType, React.ComponentType<{ className?: st
   leave_requested: CalendarClock,
   leave_approved: CalendarCheck,
   leave_rejected: CalendarX2,
+  order_price_changed: Receipt,
 };
 
 const typeLabelMap: Record<NotificationType, string> = {
@@ -97,6 +101,7 @@ const typeLabelMap: Record<NotificationType, string> = {
   leave_requested: "Leave request",
   leave_approved: "Leave approved",
   leave_rejected: "Leave not approved",
+  order_price_changed: "Order repriced",
 };
 
 export interface NotificationItemProps {

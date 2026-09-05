@@ -80,6 +80,7 @@ import { LmsAccountProvisioningService } from "../students/lms-account-provision
 import { MAIL_PROVIDER, type MailProvider } from "../notifications/providers/mail/mail-provider.interface";
 import { renderBrandedEmail, escapeEmailHtml } from "../notifications/dispatch/email-layout";
 import { EmailTemplatesService } from "../notifications/email-templates/email-templates.service";
+import { computeReprice, formatPaise } from "./order-price.helper";
 import type {
   CreateOrderRequest,
   ListOrdersQuery,
@@ -419,6 +420,139 @@ export class CommerceService {
    * releases the coupon redemption taken at create time. A paid order can NOT
    * be cancelled here — that is the refund flow's job.
    */
+  /**
+   * PATCH /crm/orders/:id/price — sell a programme for less than its list price.
+   *
+   * Recorded as a DISCOUNT: `amountPaise` becomes what is charged, `discountPaise` the gap
+   * to the list price, and `discountReason` why. See order-price.helper.ts for why the
+   * amount is not simply overwritten.
+   *
+   * TWO GUARDS, BOTH LOAD-BEARING:
+   *
+   *   1. `status === "created"`. A paid order's price is settled; reducing it afterwards is a
+   *      REFUND, which exists and leaves its own trail.
+   *   2. NO LIVE PAYMENTS. The status check alone is not enough — an order stays `created`
+   *      while a payment is authorised but not captured, and repricing under one leaves the
+   *      ledger disagreeing with the order it belongs to. The repository's updateMany
+   *      re-checks the status in its WHERE, so two staff repricing at once cannot both win.
+   *
+   * OVERSIGHT, NOT APPROVAL. Discounting is the one commerce action with no second signature,
+   * so every change notifies every active super_admin — except the person who made it, since
+   * telling somebody what they just did is noise, and noise is how a feed stops being read.
+   * The notification is best-effort: it must never roll back a reprice that already committed,
+   * because a half-applied discount is worse than an unwatched one. The AUDIT row is the
+   * durable record and it is written by the Prisma audit extension regardless.
+   */
+  async updateOrderPrice(
+    tenantId: string,
+    actorId: string,
+    id: string,
+    body: { amountPaise: number; reason: string },
+  ): Promise<OrderDetail> {
+    const restriction = await this.resolveListRestriction(actorId);
+    const order = await this.repository.findOrderById(tenantId, id, false, restriction.restrictToBranchIds);
+    if (!order) throw new NotFoundException({ code: "commerce.order_not_found", title: "Order not found" });
+
+    if (order.status !== "created") {
+      throw new UnprocessableEntityException({
+        code: "commerce.order_not_repriceable",
+        title: "Only an unpaid order can be repriced",
+        detail: `This order is "${order.status}". Reducing what a student has already paid is a refund, not a price change.`,
+      });
+    }
+
+    const livePayments = await this.repository.countLivePaymentsForOrder(tenantId, id);
+    if (livePayments > 0) {
+      throw new UnprocessableEntityException({
+        code: "commerce.order_has_payments",
+        title: "This order already has a payment against it",
+        detail:
+          "Changing the price under a recorded payment would break the ledger, the invoice and reconciliation. Refund the payment first, or raise a new order.",
+      });
+    }
+
+    const outcome = computeReprice(
+      { amountPaise: order.amountPaise, discountPaise: order.discountPaise },
+      body.amountPaise,
+    );
+    if (!outcome.ok) {
+      if (outcome.reason.code === "above_list_price") {
+        throw new UnprocessableEntityException({
+          code: "commerce.price_above_list",
+          title: "The new price is above the list price",
+          detail: `This order's list price is ${formatPaise(outcome.reason.listPricePaise)}. A price change can only reduce it.`,
+        });
+      }
+      throw new UnprocessableEntityException({
+        code: "commerce.price_unchanged",
+        title: "That is already the price",
+        detail: "Nothing was changed, so no discount, audit entry or notification was recorded.",
+      });
+    }
+
+    const updated = await this.repository.updateOrderPrice(tenantId, id, {
+      amountPaise: outcome.next.amountPaise,
+      discountPaise: outcome.next.discountPaise,
+      reason: body.reason,
+    });
+    if (updated === 0) {
+      // Lost a race: the order stopped being `created` between the read above and this write.
+      throw new UnprocessableEntityException({
+        code: "commerce.order_not_repriceable",
+        title: "This order changed while you were editing it",
+        detail: "Reload the order and try again.",
+      });
+    }
+
+    await this.notifyOrderRepriced(tenantId, actorId, {
+      orderId: id,
+      studentName: order.studentName,
+      programTitle: order.programTitle,
+      fromPaise: order.amountPaise,
+      toPaise: outcome.next.amountPaise,
+      reason: body.reason,
+    });
+
+    return this.getOrderById(tenantId, actorId, id);
+  }
+
+  /** Best-effort super-admin fan-out for a reprice. Never throws into the caller. */
+  private async notifyOrderRepriced(
+    tenantId: string,
+    actorId: string,
+    args: {
+      orderId: string;
+      studentName: string;
+      programTitle: string;
+      fromPaise: number;
+      toPaise: number;
+      reason: string;
+    },
+  ): Promise<void> {
+    try {
+      const superAdmins = await this.repository.listActiveSuperAdmins(tenantId);
+      // Excluding the actor is the point: a super admin repricing an order does not need to
+      // be told they did. It also means a single-super-admin tenant notifies nobody, which is
+      // correct — the audit row still exists, and there is no second person to inform.
+      const recipients = superAdmins.filter((u) => u.id !== actorId);
+      if (recipients.length === 0) return;
+
+      const payload = {
+        orderId: args.orderId,
+        studentName: args.studentName,
+        programTitle: args.programTitle,
+        fromAmount: formatPaise(args.fromPaise),
+        toAmount: formatPaise(args.toPaise),
+        reason: args.reason,
+      };
+      for (const recipient of recipients) {
+        await this.notifSvc.notify(recipient.id, tenantId, "order_price_changed", payload, {});
+      }
+    } catch (err) {
+      this.logger.warn(`[Commerce] order_price_changed notification failed (non-fatal): ${String(err)}`);
+    }
+  }
+
   async cancelOrder(tenantId: string, actorId: string, id: string): Promise<void> {
     const restriction = await this.resolveListRestriction(actorId);
     const order = await this.repository.findOrderById(tenantId, id, false, restriction.restrictToBranchIds);
@@ -1768,6 +1902,10 @@ import type { OrderRow, PaymentRow, InvoiceRow, RefundRow, CouponRow } from "./c
 
 function toOrderSummary(row: OrderRow): OrderSummary {
   return {
+    // Derived, not stored — see commerce.repository.ts. The order's own two numbers stay the
+    // single source of truth for what it was worth.
+    listPricePaise: row.amountPaise + row.discountPaise,
+    discountReason: row.discountReason ?? null,
     id: row.id,
     studentId: row.studentId,
     studentName: row.studentName,

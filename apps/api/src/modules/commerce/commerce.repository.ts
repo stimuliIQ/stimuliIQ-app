@@ -47,6 +47,8 @@ export interface OrderRow {
   amountPaise: number;
   currency: string;
   discountPaise: number;
+  /** Why a human priced this below list. Null for no discount and for a coupon discount. */
+  discountReason: string | null;
   couponId: string | null;
   couponCode: string | null;
   status: OrderStatus;
@@ -1166,6 +1168,66 @@ export class CommerceRepository {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma extended client $transaction typing limitation
     return (this.prisma.client as any).$transaction(fn);
   }
+  /**
+   * Apply a manual reprice.
+   *
+   * Writes both halves together so the invariant `amountPaise + discountPaise = list price`
+   * can never be half-applied, and stamps the reason alongside them. Guarded in the WHERE as
+   * well as in the service: `status: "created"` here closes the window where two staff
+   * reprice the same order, or where one does while a payment is being recorded — the second
+   * write matches zero rows rather than silently overwriting.
+   */
+  async updateOrderPrice(
+    tenantId: string,
+    orderId: string,
+    data: { amountPaise: number; discountPaise: number; reason: string },
+  ): Promise<number> {
+    const result = await this.prisma.client.order.updateMany({
+      where: { id: orderId, tenantId, status: "created", deletedAt: null },
+      data: {
+        amountPaise: data.amountPaise,
+        discountPaise: data.discountPaise,
+        discountReason: data.reason,
+      },
+    });
+    return result.count;
+  }
+
+  /**
+   * Payments on this order that are not `failed`.
+   *
+   * The status guard alone is not enough: an order stays `created` while a payment is
+   * authorised-but-not-captured, and repricing under one of those would leave the ledger
+   * disagreeing with the order it belongs to.
+   */
+  async countLivePaymentsForOrder(tenantId: string, orderId: string): Promise<number> {
+    return this.prisma.client.payment.count({
+      where: { tenantId, orderId, deletedAt: null, status: { not: "failed" } },
+    });
+  }
+
+  /**
+   * Active super_admins in this tenant — the audience for a reprice notification.
+   *
+   * Same shape and same reasoning as `LeaveRepository.listApprovers`: both `status: active`
+   * and `deletedAt: null` on the role AND the user, because an offboarded super admin
+   * silently being the only recipient is how oversight quietly stops happening. Deduped for
+   * the same reason — a user holding the role through two branch-scoped assignments would
+   * otherwise be notified twice about one change.
+   */
+  async listActiveSuperAdmins(tenantId: string): Promise<Array<{ id: string; name: string }>> {
+    const rows = await this.prisma.client.userRole.findMany({
+      where: {
+        deletedAt: null,
+        role: { tenantId, key: "super_admin", deletedAt: null },
+        user: { tenantId, deletedAt: null, status: "active" },
+      },
+      select: { userId: true, user: { select: { name: true } } },
+    });
+    const byId = new Map(rows.map((r) => [r.userId, { id: r.userId, name: r.user.name }]));
+    return [...byId.values()];
+  }
+
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1209,6 +1271,7 @@ export function toOrderRowWithBatch(row: OrderWithBatchIncludes): OrderRow {
     amountPaise: row.amountPaise,
     currency: row.currency,
     discountPaise: row.discountPaise,
+    discountReason: row.discountReason ?? null,
     couponId: row.couponId,
     couponCode: row.coupon?.code ?? null,
     status: row.status,
@@ -1368,4 +1431,6 @@ function toCouponRow(row: {
     updatedAt: row.updatedAt,
     deletedAt: row.deletedAt,
   };
+
+
 }

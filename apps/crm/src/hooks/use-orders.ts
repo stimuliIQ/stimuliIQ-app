@@ -3,7 +3,7 @@
 // "no business logic in components"). Phase 2 Wave 5a (docs/plans/phase-2.md
 // task #7).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CreateOrderRequest, ListOrdersQuery } from "@repo/types";
+import type { CreateOrderRequest, ListOrdersQuery, UpdateOrderPriceRequest } from "@repo/types";
 
 import { apiClient } from "../lib/api-client";
 import { STUDENTS_QUERY_KEY } from "./use-students";
@@ -72,6 +72,24 @@ export function useCancelOrder() {
  * "send the student a link to pay"). No cache to invalidate — minting is
  * side-effect-free server-side (the link is derived, not stored).
  */
+/**
+ * Reprice an unpaid order below its list price.
+ *
+ * Invalidates the whole orders key rather than patching the row: the response also changes
+ * `discountPaise`, `listPricePaise` and `discountReason`, and any open total computed from
+ * the list is now wrong too. Refetching is cheaper than keeping four derived numbers in step.
+ */
+export function useUpdateOrderPrice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateOrderPriceRequest }) =>
+      apiClient.commerce.orders.updatePrice(id, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY });
+    },
+  });
+}
+
 export function useCreatePaymentLink() {
   return useMutation({
     mutationFn: (orderId: string) => apiClient.commerce.orders.createPaymentLink(orderId),

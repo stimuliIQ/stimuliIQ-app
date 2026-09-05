@@ -287,6 +287,11 @@ enum CertificateKind {
 // Extensible — new types can be added without breaking the fan-out engine (the
 // template registry maps type → per-channel templates; unknown types are no-ops).
 enum NotificationType {
+  /// Staff-facing, super_admin only: "somebody repriced an order". Fans out to every active
+  /// super_admin EXCEPT the person who made the change — telling somebody what they just did
+  /// is noise, and noise is how a feed stops being read. Discounting is the one commerce
+  /// action with no second signature, so the notification is the oversight.
+  order_price_changed
   grade_ready
   // "Your project was sent back for changes." The counterpart to grade_ready: a reviewer
   // returned the submission instead of grading it, and the student has to act. Its own type
@@ -1508,6 +1513,14 @@ model Order {
   currency       String      @default("INR")
   couponId       String?     @map("coupon_id") @db.Uuid
   discountPaise  Int         @default(0) @map("discount_paise")
+  /// Why this order is priced below the programme's list price, when a human decided it.
+  ///
+  /// NULL for the ordinary case (no discount) and for a COUPON discount, where the coupon
+  /// itself is the reason and `coupon_id` records it. Set only by a manual price change, where
+  /// it is MANDATORY: `discount_paise` says revenue is lower, and without this nothing says
+  /// why. The audit log records who changed it and from what, but it records field diffs, not
+  /// intent — "agreed with the student's college" is not derivable from a number moving.
+  discountReason String?     @map("discount_reason")
   status         OrderStatus @default(created)
   // Idempotency key: caller-supplied unique token per order-creation attempt.
   // The backend uses this to deduplicate replayed create-order calls (docs/04 §2.6).

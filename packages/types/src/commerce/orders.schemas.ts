@@ -140,6 +140,15 @@ export const OrderSummarySchema = z.object({
   amountPaise: z.number().int().min(0).describe("Net charged amount in integer paise."),
   currency: z.string().length(3).describe("ISO-4217 currency code, e.g. INR."),
   discountPaise: z.number().int().min(0).describe("Discount applied in integer paise."),
+  /**
+   * The programme's list price at read time, so a caller can show "₹10,000, discounted from
+   * ₹14,999" without a second fetch. Derived (`amountPaise + discountPaise`) rather than
+   * stored: the order records what was charged and what was taken off, and re-deriving keeps
+   * those two the only source of truth.
+   */
+  listPricePaise: z.number().int().min(0).describe("amountPaise + discountPaise, in integer paise."),
+  /** Why a human priced this below list. Null for no discount and for a coupon discount. */
+  discountReason: z.string().nullable(),
   status: OrderStatusSchema,
   couponCode: z.string().nullable().describe("Coupon code applied, or null."),
   // Invoice linkage (lifecycle-redesign): a paid order carries its generated invoice
@@ -164,3 +173,34 @@ export const OrderDetailSchema = OrderSummarySchema.extend({
   updatedAt: IsoDateTimeSchema,
 });
 export type OrderDetail = z.infer<typeof OrderDetailSchema>;
+
+/**
+ * `PATCH /crm/orders/:id/price` — reprice an order a human agreed to sell cheaper.
+ *
+ * STORED AS A DISCOUNT, NOT AS AN OVERWRITTEN AMOUNT. The order keeps `amountPaise` as what
+ * is actually charged and `discountPaise` as the difference from the programme's list price,
+ * so revenue can be read as gross / discount / net. Overwriting the amount alone would make
+ * a discounted sale indistinguishable from a cheap programme, which is the opposite of the
+ * clarity this exists for.
+ *
+ * ONLY BEFORE MONEY LANDS. The API refuses once the order has any non-failed payment, because
+ * changing the price under a recorded payment breaks reconciliation, the ledger and the
+ * invoice at once. Reducing what somebody has already paid is a REFUND, which exists.
+ */
+export const UpdateOrderPriceRequestSchema = z
+  .object({
+    /**
+     * The new net amount in integer paise. May be 0 (a free seat) but never above the
+     * programme's list price — a "discount" that raises the price is an upsell, and hiding
+     * one in a discount field would silently corrupt every gross-vs-net report.
+     */
+    amountPaise: z.number().int().min(0),
+    /**
+     * Why. Mandatory and non-trivial: the audit log already records the numbers moving, and
+     * this is the only place the intent behind them can live. A 5-character floor stops
+     * "ok" from passing for a reason.
+     */
+    reason: z.string().trim().min(5).max(500),
+  })
+  .strict();
+export type UpdateOrderPriceRequest = z.infer<typeof UpdateOrderPriceRequestSchema>;

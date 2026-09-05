@@ -62,6 +62,7 @@ function makeMockOrderRow(overrides: Partial<OrderRow> = {}): OrderRow {
     amountPaise: 100000,
     currency: "INR",
     discountPaise: 0,
+    discountReason: null,
     couponId: null,
     couponCode: null,
     status: "created",
@@ -199,6 +200,9 @@ describe("CommerceService", () => {
     repository = {
       findOrderByIdempotencyKey: jest.fn(),
       findOrderById: jest.fn(),
+      updateOrderPrice: jest.fn().mockResolvedValue(1),
+      countLivePaymentsForOrder: jest.fn().mockResolvedValue(0),
+      listActiveSuperAdmins: jest.fn().mockResolvedValue([]),
       listOrders: jest.fn(),
       createOrder: jest.fn(),
       updateOrderStatus: jest.fn(),
@@ -260,7 +264,11 @@ describe("CommerceService", () => {
       fetchPayment: jest.fn(),
     } as jest.Mocked<PaymentProvider>;
 
-    notifSvc = { notifyPaymentReceipt: jest.fn().mockResolvedValue(undefined) };
+    notifSvc = {
+      notifyPaymentReceipt: jest.fn().mockResolvedValue(undefined),
+      // The generic fan-out, used by the order-reprice notification.
+      notify: jest.fn().mockResolvedValue(undefined),
+    };
     studentsRepository = { findById: jest.fn().mockResolvedValue(null) };
     lmsProvisioning = { provisionQuiet: jest.fn().mockResolvedValue(null) };
     mail = { send: jest.fn().mockResolvedValue({ providerMessageId: "msg-1" }) };
@@ -1389,6 +1397,117 @@ describe("CommerceService", () => {
   });
 
   // ─── cancelOrder (un-assign an unpaid program) ────────────────────────────
+
+  describe("updateOrderPrice", () => {
+    function orderRow(over: Record<string, unknown> = {}) {
+      return makeMockOrderRow({ status: "created", amountPaise: 1499900, discountPaise: 0, ...over });
+    }
+
+    it("stores the reduction as a discount, keeping list = amount + discount", async () => {
+      repository.findOrderById.mockResolvedValue(orderRow());
+
+      await withScope("all", () =>
+        service.updateOrderPrice(TENANT_ID, ACTOR_ID, ORDER_ID, {
+          amountPaise: 1000000,
+          reason: "Agreed college tie-up rate",
+        }),
+      );
+
+      expect(repository.updateOrderPrice).toHaveBeenCalledWith(TENANT_ID, ORDER_ID, {
+        amountPaise: 1000000,
+        discountPaise: 499900,
+        reason: "Agreed college tie-up rate",
+      });
+    });
+
+    // The status guard alone is not enough — an order stays `created` while a payment is
+    // authorised but not captured, and repricing under one leaves the ledger disagreeing
+    // with the order it belongs to.
+    it("refuses when the order already has a live payment, even though it is still 'created'", async () => {
+      repository.findOrderById.mockResolvedValue(orderRow());
+      repository.countLivePaymentsForOrder.mockResolvedValue(1);
+
+      await expect(
+        withScope("all", () =>
+          service.updateOrderPrice(TENANT_ID, ACTOR_ID, ORDER_ID, { amountPaise: 1000000, reason: "too late" }),
+        ),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+      expect(repository.updateOrderPrice).not.toHaveBeenCalled();
+    });
+
+    it("refuses a paid order — reducing what somebody paid is a refund, not a price change", async () => {
+      repository.findOrderById.mockResolvedValue(orderRow({ status: "paid" }));
+
+      await expect(
+        withScope("all", () =>
+          service.updateOrderPrice(TENANT_ID, ACTOR_ID, ORDER_ID, { amountPaise: 1000000, reason: "nope" }),
+        ),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+      expect(repository.updateOrderPrice).not.toHaveBeenCalled();
+    });
+
+    it("refuses a price above the list price", async () => {
+      repository.findOrderById.mockResolvedValue(orderRow());
+
+      await expect(
+        withScope("all", () =>
+          service.updateOrderPrice(TENANT_ID, ACTOR_ID, ORDER_ID, { amountPaise: 2000000, reason: "upsell attempt" }),
+        ),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+      expect(repository.updateOrderPrice).not.toHaveBeenCalled();
+    });
+
+    // updateMany matching zero rows means the order stopped being `created` between the read
+    // and the write — two staff repricing at once, or a payment landing mid-edit.
+    it("refuses when the order changed underneath the edit", async () => {
+      repository.findOrderById.mockResolvedValue(orderRow());
+      repository.updateOrderPrice.mockResolvedValue(0);
+
+      await expect(
+        withScope("all", () =>
+          service.updateOrderPrice(TENANT_ID, ACTOR_ID, ORDER_ID, { amountPaise: 1000000, reason: "raced" }),
+        ),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    });
+
+    it("notifies the other active super admins", async () => {
+      repository.findOrderById.mockResolvedValue(orderRow());
+      repository.listActiveSuperAdmins.mockResolvedValue([
+        { id: "super-1", name: "Owner" },
+        { id: ACTOR_ID, name: "The person doing it" },
+      ]);
+
+      await withScope("all", () =>
+        service.updateOrderPrice(TENANT_ID, ACTOR_ID, ORDER_ID, { amountPaise: 1000000, reason: "Scholarship" }),
+      );
+
+      // The actor is excluded: telling somebody what they just did is noise, and a noisy
+      // feed stops being read — which is how the oversight this exists for quietly ends.
+      expect(notifSvc.notify).toHaveBeenCalledTimes(1);
+      expect(notifSvc.notify).toHaveBeenCalledWith(
+        "super-1",
+        TENANT_ID,
+        "order_price_changed",
+        expect.objectContaining({ fromAmount: "₹14,999.00", toAmount: "₹10,000.00", reason: "Scholarship" }),
+        {},
+      );
+    });
+
+    // The reprice is already committed by the time this runs. Rolling it back because a
+    // notification failed would leave a half-applied discount, which is worse than an
+    // unwatched one — and the audit row is written regardless.
+    it("still succeeds when the notification fails", async () => {
+      repository.findOrderById.mockResolvedValue(orderRow());
+      repository.listActiveSuperAdmins.mockRejectedValue(new Error("redis down"));
+
+      await expect(
+        withScope("all", () =>
+          service.updateOrderPrice(TENANT_ID, ACTOR_ID, ORDER_ID, { amountPaise: 1000000, reason: "Scholarship" }),
+        ),
+      ).resolves.toBeDefined();
+      expect(repository.updateOrderPrice).toHaveBeenCalled();
+    });
+  });
 
   describe("cancelOrder", () => {
     it("soft-deletes an unpaid order and releases its coupon redemption", async () => {

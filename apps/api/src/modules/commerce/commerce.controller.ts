@@ -54,7 +54,10 @@ import type {
   CreatePaymentLinkResponse,
   SendPaymentLinksRequest,
   SendPaymentLinksResponse,
+  UpdateOrderPriceRequest,
 } from "@repo/types";
+// Value import: a zod schema is runtime code, and the block above is `import type`.
+import { UpdateOrderPriceRequestSchema } from "@repo/types";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
 import { ScopeInterceptor } from "../auth/interceptors/scope.interceptor";
@@ -162,6 +165,29 @@ export class CommerceController {
    * Cancel an UNPAID order (un-assign a program opened by mistake). Soft-delete
    * + coupon release; 422 for any non-`created` order (paid → refund flow).
    */
+  /**
+   * PATCH /api/v1/crm/orders/:id/price — sell a programme below its list price.
+   *
+   * Permission: `orders.edit`, the same key that already gates cancelling an order and
+   * starting its checkout. A dedicated `orders.discount` was considered and rejected: a new
+   * key does nothing until it is seeded on the live database, so the feature would ship
+   * 403ing for everyone, and the audience is the same people either way. If discounting ever
+   * needs to be restricted more tightly than cancelling, that is the moment to split it.
+   *
+   * Refuses once the order is paid or has any live payment — see the service for why. Every
+   * successful change notifies the other active super admins; the audit row is written by the
+   * Prisma extension regardless.
+   */
+  @Patch("orders/:id/price")
+  @RequirePermission("orders.edit")
+  async updateOrderPrice(
+    @CurrentUser() user: RequestUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body(new ZodValidationPipe(UpdateOrderPriceRequestSchema)) body: UpdateOrderPriceRequest,
+  ): Promise<OrderDetail> {
+    return this.commerceService.updateOrderPrice(user.tenantId, user.id, id, body);
+  }
+
   @Delete("orders/:id")
   @HttpCode(204)
   @RequirePermission("orders.edit")

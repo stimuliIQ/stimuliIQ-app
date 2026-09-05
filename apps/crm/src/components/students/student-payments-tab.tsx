@@ -11,6 +11,7 @@ import type { MeResponse, OrderSummary, PaymentSummary } from "@repo/types";
 
 import { usePaymentsList, usePaymentReceipt } from "../../hooks/use-payments";
 import { useOrdersList, useCreatePaymentLink, useSendPaymentLinks } from "../../hooks/use-orders";
+import { RepriceOrderDialog } from "../commerce/reprice-order-dialog";
 import { useInvoiceDownload } from "../../hooks/use-invoices";
 import { hasPermission } from "../../lib/permissions";
 import { PaymentStatusChip } from "../commerce/payment-status-chip";
@@ -82,6 +83,8 @@ export function StudentPaymentsTab({
 }): React.JSX.Element {
   const { toast } = useToast();
   const { data, isLoading, isError, refetch } = usePaymentsList({ studentId, page: 1, pageSize: 20 });
+  /** Non-null = the reprice dialog is open on this order. */
+  const [repriceOrder, setRepriceOrder] = React.useState<OrderSummary | null>(null);
   const orders = useOrdersList({ studentId, page: 1, pageSize: 20 });
   const canRecordPayment = hasPermission(me?.permissions, "payments.create");
   const [payOrder, setPayOrder] = React.useState<OrderSummary | null>(null);
@@ -125,7 +128,22 @@ export function StudentPaymentsTab({
   const orderColumns: Array<DataTableColumn<OrderSummary>> = [
     { id: "programTitle", header: "Program", cell: (row) => row.programTitle },
     { id: "batchName", header: "Batch", cell: (row) => row.batchName },
-    { id: "amountPaise", header: "Amount", cell: (row) => formatPaise(row.amountPaise), align: "right" },
+    {
+      id: "amountPaise",
+      header: "Amount",
+      align: "right",
+      // A discounted order shows both numbers. Showing only the charged amount would make a
+      // repriced sale look identical to a cheap programme on the one screen where somebody
+      // is most likely to be checking exactly that.
+      cell: (row) => (
+        <span>
+          {formatPaise(row.amountPaise)}
+          {row.discountPaise > 0 ? (
+            <span className="ml-1 text-xs text-fg-muted line-through">{formatPaise(row.listPricePaise)}</span>
+          ) : null}
+        </span>
+      ),
+    },
     { id: "status", header: "Status", cell: (row) => <OrderStatusChip status={row.status} /> },
     {
       id: "action",
@@ -134,6 +152,19 @@ export function StudentPaymentsTab({
       cell: (row) =>
         row.status === "created" && canRecordPayment ? (
           <div className="flex items-center justify-end gap-1.5">
+            {/* Only on an unpaid order — the API refuses once a payment exists, and an
+                affordance that 422s is a bug of its own. */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setRepriceOrder(row);
+              }}
+              data-testid={`reprice-order-${row.id}`}
+            >
+              Edit amount
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -247,6 +278,11 @@ export function StudentPaymentsTab({
         onOpenChange={(open) => !open && setPayOrder(null)}
         defaultOrderId={payOrder?.id}
         defaultAmountPaise={payOrder?.amountPaise}
+      />
+      <RepriceOrderDialog
+        order={repriceOrder}
+        open={Boolean(repriceOrder)}
+        onOpenChange={(open) => !open && setRepriceOrder(null)}
       />
     </div>
   );

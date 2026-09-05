@@ -36,6 +36,15 @@ import { UuidSchema, IsoDateTimeSchema } from "../common/primitives.js";
  * `live_reminder` path is wired (LOCK-4: no live-class feature yet; template ready).
  */
 export const NotificationTypeSchema = z.enum([
+  /**
+   * Staff-facing, super_admin only: somebody repriced an order below its list price.
+   *
+   * Discounting is the one commerce action with no second signature — no approval step, no
+   * counter-party — so this notification IS the oversight. It goes to every active super
+   * admin except the person who made the change, since telling somebody what they just did
+   * is noise, and a noisy feed stops being read.
+   */
+  "order_price_changed",
   "grade_ready",
   /**
    * The counterpart to `grade_ready`: a reviewer sent the student's submission BACK for

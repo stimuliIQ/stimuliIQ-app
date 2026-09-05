@@ -11,6 +11,7 @@ import type {
   CreatePaymentLinkResponse,
   SendPaymentLinksRequest,
   SendPaymentLinksResponse,
+  UpdateOrderPriceRequest,
 } from "@repo/types";
 import type { ApiClient } from "../http/client.js";
 import { toQueryString } from "../http/query.js";
@@ -52,6 +53,31 @@ export class OrdersApi {
    * mistake. Soft-deletes the order + never-captured payment rows and releases
    * the coupon redemption. 422 for a paid order (use the refund flow instead).
    */
+  /**
+   * PATCH /api/v1/commerce/orders/:id/price — sell a programme below its list price.
+   * Permission: orders.edit.
+   *
+   * Stored as a DISCOUNT: the order keeps what is charged AND how far below list that is, so
+   * revenue reads as gross / discount / net. `reason` is mandatory (min 5 chars) — the audit
+   * log records the numbers moving and cannot record why.
+   *
+   * Rejects 422 once the order is paid or carries any live payment: changing a price under a
+   * recorded payment breaks the ledger, the invoice and reconciliation at once. That case is
+   * a refund. Also rejects a price above list, and a no-op.
+   *
+   * Every successful change notifies the other active super admins.
+   */
+  async updatePrice(
+    id: string,
+    body: UpdateOrderPriceRequest,
+    idempotencyKey: string = crypto.randomUUID(),
+  ): Promise<OrderDetail> {
+    return this.client.request<OrderDetail>("PATCH", `/api/v1/commerce/orders/${id}/price`, {
+      body,
+      idempotencyKey,
+    });
+  }
+
   async cancel(id: string, idempotencyKey: string = crypto.randomUUID()): Promise<void> {
     await this.client.request<void>("DELETE", `/api/v1/commerce/orders/${id}`, { idempotencyKey });
   }
