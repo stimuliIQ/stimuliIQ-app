@@ -950,9 +950,20 @@ export class CommerceService {
           studentName: student.name,
           invoiceNumber,
         },
-        // Combined email already sent above → omit the address so the fan-out's
-        // email channel skips; in-app (and SMS once DLT-registered) still fire.
-        { toEmail: creds ? undefined : student.email, toPhone: student.phone ?? undefined },
+        // NO PAYMENT-RECEIPT EMAIL, EVER — `toEmail` is unconditionally omitted.
+        //
+        // This used to send one whenever `creds` was null, i.e. to a student whose LMS
+        // account already existed. In practice that is every repeat payment: a second
+        // instalment, or a second programme. The owner's call is that paying should not
+        // generate a receipt email at all; the enrolment welcome above is the only email a
+        // payment produces, and it fires once, on the first payment, when there are actually
+        // credentials to deliver.
+        //
+        // The fan-out itself is deliberately still called. The IN-APP notification is the
+        // student's record of the payment inside the LMS and costs nothing, and SMS/WhatsApp
+        // stay available for when DLT registration lands. Only the email channel is dropped,
+        // which is what "no payment email" means.
+        { toEmail: undefined, toPhone: student.phone ?? undefined },
       );
     } catch (err) {
       this.logger.warn(`[Commerce] notifyPaymentReceipt failed (non-fatal): ${String(err)}`);

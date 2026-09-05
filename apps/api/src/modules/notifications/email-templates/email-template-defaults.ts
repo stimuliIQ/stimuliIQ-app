@@ -55,31 +55,6 @@ export const EMAIL_TEMPLATE_DEFAULTS: Record<EmailTemplateKey, EmailTemplateDefa
       "The LMS username, the temporary password and the 'Sign in to the LMS' button are added automatically and cannot be edited here, so this email can never be saved without the details a student needs to log in.",
   },
 
-  payment_receipt: {
-    name: "Payment receipt",
-    description:
-      "Sent when a payment is recorded for a student who already has an LMS account, for example a second instalment. The first payment gets the enrolment welcome instead, never both.",
-    subject: "You're enrolled at Stimuli IQ",
-    heading: "You're Enrolled!",
-    // NO AMOUNT, NO ORDER, NO INVOICE — the owner's instruction covered both payment
-    // emails, not just the first one. A student paying a second instalment was still
-    // getting "we've received your payment of ₹14,999.00" with the order id and invoice
-    // number under it. All three are gone from the default; the placeholders stay
-    // DECLARED below so anybody who does want a receipt can add them back from the CRM
-    // without a deploy, which is the entire point of that screen.
-    body:
-      "Hi {{studentName}}, your payment has been received and your enrolment is confirmed.\n\n" +
-      "Head to the LMS to continue your programme.",
-    footnote: null,
-    variables: [
-      { key: "studentName", description: "The student's name.", sample: "Chandra Sekhar" },
-      { key: "amountRupees", description: "Amount paid, in rupees.", sample: "14,999.00" },
-      { key: "orderId", description: "The order's id.", sample: "a9adcbe6-2e3e-4351-87d0-ea470ebf0078" },
-      { key: "invoiceNumber", description: "The GST invoice number, when one exists.", sample: "INV-2026-0001" },
-    ],
-    fixedPartsNote:
-      "Only the 'Go to LMS' button is added automatically. Everything a student reads is the text above. This email intentionally mentions no amount, order or invoice — add {{amountRupees}}, {{orderId}} or {{invoiceNumber}} if you ever want it to read as a receipt.",
-  },
 };
 
 /** The placeholder keys a template may use, for validation and for the editor's hint list. */

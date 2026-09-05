@@ -5804,7 +5804,7 @@ const EmailTemplateEnvelope = envelopeOf("EmailTemplate", EmailTemplate);
 const UpdateEmailTemplateRequest = registry.register("UpdateEmailTemplateRequest", UpdateEmailTemplateRequestSchema);
 const ResetEmailTemplateResponse = registry.register("ResetEmailTemplateResponse", ResetEmailTemplateResponseSchema);
 const EmailTemplatePreviewResponse = registry.register("EmailTemplatePreviewResponse", EmailTemplatePreviewResponseSchema);
-const EmailTemplateKeyParam = z.object({ key: z.enum(["enrollment_welcome", "payment_receipt"]) });
+const EmailTemplateKeyParam = z.object({ key: z.enum(["enrollment_welcome"]) });
 
 registry.registerPath({ method: "get", path: "/api/v1/crm/email-templates", summary: "List the automatic emails and whether each is customised", tags: ["crm", "settings"], security: [{ cookieAuth: [] }], ...requiredPermission("settings.view"), responses: { 200: { description: "Templates, default or customised.", content: { "application/json": { schema: EmailTemplateListEnvelope } } }, ...errorResponses } });
 registry.registerPath({ method: "get", path: "/api/v1/crm/email-templates/{key}", summary: "Get one automatic email's current text", tags: ["crm", "settings"], security: [{ cookieAuth: [] }], ...requiredPermission("settings.view"), request: { params: EmailTemplateKeyParam }, responses: { 200: { description: "Template.", content: { "application/json": { schema: EmailTemplateEnvelope } } }, ...errorResponses } });

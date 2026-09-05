@@ -26,8 +26,14 @@ import { IsoDateTimeSchema } from "../common/primitives.js";
  * The emails this screen governs. A key here MUST have a default in the API's
  * EMAIL_TEMPLATE_DEFAULTS and a send site that renders through EmailTemplateService —
  * a key with no send site is a control that edits nothing.
+ *
+ * `payment_receipt` WAS here and has been removed, not disabled. Paying no longer sends a
+ * receipt email at all (CommerceService omits `toEmail` unconditionally), so an entry for it
+ * would be exactly the thing this comment warns about: staff carefully editing wording that
+ * never reaches anybody. Restoring the receipt means re-adding the key AND un-suppressing the
+ * send — one without the other is the trap.
  */
-export const EMAIL_TEMPLATE_KEYS = ["enrollment_welcome", "payment_receipt"] as const;
+export const EMAIL_TEMPLATE_KEYS = ["enrollment_welcome"] as const;
 export const EmailTemplateKeySchema = z.enum(EMAIL_TEMPLATE_KEYS);
 export type EmailTemplateKey = z.infer<typeof EmailTemplateKeySchema>;
 

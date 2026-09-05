@@ -39,11 +39,9 @@ const WELCOME: EmailTemplate = {
   updatedAt: null,
 };
 
-const RECEIPT: EmailTemplate = {
+/** The same template after somebody has edited it — drives the customised-state tests. */
+const WELCOME_CUSTOMISED: EmailTemplate = {
   ...WELCOME,
-  key: "payment_receipt",
-  name: "Payment receipt",
-  description: "Sent for a payment by a student who already has an account.",
   isCustomised: true,
   updatedAt: "2026-09-01T00:00:00.000Z",
 };
@@ -67,7 +65,7 @@ beforeEach(() => {
   updateMutate.mockReset();
   resetMutate.mockReset();
   useEmailTemplatesMock.mockReturnValue({
-    data: [WELCOME, RECEIPT],
+    data: [WELCOME],
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -88,10 +86,19 @@ describe("EmailTemplatesManager", () => {
 
   // Whether these are the company's words or the ones the product shipped with is the first
   // thing somebody opening this screen needs to know.
-  it("says which emails have been customised and which are still the default", () => {
-    renderManager(["settings.view"]);
+  it("says whether the wording is the company's or the one the product shipped with", () => {
+    const { unmount } = renderManager(["settings.view"]);
     expect(within(screen.getByTestId("email-template-tab-enrollment_welcome")).getByText("Default")).toBeInTheDocument();
-    expect(within(screen.getByTestId("email-template-tab-payment_receipt")).getByText("Customised")).toBeInTheDocument();
+    unmount();
+
+    useEmailTemplatesMock.mockReturnValue({
+      data: [WELCOME_CUSTOMISED],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    renderManager(["settings.view"]);
+    expect(within(screen.getByTestId("email-template-tab-enrollment_welcome")).getByText("Customised")).toBeInTheDocument();
   });
 
   // The server is the boundary, but a form that looks editable and then 403s on save is a
@@ -148,14 +155,22 @@ describe("EmailTemplatesManager", () => {
 
   it("offers restore only on a customised email, and asks before discarding the edit", async () => {
     const user = userEvent.setup();
-    renderManager(["settings.view", "settings.edit"]);
 
-    // The default one has nothing to restore.
+    // Nothing to restore while it is still the shipped wording.
+    const { unmount } = renderManager(["settings.view", "settings.edit"]);
     expect(screen.queryByTestId("email-template-reset")).not.toBeInTheDocument();
+    unmount();
 
-    await user.click(screen.getByTestId("email-template-tab-payment_receipt"));
+    useEmailTemplatesMock.mockReturnValue({
+      data: [WELCOME_CUSTOMISED],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    renderManager(["settings.view", "settings.edit"]);
     await user.click(screen.getByTestId("email-template-reset"));
 
+    // Asks first — restoring throws away wording somebody wrote.
     expect(resetMutate).not.toHaveBeenCalled();
     expect(screen.getByTestId("confirm-reset-email-template")).toBeInTheDocument();
   });

@@ -764,7 +764,7 @@ describe("CommerceService", () => {
         "user-payer",
         TENANT_ID,
         expect.objectContaining({ orderId: "66666666-6666-6666-6666-666666666666" }),
-        { toEmail: "payer@test.com", toPhone: undefined },
+        { toEmail: undefined, toPhone: undefined },
       );
     });
 
@@ -1215,6 +1215,65 @@ describe("CommerceService", () => {
       expect(sent.html).not.toContain("1,000.00");
       expect(sent.html).not.toMatch(/Amount/i);
       // …and the fan-out receipt runs WITHOUT an email address (no duplicate email).
+      expect(notifSvc.notifyPaymentReceipt).toHaveBeenCalledWith(
+        "user-1",
+        TENANT_ID,
+        expect.any(Object),
+        expect.objectContaining({ toEmail: undefined }),
+      );
+    });
+
+    // NO RECEIPT EMAIL ON A REPEAT PAYMENT. Previously, a student whose LMS account already
+    // existed (every second instalment, every second programme) got a payment-receipt email
+    // instead of the welcome. That email is gone entirely: paying produces the enrolment
+    // welcome once, on the first payment, and nothing after.
+    //
+    // Pinned on the FAN-OUT ARGUMENT rather than on mail.send, because the in-app
+    // notification deliberately still fires — it is the student's record of the payment
+    // inside the LMS. Only the email channel is dropped, and `toEmail: undefined` is what
+    // drops it. A future change handing an address back here would silently reinstate the
+    // email nobody asked for.
+    it("sends NO email at all when the student's LMS account already exists", async () => {
+      const order = makeMockOrderRow({ status: "created", notes: { batchId: BATCH_ID } });
+      repository.findOrderById.mockResolvedValue(order);
+      repository.listPayments.mockResolvedValue({ rows: [], total: 0 });
+      repository.createPayment.mockResolvedValue({ id: PAYMENT_ID });
+      const fakeTx = {
+        payment: { update: jest.fn().mockResolvedValue({}) },
+        order: { update: jest.fn().mockResolvedValue({}) },
+        invoice: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: "inv-1" }) },
+        studentProfile: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      };
+      repository.transaction.mockImplementation(async (fn) => fn(fakeTx as never));
+      repository.findExistingEnrollment.mockResolvedValue(null);
+      repository.createEnrollment.mockResolvedValue({ id: "enr-1" });
+      repository.generateInvoiceNumber.mockResolvedValue("INV-2026-0002");
+      repository.createInvoice.mockResolvedValue({ id: "inv-1" });
+      repository.findInvoiceById.mockResolvedValue({ number: "INV-2026-0002" } as never);
+      repository.findPaymentByProviderPaymentId.mockResolvedValue(
+        makeMockPaymentRow({ status: "captured", isManual: true, providerPaymentId: `manual_${PAYMENT_ID}` }),
+      );
+      // null = already provisioned. provisionQuiet refuses to mint a second temporary
+      // password for an account that has one, because that would reset it on every payment.
+      lmsProvisioning.provisionQuiet.mockResolvedValue(null);
+      studentsRepository.findById.mockResolvedValue({
+        id: STUDENT_ID,
+        userId: "user-1",
+        name: "Test Student",
+        email: "student@test.com",
+        phone: null,
+      });
+
+      await withScope("all", () =>
+        service.recordManualPayment(TENANT_ID, ACTOR_ID, "idem-manual-repeat", {
+          orderId: ORDER_ID,
+          amountPaise: 100000,
+          method: "cash",
+          reference: "CASH-2",
+        }),
+      );
+
+      expect(mail.send).not.toHaveBeenCalled();
       expect(notifSvc.notifyPaymentReceipt).toHaveBeenCalledWith(
         "user-1",
         TENANT_ID,

@@ -70,9 +70,11 @@ describe("EmailTemplatesService", () => {
     it("lists every key, defaulted or overridden, so none can go missing from the screen", async () => {
       repo.findAll.mockResolvedValue([row()]);
       const list = await service.list(TENANT);
-      expect(list.map((t) => t.key).sort()).toEqual(["enrollment_welcome", "payment_receipt"]);
-      expect(list.find((t) => t.key === "enrollment_welcome")?.isCustomised).toBe(true);
-      expect(list.find((t) => t.key === "payment_receipt")?.isCustomised).toBe(false);
+      // Only the enrolment welcome is editable. `payment_receipt` was removed with the
+      // receipt email itself — paying sends no receipt now, so a template for it would edit
+      // wording nobody receives.
+      expect(list.map((t) => t.key)).toEqual(["enrollment_welcome"]);
+      expect(list[0]?.isCustomised).toBe(true);
     });
   });
 
@@ -240,42 +242,11 @@ describe("EmailTemplatesService", () => {
       expect(subject).not.toMatch(/payment|₹/i);
     });
 
-    // Both payment emails, not just the first. A student paying a second instalment used to
-    // get "we've received your payment of ₹14,999.00" with the order and invoice under it.
-    it("sends no amount, order or invoice in the default payment receipt either", async () => {
-      const { subject, html } = await service.renderForSend(TENANT, "payment_receipt", {
-        studentName: "Chandra Sekhar",
-        amountRupees: "14,999.00",
-        orderId: "a9adcbe6-2e3e-4351-87d0-ea470ebf0078",
-        invoiceNumber: "INV-2026-0001",
-      });
-
-      const visible = html.replace(/<[^>]*>/g, " ");
-      expect(visible).not.toContain("14,999.00");
-      expect(visible).not.toContain("INV-2026-0001");
-      expect(visible).not.toContain("a9adcbe6");
-      expect(visible).not.toMatch(/₹/);
-      expect(subject).not.toMatch(/₹|receipt/i);
-    });
-
-    // The placeholders stay DECLARED even though the default no longer uses them, so the
-    // CRM can add a receipt back without a deploy. If this list ever shrinks, that door
-    // closes and the 422 on save would be the only clue.
-    it("still allows the money placeholders, so a receipt can be restored from the CRM", async () => {
-      await expect(
-        service.update(TENANT, "payment_receipt", {
-          subject: "Payment receipt",
-          heading: "Payment Received",
-          body: "We received ₹{{amountRupees}} for order {{orderId}} ({{invoiceNumber}}).",
-          footnote: null,
-        }),
-      ).resolves.toBeDefined();
-    });
   });
 
   describe("preview()", () => {
     it("renders with each variable's sample value rather than leaving braces on screen", async () => {
-      const result = await service.preview(TENANT, "payment_receipt");
+      const result = await service.preview(TENANT, "enrollment_welcome");
       expect(result.html).not.toContain("{{");
       expect(result.subject).not.toContain("{{");
     });
