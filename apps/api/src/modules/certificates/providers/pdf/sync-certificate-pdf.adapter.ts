@@ -108,9 +108,31 @@ const KIND_COPY: Record<CertificateKind, { ribbon: string; noun: string }> = {
   course: { ribbon: "COURSE\nCERTIFICATE", noun: "PROGRAM" },
 };
 
-/** Narrow the CRM-editable `design.certificateKind` to a kind we have copy for. */
+/**
+ * Narrow the CRM-editable `design.certificateKind` to a kind we have copy for.
+ *
+ * ANYTHING UNRECOGNISED IS `training`, NOT `course`. This used to fall back to `course`,
+ * which has no approved artwork, so a template with no `certificateKind` — which is every
+ * template seeded before the training/internship split, including the "Standard Certificate"
+ * that ships in the seed — printed the code-drawn REPRODUCTION instead of the approved
+ * design. That is not a subtle difference: it is a visibly different certificate, and it was
+ * the default one.
+ *
+ * Worse, it disagreed with the rest of the module. `CertificatesService.templateKind()`
+ * already maps the same unrecognised value to `training`, because `certificates.kind` is a
+ * DB enum of exactly training|internship and the split migration backfilled every
+ * pre-existing row as training. So one certificate was RECORDED as training and PRINTED as
+ * a "PROGRAM" award on unapproved artwork. The two now agree, and they agree on the answer
+ * the database has held since the split.
+ *
+ * `course` is still reachable — a template that explicitly asks for it gets the neutral
+ * wording and the code-drawn layout — but nothing lands there by omission any more.
+ */
 function resolveKind(candidate: unknown): CertificateKind {
-  return candidate === "internship" || candidate === "training" ? candidate : "course";
+  if (candidate === "internship" || candidate === "training" || candidate === "course") {
+    return candidate;
+  }
+  return "training";
 }
 
 /**
@@ -623,11 +645,19 @@ export class SyncCertificatePdfAdapter implements CertificatePdfPort {
     if (artwork) {
       const kind = KIND_COPY[resolvedKind];
       const fonts = await registerArtworkFonts(design);
+      // The signature was loaded only on the code-drawn path below, so artwork mode — the
+      // one every real certificate takes — printed the artwork's bare rule and no
+      // signature. Same loader, same optional contract: a missing file degrades to the
+      // rule rather than failing an issuance.
+      const artworkSignature = await loadCertificateAsset(
+        design.signatureFileName ?? DEFAULT_ASSETS.signature,
+      );
       const bytes = await renderToBuffer(
         buildArtworkDocument({
           fields: input.fields,
           design,
           artworkSrc: artwork.src,
+          signatureSrc: artworkSignature,
           artworkPx: artwork,
           fonts,
           kind: resolvedKind,

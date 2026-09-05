@@ -58,7 +58,11 @@ import { resolveCertificateFontPath } from "./certificate-assets";
 export const DEFAULT_ARTWORK_FIELDS: Record<ArtworkFieldKey, ArtworkFieldPlacement> = {
   /** The script line under "THIS IS TO CERTIFY THAT". Specimen ink: x 576-939, y 473-566. */
   holderName: {
-    x: 48.9, y: 45.4, width: 56, size: 40.5, align: "center", font: "script", color: "#14563C",
+    // #011E06, not the design system's #14563C. Sampled from the specimen's own ink (the
+    // modal colour of the glyph interiors, so antialiased edges do not skew it): the
+    // artwork's script is a near-black forest green, and the brand green read visibly
+    // brighter and lighter beside it on the same page.
+    x: 48.9, y: 45.4, width: 56, size: 40.5, align: "center", font: "script", color: "#011E06",
   },
   /**
    * The paragraph beneath the name's ornamental rule. Specimen ink: y 614-739, widest line
@@ -70,20 +74,56 @@ export const DEFAULT_ARTWORK_FIELDS: Record<ArtworkFieldKey, ArtworkFieldPlaceme
    * in the middle of an otherwise exact page. 49% is the specimen's own widest line.
    */
   body: {
-    x: 47.9, y: 59.8, width: 49, size: 10.2, align: "center", font: "body", color: "#1F2933",
+    // #101010: the specimen's body copy is BLACK, not the UI's slate #1F2933. On paper
+    // beside true black the slate reads as a faded grey, which is what made the drawn
+    // values look like a different pass than the artwork's own type.
+    x: 47.9, y: 59.8, width: 49, size: 10.2, align: "center", font: "body", color: "#101010",
     lineHeight: 1.9, letterSpacing: 0.62,
   },
   /** Under the "CERTIFICATE ID" label in the footer band. Specimen ink: x 453-631, y 838-852. */
   certificateId: {
-    x: 35.3, y: 81.2, width: 20, size: 11.5, align: "center", font: "bodyBold", color: "#1F2933",
+    // Black, like the body copy above and for the same reason.
+    x: 35.3, y: 81.2, width: 20, size: 11.5, align: "center", font: "bodyBold", color: "#101010",
   },
   /** After the "Date of Issue:" label on the bottom rule. Specimen ink: x 1060-1190, y 950-968. */
   issuedAt: {
-    x: 69.0, y: 92.4, width: 20, size: 11.5, align: "left", font: "bodyBold", color: "#1F2933",
+    // #021D05 on the specimen — the date is GREEN, unlike the certificate id beside it,
+    // which is black. They were both being drawn slate, so the date lost its colour
+    // entirely and the two footer values stopped telling themselves apart.
+    x: 69.0, y: 92.4, width: 20, size: 11.5, align: "left", font: "bodyBold", color: "#021D05",
   },
   /** Off unless a template positions it — the artwork carries the static verify address. */
   verifyUrl: { x: 50, y: 96, width: 40, size: 8, align: "center", font: "body", color: "#6B7280" },
 };
+
+/**
+ * The authorised signature, drawn ABOVE the artwork's signature rule.
+ *
+ * The approved artwork carries the rule, "Chandra Sekhar" and "Founder" — but no signature.
+ * It was never missing from the render; it was never in the design. `ceo-signature.png`
+ * has shipped in the private asset directory all along and the CODE-DRAWN layout has always
+ * placed it, so artwork mode was the one path that dropped it, which is why a certificate
+ * that was otherwise pixel-exact arrived unsigned.
+ *
+ * Measured, not guessed: the rule is a 241 px horizontal run at y=823 spanning x 96-337 on
+ * the 1536x1024 artwork, so the signature is centred on x=216.5 (14.1%) and sits with its
+ * baseline just above y=818. Height is left to the image's own aspect — forcing both axes
+ * would squash a signature, which is the one graphic on the page nobody may distort.
+ */
+export const SIGNATURE_PLACEMENT = {
+  /** Left edge as a % of page width — the rule's centre (14.1%) less half the width. */
+  left: 6.6,
+  /**
+   * Top as a % of page height. The image's natural height (aspect ~3.3:1) carries it down
+   * to just above the rule at y=818 of 1024.
+   */
+  top: 73.1,
+  /**
+   * % of page width. Just under the rule's own 15.7%, so the signature spans it the way a
+   * signature does rather than sitting as a small mark in the middle of a long line.
+   */
+  width: 15,
+} as const;
 
 /**
  * Where the two approved exports genuinely disagree.
@@ -236,6 +276,14 @@ export interface ArtworkDocumentInput {
   /** Data URI of the approved artwork, already loaded from the private asset directory. */
   artworkSrc: string;
   /**
+   * Data URI of the authorised signature, or undefined when the file is absent.
+   *
+   * Optional on purpose: every certificate asset is optional (see certificate-assets.ts),
+   * and a missing signature file must degrade to the artwork's bare rule rather than fail
+   * an issuance for a student who has earned the award.
+   */
+  signatureSrc?: string;
+  /**
    * The artwork's intrinsic pixel size, which SETS THE PAGE SIZE.
    *
    * The approved design is 3:2. A4 landscape is 1.414:1, so printing it onto A4 full-bleed
@@ -333,6 +381,21 @@ export function buildArtworkDocument(input: ArtworkDocumentInput): ReactElement<
           src: input.artworkSrc,
           style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%" },
         }),
+        // Above the artwork's signature rule. Omitted entirely when the asset is absent.
+        ...(input.signatureSrc
+          ? [
+              h(Image, {
+                key: "signature",
+                src: input.signatureSrc,
+                style: {
+                  position: "absolute",
+                  left: `${SIGNATURE_PLACEMENT.left}%`,
+                  top: `${SIGNATURE_PLACEMENT.top}%`,
+                  width: `${SIGNATURE_PLACEMENT.width}%`,
+                },
+              }),
+            ]
+          : []),
         buildBody(input, placements.body),
         ...values
           .filter((entry): entry is [ArtworkFieldKey, string] => Boolean(entry[1]))

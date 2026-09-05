@@ -111,12 +111,29 @@ describe("SyncCertificatePdfAdapter", () => {
     ).resolves.toBe(false);
   }, 60000);
 
-  it("falls back to the neutral COURSE wording when certificateKind is absent or unknown", async () => {
-    // Templates seeded before `certificateKind` existed carry no such key, and `design` is
-    // a CRM-editable JSON column, so an unrecognised value must degrade, never throw.
-    await expect(titleContains(INPUT.design, "COURSE CERTIFICATE")).resolves.toBe(true);
+  it("falls back to TRAINING when certificateKind is absent or unknown, matching what the DB records", async () => {
+    // This used to fall back to COURSE, and that was the bug behind "the certificate is
+    // totally different". `course` has no approved artwork, so every template with no
+    // `certificateKind` — which is every one seeded before the training/internship split,
+    // including the "Standard Certificate" in the seed — printed the code-drawn
+    // reproduction rather than the approved design.
+    //
+    // It also disagreed with CertificatesService.templateKind(), which maps the same
+    // unrecognised value to `training` because `certificates.kind` is a DB enum of exactly
+    // training|internship. One certificate was recorded as training and printed as a
+    // "PROGRAM" award. `design` is a CRM-editable JSON column, so an unrecognised value
+    // must still degrade rather than throw — it just degrades to the right kind now.
+    await expect(titleContains(INPUT.design, "TRAINING CERTIFICATE")).resolves.toBe(true);
     await expect(
-      titleContains({ ...INPUT.design, certificateKind: "diploma" as never }, "COURSE CERTIFICATE"),
+      titleContains({ ...INPUT.design, certificateKind: "diploma" as never }, "TRAINING CERTIFICATE"),
+    ).resolves.toBe(true);
+  }, 60000);
+
+  it("still honours an EXPLICIT course kind, so the neutral wording remains reachable", async () => {
+    // Nothing lands on `course` by omission any more, but a template that deliberately asks
+    // for it must still get the neutral "PROGRAM" wording rather than being reinterpreted.
+    await expect(
+      titleContains({ ...INPUT.design, certificateKind: "course" }, "COURSE CERTIFICATE"),
     ).resolves.toBe(true);
   }, 60000);
 });
