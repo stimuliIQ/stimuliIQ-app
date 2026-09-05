@@ -53,7 +53,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { NotificationType } from "@repo/types";
 
-import { renderBrandedEmail } from "./email-layout";
+import { renderBrandedEmail, BRAND_NAME } from "./email-layout";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -140,7 +140,7 @@ interface TemplateDefinition {
 // enforces the rejection (Rule C-3, AC-31, AC-78).
 // ─────────────────────────────────────────────────────────────────────────────
 
-const BRAND_NAME = "Stimuli IQ";
+
 const SUPPORT_EMAIL = "support@stimuliiq.com";
 
 /**

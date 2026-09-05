@@ -19,7 +19,14 @@
 //     later by TemplateRegistry), or values they have escaped themselves
 //     (use `escapeEmailHtml` for anything user-controlled).
 
-const BRAND_NAME = "StimuliiQ";
+/**
+ * The display spelling is TWO WORDS. This file had "StimuliiQ" while template-registry.ts
+ * had "Stimuli IQ", so the same notification went out as one name over SMS and another in
+ * the email footer, and neither matched the certificate artwork's "STIMULI IQ" wordmark.
+ * Exported now, and template-registry imports it rather than keeping a second copy — the
+ * duplicate constant is what let them drift in the first place.
+ */
+export const BRAND_NAME = "Stimuli IQ";
 const BRAND_COLOR = "#047857"; // --brand-500 (emerald) from packages/ui tokens
 const BRAND_COLOR_DARK = "#035f47"; // --brand-600
 const LOGO_URL = "https://www.stimuliiq.com/stimuliiq-logo.png";
@@ -144,7 +151,7 @@ export function renderBrandedEmail(options: BrandedEmailOptions): string {
             <td style="padding:18px 32px 24px;">
               <hr style="margin:0 0 16px;border:none;border-top:1px solid #e5e7eb;"/>
               <p style="margin:0 0 4px;font-size:12px;line-height:1.6;color:#9ca3af;">
-                <strong style="color:#6b7280;">${BRAND_NAME}</strong>. Industry-grade internship training across software, data, cloud, and design.
+                <strong style="color:#6b7280;">${BRAND_NAME}</strong>. Healthcare training and internships in psychology, clinical practice and allied health.
               </p>
               <p style="margin:0;font-size:12px;line-height:1.6;color:#9ca3af;">
                 Questions? <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_COLOR_DARK};text-decoration:none;">${SUPPORT_EMAIL}</a>

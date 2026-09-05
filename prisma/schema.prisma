@@ -66,6 +66,25 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+
+  // MIGRATIONS NEED A DIRECT CONNECTION, AND PRODUCTION'S DATABASE_URL IS NOT ONE.
+  //
+  // The API server's DATABASE_URL points at Supabase's pgbouncer TRANSACTION pooler
+  // (port 6543, pgbouncer=true), which is correct for the app: it is what lets a
+  // connection-hungry Node service share a small pool. Prisma Migrate cannot use it.
+  // Migrations take advisory locks and run DDL in a session that must persist, and a
+  // transaction pooler hands out a different backend per statement — so
+  // `prisma migrate deploy` on that host does not fail, it HANGS. It sat for 24 minutes
+  // before being killed, and a second attempt then blocked behind the first one's lock.
+  //
+  // `directUrl` is consulted by Migrate and Introspection ONLY; the runtime client keeps
+  // using `url`, so the app's pooling is unchanged. Point it at port 5432.
+  //
+  // REQUIRED once declared: Prisma does NOT fall back to DATABASE_URL, it fails schema
+  // validation with P1012 when the variable is absent. So every environment must set it —
+  // on a machine already using a direct connection it is simply the same value as
+  // DATABASE_URL, which is why .env.example ships it that way.
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // ────────────────────────────────────────────────────────────────────────────
