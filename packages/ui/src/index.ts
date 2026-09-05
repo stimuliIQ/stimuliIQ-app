@@ -540,13 +540,6 @@ export {
 } from "./components/data-filter-bar";
 
 export {
-  CertTemplateCanvas,
-  type CertTemplateCanvasProps,
-  type CertTemplateField,
-  type CertFieldType,
-} from "./components/cert-template-canvas";
-
-export {
   StarRatingInput,
   TestimonialInput,
   type StarRatingInputProps,

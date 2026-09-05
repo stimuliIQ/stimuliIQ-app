@@ -9,6 +9,7 @@
 //     GET  /crm/certificates/eligibility-batches       → listEligibilityBatches()
 //     GET  /crm/certificates/eligibility/:enrollmentId → getEligibility()
 //     GET  /crm/certificate-templates                  → listTemplates()
+//     GET  /crm/certificate-templates/:id/specimen     → getTemplateSpecimen()
 //     POST /crm/certificates                           → issue()
 //     POST /crm/certificates/:enrollmentId/recommend   → recommend()
 //     GET  /crm/certificates/:id                       → getCrm()
@@ -48,6 +49,7 @@ import type {
   VerifyResult,
   CertificateTemplateSummary,
   CertificateTemplateDetail,
+  CertificateSpecimenResponse,
   CreateCertificateTemplateRequest,
   UpdateCertificateTemplateRequest,
   BulkIssueCertificatesRequest,
@@ -121,6 +123,20 @@ export class CertificatesApi {
    */
   async getTemplate(id: string): Promise<CertificateTemplateDetail> {
     return this.client.request<CertificateTemplateDetail>("GET", `/api/v1/crm/certificate-templates/${id}`);
+  }
+
+  /**
+   * GET /api/v1/crm/certificate-templates/:id/specimen — permission: certificates.view
+   *
+   * The document this template issues, rendered with sample values, as base64 PDF bytes.
+   * Issues nothing and stores nothing. The bytes are ~1.4 MB, so call it when somebody
+   * asks to look rather than eagerly alongside a list.
+   */
+  async getTemplateSpecimen(id: string): Promise<CertificateSpecimenResponse> {
+    return this.client.request<CertificateSpecimenResponse>(
+      "GET",
+      `/api/v1/crm/certificate-templates/${id}/specimen`,
+    );
   }
 
   /**

@@ -44,6 +44,7 @@ import type {
   CertificateDownloadResponse,
   CertificateTemplateSummary,
   CertificateTemplateDetail,
+  CertificateSpecimenResponse,
   CreateCertificateTemplateRequest,
   UpdateCertificateTemplateRequest,
   BulkIssueCertificatesRequest,
@@ -339,6 +340,26 @@ export class CertificatesCrmController {
    * Create a certificate template (design/fields/layout). AUDITED.
    * Permission: certificates.issue.
    */
+  /**
+   * GET /api/v1/crm/certificate-templates/:id/specimen
+   *
+   * Renders the document this template issues, with sample values, so a reviewer can see
+   * what a student receives WITHOUT issuing one to somebody first. Read-only: no
+   * Certificate row, no serial burned, no storage write.
+   *
+   * Permission: certificates.view, not certificates.issue — looking at what a template
+   * produces is reading, and gating it on the issue permission would mean the people who
+   * check a certificate's wording need the right to award one.
+   */
+  @Get("certificate-templates/:id/specimen")
+  @RequirePermission("certificates.view")
+  async getTemplateSpecimen(
+    @CurrentUser() user: RequestUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+  ): Promise<CertificateSpecimenResponse> {
+    return this.service.renderTemplateSpecimen(user.tenantId, id);
+  }
+
   @Post("certificate-templates")
   @HttpCode(HttpStatus.CREATED)
   @RequirePermission("certificates.issue")

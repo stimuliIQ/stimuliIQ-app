@@ -56,6 +56,7 @@ import type {
   CertificateCrmDetail,
   CertificateTemplateSummary,
   CertificateTemplateDetail,
+  CertificateSpecimenResponse,
   CreateCertificateTemplateRequest,
   UpdateCertificateTemplateRequest,
   BulkIssueCertificatesRequest,
@@ -120,6 +121,14 @@ const CERT_DOWNLOAD_TTL_SECONDS = DEFAULT_STORAGE_DOWNLOAD_TTL_SECONDS;
  * 10 MB should comfortably cover any seeded template.
  */
 const CERT_PDF_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+
+// Values printed on a template specimen. Deliberately not plausible: a specimen that reads
+// like a real award is one screenshot away from being passed off as one, and this document
+// is rendered on the genuine artwork with the genuine signature.
+const SPECIMEN_HOLDER_NAME = "Sample Student";
+const SPECIMEN_PROGRAM_NAME = "Sample Programme";
+const SPECIMEN_CERT_UID = "SPECIMEN-NOT-A-REAL-CERTIFICATE";
+const SPECIMEN_SERIAL = "SPECIMEN";
 
 /** Download filename, e.g. "Certificate-Data-Science-Machine-Learning-Internship.pdf". */
 function certificateFilename(programTitle: string): string {
@@ -1024,6 +1033,58 @@ export class CertificatesService {
    * GET /api/v1/crm/certificate-templates/:id — full row incl. saved designer layout.
    * Phase-9-completion gap #5.
    */
+  /**
+   * GET /api/v1/crm/certificate-templates/:id/specimen — the document this template issues.
+   *
+   * Runs the SAME `CertificatePdfPort.render()` as issuance, against the same artwork and
+   * the same placements, so what a reviewer sees is the certificate rather than a drawing
+   * of one. The only difference from a real award is the four values printed on it.
+   *
+   * Nothing is written: no Certificate row, no serial, no storage object, no audit of an
+   * issuance that did not happen. `renderAndStorePdf` is not reused for exactly that
+   * reason — its job is to persist bytes, and a specimen must not be persisted (see the
+   * schema doc in @repo/types for why a stored, signed-URL specimen is the wrong shape).
+   *
+   * The sample values are chosen so a printed copy identifies itself. The certificate id
+   * reads SPECIMEN rather than a plausible serial, and its verify URL resolves to nothing,
+   * so the public verify page answers "not found" for it — which is the honest end state
+   * for a document that certifies nobody.
+   */
+  async renderTemplateSpecimen(tenantId: string, id: string): Promise<CertificateSpecimenResponse> {
+    const template = await this.repo.findTemplateDetailById(tenantId, id);
+    if (!template) throw new NotFoundException("Certificate template not found.");
+
+    const env = validateEnv();
+    const issuedAt = new Date();
+    const sample = {
+      holderName: SPECIMEN_HOLDER_NAME,
+      programName: SPECIMEN_PROGRAM_NAME,
+      certificateId: SPECIMEN_CERT_UID,
+      issuedAt,
+    };
+
+    const pdf = await this.pdfPort.render({
+      design: (template.design as unknown as CertificateDesign) ?? {},
+      fieldDescriptors: template.fields as unknown as CertificateFieldDescriptor[],
+      fields: {
+        holderName: sample.holderName,
+        programName: sample.programName,
+        issuedAt,
+        certUid: sample.certificateId,
+        serial: SPECIMEN_SERIAL,
+        verifyUrl: `${env.WEB_APP_URL}/verify/${SPECIMEN_CERT_UID}`,
+      },
+    });
+
+    return {
+      contentType: "application/pdf",
+      bytesBase64: Buffer.from(pdf.bytes).toString("base64"),
+      templateName: template.name,
+      certificateKind: templateKind(template.design),
+      sample: { ...sample, issuedAt: issuedAt.toISOString() },
+    };
+  }
+
   async getTemplateDetail(tenantId: string, id: string): Promise<CertificateTemplateDetail> {
     const row = await this.repo.findTemplateDetailById(tenantId, id);
     if (!row) throw new NotFoundException("Certificate template not found.");

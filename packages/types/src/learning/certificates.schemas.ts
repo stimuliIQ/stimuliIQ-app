@@ -578,6 +578,54 @@ export const CertificateTemplateDetailSchema = CertificateTemplateSummarySchema.
 });
 export type CertificateTemplateDetail = z.infer<typeof CertificateTemplateDetailSchema>;
 
+/**
+ * `GET /api/v1/crm/certificate-templates/:id/specimen` — the REAL certificate this
+ * template issues, rendered with obviously-sample values.
+ *
+ * WHY THIS EXISTS. Every other way to look at a certificate needs one to already have been
+ * issued to a real student, so the only way to check a template before using it was to
+ * award a certificate to somebody and look at that. The CRM's "template designer" appeared
+ * to fill this gap and did not: it positioned merge-field placeholders
+ * ("{{student_name}}", "{{program_title}}") on a blank canvas, and since the certificate
+ * became the approved artwork with four values drawn onto it, neither those field names
+ * nor that canvas corresponded to anything the renderer does.
+ *
+ * This runs the SAME CertificatePdfPort.render() that issuance runs, on the same artwork,
+ * with the same placements. What comes back is the document, not a likeness of it.
+ *
+ * DELIVERED AS BYTES, NEVER A STORED OBJECT OR A SIGNED URL. A rendered certificate is
+ * ~1.4 MB and a clean unwatermarked one is a forger's starting point — which is exactly why
+ * the PUBLIC specimens on the marketing site have a watermark burned into their pixels
+ * (scripts/build-sample-certificates.cjs). Storing this one would put a shareable link to
+ * an unwatermarked certificate PDF in the bucket; base64 in a response body reaches the
+ * staff member's browser and nowhere else. It also means the preview works where the
+ * storage provider is unconfigured, which is most of local development.
+ *
+ * No watermark on THIS one, deliberately: it is gated on `certificates.view`, and anyone
+ * holding that can already download real certificates through
+ * `GET /crm/certificates/:id/download`. A watermark would obscure the layout somebody
+ * opened this to check while granting no capability they did not already have.
+ */
+export const CertificateSpecimenResponseSchema = z.object({
+  contentType: z.literal("application/pdf"),
+  bytesBase64: z.string().describe("The rendered PDF, base64. Not stored anywhere server-side."),
+  templateName: z.string(),
+  certificateKind: z
+    .enum(["training", "internship"])
+    .describe("Which approved artwork this template prints, resolved from design.certificateKind."),
+  /**
+   * The placeholder values drawn onto the artwork, returned so the UI can caption them
+   * rather than leaving a reader to guess whether "Sample Student" is a real person.
+   */
+  sample: z.object({
+    holderName: z.string(),
+    programName: z.string(),
+    certificateId: z.string(),
+    issuedAt: IsoDateTimeSchema,
+  }),
+});
+export type CertificateSpecimenResponse = z.infer<typeof CertificateSpecimenResponseSchema>;
+
 /** POST /api/v1/crm/certificate-templates */
 export const CreateCertificateTemplateRequestSchema = z
   .object({

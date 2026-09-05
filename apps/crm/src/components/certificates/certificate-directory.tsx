@@ -43,7 +43,7 @@ import { IssueCertificateDialog } from "./issue-certificate-dialog";
 import { RevokeCertificateDialog } from "./revoke-certificate-dialog";
 import { BulkIssueDialog } from "./bulk-issue-dialog";
 import { CertificateBatchList } from "./certificate-batch-list";
-import { CertTemplateDesignerDrawer } from "./cert-template-designer-drawer";
+import { CertTemplateSpecimenDrawer } from "./cert-template-specimen-drawer";
 import { CertificatePreviewDialog } from "./certificate-preview-dialog";
 import { certificateVerifyUrl } from "../../lib/public-urls";
 import { queryErrorMessage } from "../../lib/surface-error";
@@ -114,7 +114,7 @@ export function CertificateDirectory({
     revoked: boolean;
   } | null>(null);
   const [bulkIssueOpen, setBulkIssueOpen] = React.useState(false);
-  const [designerOpen, setDesignerOpen] = React.useState(false);
+  const [specimenOpen, setSpecimenOpen] = React.useState(false);
   // Remembered from the batch row that was clicked, so the context line can name
   // the cohort without a second fetch. A cold `?batchId=` link has no memory —
   // hence the fallback to the first loaded row below.
@@ -611,8 +611,9 @@ export function CertificateDirectory({
         }
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => setDesignerOpen(true)} data-testid="certificates-template-designer-button">
-              Template designer
+            <Button variant="secondary" onClick={() => setSpecimenOpen(true)} data-testid="certificates-template-specimen-button">
+              <Eye className="size-4" aria-hidden="true" />
+              Preview certificate
             </Button>
             {batchId && canIssue && selectedIds.size > 0 ? (
               <Button onClick={() => setBulkIssueOpen(true)} data-testid="certificates-bulk-issue-button">
@@ -681,7 +682,7 @@ export function CertificateDirectory({
         onDone={() => setSelectedIds(new Set())}
       />
 
-      <CertTemplateDesignerDrawer open={designerOpen} onOpenChange={setDesignerOpen} />
+      <CertTemplateSpecimenDrawer open={specimenOpen} onOpenChange={setSpecimenOpen} />
     </div>
   );
 }

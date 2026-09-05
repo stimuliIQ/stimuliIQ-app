@@ -2476,6 +2476,7 @@ import {
   VerifyResultSchema,
   CertificateTemplateSummarySchema,
   CertificateTemplateDetailSchema,
+  CertificateSpecimenResponseSchema,
   CreateCertificateTemplateRequestSchema,
   UpdateCertificateTemplateRequestSchema,
   BulkIssueCertificatesRequestSchema,
@@ -3194,6 +3195,7 @@ registry.registerPath({
 });
 
 const CertificateTemplateDetail = registry.register("CertificateTemplateDetail", CertificateTemplateDetailSchema);
+const CertificateSpecimenResponse = registry.register("CertificateSpecimenResponse", CertificateSpecimenResponseSchema);
 const CertificateTemplateDetailEnvelope = envelopeOf("CertificateTemplateDetail", CertificateTemplateDetail);
 const CreateCertificateTemplateRequest = registry.register("CreateCertificateTemplateRequest", CreateCertificateTemplateRequestSchema);
 const UpdateCertificateTemplateRequest = registry.register("UpdateCertificateTemplateRequest", UpdateCertificateTemplateRequestSchema);
@@ -3207,6 +3209,24 @@ registry.registerPath({
   ...requiredPermission("certificates.view"),
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: { 200: { description: "Template detail.", content: { "application/json": { schema: CertificateTemplateDetailEnvelope } } }, ...errorResponses },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/v1/crm/certificate-templates/{id}/specimen",
+  summary: "Render this template's certificate with sample values (nothing is issued or stored)",
+  tags: ["learning", "certificates"],
+  security: [{ cookieAuth: [] }],
+  ...requiredPermission("certificates.view"),
+  request: { params: z.object({ id: z.string().uuid() }) },
+  responses: {
+    200: {
+      description:
+        "The rendered PDF as base64. Runs the same renderer issuance runs, so this is the document itself rather than a likeness. Not persisted: no certificate row, no serial, no storage object.",
+      content: { "application/json": { schema: envelopeOf("CertificateSpecimen", CertificateSpecimenResponse) } },
+    },
+    ...errorResponses,
+  },
 });
 
 registry.registerPath({

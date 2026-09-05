@@ -170,6 +170,29 @@ export function certificateFileKey(id: string, disposition: string) {
  * inside the URL's own lifetime, so reopening the same certificate within a couple of
  * minutes reuses a URL that is still valid rather than minting another.
  */
+/**
+ * The document a TEMPLATE issues, rendered with sample values.
+ *
+ * Unlike `useCertificateFileUrl`, which needs a certificate that has already been awarded
+ * to somebody, this answers "what will a student get?" before anyone is given one.
+ *
+ * Not cached and not retried. The response carries ~1.4 MB of base64 PDF, so holding it in
+ * the query cache after the drawer closes would keep that in memory for a document the
+ * reader has finished with; `enabled` keeps it from firing at all until a template is
+ * picked. A failed render is a server-side problem (missing artwork, missing font) that
+ * retrying restates rather than fixes.
+ */
+export function useCertificateTemplateSpecimen(templateId: string | null) {
+  return useQuery({
+    queryKey: [...CERTIFICATES_QUERY_KEY, "template-specimen", templateId ?? ""] as const,
+    queryFn: () => apiClient.learning.certificates.getTemplateSpecimen(templateId as string),
+    enabled: Boolean(templateId),
+    gcTime: 0,
+    staleTime: 0,
+    retry: false,
+  });
+}
+
 export function useCertificateFileUrl(
   certificateId: string | null,
   disposition: "inline" | "attachment" = "inline",

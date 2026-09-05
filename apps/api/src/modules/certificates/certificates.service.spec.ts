@@ -679,6 +679,52 @@ describe("CertificatesService", () => {
       ...overrides,
     });
 
+    it("renderTemplateSpecimen 404s for an unknown template", async () => {
+      repo.findTemplateDetailById.mockResolvedValue(null);
+      await expect(service.renderTemplateSpecimen(TENANT_ID, "missing")).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("renderTemplateSpecimen returns the rendered PDF without issuing anything", async () => {
+      repo.findTemplateDetailById.mockResolvedValue(makeTemplateDetailRow({}));
+      const renderSpy = jest.spyOn(pdfPort, "render");
+
+      const result = await service.renderTemplateSpecimen(TENANT_ID, TEMPLATE_ID);
+
+      expect(result.contentType).toBe("application/pdf");
+      expect(Buffer.from(result.bytesBase64, "base64").byteLength).toBeGreaterThan(0);
+      expect(renderSpy).toHaveBeenCalledTimes(1);
+
+      // A preview must not burn a serial, create a Certificate row, or write bytes to
+      // storage. Any of those would make looking at a template indistinguishable from
+      // awarding one, which is the whole reason this endpoint exists separately.
+      expect(repo.createCertificate).not.toHaveBeenCalled();
+    });
+
+    // The values are what make a printed specimen self-identifying. If one of these ever
+    // becomes a plausible name or serial, a screenshot of it becomes a plausible award.
+    it("renderTemplateSpecimen prints placeholder values that cannot pass for a real award", async () => {
+      repo.findTemplateDetailById.mockResolvedValue(makeTemplateDetailRow({}));
+      const renderSpy = jest.spyOn(pdfPort, "render");
+
+      const result = await service.renderTemplateSpecimen(TENANT_ID, TEMPLATE_ID);
+
+      expect(result.sample.certificateId).toMatch(/SPECIMEN/);
+      expect(result.sample.holderName).toMatch(/Sample/);
+      // The verify link carries the same non-existent id, so the public verify page
+      // answers "not found" rather than resolving to somebody else's certificate.
+      expect(renderSpy.mock.calls[0]?.[0].fields.verifyUrl).toContain(result.sample.certificateId);
+      expect(renderSpy.mock.calls[0]?.[0].fields.certUid).toBe(result.sample.certificateId);
+    });
+
+    it("renderTemplateSpecimen reports the artwork the template prints", async () => {
+      repo.findTemplateDetailById.mockResolvedValue(
+        makeTemplateDetailRow({ design: { certificateKind: "internship" } }),
+      );
+      await expect(service.renderTemplateSpecimen(TENANT_ID, TEMPLATE_ID)).resolves.toMatchObject({
+        certificateKind: "internship",
+      });
+    });
+
     it("getTemplateDetail 404s for an unknown template", async () => {
       repo.findTemplateDetailById.mockResolvedValue(null);
       await expect(service.getTemplateDetail(TENANT_ID, "missing")).rejects.toBeInstanceOf(NotFoundException);
