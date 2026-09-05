@@ -248,8 +248,12 @@ describe("SyncCertificatePdfAdapter, artwork mode", () => {
       design: { ...INPUT.design, certificateKind: "training" },
     });
     const pdf = Buffer.from(result.bytes).toString("latin1");
-    expect(pdf).toContain("Parisienne");
+    expect(pdf).toContain("PinyonScript");
     expect(pdf).toContain("Outfit");
+    // The face this replaced. Pinned as an ABSENCE so a revert to the near-monoline
+    // Parisienne cannot pass unnoticed — the difference is invisible in a byte count and
+    // obvious on the page.
+    expect(pdf).not.toContain("Parisienne");
   }, 60000);
 
   it("leaves the neutral COURSE kind on the code-drawn certificate", async () => {

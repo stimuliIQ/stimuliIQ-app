@@ -62,7 +62,7 @@ export const DEFAULT_ARTWORK_FIELDS: Record<ArtworkFieldKey, ArtworkFieldPlaceme
     // modal colour of the glyph interiors, so antialiased edges do not skew it): the
     // artwork's script is a near-black forest green, and the brand green read visibly
     // brighter and lighter beside it on the same page.
-    x: 48.9, y: 45.4, width: 56, size: 40.5, align: "center", font: "script", color: "#011E06",
+    x: 48.9, y: 45.4, width: 56, size: 52, align: "center", font: "script", color: "#011E06",
   },
   /**
    * The paragraph beneath the name's ornamental rule. Specimen ink: y 614-739, widest line
@@ -196,7 +196,26 @@ export function resolveArtworkFields(
  * is the complete font.
  */
 export const DEFAULT_ARTWORK_FONTS = {
-  script: "Parisienne-Regular.ttf",
+  /**
+   * PINYON SCRIPT, not Parisienne.
+   *
+   * Parisienne was chosen by measuring glyph aspect and single-glyph widths, and aspect is
+   * not the property a reader notices on a certificate: STROKE CONTRAST is. Measured against
+   * the approved artwork's own "Your Name" ink — thick-run over thin-run, p90/p10, which is
+   * scale-invariant — the specimen sits at 6.0 and Parisienne at 2.5, ranking 23rd of the 26
+   * script faces tried. It is close to monoline where the artwork is a high-contrast
+   * copperplate, which is exactly the "font is not good" a reviewer reported.
+   *
+   * Pinyon Script measures 5.0 and shares the copperplate letterforms. Of the candidates it
+   * is the only one that matches both the contrast and the structure; the next best on
+   * contrast (Lovers Quarrel, Mea Culpa) are decorative in a way the artwork is not.
+   *
+   * NOT claimed to be the artwork's actual typeface — that name lives in the design source
+   * and was never available here. It is the closest of 26 measured, which is a different and
+   * weaker claim. `scripts/identify-certificate-script-font.cjs` re-runs the measurement in
+   * one command if the real name ever turns up.
+   */
+  script: "PinyonScript-Regular.ttf",
   body: "Outfit-Medium.ttf",
   bodyBold: "Outfit-SemiBold.ttf",
 } as const;

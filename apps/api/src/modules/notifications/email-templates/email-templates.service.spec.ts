@@ -160,6 +160,47 @@ describe("EmailTemplatesService", () => {
       expect(html).toContain("https://lms.example/login");
     });
 
+    // THE CREDENTIALS MUST SURVIVE THE TEMPLATE LAYER. The enrolment welcome is the only
+    // email that carries a student's temporary password, and the prose around it is now
+    // CRM-editable — so the risk is a future change to compose()/renderBrandedEmail quietly
+    // dropping the fixed parts and shipping a welcome with no way to log in. Nobody would
+    // notice from the CRM preview, which fills in placeholder credentials of its own.
+    it("puts the temporary password and username in the rendered email", async () => {
+      const { html } = await service.renderForSend(
+        TENANT,
+        "enrollment_welcome",
+        { studentName: "Gandi Phanendra" },
+        {
+          details: [
+            { label: "LMS username", value: "student@example.com" },
+            { label: "Temporary password", value: "Tmp-SECRET-123" },
+          ],
+          button: { label: "Sign in to the LMS", url: "https://lms.example/login" },
+        },
+      );
+
+      expect(html).toContain("Temporary password");
+      expect(html).toContain("Tmp-SECRET-123");
+      expect(html).toContain("LMS username");
+      expect(html).toContain("student@example.com");
+      expect(html).toContain("https://lms.example/login");
+    });
+
+    // An override replaces the PROSE only. If editing the wording could drop the credentials
+    // table, a staff member rewording the welcome would silently lock new students out.
+    it("keeps the credentials even when the prose has been customised", async () => {
+      repo.findByKey.mockResolvedValue(row({ body: "A totally rewritten welcome message." }));
+      const { html } = await service.renderForSend(
+        TENANT,
+        "enrollment_welcome",
+        { studentName: "Gandi Phanendra" },
+        { details: [{ label: "Temporary password", value: "Tmp-SECRET-123" }] },
+      );
+
+      expect(html).toContain("A totally rewritten welcome message.");
+      expect(html).toContain("Tmp-SECRET-123");
+    });
+
     // Student-supplied. A name is free text somebody typed into a form.
     it("HTML-escapes interpolated values", async () => {
       repo.findByKey.mockResolvedValue(row({ body: "Hello {{studentName}}." }));
