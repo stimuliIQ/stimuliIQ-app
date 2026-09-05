@@ -55,6 +55,21 @@ export function useAttachVideoCaptions() {
 }
 
 /**
+ * Takes the video off its lesson (soft-delete).
+ *
+ * The counterpart to `useIngestVideoAsset` in replace mode: replace fixes "wrong file",
+ * this answers "this lesson should not have a video". Uploading to the same lesson
+ * afterwards works and produces a NEW asset — the deleted file is not restored.
+ */
+export function useDeleteVideoAsset() {
+  const invalidate = useInvalidateVideoLibrary();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.crm.videoLibrary.remove(id),
+    onSuccess: invalidate,
+  });
+}
+
+/**
  * Confirms the browser's direct PUT finished. Flips non-transcoding providers
  * (local dev) to `ready`; a status no-op for Cloudflare Stream / Mux, where the
  * transcode webhook stays authoritative. Invalidates so the table shows the

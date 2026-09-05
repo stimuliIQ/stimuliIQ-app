@@ -16,6 +16,7 @@ import type {
   AttachCaptionsRequest,
   MarkVideoUploadedRequest,
   VideoPreviewUrlResponse,
+  DeleteVideoAssetResponse,
 } from "@repo/types";
 import type { ApiClient } from "../http/client.js";
 import { toQueryString } from "../http/query.js";
@@ -65,6 +66,15 @@ export class VideoLibraryApi {
     idempotencyKey: string = crypto.randomUUID(),
   ): Promise<VideoAsset> {
     return this.client.request<VideoAsset>("POST", `/api/v1/crm/videos/${id}/uploaded`, { body, idempotencyKey });
+  }
+
+  /**
+   * DELETE /api/v1/crm/videos/:id — take the video off its lesson. Permission:
+   * videolib.delete. Soft-delete; uploading to the same lesson again restores the row as
+   * a NEW asset rather than bringing the deleted file back.
+   */
+  async remove(id: string): Promise<DeleteVideoAssetResponse> {
+    return this.client.request<DeleteVideoAssetResponse>("DELETE", `/api/v1/crm/videos/${id}`);
   }
 
   /**

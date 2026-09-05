@@ -8,7 +8,7 @@
 //
 // CLAUDE.md §3: "no business logic in components — use hooks/services".
 import * as React from "react";
-import { RefreshCw, Replace } from "lucide-react";
+import { RefreshCw, Replace, Trash2 } from "lucide-react";
 import {
   Button,
   Drawer,
@@ -32,6 +32,9 @@ interface VideoPreviewDrawerProps {
   /** Opens the ingest drawer pre-filled to this lesson (replace the file). */
   onReplace?: (video: VideoAsset) => void;
   canReplace?: boolean;
+  /** Asks to take the video off its lesson. The owner renders the confirm step. */
+  onDelete?: (video: VideoAsset) => void;
+  canDelete?: boolean;
 }
 
 function formatDuration(durationS: number | null): string {
@@ -47,6 +50,8 @@ export function VideoPreviewDrawer({
   onOpenChange,
   onReplace,
   canReplace = false,
+  onDelete,
+  canDelete = false,
 }: VideoPreviewDrawerProps): React.JSX.Element {
   const { data, isLoading, isError, error, refetch } = useVideoPreviewUrl(
     open && video ? video.id : undefined,
@@ -121,6 +126,16 @@ export function VideoPreviewDrawer({
             <Button variant="secondary" onClick={() => onReplace(video)} data-testid="video-preview-replace">
               <Replace className="size-4" aria-hidden="true" />
               Replace video
+            </Button>
+          ) : null}
+          {/* Sits beside Replace because this is where somebody who has just watched the
+              file decides what to do with it. Replace = wrong file; this = the lesson
+              should not have a video. The confirm step belongs to the owner, so this only
+              asks. */}
+          {canDelete && video && onDelete ? (
+            <Button variant="secondary" onClick={() => onDelete(video)} data-testid="video-preview-delete">
+              <Trash2 className="size-4 text-danger" aria-hidden="true" />
+              Remove video
             </Button>
           ) : null}
           <Button onClick={() => onOpenChange(false)} data-testid="video-preview-close">

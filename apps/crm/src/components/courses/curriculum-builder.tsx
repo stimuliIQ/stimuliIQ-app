@@ -20,7 +20,7 @@ import {
   useUpdateLesson,
   useUpdateModule,
 } from "../../hooks/use-courses";
-import { useVideoLibraryList } from "../../hooks/use-video-library";
+import { useVideoLibraryList, useDeleteVideoAsset } from "../../hooks/use-video-library";
 import { VideoIngestDrawer } from "../video-library/video-ingest-drawer";
 import { LessonResourcesDrawer } from "./lesson-resources-drawer";
 import { LessonFormDrawer } from "./lesson-form-drawer";
@@ -57,6 +57,9 @@ interface CurriculumBuilderProps {
   canViewVideos: boolean;
   /** Holds `videolib.upload` — may attach/replace a lesson's video in place. */
   canManageVideos: boolean;
+  /** videolib.delete — separate from canManageVideos on purpose: faculty may attach and
+   *  replace a video on a program they teach, but not take one off. */
+  canDeleteVideos: boolean;
 }
 
 export function CurriculumBuilder({
@@ -64,6 +67,7 @@ export function CurriculumBuilder({
   canEdit,
   canViewVideos,
   canManageVideos,
+  canDeleteVideos,
 }: CurriculumBuilderProps): React.JSX.Element {
   const { data: curriculum, isLoading, isError, error, refetch } = useCurriculum(programId);
   const { toast } = useToast();
@@ -83,7 +87,13 @@ export function CurriculumBuilder({
 
   // Lesson whose video attach/replace drawer is open. "attach" seeds a lessonId;
   // "replace" carries the existing VideoAsset so the drawer locks to its lesson.
-  const [videoDrawer, setVideoDrawer] = React.useState<
+  /** Non-null = confirming removal of this lesson's video. Kept separate from the
+   *  lesson/module delete confirm below: that one deletes the LESSON, this one only takes
+   *  the video off it, and conflating them would be the worst possible mix-up here. */
+  const [videoToRemove, setVideoToRemove] = React.useState<{ video: VideoAsset; lessonTitle: string } | null>(null);
+  const deleteVideo = useDeleteVideoAsset();
+
+    const [videoDrawer, setVideoDrawer] = React.useState<
     { mode: "attach"; lessonId: string; lessonTitle: string } | { mode: "replace"; video: VideoAsset } | null
   >(null);
 
@@ -452,6 +462,18 @@ export function CurriculumBuilder({
                                 <Video className="size-4" aria-hidden="true" />
                               </Button>
                             ) : null}
+                            {lesson.type === "video" && canDeleteVideos && video ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Remove the video from ${lesson.title}`}
+                                title="Remove video"
+                                onClick={() => setVideoToRemove({ video, lessonTitle: lesson.title })}
+                                data-testid="lesson-video-remove-button"
+                              >
+                                <Trash2 className="size-4 text-danger" aria-hidden="true" />
+                              </Button>
+                            ) : null}
                             {/* The lesson's summary + its attachments — kept distinct from the
                                 video action above; this is the paperclip. */}
                             <Button
@@ -607,6 +629,34 @@ export function CurriculumBuilder({
         onConfirm={handleConfirmDelete}
         loading={deleteLesson.isPending || deleteModule.isPending}
         data-testid="confirm-delete-curriculum"
+      />
+
+      <ConfirmDialog
+        open={Boolean(videoToRemove)}
+        onOpenChange={(open) => !open && setVideoToRemove(null)}
+        title="Remove this video?"
+        description={
+          videoToRemove
+            ? `"${videoToRemove.lessonTitle}" will have no video, and students will see "Video not available yet" on that lesson. The lesson itself is not deleted, and you can upload a new video to it at any time.`
+            : ""
+        }
+        confirmLabel="Remove video"
+        tone="danger"
+        onConfirm={() => {
+          if (!videoToRemove) return;
+          deleteVideo.mutate(videoToRemove.video.id, {
+            onSuccess: () => {
+              toast({ title: "Video removed", variant: "success" });
+              setVideoToRemove(null);
+            },
+            onError: (err) => {
+              surfaceError(toast, err, "Failed to remove the video");
+              setVideoToRemove(null);
+            },
+          });
+        }}
+        loading={deleteVideo.isPending}
+        data-testid="confirm-remove-lesson-video"
       />
 
       {/* Attach/replace a lesson's video without leaving the curriculum. */}

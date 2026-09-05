@@ -129,3 +129,15 @@ export const VideoPreviewUrlResponseSchema = z.object({
   provider: z.string(),
 });
 export type VideoPreviewUrlResponse = z.infer<typeof VideoPreviewUrlResponseSchema>;
+
+/**
+ * `DELETE /crm/videos/:id` response — soft-delete, mirroring the `{ deleted: true }`
+ * shape every other delete route in the CRM returns (colleges, partners, content pages).
+ *
+ * The video row is soft-deleted, not purged: uploading again to the same lesson RESTORES
+ * that row as a new asset, because `videos.lesson_id` carries a full unique a deleted row
+ * keeps occupying. The remote CDN asset is left in place — `VideoProvider` has no delete
+ * operation (see VideoLibraryService.remove).
+ */
+export const DeleteVideoAssetResponseSchema = z.object({ deleted: z.literal(true) });
+export type DeleteVideoAssetResponse = z.infer<typeof DeleteVideoAssetResponseSchema>;

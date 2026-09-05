@@ -3,7 +3,8 @@
 // Unit tests for VideoLibraryService: scope resolution (all vs. assigned-faculty via
 // EnrollmentScopeRepository), ingest creates a NEW video for a lesson with none,
 // replace-in-place for a lesson that already has one (hard-unique lessonId, see
-// video-library.repository.ts file header), IDOR -> 404 for an out-of-scope lesson.
+// video-library.repository.ts file header), RESTORE for a lesson whose video was deleted,
+// remove() soft-delete, IDOR -> 404 for an out-of-scope lesson.
 
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import type { Video as VideoRow } from "@prisma/client";
@@ -35,9 +36,11 @@ function mockRepository(): Mocked<VideoLibraryRepository> {
   return {
     findLessonForIngest: jest.fn(),
     promoteLessonToVideo: jest.fn(),
-    findActiveVideoByLessonId: jest.fn(),
+    findAnyVideoByLessonId: jest.fn(),
     createVideo: jest.fn(),
     replaceVideo: jest.fn(),
+    restoreVideo: jest.fn(),
+    softDeleteVideo: jest.fn(),
     updateCaptions: jest.fn(),
     list: jest.fn(),
     findById: jest.fn(),
@@ -135,7 +138,7 @@ describe("VideoLibraryService", () => {
 
     it("creates a NEW video row when the lesson has none yet", async () => {
       repo.findLessonForIngest.mockResolvedValue({ id: "lesson-1", title: "Intro to CSS", programId: "program-1" });
-      repo.findActiveVideoByLessonId.mockResolvedValue(null);
+      repo.findAnyVideoByLessonId.mockResolvedValue(null);
       videoProvider.createUploadTarget.mockResolvedValue({ uploadUrl: "https://upload.example/1", providerAssetId: "asset-1" });
       repo.createVideo.mockResolvedValue(VIDEO_ROW);
       repo.findById.mockResolvedValue(VIDEO_WITH_LESSON);
@@ -151,7 +154,7 @@ describe("VideoLibraryService", () => {
     // the transcode finishes, and the student sees a reading page with no video on it.
     it("makes the lesson a video lesson, so the upload is actually visible to students", async () => {
       repo.findLessonForIngest.mockResolvedValue({ id: "lesson-1", title: "Intro to CSS", programId: "program-1" });
-      repo.findActiveVideoByLessonId.mockResolvedValue(null);
+      repo.findAnyVideoByLessonId.mockResolvedValue(null);
       videoProvider.createUploadTarget.mockResolvedValue({ uploadUrl: "https://upload.example/1", providerAssetId: "asset-1" });
       repo.createVideo.mockResolvedValue(VIDEO_ROW);
       repo.findById.mockResolvedValue(VIDEO_WITH_LESSON);
@@ -174,7 +177,7 @@ describe("VideoLibraryService", () => {
 
     it("REPLACES IN PLACE (never creates a second row) when the lesson already has an active video", async () => {
       repo.findLessonForIngest.mockResolvedValue({ id: "lesson-1", title: "Intro to CSS", programId: "program-1" });
-      repo.findActiveVideoByLessonId.mockResolvedValue(VIDEO_ROW);
+      repo.findAnyVideoByLessonId.mockResolvedValue(VIDEO_ROW);
       videoProvider.createUploadTarget.mockResolvedValue({ uploadUrl: "https://upload.example/2", providerAssetId: "asset-2" });
       repo.replaceVideo.mockResolvedValue({ ...VIDEO_ROW, providerAssetId: "asset-2" });
       repo.findById.mockResolvedValue(VIDEO_WITH_LESSON);
@@ -182,6 +185,57 @@ describe("VideoLibraryService", () => {
       await runWithScope("all", () => service.create("tenant-1", "actor-1", { lessonId: "lesson-1" }));
       expect(repo.replaceVideo).toHaveBeenCalledWith("video-1", expect.objectContaining({ providerAssetId: "asset-2" }));
       expect(repo.createVideo).not.toHaveBeenCalled();
+    });
+
+    // The bug this guards: `videos.lesson_id` has a FULL unique (videos_lesson_id_key, no
+    // WHERE clause) that a soft-deleted row keeps occupying. Looking only at ACTIVE rows
+    // would send this down createVideo and straight into P2002, which would make delete a
+    // one-way door — the lesson could never be given a video again.
+    it("RESTORES the soft-deleted row when re-uploading to a lesson whose video was deleted", async () => {
+      repo.findLessonForIngest.mockResolvedValue({ id: "lesson-1", title: "Intro to CSS", programId: "program-1" });
+      repo.findAnyVideoByLessonId.mockResolvedValue({ ...VIDEO_ROW, deletedAt: new Date("2026-02-01T00:00:00Z") });
+      videoProvider.createUploadTarget.mockResolvedValue({ uploadUrl: "https://upload.example/3", providerAssetId: "asset-3" });
+      repo.restoreVideo.mockResolvedValue({ ...VIDEO_ROW, providerAssetId: "asset-3" });
+      repo.findById.mockResolvedValue(VIDEO_WITH_LESSON);
+
+      await runWithScope("all", () => service.create("tenant-1", "actor-1", { lessonId: "lesson-1" }));
+
+      expect(repo.restoreVideo).toHaveBeenCalledWith("video-1", expect.objectContaining({ providerAssetId: "asset-3" }));
+      expect(repo.createVideo).not.toHaveBeenCalled();
+      expect(repo.replaceVideo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("remove()", () => {
+    it("soft-deletes a video in scope", async () => {
+      repo.findById.mockResolvedValue(VIDEO_WITH_LESSON);
+
+      const result = await runWithScope("all", () => service.remove("tenant-1", "actor-1", "video-1"));
+
+      expect(result).toEqual({ deleted: true });
+      expect(repo.softDeleteVideo).toHaveBeenCalledWith("video-1");
+    });
+
+    it("404s (IDOR) for a video outside the faculty caller's assigned programs", async () => {
+      repo.findOwnFacultyProfileId.mockResolvedValue("faculty-1");
+      scopeRepo.resolveProgramIdsForFaculty.mockResolvedValue(["other-program"]);
+      repo.findById.mockResolvedValue(VIDEO_WITH_LESSON);
+
+      await expect(
+        runWithScope("assigned", () => service.remove("tenant-1", "faculty-user-1", "video-1")),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(repo.softDeleteVideo).not.toHaveBeenCalled();
+    });
+
+    // findById is soft-delete filtered, so the row is already invisible on a second call.
+    // Reporting success twice would tell a caller they deleted something that was not there.
+    it("404s when the video is already gone, rather than reporting a second success", async () => {
+      repo.findById.mockResolvedValue(null);
+
+      await expect(
+        runWithScope("all", () => service.remove("tenant-1", "actor-1", "video-1")),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(repo.softDeleteVideo).not.toHaveBeenCalled();
     });
   });
 

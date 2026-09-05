@@ -4,7 +4,7 @@
 // phase-9-completion.md). Transcode-status webhook stays on the EXISTING
 // VideoWebhookController (video-webhook.controller.ts) — untouched by this file.
 
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
 import { ScopeInterceptor } from "../auth/interceptors/scope.interceptor";
@@ -26,6 +26,7 @@ import {
   MarkVideoUploadedRequestSchema,
   type MarkVideoUploadedRequest,
   type VideoPreviewUrlResponse,
+  type DeleteVideoAssetResponse,
 } from "./dto/video-library.schemas";
 
 @Controller("crm/videos")
@@ -68,6 +69,23 @@ export class VideoLibraryController {
     @Body(new ZodValidationPipe(AttachCaptionsRequestSchema)) body: AttachCaptionsRequest,
   ): Promise<VideoAsset> {
     return this.service.attachCaptions(user.tenantId, user.id, id, body);
+  }
+
+  /**
+   * DELETE /crm/videos/:id — take the video off its lesson.
+   *
+   * The counterpart to replace (POST /crm/videos on a lesson that already has one).
+   * Replace answers "this is the wrong file"; delete answers "this lesson should not have
+   * a video at all", which had no route until now even though `videolib.delete` was
+   * already seeded and granted.
+   */
+  @Delete(":id")
+  @RequirePermission("videolib.delete")
+  async remove(
+    @CurrentUser() user: RequestUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+  ): Promise<DeleteVideoAssetResponse> {
+    return this.service.remove(user.tenantId, user.id, id);
   }
 
   /**

@@ -1,13 +1,14 @@
 // Video library directory — upload → transcode status → captions → attached
 // lesson, per Phase 9 Completion T26/T38 (docs/plans/phase-9-completion.md).
 import * as React from "react";
-import { Plus, Subtitles, Play, Replace } from "lucide-react";
-import { Button, DataTable, type DataTableColumn, DataFilterBar, EmptyState, PageHeader, Select, SelectItem, StatusChip } from "@repo/ui";
+import { Plus, Subtitles, Play, Replace, Trash2 } from "lucide-react";
+import { Button, ConfirmDialog, DataTable, type DataTableColumn, DataFilterBar, EmptyState, PageHeader, Select, SelectItem, StatusChip, useToast } from "@repo/ui";
 import type { MeResponse, VideoAsset, VideoStatus } from "@repo/types";
 
-import { useVideoLibraryList } from "../../hooks/use-video-library";
+import { useVideoLibraryList, useDeleteVideoAsset } from "../../hooks/use-video-library";
 import { useDebouncedValue } from "../../hooks/use-debounced-value";
 import { hasPermission } from "../../lib/permissions";
+import { surfaceError } from "../../lib/surface-error";
 import { VideoIngestDrawer } from "./video-ingest-drawer";
 import { VideoCaptionDrawer } from "./video-caption-drawer";
 import { VideoPreviewDrawer } from "./video-preview-drawer";
@@ -23,6 +24,7 @@ export function VideoLibraryDirectory({ me }: { me: MeResponse | undefined }): R
   // (upload — not "create" — for the ingest permission).
   const canUpload = hasPermission(me?.permissions, "videolib.upload");
   const canEdit = hasPermission(me?.permissions, "videolib.edit");
+  const canDelete = hasPermission(me?.permissions, "videolib.delete");
   const [search, setSearch] = React.useState("");
   const [status, setStatus] = React.useState<VideoStatus | undefined>(undefined);
   const [page, setPage] = React.useState(1);
@@ -33,11 +35,38 @@ export function VideoLibraryDirectory({ me }: { me: MeResponse | undefined }): R
   const [replaceVideo, setReplaceVideo] = React.useState<VideoAsset | null>(null);
   const pageSize = 20;
 
+  /** Non-null = the confirm dialog is asking about taking this video off its lesson. */
+  const [deleteTarget, setDeleteTarget] = React.useState<VideoAsset | null>(null);
+  const deleteMutation = useDeleteVideoAsset();
+  const { toast } = useToast();
+
+  function handleDelete() {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id, {
+      onSuccess: () => {
+        toast({ title: "Video removed", variant: "success" });
+        setDeleteTarget(null);
+      },
+      onError: (err) => {
+        surfaceError(toast, err, "Failed to remove the video");
+        setDeleteTarget(null);
+      },
+    });
+  }
+
   /** Replace flows from the preview drawer: close preview, open ingest pre-filled. */
   function startReplace(video: VideoAsset) {
     setPreviewVideo(null);
     setReplaceVideo(video);
     setIngestOpen(true);
+  }
+
+  /** Delete from the preview drawer: same handoff as replace — close the drawer, then
+   *  ask. Leaving the drawer open would stack a confirm dialog over a video player that
+   *  is still holding a freshly minted playback URL. */
+  function startDelete(video: VideoAsset) {
+    setPreviewVideo(null);
+    setDeleteTarget(video);
   }
 
   const debouncedSearch = useDebouncedValue(search);
@@ -144,6 +173,18 @@ export function VideoLibraryDirectory({ me }: { me: MeResponse | undefined }): R
                 Captions
               </Button>
             ) : null}
+            {canDelete ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setDeleteTarget(row)}
+                aria-label={`Remove the video from ${row.lessonTitle}`}
+                data-testid={`video-library-delete-${row.id}`}
+              >
+                <Trash2 className="size-4 text-danger" aria-hidden="true" />
+                Delete
+              </Button>
+            ) : null}
           </div>
         )}
         pagination={{ page, pageSize, total: data?.meta.total ?? 0, onPageChange: setPage }}
@@ -161,12 +202,29 @@ export function VideoLibraryDirectory({ me }: { me: MeResponse | undefined }): R
         replaceFor={replaceVideo}
       />
       <VideoCaptionDrawer open={Boolean(captionVideo)} onOpenChange={(open) => !open && setCaptionVideo(null)} video={captionVideo} />
-      <VideoPreviewDrawer
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Remove this video?"
+        description={
+          deleteTarget
+            ? `"${deleteTarget.lessonTitle}" will have no video, and students will see "Video not available yet" on that lesson. You can upload a new one to it at any time, but this file will not come back.`
+            : ""
+        }
+        confirmLabel="Remove video"
+        tone="danger"
+        onConfirm={handleDelete}
+        loading={deleteMutation.isPending}
+        data-testid="confirm-delete-video"
+      />
+            <VideoPreviewDrawer
         video={previewVideo}
         open={Boolean(previewVideo)}
         onOpenChange={(open) => !open && setPreviewVideo(null)}
         onReplace={startReplace}
         canReplace={canUpload}
+        onDelete={startDelete}
+        canDelete={canDelete}
       />
     </div>
   );

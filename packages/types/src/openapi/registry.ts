@@ -6030,6 +6030,7 @@ import {
   ListVideoAssetsQuerySchema,
   VideoAssetSchema,
   AttachCaptionsRequestSchema,
+  DeleteVideoAssetResponseSchema,
 } from "../lms/video-library.schemas.js";
 
 // ── CRM bulk actions (T30) ───────────────────────────────────────────────
@@ -6193,6 +6194,7 @@ const VideoAsset = registry.register("VideoAsset", VideoAssetSchema);
 const VideoAssetEnvelope = envelopeOf("VideoAsset", VideoAsset);
 const VideoAssetListEnvelope = paginatedEnvelopeOf("VideoAsset", VideoAsset);
 const AttachCaptionsRequest = registry.register("AttachCaptionsRequest", AttachCaptionsRequestSchema);
+const DeleteVideoAssetResponse = registry.register("DeleteVideoAssetResponse", DeleteVideoAssetResponseSchema);
 
 registry.registerPath({
   method: "get",
@@ -6253,6 +6255,24 @@ registry.registerPath({
   },
   responses: {
     200: { description: "Captions updated.", content: { "application/json": { schema: VideoAssetEnvelope } } },
+    ...errorResponses,
+  },
+});
+
+registry.registerPath({
+  method: "delete",
+  path: "/api/v1/crm/videos/{id}",
+  summary: "Take a video off its lesson (soft-delete)",
+  tags: ["crm", "video-library"],
+  security: [{ cookieAuth: [], csrfHeader: [] }],
+  ...requiredPermission("videolib.delete"),
+  request: { params: z.object({ id: z.string().uuid() }) },
+  responses: {
+    200: {
+      description:
+        "Deleted. Re-uploading to the same lesson restores the row as a NEW asset — the deleted file does not come back.",
+      content: { "application/json": { schema: envelopeOf("DeleteVideoAsset", DeleteVideoAssetResponse) } },
+    },
     ...errorResponses,
   },
 });

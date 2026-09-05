@@ -93,10 +93,17 @@ export class VideoLibraryService {
     // the upload would complete and the student would never see it. No-op when it already is.
     await this.repository.promoteLessonToVideo(lesson.id);
 
-    const existing = await this.repository.findActiveVideoByLessonId(tenantId, body.lessonId);
-    const row: VideoRow = existing
-      ? await this.repository.replaceVideo(existing.id, { provider: this.providerKey(), providerAssetId: uploadTarget.providerAssetId })
-      : await this.repository.createVideo(tenantId, body.lessonId, { provider: this.providerKey(), providerAssetId: uploadTarget.providerAssetId });
+    // THREE ways in, because `videos.lesson_id` has a FULL unique that a soft-deleted row
+    // keeps occupying (see the repository header). Looking only at ACTIVE rows would send a
+    // lesson whose video was deleted down the create path and straight into P2002, so a
+    // deleted video could never be replaced by a new one.
+    const identifiers = { provider: this.providerKey(), providerAssetId: uploadTarget.providerAssetId };
+    const existing = await this.repository.findAnyVideoByLessonId(tenantId, body.lessonId);
+    const row: VideoRow = !existing
+      ? await this.repository.createVideo(tenantId, body.lessonId, identifiers)
+      : existing.deletedAt
+        ? await this.repository.restoreVideo(existing.id, identifiers)
+        : await this.repository.replaceVideo(existing.id, identifiers);
 
     const withLesson = await this.repository.findById(tenantId, row.id);
     return { video: toDto(withLesson!), uploadUrl: uploadTarget.uploadUrl };
@@ -127,6 +134,40 @@ export class VideoLibraryService {
       throw new NotFoundException({ code: "videolib.not_found", title: "Video not found" });
     }
     return toDto(row);
+  }
+
+  /**
+   * DELETE /crm/videos/:id — detach the video from its lesson.
+   *
+   * Until this existed the only way to change a lesson's video was to REPLACE it, so a
+   * video uploaded to the wrong lesson could be overwritten but never taken off: the
+   * lesson kept a video forever. `videolib.delete` has been seeded since Phase 9 and was
+   * granted to content_editor, but no route ever consumed it — a permission that looks
+   * like it controls something and does not (the `stats.headline` trap, P10-2).
+   *
+   * Soft-delete only, and NOT reversible from this surface: a later upload to the same
+   * lesson restores the row as a brand-new asset rather than bringing the old file back
+   * (see `VideoLibraryRepository.restoreVideo`).
+   *
+   * The remote CDN asset is deliberately NOT deleted. `VideoProvider` exposes no delete
+   * operation (only createUploadTarget / mintSignedHlsUrl / webhook parsing), and
+   * inventing one here would mean calling the Cloudflare Stream or Mux SDK straight from a
+   * feature module, which CLAUDE.md §3.7 forbids. The asset is unreachable either way —
+   * every playback URL is minted from a row this query no longer returns — so the residue
+   * is vendor storage cost, not exposure. Reclaiming it needs a `deleteAsset` on the
+   * provider interface plus all three adapters, which is a bigger change than this one.
+   */
+  async remove(tenantId: string, actorId: string, id: string): Promise<{ deleted: true }> {
+    const allowedProgramIds = await this.resolveAllowedProgramIds(tenantId, actorId);
+    const row = await this.repository.findById(tenantId, id);
+    // findById is soft-delete filtered, so deleting twice 404s rather than reporting a
+    // second success. Same IDOR posture as every other method here: out of scope -> 404.
+    if (!row || (allowedProgramIds && !allowedProgramIds.includes(row.lesson.module.programId))) {
+      throw new NotFoundException({ code: "videolib.not_found", title: "Video not found" });
+    }
+
+    await this.repository.softDeleteVideo(id);
+    return { deleted: true };
   }
 
   async attachCaptions(tenantId: string, actorId: string, id: string, body: AttachCaptionsRequest): Promise<VideoAsset> {

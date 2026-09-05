@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PrismaClient, RolePermissionScope } from "@prisma/client";
 
-const ALL_EXPECTED_KEYS = ["videolib.view", "videolib.upload", "videolib.edit"] as const;
+const ALL_EXPECTED_KEYS = ["videolib.view", "videolib.upload", "videolib.edit", "videolib.delete"] as const;
 const SEED_PATH = resolve(__dirname, "../../../../../prisma/seed.ts");
 
 function requiredPermissionKeys(source: string): string[] {
@@ -22,14 +22,16 @@ describe("Video library controller permission catalog (regression: P6 forum.read
   const controllerSource = readFileSync(resolve(__dirname, "./video-library.controller.ts"), "utf8");
 
   it("declares exactly the expected videolib.* permissions in route order", () => {
-    // Route order: list, getById, create, attachCaptions, markUploaded, previewUrl.
+    // Route order: list, getById, create, attachCaptions, remove, markUploaded, previewUrl.
     // markUploaded is `upload` (it completes an ingest); previewUrl is `view` (staff
-    // read-only playback of an already-attached asset).
+    // read-only playback of an already-attached asset); remove is `delete`, which was
+    // seeded and granted from Phase 9 but had no route consuming it until now.
     expect(requiredPermissionKeys(controllerSource)).toEqual([
       "videolib.view",
       "videolib.view",
       "videolib.upload",
       "videolib.edit",
+      "videolib.delete",
       "videolib.upload",
       "videolib.view",
     ]);
@@ -83,6 +85,20 @@ describeIfDb("Video library permission catalog, live seeded DB", () => {
       expect(grant).not.toBeNull();
       expect(grant!.scope).toBe(RolePermissionScope.assigned);
     }
+  });
+
+  // Faculty may attach and replace a video on a program they teach, but not take one off.
+  // Removing a lesson's video is a content decision, so it sits with content_editor and the
+  // two admin roles; seed.ts grants faculty only view+upload.
+  it("the `faculty` role does NOT hold videolib.delete", async () => {
+    const role = await prisma.role.findFirst({ where: { key: "faculty" } });
+    expect(role).not.toBeNull();
+    const permission = await prisma.permission.findUnique({ where: { key: "videolib.delete" } });
+    expect(permission).not.toBeNull();
+    const grant = await prisma.rolePermission.findUnique({
+      where: { roleId_permissionId: { roleId: role!.id, permissionId: permission!.id } },
+    });
+    expect(grant).toBeNull();
   });
 
   it("admin/super_admin hold every videolib.* permission at scope=all (catch-all)", async () => {

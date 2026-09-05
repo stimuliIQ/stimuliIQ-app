@@ -142,7 +142,7 @@ const MODULE_HELP: Record<string, ModuleHelp> = {
   // ── Teaching and learning ─────────────────────────────────────────────────
   lessons: { title: "Lessons", summary: "Individual lessons inside a course module and their content." },
   videos: { title: "Videos", summary: "Recorded lesson video, including permission to play it through a signed link." },
-  videolib: { title: "Video library", summary: "The pool of uploaded videos before they are attached to lessons." },
+  videolib: { title: "Video library", summary: "Lesson videos: the uploaded file, its transcode status and its captions." },
   resources: { title: "Resources", summary: "Downloadable files attached to lessons: slides, notes, datasets." },
   progress: { title: "Progress", summary: "How far a student has got through a course." },
   liveclass: { title: "Live classes", summary: "Scheduled Zoom or Meet sessions, and joining them." },
@@ -402,9 +402,9 @@ const PERMISSION_HELP: Record<string, string> = {
   "videos.stream":
     "Plays protected course video. This is what mints the temporary playback link, so it is the permission that actually grants viewing.",
   "videolib.view": "Browses the library of uploaded videos.",
-  "videolib.upload": "Uploads new video into the library.",
-  "videolib.edit": "Renames or re-tags a video in the library.",
-  "videolib.delete": "Deletes a video from the library.",
+  "videolib.upload": "Uploads a video to a lesson, or replaces the one already on it.",
+  "videolib.edit": "Edits a video's caption tracks.",
+  "videolib.delete": "Takes a video off its lesson, leaving the lesson with no video.",
   "resources.view": "Sees the files attached to lessons.",
   "resources.create": "Attaches a file to a lesson.",
   "resources.edit": "Replaces or renames an attached file.",

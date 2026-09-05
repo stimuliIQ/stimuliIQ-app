@@ -39,6 +39,7 @@ export function ProgramDetailDrawer({ programId, onOpenChange, me }: ProgramDeta
   // exact keys rather than getModulePermissions' CRUD convenience bundle.
   const canViewVideos = hasPermission(me?.permissions, "videolib.view");
   const canManageVideos = hasPermission(me?.permissions, "videolib.upload");
+  const canDeleteVideos = hasPermission(me?.permissions, "videolib.delete");
 
   const handlePublish = async () => {
     if (!program) return;
@@ -304,6 +305,7 @@ export function ProgramDetailDrawer({ programId, onOpenChange, me }: ProgramDeta
                     canEdit={permissions.canEdit}
                     canViewVideos={canViewVideos}
                     canManageVideos={canManageVideos}
+                    canDeleteVideos={canDeleteVideos}
                   />
                 </div>
               </div>

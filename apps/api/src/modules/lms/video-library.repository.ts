@@ -11,6 +11,15 @@
 // lessonId. Re-ingesting for a lesson that already has a video therefore UPDATES the
 // EXISTING row in place (fresh provider identifiers, status reset to `processing`,
 // duration/captions cleared) rather than soft-delete + recreate.
+//
+// THE SAME UNIQUE IS WHY DELETE NEEDS A RESTORE PATH. `videos` carries TWO uniques on
+// `lesson_id`: the partial `videos_active_lesson_id_key` (WHERE deleted_at IS NULL) and
+// the FULL `videos_lesson_id_key` from the Prisma `@unique`, which has no WHERE clause
+// and was never dropped. A soft-deleted row therefore keeps holding the slot, so
+// `createVideo` for that lesson would hit P2002 and the lesson could never be given a
+// video again — delete would be a one-way door. Re-ingesting after a delete RESTORES the
+// soft-deleted row instead (`findAnyVideoByLessonId` -> `restoreVideo`), the same shape
+// `UsersRepository.findAnyByEmail` -> `restore` uses for the full unique on user email.
 
 import { Injectable } from "@nestjs/common";
 import { Prisma, type Video as VideoRow, type VideoStatus } from "@prisma/client";
@@ -69,10 +78,6 @@ export class VideoLibraryRepository {
     });
   }
 
-  findActiveVideoByLessonId(tenantId: string, lessonId: string): Promise<VideoRow | null> {
-    return this.prisma.client.video.findFirst({ where: { tenantId, lessonId, deletedAt: null } });
-  }
-
   async createVideo(
     tenantId: string,
     lessonId: string,
@@ -95,6 +100,56 @@ export class VideoLibraryRepository {
         captions: Prisma.JsonNull,
       },
     });
+  }
+
+  /**
+   * Any row for this lesson, INCLUDING a soft-deleted one.
+   *
+   * `deletedAt: undefined` is not a no-op here: softDeleteExtension merges
+   * `deletedAt: null` into every `where` that does not already mention the key, and it
+   * tests key PRESENCE (`"deletedAt" in where`), so naming it with an undefined value is
+   * the documented opt-out. Without this the caller cannot see the soft-deleted row that
+   * is still occupying the lesson's unique slot, and would try to create a second one.
+   */
+  findAnyVideoByLessonId(tenantId: string, lessonId: string): Promise<VideoRow | null> {
+    return this.prisma.client.video.findFirst({ where: { tenantId, lessonId, deletedAt: undefined } });
+  }
+
+  /**
+   * Bring a soft-deleted row back as a NEW upload: undelete and overwrite every field the
+   * old file owned.
+   *
+   * Deliberately identical in effect to `replaceVideo` plus `deletedAt: null` — somebody
+   * who deleted a video and then uploaded another one to the same lesson expects the file
+   * they just chose, not a half-resurrection still carrying the deleted video's duration
+   * and caption tracks. Same call `UsersRepository.restore` makes.
+   */
+  async restoreVideo(id: string, data: { provider: string; providerAssetId: string }): Promise<VideoRow> {
+    return this.prisma.client.video.update({
+      where: { id },
+      data: {
+        deletedAt: null,
+        provider: data.provider,
+        providerAssetId: data.providerAssetId,
+        status: "processing",
+        durationS: null,
+        captions: Prisma.JsonNull,
+      },
+    });
+  }
+
+  /**
+   * Detach the video from its lesson.
+   *
+   * `delete` is rewritten to `update { deleted_at: now() }` by softDeleteExtension — no
+   * row is hard-deleted, and the audit extension records it. The lesson's `type` is left
+   * alone on purpose: it is not knowable what the lesson was before a video was attached
+   * (`promoteLessonToVideo` does not record it), and the student-facing result is already
+   * honest — `LmsService` answers a video lesson with no video row with
+   * `lms.video_not_ready`, which the LMS renders as "Video not available yet".
+   */
+  async softDeleteVideo(id: string): Promise<void> {
+    await this.prisma.client.video.delete({ where: { id } });
   }
 
   async updateCaptions(id: string, captions: Prisma.InputJsonValue): Promise<VideoRow> {
