@@ -106,6 +106,25 @@ stimuliiq/
     deployments (free tier — limited credits). Commit locally as needed; pushing to
     any remote requires the user to say so first, each time.
 
+14. **Supabase's Data API is CLOSED over `public`, and must stay closed.** A Supabase project
+    serves the whole `public` schema over HTTPS via PostgREST to two browser-facing roles,
+    `anon` and `authenticated`, and ships DEFAULT PRIVILEGES granting both of them SELECT /
+    INSERT / UPDATE / DELETE / TRUNCATE on every table created there. Prisma creates this
+    schema as `postgres`, so until 2026-09-09 all 91 tables and 8 materialized views had
+    those grants and RLS was off on all 91: a second, unauthenticated interface onto users
+    (password hashes included), payments, leads and audit logs, bypassing every NestJS guard,
+    permission check, tenant scope and audit write. Nothing in this repo has ever used the
+    Data API — there is no `@supabase/supabase-js` and no anon key anywhere — which is
+    exactly why nobody noticed. Migration `20260909100000_lock_public_schema_from_data_api`
+    revokes the grants, revokes the DEFAULT PRIVILEGES so the next migration cannot silently
+    re-open it, and enables RLS on every table. **The grants are the control, not the RLS**:
+    RLS satisfies Supabase's `rls_disabled_in_public` linter and is defence in depth, but
+    Postgres has no RLS for materialized views, so revoking is the only thing that could
+    protect `mv_revenue_daily` and its siblings. Safe for the app because it connects as
+    `postgres`, which owns every table and carries `rolbypassrls`. `service_role` is left
+    alone deliberately: secret, server-only, and it bypasses RLS anyway. If a future
+    `GRANT ... TO anon` or a Supabase-side default ever reappears, that is a regression.
+
 ---
 
 ## 4. Definition of Done (per unit of work)
