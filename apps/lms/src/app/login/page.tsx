@@ -28,7 +28,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, Button, Input, Label, PasswordInput } from "@repo/ui";
 import { ApiError } from "@repo/api-client";
-import { LoginRequestSchema, type LoginRequest } from "@repo/types";
+import { LoginRequestSchema, type AuthSessionData, type LoginRequest } from "@repo/types";
 
 import { AuthSplitLayout } from "../../components/auth/auth-split-layout";
 import { useLogin } from "../../hooks/use-login";
@@ -90,7 +90,15 @@ function LoginForm(): React.JSX.Element {
   const [code, setCode] = React.useState("");
   const [notice, setNotice] = React.useState<string | null>(null);
 
-  function goToPostLogin() {
+  // A student on a temporary password can do exactly one thing, so send them straight to
+  // /change-password. Going via the dashboard first mounted the whole shell, fired its
+  // queries (each refused with 403 password_change_required) and only then let
+  // FirstLoginGate bounce them, which is most of the wait they saw after "Sign in".
+  function goToPostLogin(session?: AuthSessionData) {
+    if (session?.user.mustChangePassword) {
+      router.replace("/change-password");
+      return;
+    }
     router.replace(safeNext(searchParams.get("next")));
     router.refresh();
   }
@@ -135,8 +143,8 @@ function LoginForm(): React.JSX.Element {
     event.preventDefault();
     if (!credentials) return;
     try {
-      await loginVerify.mutateAsync({ ...credentials, code: code.trim() });
-      goToPostLogin();
+      const session = await loginVerify.mutateAsync({ ...credentials, code: code.trim() });
+      goToPostLogin(session);
     } catch {
       // Rendered from `loginVerify.error` below.
     }

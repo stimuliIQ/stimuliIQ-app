@@ -28,6 +28,7 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 import * as argon2 from "argon2";
+import type { User } from "@prisma/client";
 import type {
   AppAudience,
   AuthSessionData,
@@ -80,8 +81,13 @@ export class AuthService {
     password: string,
     meta: { device?: string; ip?: string },
     audience?: AppAudience,
+    // The row `verifyCredentialsOnly` already loaded and checked for THIS request. Passing it
+    // skips the second rate-limit hit, user lookup and argon2 verify (two round trips plus a
+    // 64 MiB hash) that the controllers used to pay on every sign-in. Only ever pass a row
+    // that came straight back from that method.
+    preVerified?: User,
   ): Promise<{ session: AuthSessionData; tokens: IssuedTokens }> {
-    if (await this.loginRateLimiter.hit(email)) {
+    if (!preVerified && (await this.loginRateLimiter.hit(email))) {
       throw new BadRequestException({
         code: "auth.rate_limited",
         title: "Too many login attempts",
@@ -89,7 +95,7 @@ export class AuthService {
       });
     }
 
-    const user = await this.authRepository.findUserByEmail(TENANT_SLUG, email);
+    const user = preVerified ?? (await this.authRepository.findUserByEmail(TENANT_SLUG, email));
     const invalidCredentialsError = new UnauthorizedException({
       code: "auth.invalid_credentials",
       title: "Invalid email or password",
@@ -104,7 +110,7 @@ export class AuthService {
     // Prisma soft-delete extension (prisma/soft-delete.extension.ts) makes
     // findUserByEmail's findFirst() return null for a deleted row automatically.
     const hashToVerify = user?.passwordHash ? user.passwordHash : DUMMY_PASSWORD_HASH;
-    const passwordValid = await argon2.verify(hashToVerify, password).catch(() => false);
+    const passwordValid = preVerified ? true : await argon2.verify(hashToVerify, password).catch(() => false);
 
     // Unknown account, OTP-only account (no password set), wrong password, and
     // inactive/disabled account ALL produce the exact same generic error — never
@@ -153,7 +159,10 @@ export class AuthService {
    * truth for actually issuing a session, so this method is purely additive and does
    * not change `login()`'s existing behavior/signature (zero risk to existing callers).
    */
-  async verifyCredentialsOnly(email: string, password: string): Promise<{ id: string; twoFaEnabled: boolean } | null> {
+  async verifyCredentialsOnly(
+    email: string,
+    password: string,
+  ): Promise<{ id: string; twoFaEnabled: boolean; user: User } | null> {
     if (await this.loginRateLimiter.hit(email)) {
       throw new BadRequestException({
         code: "auth.rate_limited",
@@ -170,7 +179,7 @@ export class AuthService {
       return null; // enumeration-resistant — identical to login()'s invalidCredentialsError condition.
     }
 
-    return { id: user.id, twoFaEnabled: user.twoFaEnabled };
+    return { id: user.id, twoFaEnabled: user.twoFaEnabled, user };
   }
 
   // ── Refresh (rotating, single-use, reuse-detection) ──────────────────────

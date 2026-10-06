@@ -115,6 +115,21 @@ describe("AuthService", () => {
   });
 
   describe("login", () => {
+    it("with a pre-verified user, skips the second lookup, rate-limit hit and argon2 verify", async () => {
+      const passwordHash = await argon2.hash("correct-password");
+      const row = { ...ACTIVE_USER, passwordHash };
+      (argon2.verify as jest.Mock).mockClear();
+      repo.findUserByEmail.mockClear();
+      loginRateLimiter.hit.mockClear();
+
+      const { session } = await service.login(ACTIVE_USER.email, "correct-password", {}, undefined, row as never);
+
+      expect(session.user.id).toBe(ACTIVE_USER.id);
+      expect(argon2.verify).not.toHaveBeenCalled();
+      expect(repo.findUserByEmail).not.toHaveBeenCalled();
+      expect(loginRateLimiter.hit).not.toHaveBeenCalled();
+    });
+
     it("rejects unknown email with a generic invalid-credentials error (no user enumeration)", async () => {
       repo.findUserByEmail.mockResolvedValue(null);
       await expect(service.login("nobody@stimuliiq.test", "whatever", {})).rejects.toThrow(UnauthorizedException);
@@ -329,12 +344,13 @@ describe("AuthService", () => {
       expect(result).toBeNull();
     });
 
-    it("returns {id, twoFaEnabled} on valid credentials WITHOUT issuing a session", async () => {
+    it("returns {id, twoFaEnabled, user} on valid credentials WITHOUT issuing a session", async () => {
       const passwordHash = await argon2.hash("correct-password");
-      repo.findUserByEmail.mockResolvedValue({ ...ACTIVE_USER, passwordHash, twoFaEnabled: true });
+      const row = { ...ACTIVE_USER, passwordHash, twoFaEnabled: true };
+      repo.findUserByEmail.mockResolvedValue(row);
 
       const result = await service.verifyCredentialsOnly(ACTIVE_USER.email, "correct-password");
-      expect(result).toEqual({ id: ACTIVE_USER.id, twoFaEnabled: true });
+      expect(result).toEqual({ id: ACTIVE_USER.id, twoFaEnabled: true, user: row });
       expect(repo.createSession).not.toHaveBeenCalled();
       expect(tokens.signAccessToken).not.toHaveBeenCalled();
     });

@@ -69,7 +69,7 @@ export class AuthController {
       });
     }
 
-    const { session, tokens } = await this.authService.login(body.email, body.password, requestMeta(req), body.audience);
+    const { session, tokens } = await this.authService.login(body.email, body.password, requestMeta(req), body.audience, check.user);
     // Audience-scoped cookie slot (cookies.ts header) — a CRM login and an LMS login
     // can now coexist in the same browser without overwriting each other's session.
     setAuthCookies(res, tokens, body.audience);

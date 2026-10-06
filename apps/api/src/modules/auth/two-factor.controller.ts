@@ -125,7 +125,7 @@ export class TwoFactorLoginController {
       throw new UnauthorizedException({ code: "TOTP_CODE_INVALID", title: "Invalid two-factor code" });
     }
 
-    const { session, tokens } = await this.authService.login(body.email, body.password, requestMeta(req), body.audience);
+    const { session, tokens } = await this.authService.login(body.email, body.password, requestMeta(req), body.audience, check.user);
     setAuthCookies(res, tokens, body.audience);
     return session;
   }
