@@ -506,6 +506,10 @@ const PERMISSION_HELP: Record<string, string> = {
   "leave.manage":
     "Sets up leave types, yearly allowances, the holiday list and the working week. Held by the super admin and HR.",
 
+  // ── System ────────────────────────────────────────────────────────────────
+  "system.health.view":
+    "Opens Admin ▸ System Health: whether the API, database, cache, websites and integrations are up, plus student headcounts. Held by the super admin only, because it shows how the platform is built.",
+
   // ── Organisation ──────────────────────────────────────────────────────────
   "org.teams.view":
     "Sees the teams, who manages them and who leads them. Reading the org chart only.",

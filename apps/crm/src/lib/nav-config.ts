@@ -38,6 +38,7 @@
 import type { ComponentType } from "react";
 import type { PermissionGrant } from "@repo/types";
 import {
+  Activity,
   Award,
   BarChart3,
   BookMarked,
@@ -420,6 +421,15 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Automatic Emails", icon: Send, to: "/admin/email-templates", permission: "settings.view" },
       { label: "Settings", icon: Settings, to: "/admin/settings", permission: "settings.view" },
     ],
+  },
+  {
+    // Platform status: a top-level entry rather than an Admin child so the super admin can see
+    // it at a glance without opening a submenu. "system.health.view" is seeded outside the admin
+    // catch-all, so this is invisible to every other role, Admin included. The API enforces it too.
+    label: "System Health",
+    icon: Activity,
+    to: "/admin/system-health",
+    permission: "system.health.view",
   },
   {
     // LAST ITEM, deliberately: this is the only nav entry that is about the signed-in

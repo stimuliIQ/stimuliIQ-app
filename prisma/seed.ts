@@ -1120,6 +1120,21 @@ async function main(): Promise<void> {
   await grant(superAdminRole.id, orgManagePermission.id, RolePermissionScope.all);
   if (hrRole) await grant(hrRole.id, orgManagePermission.id, RolePermissionScope.all);
 
+  // ── System health: the owner's operations view is NOT in the catalog ────────────────
+  //
+  // CRM ▸ Admin ▸ System Health shows infrastructure topology, versions, which integrations
+  // are switched off, and student headcounts. That is the super admin's view of the platform,
+  // not an administrator's, so `system.health.view` is upserted HERE, outside the array the
+  // admin+super_admin catch-all iterates (same device as `leave.approve`, `org.teams.manage`).
+  // `admin` does not get it and nobody else is granted it. Mirrored by
+  // prisma/seed-system-health.ts for a database that is already live.
+  const systemHealthPermission = await prisma.permission.upsert({
+    where: { key: "system.health.view" },
+    update: { label: "View System Health & Platform Status" },
+    create: { key: "system.health.view", label: "View System Health & Platform Status" },
+  });
+  await grant(superAdminRole.id, systemHealthPermission.id, RolePermissionScope.all);
+
   // ── HR's grant set ─────────────────────────────────────────────────────────────────
   //
   // Company-wide PEOPLE authority, and deliberately nothing beyond it. Note what HR does

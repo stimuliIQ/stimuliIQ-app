@@ -54,6 +54,8 @@ import { CourseTypesApi } from "./course-types.api.js";
 // rather than admin.*: reading the chart is information every staff role may need, while
 // EDITING it decides who signs off whose leave.
 import { OrgApi } from "./org.api.js";
+// System health (super admin only, system.health.view) — live platform status + headcounts.
+import { SystemHealthApi } from "./system-health.api.js";
 
 /** Admin sub-namespace → `client.crm.admin.roles` / `.branches` / `.users`. */
 export class AdminApi {
@@ -141,6 +143,8 @@ export class CrmApi {
   readonly courseTypes: CourseTypesApi;
   // Teams + reporting lines, and `org.myPosition()` — where the signed-in person sits.
   readonly org: OrgApi;
+  // Platform health snapshot — API, Postgres, Redis, frontends, integrations, student counts.
+  readonly systemHealth: SystemHealthApi;
 
   constructor(client: ApiClient) {
     this.students = new StudentsApi(client);
@@ -181,6 +185,7 @@ export class CrmApi {
     this.leave = new LeaveApi(client);
     this.courseTypes = new CourseTypesApi(client);
     this.org = new OrgApi(client);
+    this.systemHealth = new SystemHealthApi(client);
   }
 }
 
@@ -215,3 +220,4 @@ export * from "./leave.api.js";
 export * from "./careers.api.js";
 export * from "./marketing-targets.api.js";
 export * from "./course-types.api.js";
+export * from "./system-health.api.js";

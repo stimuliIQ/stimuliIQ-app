@@ -73,6 +73,7 @@ import { LeaveModule } from "./modules/leave/leave.module";
 import { MarketingTargetsModule } from "./modules/marketing-targets/marketing-targets.module";
 import { CourseTypesModule } from "./modules/course-types/course-types.module";
 import { OrgModule } from "./modules/org/org.module";
+import { SystemHealthModule } from "./modules/system-health/system-health.module";
 
 @Module({
   imports: [
@@ -175,6 +176,7 @@ import { OrgModule } from "./modules/org/org.module";
     MarketingTargetsModule,
     CourseTypesModule,
     OrgModule,
+    SystemHealthModule,
   ],
   providers: [
     AuditContextMiddleware,

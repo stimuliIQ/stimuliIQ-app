@@ -505,6 +505,18 @@ db foundation). Then execute it, delegating each task to the named specialist su
   On edit the branch is read back BEFORE the role purge and re-applied, so editing a name no
   longer empties somebody's territory.
 
+- **P18 System Health (DONE):** **CRM ▸ Admin ▸ System Health** (`/admin/system-health`) is the
+  super admin's one-screen answer to "is the platform OK, and how big is it?": live checks of the API
+  process, Postgres, Redis and the web/LMS/CRM sites, a configuration-only view of every integration, the
+  student headcount, and the API's own request/error counters, rolled up into one healthy / degraded / down
+  verdict (`rollUpSystemHealth`, shared in `@repo/types`). `system.health.view` is **super_admin only**,
+  seeded OUTSIDE the catalog like `leave.approve`. Integrations are deliberately NOT pinged (it would burn
+  vendor quota on every refresh), and their text says so, so green never reads as "reachable". Failures are
+  logged server-side only; responses carry no hostnames, errors or secrets. Cached 10 s, single-flighted.
+  Spec: `docs/specs/system-health.md`.
+  **DB setup on an existing/live database:** no migration; run `pnpm db:seed:system-health` (one
+  permission, one grant). Do NOT run the full `pnpm db:seed` against a live DB.
+
 Do **not** jump ahead. Each phase ends with tests green + a demo path.
 
 ---
@@ -542,5 +554,6 @@ Do **not** jump ahead. Each phase ends with tests green + a demo path.
 | Marketing targets spec (two numbers, derived progress, dashboard card) | `docs/specs/marketing-targets.md` |
 | Course types spec (CRM-managed option list, immutable keys, hide-not-delete) | `docs/specs/course-types.md` |
 | Org hierarchy spec (teams, two-step leave approval, HR) | `docs/specs/org-teams.md` |
+| System health spec (super-admin platform status, live checks, student counts) | `docs/specs/system-health.md` |
 | Lead ownership + accountability (assignment notify, owner picker, per-rep report) | `docs/specs/lead-ownership-accountability.md` |
 | Agent roster & protocol | `.claude/agents/README.md` |

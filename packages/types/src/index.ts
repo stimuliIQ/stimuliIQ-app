@@ -209,3 +209,7 @@ export * from "./crm/marketing-targets.schemas.js";
 // reason `computeLeaveDuration` is: who approves your leave is one rule, and an apply form
 // that guessed it locally would eventually disagree with the API that enforces it.
 export * from "./crm/org.schemas.js";
+
+// System health — the super-admin operations snapshot. `rollUpSystemHealth` ships alongside the
+// schemas and is run on BOTH sides, so the API's verdict and the CRM banner cannot disagree.
+export * from "./crm/system-health.schemas.js";
